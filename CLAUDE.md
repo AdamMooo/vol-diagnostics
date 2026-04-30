@@ -3,9 +3,9 @@ Last updated: 2026-04-22 | Status: active (Phases 1–2 complete, Phase 3 cells 
 
 ## Repo Card
 
-- **Open:** `jupyter lab` (or `jupyter notebook`) from project root
+- **Open:** Cron2 Jupyter Notebook Server only — cannot run locally
 - **Entry point:** `hmm.ipynb`
-- **Runtime:** Python + `.venv/` (activate before launching Jupyter)
+- **Runtime:** server-side (no local venv, no `requirements.txt` — server provides the stack)
 - **Stack:** pandas, numpy, hmmlearn, matplotlib, seaborn, scipy, statsmodels
 - **Data:** internal company database (connection config TBD — see notebook Setup cell)
 - **Workflow:** GSD (`.planning/`)
@@ -30,7 +30,6 @@ Core value: given fund NAV and benchmark return data, answer "what regime are we
 | File | Purpose |
 |------|---------|
 | `hmm.ipynb` | Main research notebook — all analysis, charts, summary |
-| `requirements.txt` | Python dependencies |
 | `data/` | Local data exports from internal DB (gitignored if sensitive) |
 
 ## Notebook Sections (planned)
