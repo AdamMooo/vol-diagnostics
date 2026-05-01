@@ -1,124 +1,159 @@
-# Roadmap: TQ HMM — Regime-Aware Fund Intelligence
+# Roadmap: TQ — Sleeve Allocation Framework (v2.0)
 
 ## Overview
 
-Six phases build the notebook from raw data to presentation-ready output. Phases 1-2 establish the foundation (data + regime model); Phases 3-4 derive fund behavior and stability analytics; Phase 5 polishes all charts to presentation quality; Phase 6 assembles the deliverable and validates top-to-bottom execution. Phase 4 can begin in parallel with Phase 3 once the regime state series from Phase 2 is complete.
+Eight phases (7-14) build a regime-aware options-overlay sleeve scorecard. Phase α (Phases 7-12) is the engine — data, signals, sleeve P&L backtests, scorecard, PM output, validation. Phase β (Phase 13) specializes the engine for PDIV. Phase γ (Phase 14) is an optional Markov-switching fragility flag appendix. All work in a new notebook `sleeve_alpha.ipynb`; `hmm.ipynb` is preserved as legacy v1.0.
 
-## Phases
+Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision with stale `01-*`, `02-*`, `03-*` phase directories. The α / β / γ labels are the user-facing structure; 7-14 are the GSD phase numbers.
 
-- [x] **Phase 1: Data Layer** - Load, clean, and align fund and benchmark returns; produce EDA section
-- [x] **Phase 2: Regime Model** - Fit 2-state HMM on benchmark, validate stability, label regimes
-- [ ] **Phase 3: Fund Analysis** - Compute regime-conditional statistics and alpha/beta; format core deliverable table
-- [ ] **Phase 4: Regime Stability & Transitions** - Transition matrix, expected durations, current regime read-out
-- [ ] **Phase 5: Visualization** - Regime-shaded charts, distribution plots, consistent palette, presentation quality
-- [ ] **Phase 6: Summary & Polish** - Plain-English findings, caveats, clean top-to-bottom run
+## Phases (Phase α — Engine)
+
+- [ ] **Phase 7: Extended Data Layer** — Multi-underlying price + IV + skew + VIX + risk-free rate, aligned, freshness-checked
+- [ ] **Phase 8: Signal Engineering** — RV, VRP, skew, term, trend, drawdown, fragility composite — percentile-ranked
+- [ ] **Phase 9: Sleeve Backtest Engine** — BS pricing + synthetic monthly-roll P&L for CC, CSP, Collar, Short Straddle on each underlying
+- [ ] **Phase 10: Scorecard** — Per-sleeve linear scoring rules on signal panel, normalized weight allocation
+- [ ] **Phase 11: PM-Grade Output** — Dashboard table + auto-commentary + small-multiple charts + parquet snapshot
+- [ ] **Phase 12: Validation Gates** — Causality, walk-forward sign accuracy, turnover, tail-risk, robustness, trust scorecard
+
+## Phases (Phase β — PDIV Specialization)
+
+- [ ] **Phase 13: PDIV Specialization** — Engine pointed at PDIV; current-vs-recommended overlay diff; historical overlay alpha quantified
+
+## Phases (Phase γ — Optional Appendix)
+
+- [ ] **Phase 14: Markov-Switching Fragility Flag (optional)** — `statsmodels.MarkovRegression` 2-state on fragility composite, hysteresis, override rule
+
+---
 
 ## Phase Details
 
-### Phase 1: Data Layer
-**Goal**: Fund and benchmark return series are loaded, cleaned, aligned, and characterized — the notebook can run all downstream analysis on validated data
-**Depends on**: Nothing (first phase)
-**Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, DATA-05
-**Success Criteria** (what must be TRUE):
-  1. A Setup cell documents the DB connection and data pull without requiring reader intervention
-  2. Fund and benchmark returns share a common date index with no unexplained gaps and explicitly handled missing dates
-  3. The EDA section shows summary statistics, cumulative return, rolling vol, and drawdown — all readable without further processing
-  4. A reader can confirm data quality by inspecting the EDA outputs alone
-**Plans**: 3 plans
+### Phase 7: Extended Data Layer (α)
+**Goal:** Multi-underlying price + ATM IV + 90%-moneyness IV + VIX + risk-free rate are loaded, calendar-aligned, and exposed as canonical panels (`prices_panel`, `iv_panel`, `skew_panel`) ready for downstream signal work.
 
-Plans:
-- [x] 01-01-PLAN.md — Setup cell (constants, color palette) + Data Load cell (Django ORM fund NAV, Bloomberg benchmark price, frequency check)
-- [x] 01-02-PLAN.md — Log returns (np.log), date alignment (inner join, no forward-fill), fund_aligned + bench_aligned output variables
-- [x] 01-03-PLAN.md — EDA section: summary stats table (annualized return/vol/Sharpe/max DD) + 3 charts (cumulative return, rolling 21d vol, drawdown)
+**Depends on:** Nothing (phase α start; uses confirmed working `con.bdh` fields)
 
-### Phase 2: Regime Model
-**Goal**: A validated, labeled 2-state HMM is fit on benchmark returns and its regime assignments are ready for downstream use
-**Depends on**: Phase 1
-**Requirements**: REGM-01, REGM-02, REGM-03, REGM-04, REGM-05, REGM-06
-**Success Criteria** (what must be TRUE):
-  1. The HMM fits and converges; regime state series is stored as a date-indexed labeled series
-  2. Regime posterior probabilities are plotted over the full history
-  3. Average regime duration is documented as weeks-to-months (not days), confirming the model isn't noise-following
-  4. Re-fitting with 10 random seeds produces consistent regime assignments (stability documented in notebook)
-  5. Regimes carry human-readable labels (e.g. Risk-On / Risk-Off) grounded in conditional statistics
-**Plans**: 3 plans
+**Requirements:** DATA-06, DATA-07, DATA-08, DATA-09, DATA-10, DATA-11, DATA-12
 
-Plans:
-- [x] 02-01-PLAN.md — Section 2 header + HMM fit (GaussianHMM, Viterbi decode, convergence check) + regime statistics + composite labeling (regime_labels output)
-- [x] 02-02-PLAN.md — Regime duration validation (spell detection, mean/median days/weeks per state) + seed stability check (9 refits, label-swap-aware agreement fractions)
-- [x] 02-03-PLAN.md — Posterior probability extraction (predict_proba, regime_posteriors) + P(Risk-On) chart + Phase 2 output summary cell with integrity assertions
+**Success Criteria:**
+1. SPX and QQQ price + ATM IV + 90%-moneyness IV pulled and aligned over full history with documented field names
+2. XIU/XSP probed; either included with confirmed fields or explicitly marked deferred with reason
+3. VIX and a risk-free proxy loaded
+4. All series aligned to a single trading-day index using `pandas_market_calendars`
+5. Freshness check warns on stale data; data layer runs clean on fresh kernel
 
-### Phase 3: Fund Analysis
-**Goal**: The core deliverable — regime-conditional statistics, alpha/beta, and a finance-audience summary table — is complete
-**Depends on**: Phase 2
-**Requirements**: FUND-01, FUND-02, FUND-03, FUND-04
-**Success Criteria** (what must be TRUE):
-  1. Mean return, vol, Sharpe, and max drawdown are computed separately for each regime state
-  2. Alpha and beta are estimated by regime via OLS with sample size and date range documented for each split
-  3. A formatted summary statistics table is present and readable without needing to run further code
-**Plans**: TBD
+### Phase 8: Signal Engineering (α)
+**Goal:** Six core signals + a fragility composite are computed per underlying, percentile-ranked on a causal expanding window, and pass a QA cell.
 
-Plans:
-- [ ] 03-01: Regime-conditional statistics (return, vol, Sharpe, max drawdown per state)
-- [ ] 03-02: Alpha/beta by regime (OLS split), sample sizes, date ranges
-- [ ] 03-03: Summary statistics table formatted for finance audience
+**Depends on:** Phase 7
 
-### Phase 4: Regime Stability & Transitions
-**Goal**: Transition dynamics and the current regime read-out are fully documented — a reader can assess how sticky regimes are and where we are today
-**Depends on**: Phase 2
-**Requirements**: STAB-01, STAB-02, STAB-03
-**Success Criteria** (what must be TRUE):
-  1. A labeled transition probability heatmap shows persistence and switching probabilities between states
-  2. Expected duration for each regime is computed from the transition matrix diagonal and stated plainly
-  3. The current regime posterior and days-in-current-regime are displayed as of the latest data date
-**Plans**: TBD
+**Requirements:** SIG-01, SIG-02, SIG-03, SIG-04, SIG-05, SIG-06, SIG-07, SIG-08
 
-Plans:
-- [ ] 04-01: Transition matrix computation and labeled heatmap
-- [ ] 04-02: Expected durations and current regime read-out
+**Success Criteria:**
+1. RV, VRP, skew, trend, drawdown signals computed per underlying with no future leakage
+2. Cross-asset fragility composite computed
+3. All signals percentile-ranked [0, 1] on a 252d expanding window
+4. QA cell prints missingness %, sanity bounds, and rolling stationarity diagnostic
 
-### Phase 5: Visualization
-**Goal**: All charts are presentation-quality and use a consistent regime color palette — the notebook is visually coherent and presentable to a PM or investment committee
-**Depends on**: Phase 3, Phase 4
-**Requirements**: VIZ-01, VIZ-02, VIZ-03, VIZ-04
-**Success Criteria** (what must be TRUE):
-  1. The cumulative return chart has background shading that colors each period by regime state
-  2. A return distribution histogram shows fund returns split by regime, overlapping and labeled
-  3. Every time-series chart uses the same regime color assignments (no mismatched colors across sections)
-  4. All charts have clean axes, titles, and axis labels — no default matplotlib chart junk
-**Plans**: TBD
-**UI hint**: yes
+### Phase 9: Sleeve Backtest Engine (α)
+**Goal:** Synthetic monthly-roll P&L histories for CC, CSP, 95/110 Collar, 1m Short Straddle on each underlying are produced, with Black-Scholes pricing, slippage assumptions, and a sleeve-vs-underlying comparison table.
 
-Plans:
-- [ ] 05-01: Regime-shaded cumulative return chart and palette constants
-- [ ] 05-02: Return distribution histogram split by regime
-- [ ] 05-03: Polish pass — apply consistent palette and presentation standards to all charts
+**Depends on:** Phase 7 (Phase 8 not strictly required — can run in parallel)
 
-### Phase 6: Summary & Polish
-**Goal**: The notebook is a complete, self-contained research deliverable — plain-English findings, honest caveats, and a clean top-to-bottom run on a fresh kernel
-**Depends on**: Phase 5
-**Requirements**: SUMM-01, SUMM-02, SUMM-03
-**Success Criteria** (what must be TRUE):
-  1. A summary section contains 3-5 plain-English bullet findings a non-quant PM can read and act on
-  2. A caveats section addresses in-sample labeling, no-forecasting scope, and flags any regime splits with small sample sizes
-  3. The notebook runs Kernel → Restart & Run All without errors or manual intervention
-**Plans**: TBD
+**Requirements:** SLV-01, SLV-02, SLV-03, SLV-04, SLV-05, SLV-06, SLV-07
 
-Plans:
-- [ ] 06-01: Summary section (3-5 plain-English findings)
-- [ ] 06-02: Caveats section and sample size warnings
-- [ ] 06-03: End-to-end clean run, cell ordering, output validation
+**Success Criteria:**
+1. BS pricer covers call/put with vectorized inputs and matches a sanity-check value
+2. CC, CSP, Collar, Short Straddle P&L series produced per underlying with explicit slippage
+3. Comparison table (return / vol / Sharpe / max DD / hit rate) produced
+4. Outputs reproducible (`random_state=42`) and snapshotted to parquet
+
+### Phase 10: Scorecard (α)
+**Goal:** Per-sleeve transparent scoring rules combine signal-panel ranks into a [-1, +1] sleeve attractiveness score; sleeve weights normalize within a configurable overlay budget.
+
+**Depends on:** Phase 8 (signals), Phase 9 (sleeve P&L for sanity-check)
+
+**Requirements:** SCR-01, SCR-02, SCR-03, SCR-04
+
+**Success Criteria:**
+1. Each sleeve's scoring rule is a printed linear combination of signal ranks (no hidden weights)
+2. Latest-date sleeve scores in [-1, +1] for every (sleeve × underlying)
+3. Weights normalize to a configurable budget; sleeve caps applied
+4. Top-2 driver signals identified per (sleeve × underlying)
+
+### Phase 11: PM-Grade Output (α)
+**Goal:** Dashboard table + auto-commentary + small-multiple charts + parquet snapshot. PM can read this without verbal explanation.
+
+**Depends on:** Phase 10
+
+**Requirements:** OUT-01, OUT-02, OUT-03, OUT-04, OUT-05
+
+**Success Criteria:**
+1. Dashboard table renders with sleeve × underlying × score × weight × top-2 drivers + signal-percentile context
+2. Auto-commentary block (3-5 sentences) generated from data, not hard-coded
+3. Sleeve scores small-multiples chart + cumulative P&L chart present
+4. Output snapshotted to parquet/csv per refresh date
+
+### Phase 12: Validation Gates (α)
+**Goal:** All six validation gates pass, producing a one-line trust verdict at the top of the notebook.
+
+**Depends on:** Phase 11
+
+**Requirements:** VAL-01, VAL-02, VAL-03, VAL-04, VAL-05, VAL-06
+
+**Success Criteria:**
+1. Causality, walk-forward sign accuracy, turnover, tail-risk, robustness all tested
+2. Trust scorecard prints PASS/WARN/FAIL with per-gate detail
+3. Any FAIL is documented with mitigation or scope decision
+
+### Phase 13: PDIV Specialization (β)
+**Goal:** Engine specialized to PDIV — produces a per-week sizing recommendation vs PDIV's current overlay rule, plus historical overlay-alpha quantification.
+
+**Depends on:** Phase 11 (engine output) — should not require Phase 12 to be green to start, but must be green to ship to a PM
+
+**Requirements:** PDIV-01, PDIV-02, PDIV-03, PDIV-04
+
+**Success Criteria:**
+1. PDIV's current overlay rule captured in a config cell
+2. Engine output specialized for PDIV's underlying / sleeve mix
+3. Per-week sizing rec vs current rule produced
+4. Historical overlay alpha computed and reported
+
+### Phase 14: Markov-Switching Fragility Flag (γ — optional)
+**Goal:** `statsmodels.MarkovRegression` 2-state model on the SIG-06 fragility composite produces a sticky fragility flag with hysteresis; flag overrides short-vol sleeve weights when ON.
+
+**Depends on:** Phase 8 (fragility composite) and Phase 10 (scorecard to override)
+
+**Requirements:** FRG-01, FRG-02, FRG-03
+
+**Success Criteria:**
+1. 2-state Markov-switching variance model fit, sticky transitions, `random_state=42`
+2. 5-day hysteresis filter applied; OOS K and dwell-time documented
+3. Override rule wired into Scorecard / Output: short-vol sleeves capped when fragility = ON
+
+---
 
 ## Progress
 
 **Execution Order:**
-Phases 1 → 2 → 3 and 4 (parallel after Phase 2) → 5 → 6
+Phase 7 → Phase 8 (and Phase 9 in parallel after 7) → Phase 10 → Phase 11 → Phase 12 → Phase 13 (β) → Phase 14 (γ, optional)
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Data Layer | 3/3 | Complete | 2026-04-22 |
-| 2. Regime Model | 3/3 | Complete | 2026-04-22 |
-| 3. Fund Analysis | 0/3 | Cells written — pending server run | - |
-| 4. Regime Stability & Transitions | 0/2 | Not started | - |
-| 5. Visualization | 0/3 | Not started | - |
-| 6. Summary & Polish | 0/3 | Not started | - |
+| Phase | Plans | Status | Completed |
+|-------|-------|--------|-----------|
+| 7. Extended Data Layer | 0 | Not started | - |
+| 8. Signal Engineering | 0 | Not started | - |
+| 9. Sleeve Backtest Engine | 0 | Not started | - |
+| 10. Scorecard | 0 | Not started | - |
+| 11. PM-Grade Output | 0 | Not started | - |
+| 12. Validation Gates | 0 | Not started | - |
+| 13. PDIV Specialization | 0 | Not started | - |
+| 14. Fragility Flag (γ — optional) | 0 | Not started | - |
+
+**Phase α (engine, must-ship):** 7-12
+**Phase β (PDIV, should-ship):** 13
+**Phase γ (HMM appendix, nice-to-have):** 14
+
+---
+
+## v1.0 (HMM) Phases — Archived
+
+Phases 1-6 from v1.0 (HMM-centric fund diagnostic) are not part of v2.0. Their planning artifacts live under `.planning/phases/01-data-layer/`, `02-regime-model/`, `03-fund-analysis/`. The corresponding code is in `hmm.ipynb`, preserved untouched. See `MILESTONES.md` for the v1.0 closure rationale.

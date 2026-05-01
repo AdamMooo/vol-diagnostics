@@ -1,86 +1,67 @@
 ---
 gsd_state_version: "1.0"
-milestone: "v1.0 — Regime-Aware Fund Intelligence Notebook"
+milestone: "v2.0 — Sleeve Allocation Framework"
 status: active
-last_updated: 2026-04-22
-context_gathered: Phase 3
-progress: 50
-phase_1_status: complete
-phase_2_status: complete
-phase_3_status: cells_written
+last_updated: 2026-04-30
+context_gathered: Phase 7
+progress: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-22)
+See: .planning/PROJECT.md (updated 2026-04-30)
+See: .planning/MILESTONES.md (v1.0 pivot rationale)
 
-**Core value:** Given fund NAV and benchmark return data, answer: "what regime are we in, how stable is it, and how does our fund actually behave in each regime?"
-**Current focus:** Phase 2 — Regime Model
+**Core value:** PM-readable scorecard of options-overlay sleeve attractiveness across SPX/QQQ (and optionally XIU/XSP), backed by sleeve P&L backtests, conditioned on a transparent signal panel.
+**Current focus:** Phase 7 — Extended Data Layer (start of Phase α — engine)
 
 ## Current Position
 
-Phase: 3 of 6 (Fund Analysis) — CELLS WRITTEN, PENDING SERVER RUN
-Next: Run cells 16-19 on server, then Phase 4 (Regime Stability & Transitions)
-Status: Phase 3 cells written — 3.1 regime-conditional stats, 3.2 OLS alpha/beta, 3.3 summary table
-Last activity: 2026-04-22 — cells 16-19 added; FUND-01 through FUND-04 covered
+Phase: 7 of 14 (Extended Data Layer) — NOT STARTED
+Next: `/gsd-discuss-phase 7` then `/gsd-plan-phase 7`
+Status: Milestone v2.0 freshly defined; data probes confirmed `con.bdh` IV fields work
+Last activity: 2026-04-30 — milestone v2.0 created after sleeve-pivot audit; PROJECT.md, REQUIREMENTS.md, ROADMAP.md, MILESTONES.md written
 
-Progress: [█████░░░░░] 50%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
+- Total plans completed: 0 (this milestone)
 - Average duration: —
 - Total execution time: —
 
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 02-regime-model | 3 | 3 | — |
-
-**Recent Trend:**
-- Last 5 plans: 02-01, 02-02, 02-03
-- Trend: —
-
-*Updated after each plan completion*
-
 ## Accumulated Context
 
-### Decisions
+### Decisions (carried forward — see PROJECT.md Strategic Decisions for full list)
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Setup: 2-state Gaussian HMM on benchmark returns (interpretable, finance-intuitive)
-- Setup: Regime fit on benchmark only — avoids circularity with fund returns
-- Setup: Internal data only at MVP; no external dependencies
-- Setup: Attribution (sector/factor) deferred to v2, contingent on holdings data
-- D-01 (02-01): Composite majority vote (score_0 >= 2 of 3 signals) determines Risk-On/Risk-Off label assignment
-- D-02 (02-01): Per-state stats table with signal winners printed for audit trail
-- D-04 (02-02): Per-seed agreement fractions printed individually; label swap handled by max(direct, swapped)
-- D-05 (02-02): Stability threshold >=8/9 seeds at >=90% agreement = STABLE
-- D-06 (02-02): Per-state duration printed as mean and median in days and weeks
-- D-03 (02-03): Single P(Risk-On) line chart using COLOR_BENCH, figsize=(12,4), dashed gray axhline at 0.5 — not stacked area, not two lines
+- 2026-04-30: Pivot from v1.0 HMM to v2.0 Sleeve Framework (audit-driven)
+- 2026-04-30: Scorecard primary, HMM optional — PM-auditable, governance-friendly
+- 2026-04-30: Strategy menu = CC + CSP + Collar + ShortStrangle. Drop dispersion
+- 2026-04-30: `30DAY_IMPVOL_100.0%MNY_DF` and `30DAY_IMPVOL_90.0%MNY_DF` confirmed working via `con.bdh` (emds_client)
+- 2026-04-30: Engine first (α), then specialize (β); HMM (γ) is appendix-only
 
 ### Pending Todos
 
-None yet.
+- Capture PDIV's current overlay rule (gate for Phase 13/β)
+- Probe XIU and XSP IV field availability during Phase 7
 
 ### Blockers/Concerns
 
-None — Data.ipynb confirmed present in project root; syntax patterns extracted into 01-RESEARCH.md.
+- None active. PDIV overlay rule capture is a Phase β prerequisite, not a Phase α blocker.
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| v2 | Attribution (ATTR-01 through ATTR-04) | Deferred — holdings data availability unconfirmed | Init |
+| v1.0 | Phase 3-6 server run + completion (HMM diagnostic) | Pivoted — not in v2.0 scope | 2026-04-30 |
+| v2.0 | Dispersion / implied-correlation sleeve | Out of scope (dealer/HF turf) | Init |
+| v2.0 | Phase γ (Markov-switching fragility flag) | Optional — only after Phase α/β green | Init |
 
 ## Session Continuity
 
-Last session: 2026-04-22
-Stopped at: Phase 3 cells written (16-19) — regime-conditional stats, OLS alpha/beta, summary table; pending server run
-Resume: Run cells 16-19 on Cron2 server, then Phase 4 (transition matrix, expected durations, current regime read-out)
+Last session: 2026-04-30
+Stopped at: Milestone v2.0 initialization complete (PROJECT, REQUIREMENTS, ROADMAP, MILESTONES, STATE written)
+Resume: `/gsd-discuss-phase 7` to gather context for Extended Data Layer, or `/gsd-plan-phase 7` to skip discussion and plan directly
