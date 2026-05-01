@@ -20,10 +20,10 @@ See: `.planning/MILESTONES.md` (v1.0 pivot rationale)
 
 ## Current Position
 
-Phase: **1 of 8** (Extended Data Layer) — NOT STARTED
-Next: `/gsd-discuss-phase 1` then `/gsd-plan-phase 1`
-Status: Milestone v2.0 freshly defined; phases renumbered 1-8 to make focus unambiguous; v1.0 phases archived
-Last activity: 2026-04-30 — milestone v2.0 created after sleeve-pivot audit; phase numbering reset to 1
+Phase: **1 of 8** (Extended Data Layer) — CONTEXT GATHERED
+Next: `/gsd-plan-phase 1`
+Status: Phase 1 context captured (universe rollout, panel structure, multi-calendar alignment, caching/re-pull). Ready for planning.
+Last activity: 2026-04-30 — Phase 1 CONTEXT.md and DISCUSSION-LOG.md written and committed
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -66,5 +66,5 @@ Progress: [░░░░░░░░░░] 0%
 ## Session Continuity
 
 Last session: 2026-04-30
-Stopped at: Milestone v2.0 initialization complete (PROJECT, REQUIREMENTS, ROADMAP, MILESTONES, STATE written; phases renumbered 1-8; v1.0 archived)
-Resume: `/gsd-discuss-phase 1` to gather context for Extended Data Layer, or `/gsd-plan-phase 1` to skip discussion and plan directly
+Stopped at: Phase 1 context gathered — `.planning/phases/01-extended-data-layer/01-CONTEXT.md`
+Resume: `/gsd-plan-phase 1` to plan Extended Data Layer
