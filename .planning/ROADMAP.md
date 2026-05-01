@@ -1,33 +1,33 @@
 # Roadmap: TQ — Sleeve Allocation Framework (v2.0)
 
+> **This is the only active roadmap.** v1.0 (HMM) phases are archived under `.planning/phases-archive/v1.0-hmm/` and are not on the books to finish. Phase numbering restarts at 1 to make the v2.0 focus unambiguous.
+
 ## Overview
 
-Eight phases (7-14) build a regime-aware options-overlay sleeve scorecard. Phase α (Phases 7-12) is the engine — data, signals, sleeve P&L backtests, scorecard, PM output, validation. Phase β (Phase 13) specializes the engine for PDIV. Phase γ (Phase 14) is an optional Markov-switching fragility flag appendix. All work in a new notebook `sleeve_alpha.ipynb`; `hmm.ipynb` is preserved as legacy v1.0.
-
-Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision with stale `01-*`, `02-*`, `03-*` phase directories. The α / β / γ labels are the user-facing structure; 7-14 are the GSD phase numbers.
+Eight phases (1-8) build a regime-aware options-overlay sleeve scorecard. Phase α (Phases 1-6) is the engine — data, signals, sleeve P&L backtests, scorecard, PM output, validation. Phase β (Phase 7) specializes the engine for PDIV. Phase γ (Phase 8) is an optional Markov-switching fragility flag appendix. All work in a new notebook `sleeve_alpha.ipynb`; `hmm.ipynb` is preserved as legacy v1.0.
 
 ## Phases (Phase α — Engine)
 
-- [ ] **Phase 7: Extended Data Layer** — Multi-underlying price + IV + skew + VIX + risk-free rate, aligned, freshness-checked
-- [ ] **Phase 8: Signal Engineering** — RV, VRP, skew, term, trend, drawdown, fragility composite — percentile-ranked
-- [ ] **Phase 9: Sleeve Backtest Engine** — BS pricing + synthetic monthly-roll P&L for CC, CSP, Collar, Short Straddle on each underlying
-- [ ] **Phase 10: Scorecard** — Per-sleeve linear scoring rules on signal panel, normalized weight allocation
-- [ ] **Phase 11: PM-Grade Output** — Dashboard table + auto-commentary + small-multiple charts + parquet snapshot
-- [ ] **Phase 12: Validation Gates** — Causality, walk-forward sign accuracy, turnover, tail-risk, robustness, trust scorecard
+- [ ] **Phase 1: Extended Data Layer** — Multi-underlying price + IV + skew + VIX + risk-free rate, aligned, freshness-checked
+- [ ] **Phase 2: Signal Engineering** — RV, VRP, skew, term, trend, drawdown, fragility composite — percentile-ranked
+- [ ] **Phase 3: Sleeve Backtest Engine** — BS pricing + synthetic monthly-roll P&L for CC, CSP, Collar, Short Straddle on each underlying
+- [ ] **Phase 4: Scorecard** — Per-sleeve linear scoring rules on signal panel, normalized weight allocation
+- [ ] **Phase 5: PM-Grade Output** — Dashboard table + auto-commentary + small-multiple charts + parquet snapshot
+- [ ] **Phase 6: Validation Gates** — Causality, walk-forward sign accuracy, turnover, tail-risk, robustness, trust scorecard
 
 ## Phases (Phase β — PDIV Specialization)
 
-- [ ] **Phase 13: PDIV Specialization** — Engine pointed at PDIV; current-vs-recommended overlay diff; historical overlay alpha quantified
+- [ ] **Phase 7: PDIV Specialization** — Engine pointed at PDIV; current-vs-recommended overlay diff; historical overlay alpha quantified
 
 ## Phases (Phase γ — Optional Appendix)
 
-- [ ] **Phase 14: Markov-Switching Fragility Flag (optional)** — `statsmodels.MarkovRegression` 2-state on fragility composite, hysteresis, override rule
+- [ ] **Phase 8: Markov-Switching Fragility Flag (optional)** — `statsmodels.MarkovRegression` 2-state on fragility composite, hysteresis, override rule
 
 ---
 
 ## Phase Details
 
-### Phase 7: Extended Data Layer (α)
+### Phase 1: Extended Data Layer (α)
 **Goal:** Multi-underlying price + ATM IV + 90%-moneyness IV + VIX + risk-free rate are loaded, calendar-aligned, and exposed as canonical panels (`prices_panel`, `iv_panel`, `skew_panel`) ready for downstream signal work.
 
 **Depends on:** Nothing (phase α start; uses confirmed working `con.bdh` fields)
@@ -41,10 +41,10 @@ Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision 
 4. All series aligned to a single trading-day index using `pandas_market_calendars`
 5. Freshness check warns on stale data; data layer runs clean on fresh kernel
 
-### Phase 8: Signal Engineering (α)
+### Phase 2: Signal Engineering (α)
 **Goal:** Six core signals + a fragility composite are computed per underlying, percentile-ranked on a causal expanding window, and pass a QA cell.
 
-**Depends on:** Phase 7
+**Depends on:** Phase 1
 
 **Requirements:** SIG-01, SIG-02, SIG-03, SIG-04, SIG-05, SIG-06, SIG-07, SIG-08
 
@@ -54,10 +54,10 @@ Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision 
 3. All signals percentile-ranked [0, 1] on a 252d expanding window
 4. QA cell prints missingness %, sanity bounds, and rolling stationarity diagnostic
 
-### Phase 9: Sleeve Backtest Engine (α)
+### Phase 3: Sleeve Backtest Engine (α)
 **Goal:** Synthetic monthly-roll P&L histories for CC, CSP, 95/110 Collar, 1m Short Straddle on each underlying are produced, with Black-Scholes pricing, slippage assumptions, and a sleeve-vs-underlying comparison table.
 
-**Depends on:** Phase 7 (Phase 8 not strictly required — can run in parallel)
+**Depends on:** Phase 1 (Phase 2 not strictly required — can run in parallel)
 
 **Requirements:** SLV-01, SLV-02, SLV-03, SLV-04, SLV-05, SLV-06, SLV-07
 
@@ -67,10 +67,10 @@ Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision 
 3. Comparison table (return / vol / Sharpe / max DD / hit rate) produced
 4. Outputs reproducible (`random_state=42`) and snapshotted to parquet
 
-### Phase 10: Scorecard (α)
+### Phase 4: Scorecard (α)
 **Goal:** Per-sleeve transparent scoring rules combine signal-panel ranks into a [-1, +1] sleeve attractiveness score; sleeve weights normalize within a configurable overlay budget.
 
-**Depends on:** Phase 8 (signals), Phase 9 (sleeve P&L for sanity-check)
+**Depends on:** Phase 2 (signals), Phase 3 (sleeve P&L for sanity-check)
 
 **Requirements:** SCR-01, SCR-02, SCR-03, SCR-04
 
@@ -80,10 +80,10 @@ Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision 
 3. Weights normalize to a configurable budget; sleeve caps applied
 4. Top-2 driver signals identified per (sleeve × underlying)
 
-### Phase 11: PM-Grade Output (α)
+### Phase 5: PM-Grade Output (α)
 **Goal:** Dashboard table + auto-commentary + small-multiple charts + parquet snapshot. PM can read this without verbal explanation.
 
-**Depends on:** Phase 10
+**Depends on:** Phase 4
 
 **Requirements:** OUT-01, OUT-02, OUT-03, OUT-04, OUT-05
 
@@ -93,10 +93,10 @@ Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision 
 3. Sleeve scores small-multiples chart + cumulative P&L chart present
 4. Output snapshotted to parquet/csv per refresh date
 
-### Phase 12: Validation Gates (α)
+### Phase 6: Validation Gates (α)
 **Goal:** All six validation gates pass, producing a one-line trust verdict at the top of the notebook.
 
-**Depends on:** Phase 11
+**Depends on:** Phase 5
 
 **Requirements:** VAL-01, VAL-02, VAL-03, VAL-04, VAL-05, VAL-06
 
@@ -105,10 +105,10 @@ Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision 
 2. Trust scorecard prints PASS/WARN/FAIL with per-gate detail
 3. Any FAIL is documented with mitigation or scope decision
 
-### Phase 13: PDIV Specialization (β)
+### Phase 7: PDIV Specialization (β)
 **Goal:** Engine specialized to PDIV — produces a per-week sizing recommendation vs PDIV's current overlay rule, plus historical overlay-alpha quantification.
 
-**Depends on:** Phase 11 (engine output) — should not require Phase 12 to be green to start, but must be green to ship to a PM
+**Depends on:** Phase 5 (engine output) — should not require Phase 6 to be green to start, but must be green to ship to a PM
 
 **Requirements:** PDIV-01, PDIV-02, PDIV-03, PDIV-04
 
@@ -118,10 +118,10 @@ Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision 
 3. Per-week sizing rec vs current rule produced
 4. Historical overlay alpha computed and reported
 
-### Phase 14: Markov-Switching Fragility Flag (γ — optional)
+### Phase 8: Markov-Switching Fragility Flag (γ — optional)
 **Goal:** `statsmodels.MarkovRegression` 2-state model on the SIG-06 fragility composite produces a sticky fragility flag with hysteresis; flag overrides short-vol sleeve weights when ON.
 
-**Depends on:** Phase 8 (fragility composite) and Phase 10 (scorecard to override)
+**Depends on:** Phase 2 (fragility composite) and Phase 4 (scorecard to override)
 
 **Requirements:** FRG-01, FRG-02, FRG-03
 
@@ -135,25 +135,27 @@ Phase numbering continues from v1.0 (which ended at Phase 6) to avoid collision 
 ## Progress
 
 **Execution Order:**
-Phase 7 → Phase 8 (and Phase 9 in parallel after 7) → Phase 10 → Phase 11 → Phase 12 → Phase 13 (β) → Phase 14 (γ, optional)
+Phase 1 → Phase 2 (and Phase 3 in parallel after 1) → Phase 4 → Phase 5 → Phase 6 → Phase 7 (β) → Phase 8 (γ, optional)
 
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
-| 7. Extended Data Layer | 0 | Not started | - |
-| 8. Signal Engineering | 0 | Not started | - |
-| 9. Sleeve Backtest Engine | 0 | Not started | - |
-| 10. Scorecard | 0 | Not started | - |
-| 11. PM-Grade Output | 0 | Not started | - |
-| 12. Validation Gates | 0 | Not started | - |
-| 13. PDIV Specialization | 0 | Not started | - |
-| 14. Fragility Flag (γ — optional) | 0 | Not started | - |
+| 1. Extended Data Layer | 0 | Not started | - |
+| 2. Signal Engineering | 0 | Not started | - |
+| 3. Sleeve Backtest Engine | 0 | Not started | - |
+| 4. Scorecard | 0 | Not started | - |
+| 5. PM-Grade Output | 0 | Not started | - |
+| 6. Validation Gates | 0 | Not started | - |
+| 7. PDIV Specialization (β) | 0 | Not started | - |
+| 8. Fragility Flag (γ — optional) | 0 | Not started | - |
 
-**Phase α (engine, must-ship):** 7-12
-**Phase β (PDIV, should-ship):** 13
-**Phase γ (HMM appendix, nice-to-have):** 14
+**Phase α (engine, must-ship):** 1-6
+**Phase β (PDIV, should-ship):** 7
+**Phase γ (HMM appendix, nice-to-have):** 8
 
 ---
 
-## v1.0 (HMM) Phases — Archived
+## v1.0 (HMM) — Closed and Archived
 
-Phases 1-6 from v1.0 (HMM-centric fund diagnostic) are not part of v2.0. Their planning artifacts live under `.planning/phases/01-data-layer/`, `02-regime-model/`, `03-fund-analysis/`. The corresponding code is in `hmm.ipynb`, preserved untouched. See `MILESTONES.md` for the v1.0 closure rationale.
+The v1.0 milestone (HMM-centric fund diagnostic) was closed without ship on 2026-04-30. Its phase artifacts moved to `.planning/phases-archive/v1.0-hmm/`. Its code (`hmm.ipynb`) remains untouched at repo root as a legacy reference.
+
+These v1.0 phases are **NOT on the v2.0 roadmap and not pending completion.** See `.planning/MILESTONES.md` for closure rationale.

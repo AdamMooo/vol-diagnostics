@@ -12,7 +12,11 @@ Given a vol/skew/trend/drawdown panorama on a few liquid underlyings, output a P
 
 ## Current Milestone: v2.0 Sleeve Allocation Framework
 
+> **This is the only active milestone.** v1.0 (HMM) is closed and archived under `.planning/phases-archive/v1.0-hmm/`. Phase numbering restarts at 1.
+
 **Goal:** Build a notebook that produces, on demand, a PM-readable scorecard of options-overlay sleeve attractiveness across SPX/QQQ (and optionally XIU/XSP), backed by sleeve P&L backtests, conditioned on a transparent signal panel (VRP, skew, term structure, trend, drawdown), with optional Markov-switching fragility flag overlay.
+
+**Phases:** Phase α = 1-6 (engine), Phase β = 7 (PDIV), Phase γ = 8 (optional fragility flag)
 
 **Target features (Phase α — engine):**
 - Multi-underlying data pull (price + ATM IV + 90% moneyness IV from `con.bdh`, plus VIX and fund NAVs)

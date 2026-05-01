@@ -109,14 +109,14 @@ These are diagnostic artifacts on a single fund (RTA) and are out of scope for t
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-06..12 | Phase 7 — Extended Data Layer | Pending |
-| SIG-01..08 | Phase 8 — Signal Engineering | Pending |
-| SLV-01..07 | Phase 9 — Sleeve Backtest Engine | Pending |
-| SCR-01..04 | Phase 10 — Scorecard | Pending |
-| OUT-01..05 | Phase 11 — PM-Grade Output | Pending |
-| VAL-01..06 | Phase 12 — Validation Gates | Pending |
-| PDIV-01..04 | Phase 13 — PDIV Specialization (β) | Pending |
-| FRG-01..03 | Phase 14 — Optional Fragility Flag (γ) | Pending |
+| DATA-06..12 | Phase 1 — Extended Data Layer | Pending |
+| SIG-01..08 | Phase 2 — Signal Engineering | Pending |
+| SLV-01..07 | Phase 3 — Sleeve Backtest Engine | Pending |
+| SCR-01..04 | Phase 4 — Scorecard | Pending |
+| OUT-01..05 | Phase 5 — PM-Grade Output | Pending |
+| VAL-01..06 | Phase 6 — Validation Gates | Pending |
+| PDIV-01..04 | Phase 7 — PDIV Specialization (β) | Pending |
+| FRG-01..03 | Phase 8 — Optional Fragility Flag (γ) | Pending |
 
 **Coverage:** 38 active v2.0 requirements, all mapped to phases.
 

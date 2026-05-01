@@ -1,5 +1,5 @@
 # CLAUDE — TQ Sleeve Allocation Framework (formerly TQ HMM)
-Last updated: 2026-04-30 | Status: active milestone v2.0 (pivoted from v1.0 HMM on 2026-04-30); Phase 7 next
+Last updated: 2026-04-30 | Status: active milestone v2.0 (pivoted from v1.0 HMM on 2026-04-30); Phase 1 next
 
 ## Repo Card
 
@@ -43,14 +43,14 @@ Core value: given a vol/skew/trend/drawdown panorama on a small set of liquid un
 ## Notebook Sections (v2.0 — `sleeve_alpha.ipynb`)
 
 0. Setup & Config (universe, sleeves, dates, palette)
-1. Data Layer (prices, IV panels, skew panels, VIX, risk-free) — Phase 7
-2. Signal Engineering (RV, VRP, skew, term, trend, drawdown, fragility composite) — Phase 8
-3. Sleeve Backtest Engine (BS pricing + monthly-roll P&L for CC, CSP, Collar, Short Straddle) — Phase 9
-4. Sleeve Scorecard (transparent linear rules, normalized weights) — Phase 10
-5. PM-Grade Output (dashboard table + auto-commentary + small-multiples) — Phase 11
-6. Validation Gates (causality, sleeve-sign, turnover, tail-risk, robustness, trust verdict) — Phase 12
-7. PDIV Specialization (Phase β) — Phase 13
-8. Optional: Markov-Switching Fragility Flag (Phase γ) — Phase 14
+1. Data Layer (prices, IV panels, skew panels, VIX, risk-free) — **Phase 1**
+2. Signal Engineering (RV, VRP, skew, term, trend, drawdown, fragility composite) — **Phase 2**
+3. Sleeve Backtest Engine (BS pricing + monthly-roll P&L for CC, CSP, Collar, Short Straddle) — **Phase 3**
+4. Sleeve Scorecard (transparent linear rules, normalized weights) — **Phase 4**
+5. PM-Grade Output (dashboard table + auto-commentary + small-multiples) — **Phase 5**
+6. Validation Gates (causality, sleeve-sign, turnover, tail-risk, robustness, trust verdict) — **Phase 6**
+7. PDIV Specialization (Phase β) — **Phase 7**
+8. Optional: Markov-Switching Fragility Flag (Phase γ) — **Phase 8**
 
 ## Conventions
 
@@ -72,7 +72,7 @@ Do not make notebook edits outside GSD unless user explicitly bypasses.
 ## Do Not Touch
 
 - `hmm.ipynb` — v1.0 legacy artifact, preserved untouched
-- `.planning/phases/01-data-layer/`, `02-regime-model/`, `03-fund-analysis/` — v1.0 phase planning, archived in place
+- `.planning/phases-archive/v1.0-hmm/` — v1.0 phase planning, archived
 - `data/` folder contents (source exports)
 - `.planning/` docs (GSD-managed)
 
