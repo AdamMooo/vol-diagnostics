@@ -34,6 +34,12 @@ Eight phases (1-8) build a regime-aware options-overlay sleeve scorecard. Phase 
 
 **Requirements:** DATA-06, DATA-07, DATA-08, DATA-09, DATA-10, DATA-11, DATA-12
 
+**Plans:** 4 plans
+- [ ] 01-01-PLAN.md — Notebook scaffold + Section 0 (config, NYSE_INDEX, CACHE_DIR) + bdh_cached parquet wrapper
+- [ ] 01-02-PLAN.md — Raw price/IV pulls per underlying with deferred-field logging + cross-asset (VIX/VVIX/risk-free) pulls
+- [ ] 01-03-PLAN.md — Panel assembly: prices_panel, iv_panel, iv90_panel, skew_panel + standalone vix/vvix/rf_rate Series
+- [ ] 01-04-PLAN.md — Freshness/QA tables: last-bar dates, days_stale, status; per-panel missingness QA
+
 **Success Criteria:**
 1. SPX and QQQ price + ATM IV + 90%-moneyness IV pulled and aligned over full history with documented field names
 2. XIU/XSP probed; either included with confirmed fields or explicitly marked deferred with reason
@@ -139,7 +145,7 @@ Phase 1 → Phase 2 (and Phase 3 in parallel after 1) → Phase 4 → Phase 5 �
 
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
-| 1. Extended Data Layer | 0 | Not started | - |
+| 1. Extended Data Layer | 4 | Not started | - |
 | 2. Signal Engineering | 0 | Not started | - |
 | 3. Sleeve Backtest Engine | 0 | Not started | - |
 | 4. Scorecard | 0 | Not started | - |
