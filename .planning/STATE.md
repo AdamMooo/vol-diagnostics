@@ -4,7 +4,10 @@ milestone: "v2.0 — Sleeve Allocation Framework"
 status: active
 last_updated: 2026-04-30
 context_gathered: Phase 1
-progress: 0
+plans_ready: Phase 1
+authored_local: Phase 1
+cron2_pending: Phase 1
+progress: 12
 ---
 
 # Project State
@@ -20,19 +23,19 @@ See: `.planning/MILESTONES.md` (v1.0 pivot rationale)
 
 ## Current Position
 
-Phase: **1 of 8** (Extended Data Layer) — CONTEXT GATHERED
-Next: `/gsd-plan-phase 1`
-Status: Phase 1 context captured (universe rollout, panel structure, multi-calendar alignment, caching/re-pull). Ready for planning.
-Last activity: 2026-04-30 — Phase 1 CONTEXT.md and DISCUSSION-LOG.md written and committed
+Phase: **1 of 8** (Extended Data Layer) — AUTHORED LOCAL · CRON2 RUN PENDING
+Next: Open `sleeve_alpha.ipynb` on Cron2, Run All, confirm fresh-kernel pass + freshness/QA tables. Then `/gsd-plan-phase 2`.
+Status: All 4 plans executed locally. `sleeve_alpha.ipynb` has 20 cells (valid nbformat v4); 11 atomic commits. gsd-verifier source-level: PASSED (62/62 identifier greps, 8/8 plan acceptance checks, all D-01..D-13 honored, `hmm.ipynb` byte-identical). Cron2-run gate (5 items) is the operator's confirmation step.
+Last activity: 2026-04-30 — Phase 1 execution complete (local); Cron2 run pending
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 12% (1/8 phases authored; 0/8 phases Cron2-confirmed)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0 (this milestone)
-- Average duration: —
-- Total execution time: —
+- Total plans completed (locally authored): 4 (this milestone — Phase 1: 01-01..01-04)
+- Plans Cron2-confirmed: 0 (pending operator run on first phase)
+- Total execution time: ~30 min local (Phase 1, 4 plans, 8 atomic feat commits + 4 doc commits)
 
 ## Accumulated Context
 
@@ -47,9 +50,10 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Pending Todos
 
+- **Cron2 run gate for Phase 1** — open `sleeve_alpha.ipynb` on Cron2, Run All on a fresh kernel, confirm: (1) no exception; (2) SPX/QQQ price + iv30_atm + iv30_90mny all land; (3) XIU/XSP landed-or-deferred verdict captured; (4) VIX lands; rf_rate verdict captured; (5) `freshness_table` and `qa_table` print as expected. Update verifier status from `human_needed` → `passed` after.
 - Capture PDIV's current overlay rule (gate for Phase 7/β)
-- Probe XIU and XSP IV field availability during Phase 1
-- Probe `90DAY_IMPVOL_100.0%MNY_DF` for term structure during Phase 1
+- ~~Probe XIU and XSP IV field availability during Phase 1~~ — folded into Phase 1 Plan 02 (`[landed]/[deferred]` log)
+- ~~Probe `90DAY_IMPVOL_100.0%MNY_DF` for term structure during Phase 1~~ — folded into Phase 1 Plan 01 `IV_FIELDS["iv90_atm"]`
 
 ### Blockers/Concerns
 
@@ -66,5 +70,5 @@ Progress: [░░░░░░░░░░] 0%
 ## Session Continuity
 
 Last session: 2026-04-30
-Stopped at: Phase 1 context gathered — `.planning/phases/01-extended-data-layer/01-CONTEXT.md`
-Resume: `/gsd-plan-phase 1` to plan Extended Data Layer
+Stopped at: Phase 1 authored locally; awaiting operator Cron2 run (5-item gate). VERIFICATION.md at `.planning/phases/01-extended-data-layer/01-VERIFICATION.md`.
+Resume: After Cron2 confirms green → `/gsd-plan-phase 2` (Signal Engineering). If Cron2 surfaces a defect → `/gsd-debug` or `/gsd-plan-phase 1 --gaps`.
