@@ -1,4 +1,4 @@
-# Requirements: TQ — Sleeve Allocation Framework
+# Requirements: Options Quant — Sleeve Allocation Framework
 
 **Defined:** 2026-04-30 (milestone v2.0)
 **Core Value:** PM-readable scorecard of options-overlay sleeve attractiveness across SPX/QQQ (and optionally XIU/XSP), backed by sleeve P&L backtests, conditioned on a transparent signal panel, with optional Markov-switching fragility flag.

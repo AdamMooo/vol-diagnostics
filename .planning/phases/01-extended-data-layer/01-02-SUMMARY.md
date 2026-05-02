@@ -138,8 +138,8 @@ After running on Cron2, the operator should:
 ## Self-Check: PASSED
 
 **Files verified:**
-- FOUND: `C:/dev/tq-hmm/sleeve_alpha.ipynb` (12 cells, valid nbformat v4 JSON)
-- FOUND: `C:/dev/tq-hmm/.planning/phases/01-extended-data-layer/01-02-SUMMARY.md` (this file)
+- FOUND: `C:/dev/options-quant/sleeve_alpha.ipynb` (12 cells, valid nbformat v4 JSON)
+- FOUND: `C:/dev/options-quant/.planning/phases/01-extended-data-layer/01-02-SUMMARY.md` (this file)
 
 **Commits verified:**
 - FOUND: `653b5f9` (Task 1: Section 1.2 per-underlying probe)

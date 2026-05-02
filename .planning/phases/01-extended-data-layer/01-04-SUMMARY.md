@@ -174,8 +174,8 @@ None — no external service configuration required. Cells run on Cron2 with the
 ## Self-Check: PASSED
 
 **Files verified:**
-- FOUND: `C:/dev/tq-hmm/sleeve_alpha.ipynb` (20 cells, valid nbformat v4.5 JSON, CRLF line endings, ASCII-only bytes, trailing CRLF)
-- FOUND: `C:/dev/tq-hmm/.planning/phases/01-extended-data-layer/01-04-SUMMARY.md` (this file)
+- FOUND: `C:/dev/options-quant/sleeve_alpha.ipynb` (20 cells, valid nbformat v4.5 JSON, CRLF line endings, ASCII-only bytes, trailing CRLF)
+- FOUND: `C:/dev/options-quant/.planning/phases/01-extended-data-layer/01-04-SUMMARY.md` (this file)
 
 **Commits verified (`git log --oneline`):**
 - FOUND: `da6e905` (Task 1: add freshness_table with days_stale > 5 warning)

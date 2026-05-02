@@ -73,3 +73,4 @@ Items that ARE applied: sticky transitions, 5-day hysteresis, absolute (not rank
 - `.planning/REQUIREMENTS.md` v2.0 active reqs
 - `.planning/ROADMAP.md` Phase 7-14 detail
 - `NOTES-from-regime-detection.md` (HMM lessons applicable to optional Phase 14/γ)
+- [[../options-quant|Options Quant hub]] · [[../../_audits/_audits|Audits hub]]

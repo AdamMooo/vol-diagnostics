@@ -1,4 +1,4 @@
-# Roadmap: TQ — Sleeve Allocation Framework (v2.0)
+# Roadmap: Options Quant — Sleeve Allocation Framework (v2.0)
 
 > **This is the only active roadmap.** v1.0 (HMM) phases are archived under `.planning/phases-archive/v1.0-hmm/` and are not on the books to finish. Phase numbering restarts at 1 to make the v2.0 focus unambiguous.
 
@@ -145,7 +145,7 @@ Phase 1 → Phase 2 (and Phase 3 in parallel after 1) → Phase 4 → Phase 5 �
 
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
-| 1. Extended Data Layer | 4 | Not started | - |
+| 1. Extended Data Layer | 4 | Authored local · Cron2 pending | 2026-04-30 (local) |
 | 2. Signal Engineering | 0 | Not started | - |
 | 3. Sleeve Backtest Engine | 0 | Not started | - |
 | 4. Scorecard | 0 | Not started | - |

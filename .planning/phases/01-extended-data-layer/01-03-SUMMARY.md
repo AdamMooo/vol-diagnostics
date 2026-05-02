@@ -147,8 +147,8 @@ None — no external service configuration required. Cells run on Cron2 with the
 ## Self-Check: PASSED
 
 **Files verified:**
-- FOUND: `C:/dev/tq-hmm/sleeve_alpha.ipynb` (16 cells, valid nbformat v4 JSON, CRLF line endings, trailing newline)
-- FOUND: `C:/dev/tq-hmm/.planning/phases/01-extended-data-layer/01-03-SUMMARY.md` (this file)
+- FOUND: `C:/dev/options-quant/sleeve_alpha.ipynb` (16 cells, valid nbformat v4 JSON, CRLF line endings, trailing newline)
+- FOUND: `C:/dev/options-quant/.planning/phases/01-extended-data-layer/01-03-SUMMARY.md` (this file)
 
 **Commits verified (`git log --oneline`):**
 - FOUND: `445c844` (Task 1: build prices_panel, iv_panel, iv90_panel, skew_panel)

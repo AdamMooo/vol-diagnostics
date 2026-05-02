@@ -1,4 +1,4 @@
-# TQ — Sleeve Allocation Framework (formerly TQ HMM)
+# Options Quant — Sleeve Allocation Framework (formerly tq-hmm)
 
 ## What This Is
 

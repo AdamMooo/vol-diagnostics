@@ -113,8 +113,8 @@ None — no external service configuration required. `CACHE_DIR` will auto-creat
 ## Self-Check: PASSED
 
 **Files verified:**
-- FOUND: `C:/dev/tq-hmm/sleeve_alpha.ipynb`
-- FOUND: `C:/dev/tq-hmm/.planning/phases/01-extended-data-layer/01-01-SUMMARY.md` (this file)
+- FOUND: `C:/dev/options-quant/sleeve_alpha.ipynb`
+- FOUND: `C:/dev/options-quant/.planning/phases/01-extended-data-layer/01-01-SUMMARY.md` (this file)
 
 **Commits verified:**
 - FOUND: `b1f7071` (Task 1)

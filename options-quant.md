@@ -1,10 +1,10 @@
-# TQ — Sleeve Allocation Framework
+# Options Quant — Sleeve Allocation Framework
 
 Regime-aware options-overlay sleeve scorecard for Purpose. Phase α builds an engine that recommends sleeve attractiveness (covered call, cash-covered put, collar, short straddle) across SPX/QQQ and optionally XIU/XSP, driven by a transparent percentile-rank scorecard on VRP / skew / term / trend / drawdown signals. Phase β specializes the engine for PDIV's overlay. Phase γ (optional) adds a Markov-switching fragility flag.
 
 ## Status
 
-**Active — 2026-04-30 — milestone v2.0** (pivoted from v1.0 HMM-centric diagnostic on 2026-04-30). Phase 7 next.
+**Active — 2026-04-30 — milestone v2.0** (pivoted from v1.0 HMM-centric diagnostic on 2026-04-30; project renamed `tq-hmm` → `options-quant` on 2026-05-01). Phase 1 (Extended Data Layer) authored locally; Cron2 run is the gate before Phase 2.
 
 **v1.0 status:** Closed without ship. `hmm.ipynb` preserved as legacy single-fund diagnostic. See `.planning/MILESTONES.md` for closure rationale and `_audits/2026-04-30-sleeve-pivot-audit.md` for the pivot audit.
 
@@ -12,10 +12,10 @@ Regime-aware options-overlay sleeve scorecard for Purpose. Phase α builds an en
 
 ## Memory
 
-- **Operations:** [[tq-hmm/CLAUDE|CLAUDE.md]] (run commands & constraints)
+- **Operations:** [[options-quant/CLAUDE|CLAUDE.md]] (run commands & constraints)
 - **Plan:** `.planning/ROADMAP.md` (open via VS Code — dotfolder, Obsidian can't index)
-- **Tasks:** [[../tasks/TQ-HMM-Tasks|Task board]]
-- **Auto-memory:** _(none yet — capture as `claude-memory/project_tq_hmm.md` when durable patterns emerge)_
+- **Tasks:** [[../tasks/Options-Quant-Tasks|Task board]]
+- **Auto-memory:** `claude-memory/project_options_quant.md` (project hub), `project_v2_pivot.md` (v2.0 pivot rationale), `project_execution_split.md` (deck-auto-style local-plan/Cron2-run pattern)
 - **Skills:** _(none yet linked)_
 
 ## How to Run
@@ -29,6 +29,7 @@ See `.planning/PROJECT.md` Strategic Decisions for the full table. Key recent de
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-05-01 | Rename `tq-hmm` → `options-quant` | Old name reflected v1.0 HMM diagnostic; v2.0 is an options sleeve allocation framework |
 | 2026-04-30 | Pivot v1.0 HMM → v2.0 Sleeve Framework | Stated business goal (options sleeve allocation) cannot be answered by an HMM on benchmark returns alone |
 | 2026-04-30 | Scorecard primary, HMM optional | PM-auditable, governance-friendly, robust to data limits |
 | 2026-04-30 | Strategy menu = CC + CSP + Collar + ShortStrangle (drop dispersion) | Dispersion is dealer/HF turf, capacity-limited, governance-unfriendly for retail AM |
@@ -43,13 +44,16 @@ See `.planning/PROJECT.md` Strategic Decisions for the full table. Key recent de
 - VIX (`PX_LAST`) via `con.bdh` — confirmed
 - Risk-free proxy (3M T-bill or equivalent) — TBD field-name probe in Phase 7
 
-**Phase 7 probes pending:**
-- `90DAY_IMPVOL_100.0%MNY_DF` (term structure)
-- XIU / XSP IV equivalents
+**Phase 1 probes (folded into `sleeve_alpha.ipynb` Section 1.2 — pending Cron2 run):**
+- `90DAY_IMPVOL_100.0%MNY_DF` (term structure) — `IV_FIELDS["iv90_atm"]`
+- XIU / XSP IV equivalents — probed with `[landed]/[deferred]` log
+
+**Phase β prerequisite (still open):**
+- Capture PDIV's current overlay rule (gate for Phase 7)
 
 ## Planned Phases
 
-Phases 7-14 (α/β/γ). See `.planning/ROADMAP.md`. v1.0 phases 1-6 are archived.
+Phases 1-8 (α/β/γ) — renumbered for v2.0. See `.planning/ROADMAP.md`. v1.0 phases archived under `.planning/phases-archive/v1.0-hmm/`. Phase 1: authored local · Cron2 pending.
 
 ## Known Issues
 

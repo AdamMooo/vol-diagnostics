@@ -2,7 +2,7 @@
 type: planning-index
 ---
 
-# TQ HMM — Planning
+# Options Quant — Planning
 
 GSD-owned planning tree. This file is the graph hub — every `.planning/` file should be reachable from here.
 
@@ -28,4 +28,4 @@ GSD-owned planning tree. This file is the graph hub — every `.planning/` file 
 
 ---
 
-**Parent:** [[tq-hmm/tq-hmm|TQ HMM]]
+**Parent:** [[options-quant/options-quant|Options Quant]]

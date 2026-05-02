@@ -1,5 +1,5 @@
-# CLAUDE — TQ Sleeve Allocation Framework (formerly TQ HMM)
-Last updated: 2026-04-30 | Status: active milestone v2.0 (pivoted from v1.0 HMM on 2026-04-30); Phase 1 next
+# CLAUDE — Options Quant — Sleeve Allocation Framework
+Last updated: 2026-05-01 | Status: active milestone v2.0 (pivoted from v1.0 HMM on 2026-04-30; project renamed `tq-hmm` → `options-quant` on 2026-05-01); Phase 1 next
 
 ## Repo Card
 
@@ -78,4 +78,4 @@ Do not make notebook edits outside GSD unless user explicitly bypasses.
 
 ---
 
-**Hub:** [[tq-hmm/tq-hmm|TQ HMM]] · **Planning:** [[.planning/planning|.planning/]]
+**Hub:** [[options-quant/options-quant|Options Quant]] · **Planning:** [[.planning/planning|.planning/]]
