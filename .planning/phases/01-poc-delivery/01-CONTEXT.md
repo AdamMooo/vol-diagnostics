@@ -33,8 +33,8 @@ Scope cap: **delivery + calibration + cleanup**. No new signals, no fund special
 
 ### Output format
 
-- **D-05:** Output medium = **Jupyter notebook (.ipynb).** Quants read notebooks. Embedded charts + tables + markdown narrative. Closest to the eventual Cron2 production target.
-- **D-06:** Generation = **manual.** `python build_report.py` Monday morning produces the notebook. No scheduler infra for POC.
+- **D-05 (revised 2026-05-04):** Output medium = **single HTML file.** `python build_report.py` → `out/sleeve_report_YYYYMMDD.html`. Self-contained, charts embedded as base64. Opens in any browser, shareable as a file attachment. Notebook format deferred — if team greenlights the POC and Cron2 deployment makes sense, that's a future phase.
+- **D-06:** Generation = **manual.** `python build_report.py` Monday morning produces the report. No scheduler infra for POC.
 - **D-07:** Layout = **top-down: current state → drill-down.** Section A leads (with week-over-week change vs prior run). Sections B/C/E/G/H follow as supporting context.
 - **D-08:** Charts = **critical.** Invest in chart quality — labels, palette, regime shading, consistent styling. Quants scan charts before tables.
 
@@ -43,7 +43,11 @@ Scope cap: **delivery + calibration + cleanup**. No new signals, no fund special
 - **D-09:** **Delete `validate.py`.** Walk-forward "find a rule that wins" framing was forecasting drift. The negative finding (no rule survives Holm correction, no rule beats passive OOS) is absorbed into framework understanding. Clean cut, no orphan module.
 - **D-10:** **Section D — rename and reframe.** Currently "Closest Regime Analogs" with realized sleeve P&L from analogs (forecast-flavored). Rename to **"Past Periods That Looked Like Now"** and replace realized sleeve P&L with **realized environment** (what vol/skew/term/dd did in the period AFTER the analog match). Drops forecast framing, keeps the historical-context value.
 - **D-11:** **Keep Section C bucket means + Welch's t-test + Holm-Bonferroni.** The "0 of 30 tests survive Holm" result is the most credibility-establishing thing in the dashboard. It is the exact rigor the quant team will check for. Do not condense or remove.
-- **D-12:** **Bloomberg integration BEFORE delivery, not after.** Synthesized 90mny IV (calibrated guess, slope=0.2) will get pushback. Swap to real `con.bdh` 30D 90mny IV before showing the team — calibration matters for credibility on the put-skew-driven sleeves.
+- **D-12 (revised 2026-05-04):** **Ship on free data. Bloomberg deferred.** Original decision was to swap synthesized 90mny IV before delivery. Reversed: Bloomberg usage is being cut back company-wide; POC has not yet been proven useful so the data pull is not justified. Build locally on CBOE+FRED free data. If the quant team greenlights the framework, Bloomberg calibration is a one-class swap (`BloombergCon` mirroring `FreeCon.bdh`). WALKTHROUGH.md must acknowledge the synthesized 90mny IV (slope=0.2 approximation) as a known limitation.
+
+### Build environment
+
+- **D-17 (added 2026-05-04):** **Local Python first, Cron2 later.** Build and run on a local venv. The locked Cron2 env is a future migration target, not the build environment. `python build_report.py` runs locally; if the team uses the POC, porting to Cron2 is a separate phase. This removes all locked-env constraints from this phase.
 
 ### Done & handoff
 
