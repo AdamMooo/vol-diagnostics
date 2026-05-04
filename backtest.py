@@ -50,6 +50,28 @@ def bs_strike_from_delta(S: float, T: float, r: float, sigma: float, target_delt
     return S * np.exp(-(d1 * sigma * np.sqrt(T)) + (r - q + 0.5 * sigma ** 2) * T)
 
 
+def iv_at_strike(S: float, K: float, iv_atm_pts: float, iv_90mny_pts: float) -> float:
+    """Linear-in-moneyness IV interpolation between ATM (m=1) and 90% mny (m=0.9).
+
+    For m >= 1: flat at ATM (we lack upside skew data freely).
+    For m in [0.9, 1.0]: linear interp.
+    For m < 0.9: capped at iv_90mny.
+
+    POC: the 90mny IV input itself is synthesized from VIX+SKEW; using
+    it for pricing approximates the real put-skew premium. With actual
+    Bloomberg 30D_IMPVOL_90mny this becomes properly calibrated.
+    """
+    if pd.isna(iv_90mny_pts):
+        return iv_atm_pts / 100.0
+    m = K / S
+    if m >= 1.0:
+        return iv_atm_pts / 100.0
+    if m <= 0.9:
+        return iv_90mny_pts / 100.0
+    w = (1.0 - m) / 0.1
+    return (iv_atm_pts + w * (iv_90mny_pts - iv_atm_pts)) / 100.0
+
+
 def third_fridays(start: pd.Timestamp, end: pd.Timestamp) -> pd.DatetimeIndex:
     out = []
     cur = pd.Timestamp(start).to_period("M").to_timestamp()
@@ -78,13 +100,16 @@ def snap_to_trading(dates: pd.DatetimeIndex, trading_idx: pd.DatetimeIndex) -> p
 def backtest_sleeves(panels: Panels, underlying: str, roll_dates: pd.DatetimeIndex) -> pd.DataFrame:
     S = panels.prices_panel[underlying]
     iv = panels.iv_panel[underlying]
+    iv90mny = panels.iv90mny[underlying] if underlying in panels.iv90mny.columns else None
     rf = panels.rf_rate
 
     rolls = []
     for i, t0 in enumerate(roll_dates[:-1]):
         t1 = roll_dates[i + 1]
         S0, S1 = S.loc[t0], S.loc[t1]
-        sig = iv.loc[t0] / 100.0
+        iv_atm_pts = iv.loc[t0]
+        iv_90mny_pts = iv90mny.loc[t0] if iv90mny is not None else np.nan
+        sig = iv_atm_pts / 100.0
         rate_pct = rf.loc[t0]
         r = (rate_pct / 100.0) if not pd.isna(rate_pct) else 0.04
 
@@ -97,10 +122,13 @@ def backtest_sleeves(panels: Panels, underlying: str, roll_dates: pd.DatetimeInd
         K_call_20 = bs_strike_from_delta(S0, T, r, sig, +STRANGLE_DELTA, kind="call")
         K_put_20  = bs_strike_from_delta(S0, T, r, sig, -STRANGLE_DELTA, kind="put")
 
-        P_call_25 = bs_price(S0, K_call_25, T, r, sig, kind="call")
-        P_put_25  = bs_price(S0, K_put_25,  T, r, sig, kind="put")
-        P_call_20 = bs_price(S0, K_call_20, T, r, sig, kind="call")
-        P_put_20  = bs_price(S0, K_put_20,  T, r, sig, kind="put")
+        sig_put_25 = iv_at_strike(S0, K_put_25, iv_atm_pts, iv_90mny_pts)
+        sig_put_20 = iv_at_strike(S0, K_put_20, iv_atm_pts, iv_90mny_pts)
+
+        P_call_25 = bs_price(S0, K_call_25, T, r, sig,        kind="call")
+        P_put_25  = bs_price(S0, K_put_25,  T, r, sig_put_25, kind="put")
+        P_call_20 = bs_price(S0, K_call_20, T, r, sig,        kind="call")
+        P_put_20  = bs_price(S0, K_put_20,  T, r, sig_put_20, kind="put")
 
         spot_ret = (S1 - S0) / S0
         rf_ret   = r * T

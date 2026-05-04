@@ -58,7 +58,9 @@ _CROSS_MAP = {
     "USGG3M Index": ("FRED", "DGS3MO"),
 }
 
-_SKEW_SLOPE = 0.5
+_SKEW_SLOPE = 0.2  # vol pts of 90mny excess per 1pt of (SKEW - 100). Calibrated to
+                   # historical SPX put-skew: real (iv_90mny - iv_atm) typically 5-8
+                   # vol pts when SKEW is at its 130 mean → slope ≈ 0.15-0.25.
 
 
 def _safe(s: str) -> str:
