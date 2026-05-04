@@ -91,6 +91,61 @@ def section_b_mechanics() -> str:
     return "\n".join(out)
 
 
+def section_today_conditional(sigs: Signals, bt: BacktestResults) -> str:
+    """Conditional historical returns for today's signal quartiles.
+
+    For each bucketed signal, shows today's quartile and the mean monthly return
+    for each sleeve historically when that signal was in the same quartile at roll open.
+    Pulls from the same bucket computation as Section C — no new math.
+    """
+    last_dt = sigs.latest_date()
+    out = [
+        "## Current Environment — Historical Conditional Returns",
+        "",
+        "Historical base rates for each sleeve, conditional on today's signal quartiles.",
+        "Starting point for your judgment — not forecasts.",
+        "0 of 30 tests survive Holm correction; temper accordingly.",
+        "",
+        "Read with Section C for full return distributions by quartile.",
+        "",
+    ]
+
+    for u in bt.rolls:
+        rolls = bt.rolls[u].copy()
+        out.append(f"### {u}")
+        out.append("")
+        header = (
+            f"  {'signal':<12s}  {'Q today':>7s}  {'n':>3s} | "
+            + " | ".join(f"{s:>8s}" for s in SLEEVE_COLS)
+        )
+        out.append(header)
+        out.append("  " + "-" * (len(header) - 2))
+
+        for sig in BUCKETED_SIGNALS:
+            sig_at_open = sigs.pct[sig].reindex(rolls["open"].values)[u].values
+            today_val = sigs.pct[sig].loc[last_dt, u]
+            today_q = _today_quartile(today_val)
+            rolls["_q"] = _bucket_by_pct(sig_at_open)
+            mean_ret = rolls.groupby("_q", observed=False)[SLEEVE_COLS].mean() * 100
+            n_per_q = rolls.groupby("_q", observed=False)[SLEEVE_COLS[0]].count()
+
+            if today_q == "n/a" or today_q not in mean_ret.index:
+                out.append(f"  {sig:<12s}  {'n/a':>7s}  {'':>3s} | (no data)")
+                continue
+
+            n_today = int(n_per_q.get(today_q, 0))
+            means = mean_ret.loc[today_q]
+            vals = " | ".join(f"{means[s]:>+8.2f}" for s in SLEEVE_COLS)
+            out.append(f"  {sig:<12s}  {today_q:>7s}  {n_today:>3d} | {vals}")
+
+        out.append("")
+        out.append("  Conditional on signal quartile at roll open. Not a forecast.")
+        out.append("  Read with Section C for full return distributions.")
+        out.append("")
+
+    return "\n".join(out)
+
+
 _PCT_EDGES = [-np.inf, 0.25, 0.50, 0.75, np.inf]
 _PCT_LABELS = ["Q1", "Q2", "Q3", "Q4"]
 
@@ -307,6 +362,10 @@ def section_e_subperiod(bt: BacktestResults) -> str:
     out = [
         "## Section E — Subperiod Stability",
         "",
+        "Unconditional reference class over 2010–2026 (a sustained equity bull market).",
+        "Use as structural context for the regime-conditioned base rates above —",
+        "not as evidence of sleeve superiority.",
+        "",
         "Same sleeve stats as Phase 3, computed on three rough 5y windows.",
         "Stability check — does the sleeve's behavior persist across regimes,",
         "or is the full-period number averaging two opposite halves?",
@@ -347,6 +406,8 @@ def build_dashboard(sigs: Signals, bt: BacktestResults) -> str:
         bar,
         "  OPTIONS QUANT — DECISION DASHBOARD",
         bar,
+        "",
+        section_today_conditional(sigs, bt),
         "",
         section_a_state(sigs),
         "",

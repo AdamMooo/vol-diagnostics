@@ -5,21 +5,48 @@
 
 **Core principle:** State + exposure + historical context. No scoring. No recommendations. The framework describes what is happening and what happened in similar periods. You synthesize the decision.
 
-**First time?** Start with Sections A and C. Section A shows today's market conditions. Section C shows what happened to sleeves historically when signals looked like today.
+**First time?** Start with the Conditional Summary at the top of the report. It shows today's signal quartiles and the historical base rates for each sleeve in those environments. Then read Section A for today's full signal readings. Section C has the complete conditional return distributions.
 
 **Sections at a glance:**
 
 | Section | What it answers |
 |---------|----------------|
+| Conditional Summary | Given today's signal quartiles, what did each sleeve return historically in similar environments? |
 | A — Current Market State | Where are today's signals relative to the last 5 years? |
 | B — Sleeve Mechanics | What does each sleeve actually do? |
-| C — Sleeve Returns by Signal Quartile | What did each sleeve return historically when a signal was high/low? |
+| C — Sleeve Returns by Signal Quartile | What did each sleeve return historically when a signal was high/low? (full distributions) |
 | D — Past Periods That Looked Like Now | What happened to the market environment after similar past conditions? |
-| E — Subperiod Stability | Is each sleeve's behavior consistent across different market regimes? |
+| E — Subperiod Stability | Unconditional reference class (2010–2026 bull market) — structural context, not a ranking signal. |
 | G — TC Sensitivity | How much does execution cost erode returns? |
 | H — Tail-Risk Metrics | What does the left-tail look like for each sleeve? |
 
 **Data note:** This POC runs on free public sources — CBOE (options data) and FRED (rates). The 90%-moneyness IV used for put-skew is synthesized (slope ≈ 0.2 approximation from ATM IV) because the real Bloomberg field (`30DAY_IMPVOL_90.0%MNY_DF`) is deferred pending team greenlight. All put-skew and collar/CSP/strangle calibration should be read with this caveat in mind.
+
+---
+
+### Conditional Summary — Current Environment — Historical Conditional Returns
+
+**What it shows:** For each of the four bucketed signals (vrp, term, skew, fragility), today's quartile and the mean monthly return for each sleeve historically when that signal was in the same quartile at roll open. This is the explicit conditional bridge: "today VRP is Q3 → historically when VRP was Q3, here is what sleeves returned."
+
+**How to read it:**
+
+1. Find the signal row. The `Q today` column shows which quartile today's reading falls in.
+2. The `n` column shows how many historical roll-open observations landed in that quartile.
+3. The sleeve columns show mean monthly return (%) in that quartile — this is the historical base rate.
+
+**Example:** "VRP is Q3 today (n=37). Historically when VRP was Q3, covered call returned +1.02%/month on average." Read as context, not a forecast.
+
+**What it does NOT tell you:** Whether that historical base rate will repeat. The Holm correction (Section C) shows that none of these differences survive multiple-testing correction — the magnitudes are orientation, not evidence of predictability.
+
+**Relationship to Section C:** This summary shows one row per signal (today's quartile only). Section C shows the full Q1/Q2/Q3/Q4 distribution, significance markers, and hit rates — use it to understand the full shape.
+
+**Limitations:**
+
+- In-sample: historical mean returns from the backtest period; not out-of-sample.
+- 0 of 30 tests survive Holm correction; treat magnitudes as qualitative orientation.
+- n counts are small (roughly 35–70 per quartile) — noise dominates.
+
+**Built with:** Same bucket computation as Section C. No new math.
 
 ---
 
@@ -166,7 +193,9 @@ The language used throughout is past tense and conditional: "realized," "histori
 
 ### Section E — Subperiod Stability
 
-**What it shows:** The same full-period sleeve statistics (CAGR, Sharpe, max drawdown, hit rate) recomputed on three approximately equal subperiods of the backtest history.
+**What it shows:** Unconditional sleeve statistics (CAGR, Sharpe, max drawdown, hit rate) over the full 2010–2026 backtest period and three subperiod windows. **This is a reference class over a sustained equity bull market — use it as structural context for the regime-conditioned base rates in the Conditional Summary and Section C, not as evidence of sleeve superiority.**
+
+The full-period and subperiod stats will show CC dominant across most windows. That reflects 16 years of rising equity prices, not a conditional signal. Read these numbers alongside the conditional tables, not instead of them.
 
 **How to read it:**
 
@@ -301,7 +330,7 @@ For the raw text dashboard (useful for quick checks):
 python run.py
 ```
 
-Prints sections A–E, G–H to stdout.
+Prints the conditional summary + sections A–E, G–H to stdout.
 
 ---
 

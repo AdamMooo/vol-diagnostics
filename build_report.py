@@ -31,6 +31,7 @@ from dashboard import (
     section_c_buckets,
     section_d_analog,
     section_e_subperiod,
+    section_today_conditional,
 )
 from sensitivity import format_tc_grid, format_tail_metrics, tc_sensitivity_table, tail_metrics_table
 
@@ -127,21 +128,6 @@ def _signal_chart(sigs) -> str:
     return _fig_to_b64(fig)
 
 
-def _equity_chart(bt, panels) -> str:
-    """Sleeve equity curves for all underlyings. Returns base64 PNG."""
-    underlyings = list(bt.equity.keys())
-    n = len(underlyings)
-    fig, axes = plt.subplots(n, 1, figsize=(12, 4 * n), sharex=True)
-    if n == 1:
-        axes = [axes]
-    for ax, u in zip(axes, underlyings):
-        bt.equity[u].plot(ax=ax, lw=1.0)
-        ax.set_title(f"{u} — sleeve equity curves (monthly roll)")
-        ax.set_ylabel("Growth of $1")
-        ax.axhline(1, color="grey", lw=0.5)
-    plt.tight_layout()
-    return _fig_to_b64(fig)
-
 
 def build_html(panels, sigs, bt) -> str:
     parts = []
@@ -157,7 +143,10 @@ def build_html(panels, sigs, bt) -> str:
         "90mny IV: synthesized (slope=0.2 approximation &mdash; see WALKTHROUGH.md)</p>"
     )
 
-    # Section A — leads the report
+    # Conditional summary — leads the report
+    parts.append(f"<pre>{section_today_conditional(sigs, bt)}</pre>")
+
+    # Section A
     parts.append("<h2>Section A &mdash; Current State</h2>")
     parts.append(f"<pre>{section_a_state(sigs)}</pre>")
 
@@ -169,7 +158,7 @@ def build_html(panels, sigs, bt) -> str:
     parts.append("<h2>Section B &mdash; Sleeve Mechanics</h2>")
     parts.append(f"<pre>{section_b_mechanics()}</pre>")
 
-    # Section C
+    # Section C — full bucket analysis (before E so conditional frame lands first)
     parts.append("<h2>Section C &mdash; Bucket Returns &amp; Holm Correction</h2>")
     parts.append(f"<pre>{section_c_buckets(sigs, bt)}</pre>")
 
@@ -177,13 +166,9 @@ def build_html(panels, sigs, bt) -> str:
     parts.append("<h2>Section D &mdash; Past Periods That Looked Like Now</h2>")
     parts.append(f"<pre>{section_d_analog(sigs, bt)}</pre>")
 
-    # Section E
+    # Section E — unconditional reference (after C so reader's frame is set)
     parts.append("<h2>Section E &mdash; Subperiod Stability</h2>")
     parts.append(f"<pre>{section_e_subperiod(bt)}</pre>")
-
-    # Equity curves chart (after Section E, before G)
-    eq_b64 = _equity_chart(bt, panels)
-    parts.append(f"<img src='data:image/png;base64,{eq_b64}' alt='Sleeve equity curves'>")
 
     # Section G — TC Sensitivity
     parts.append("<h2>Section G &mdash; Transaction Cost Sensitivity</h2>")
