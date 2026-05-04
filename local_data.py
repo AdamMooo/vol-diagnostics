@@ -4,55 +4,61 @@ POC scaffolding so Phase 2+ math can iterate locally without Bloomberg.
 Schema parity is the contract: every panel must match the shape produced
 by the Cron2/Bloomberg pull so math cells are portable verbatim.
 
+Data sources — all official primary publishers, no scrapers:
+    CBOE: SPX, VIX, VIX3M, VIX9D, SKEW, VXN, RUT (cdn.cboe.com)
+    FRED: NASDAQ100, DGS3MO, DGS10 (St. Louis Fed)
+
 Coverage vs Bloomberg:
     SPX:  prices, iv30_atm (VIX), iv90_atm (VIX3M), iv30_90mny (synth)
-    QQQ:  prices, iv30_atm (VXN); 90d ATM and 90mny unavailable -> NaN panel
-    XIU:  prices only (yfinance XIU.TO)
-    XSP:  prices only (yfinance XSP.TO)
+    NDX:  prices, iv30_atm (VXN); iv30_90mny synth from VXN+SKEW;
+          iv90_atm synth via SPX term ratio
     VIX:  ^VIX
     rf:   FRED DGS3MO
 
-iv30_90mny is synthesized as VIX + (SKEW - 100) * 0.5. Absolute level is
+iv30_90mny is synthesized as ATM + (SKEW - 100) * 0.5. Absolute level is
 not Bloomberg-calibrated; signals downstream percentile-rank within
 sample so monotonic shape is sufficient for POC.
+
+XIU/XSP (Canadian) and VVIX deferred — no free official source. Add
+back with Bloomberg or licensed feed.
 """
 from __future__ import annotations
 
 import datetime as dt
+import io
 import pathlib
+import urllib.request
 import warnings
 
 import numpy as np
 import pandas as pd
 import pandas_datareader.data as pdr
 import pandas_market_calendars as mcal
-import yfinance as yf
 
 CACHE_DIR = pathlib.Path.home() / "sleeve_alpha_cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-_YF_PRICE = {
-    "SPX Index":     "^GSPC",
-    "QQQ US Equity": "QQQ",
-    "XIU CN Equity": "XIU.TO",
-    "XSP CN Equity": "XSP.TO",
+_CBOE_BASE = "https://cdn.cboe.com/api/global/us_indices/daily_prices/{}_History.csv"
+
+_CBOE_SYMBOLS = {"SPX", "VIX", "VIX3M", "VIX9D", "SKEW", "VXN", "RUT"}
+
+_PRICE_MAP = {
+    "SPX Index":     ("CBOE", "SPX"),
+    "NDX Index":     ("FRED", "NASDAQ100"),
 }
 
-_YF_IV = {
-    ("SPX Index", "30DAY_IMPVOL_100.0%MNY_DF"): "^VIX",
-    ("SPX Index", "90DAY_IMPVOL_100.0%MNY_DF"): "^VIX3M",
-    ("QQQ US Equity", "30DAY_IMPVOL_100.0%MNY_DF"): "^VXN",
+_IV_MAP = {
+    ("SPX Index", "30DAY_IMPVOL_100.0%MNY_DF"): ("CBOE", "VIX"),
+    ("SPX Index", "90DAY_IMPVOL_100.0%MNY_DF"): ("CBOE", "VIX3M"),
+    ("NDX Index", "30DAY_IMPVOL_100.0%MNY_DF"): ("CBOE", "VXN"),
 }
 
-_SKEW_SLOPE = 0.5  # vol pts of OTM-put excess per 1pt of (SKEW - 100), POC calibration
-
-_YF_CROSS = {
-    "VIX Index":  "^VIX",
+_CROSS_MAP = {
+    "VIX Index":   ("CBOE", "VIX"),
+    "USGG3M Index": ("FRED", "DGS3MO"),
 }
 
-_FRED_MAP = {
-    "USGG3M Index": "DGS3MO",
-}
+_SKEW_SLOPE = 0.5
 
 
 def _safe(s: str) -> str:
@@ -74,54 +80,63 @@ def _is_stale(path: pathlib.Path, max_age_trading_days: int = 1) -> bool:
     return max(0, len(sched) - 1) > max_age_trading_days
 
 
-def _yf_close(yf_ticker: str, start: str, end: str) -> pd.Series:
-    df = yf.download(yf_ticker, start=start, end=end, progress=False, auto_adjust=True)
-    if df is None or len(df) == 0:
-        return pd.Series(dtype=float)
-    close = df["Close"]
-    if isinstance(close, pd.DataFrame):
-        close = close.iloc[:, 0]
-    close.index = pd.to_datetime(close.index).normalize()
-    close.name = yf_ticker
-    return close.dropna()
+def _fetch_cboe(symbol: str) -> pd.Series:
+    url = _CBOE_BASE.format(symbol)
+    req = urllib.request.Request(url, headers={"User-Agent": "options-quant-poc/1.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        text = resp.read().decode("utf-8", errors="replace")
+    df = pd.read_csv(io.StringIO(text))
+    df.columns = [c.upper().strip() for c in df.columns]
+    date_col = df.columns[0]
+    if "CLOSE" in df.columns:
+        val = df["CLOSE"]
+    elif symbol.upper() in df.columns:
+        val = df[symbol.upper()]
+    else:
+        val = df.iloc[:, -1]
+    s = pd.Series(val.values, index=pd.to_datetime(df[date_col]).values, name=symbol)
+    s.index = pd.DatetimeIndex(s.index).normalize()
+    return s.sort_index().dropna()
 
 
-def _fred_series(code: str, start: str, end: str) -> pd.Series:
+def _fetch_fred(code: str, start: str, end: str) -> pd.Series:
     df = pdr.DataReader(code, "fred", start, end)
     s = df[code]
-    s.index = pd.to_datetime(s.index).normalize()
+    s.index = pd.DatetimeIndex(s.index).normalize()
     s.name = code
     return s.dropna()
 
 
-def _synth_iv30_90mny(atm_yf: str, start: str, end: str) -> pd.Series:
-    """30D 90%-moneyness IV ≈ ATM IV + (SKEW - 100) * slope.
+def _series(provider: str, symbol: str, start: str, end: str) -> pd.Series:
+    if provider == "CBOE":
+        s = _fetch_cboe(symbol)
+        return s.loc[(s.index >= pd.Timestamp(start)) & (s.index <= pd.Timestamp(end))]
+    if provider == "FRED":
+        return _fetch_fred(symbol, start, end)
+    raise ValueError(f"unknown provider {provider}")
 
-    SPX uses VIX as ATM. QQQ uses VXN as ATM with SPX SKEW reused as the
-    skew shape proxy (no public NDX skew index). POC; absolute level is
-    not Bloomberg-calibrated but monotonic so percentile ranks survive.
-    """
-    atm = _yf_close(atm_yf, start, end)
-    skew = _yf_close("^SKEW", start, end)
+
+def _synth_iv30_90mny(atm_provider: str, atm_symbol: str, start: str, end: str) -> pd.Series:
+    atm = _series(atm_provider, atm_symbol, start, end)
+    skew = _series("CBOE", "SKEW", start, end)
     aligned = pd.concat({"atm": atm, "skew": skew}, axis=1).dropna()
     synth = aligned["atm"] + (aligned["skew"] - 100.0) * _SKEW_SLOPE
-    synth.name = f"iv30_90mny_synth({atm_yf})"
+    synth.name = f"iv30_90mny_synth({atm_symbol})"
     return synth
 
 
-def _synth_iv90_atm_qqq(start: str, end: str) -> pd.Series:
-    """QQQ 90D ATM IV ≈ VXN * (VIX3M / VIX). Term-structure ratio borrowed from SPX."""
-    vxn = _yf_close("^VXN", start, end)
-    vix = _yf_close("^VIX", start, end)
-    vix3m = _yf_close("^VIX3M", start, end)
+def _synth_iv90_atm_ndx(start: str, end: str) -> pd.Series:
+    vxn = _series("CBOE", "VXN", start, end)
+    vix = _series("CBOE", "VIX", start, end)
+    vix3m = _series("CBOE", "VIX3M", start, end)
     aligned = pd.concat({"vxn": vxn, "vix": vix, "vix3m": vix3m}, axis=1).dropna()
     synth = aligned["vxn"] * (aligned["vix3m"] / aligned["vix"])
-    synth.name = "iv90_atm_synth(QQQ)"
+    synth.name = "iv90_atm_synth(NDX)"
     return synth
 
 
 class FreeCon:
-    """`con.bdh`-shaped facade backed by free sources.
+    """`con.bdh`-shaped facade backed by free, official sources.
 
     Returns DataFrame indexed by date with a single column. Empty DataFrame
     on unsupported (ticker, field) so callers can use the same
@@ -140,7 +155,7 @@ class FreeCon:
             series = self._dispatch(ticker, field, start_date, end_date)
         except Exception as e:
             if path.exists():
-                warnings.warn(f"free source failed for {ticker}/{field} ({e}); serving cached")
+                warnings.warn(f"source failed for {ticker}/{field} ({e}); serving cached")
                 return pd.read_parquet(path)
             raise
 
@@ -153,26 +168,27 @@ class FreeCon:
 
     def _dispatch(self, ticker: str, field: str, start: str, end: str) -> pd.Series:
         if field == "PX_LAST":
-            if ticker in _YF_PRICE:
-                return _yf_close(_YF_PRICE[ticker], start, end)
-            if ticker in _YF_CROSS:
-                return _yf_close(_YF_CROSS[ticker], start, end)
-            if ticker in _FRED_MAP:
-                return _fred_series(_FRED_MAP[ticker], start, end)
+            if ticker in _PRICE_MAP:
+                p, sym = _PRICE_MAP[ticker]
+                return _series(p, sym, start, end)
+            if ticker in _CROSS_MAP:
+                p, sym = _CROSS_MAP[ticker]
+                return _series(p, sym, start, end)
             return pd.Series(dtype=float)
 
         key = (ticker, field)
-        if key in _YF_IV:
-            return _yf_close(_YF_IV[key], start, end)
+        if key in _IV_MAP:
+            p, sym = _IV_MAP[key]
+            return _series(p, sym, start, end)
 
         if field == "30DAY_IMPVOL_90.0%MNY_DF":
             if ticker == "SPX Index":
-                return _synth_iv30_90mny("^VIX", start, end)
-            if ticker == "QQQ US Equity":
-                return _synth_iv30_90mny("^VXN", start, end)
+                return _synth_iv30_90mny("CBOE", "VIX", start, end)
+            if ticker == "NDX Index":
+                return _synth_iv30_90mny("CBOE", "VXN", start, end)
 
-        if field == "90DAY_IMPVOL_100.0%MNY_DF" and ticker == "QQQ US Equity":
-            return _synth_iv90_atm_qqq(start, end)
+        if field == "90DAY_IMPVOL_100.0%MNY_DF" and ticker == "NDX Index":
+            return _synth_iv90_atm_ndx(start, end)
 
         return pd.Series(dtype=float)
 
