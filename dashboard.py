@@ -296,6 +296,13 @@ def section_e_subperiod(bt: BacktestResults) -> str:
 
 
 def build_dashboard(sigs: Signals, bt: BacktestResults) -> str:
+    from sensitivity import (
+        format_tail_metrics,
+        format_tc_grid,
+        tail_metrics_table,
+        tc_sensitivity_table,
+    )
+
     bar = "=" * 72
     parts = [
         bar,
@@ -312,10 +319,14 @@ def build_dashboard(sigs: Signals, bt: BacktestResults) -> str:
         "",
         section_e_subperiod(bt),
         "",
+        format_tc_grid(tc_sensitivity_table(bt)),
+        "",
+        format_tail_metrics(tail_metrics_table(bt)),
+        "",
         bar,
         "  No score. No recommendation. Decision input, not the decision.",
         "  Caveats: synthetic 90mny IV (POC; calibrated, not Bloomberg-observed),",
-        "  0 transaction costs, 0% dividend yield.",
+        "  0% dividend yield. Transaction-cost sensitivity in Section G.",
         bar,
     ]
     return "\n".join(parts)
