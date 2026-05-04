@@ -22,7 +22,6 @@ from signals import build_signals
 from backtest import run_backtest, SLEEVE_COLS
 from dashboard import build_dashboard
 from stats_rigor import sharpe_with_ci, stationary_block_bootstrap_sharpe
-from validate import run_walk_forward, format_walk_forward_report
 
 OUT_DIR = pathlib.Path("out")
 PLOT_DIR = OUT_DIR / "plots"
@@ -122,15 +121,6 @@ def main(start: str = "2010-01-01") -> None:
     dash_path = OUT_DIR / f"dashboard_{sigs.latest_date().date()}.txt"
     dash_path.write_text(dash, encoding="utf-8")
     print(f"\n  saved → {dash_path}")
-
-    _section("Phase 6 — Walk-Forward Validation")
-    wf_df = run_walk_forward(sigs, bt)
-    wf_report = format_walk_forward_report(wf_df)
-    print(wf_report)
-    wf_path = OUT_DIR / f"walkforward_{sigs.latest_date().date()}.txt"
-    wf_path.write_text(wf_report, encoding="utf-8")
-    _save_table("06_walkforward", wf_df.drop(columns=["rule_test_ci"]))
-    print(f"\n  saved → {wf_path}")
 
     _section("Done")
     print(f"Outputs in {OUT_DIR.resolve()}")
