@@ -189,6 +189,44 @@ def section_d_analog(sigs: Signals, bt: BacktestResults, k: int = K_NEIGHBORS) -
     return "\n".join(out)
 
 
+SUBPERIOD_SPLITS = [
+    ("2010-02-19", "2015-12-31", "Recovery / bull"),
+    ("2016-01-01", "2020-12-31", "Late cycle / COVID"),
+    ("2021-01-01", "2026-12-31", "Post-COVID / 2022 bear"),
+]
+
+
+def section_e_subperiod(bt: BacktestResults) -> str:
+    out = [
+        "## Section E — Subperiod Stability",
+        "",
+        "Same sleeve stats as Phase 3, computed on three rough 5y windows.",
+        "Stability check — does the sleeve's behavior persist across regimes,",
+        "or is the full-period number averaging two opposite halves?",
+        "",
+    ]
+    for u in bt.rolls:
+        rolls = bt.rolls[u]
+        out.append(f"### {u}")
+        for start, end, label in SUBPERIOD_SPLITS:
+            sub = rolls.loc[start:end]
+            if len(sub) == 0:
+                continue
+            rets = sub[SLEEVE_COLS]
+            n_per_year = 12
+            stats = pd.DataFrame({
+                "cagr":   ((1 + rets).prod() ** (n_per_year / max(len(rets), 1)) - 1),
+                "vol":    rets.std() * np.sqrt(n_per_year),
+                "sharpe": rets.mean() / rets.std() * np.sqrt(n_per_year),
+                "max_dd": ((1 + rets).cumprod() / (1 + rets).cumprod().cummax() - 1).min(),
+                "hit":    (rets > 0).mean(),
+            })
+            out.append(f"  {start[:7]} → {end[:7]}  ({label}, n={len(sub)})")
+            out.append(stats.round(3).to_string())
+            out.append("")
+    return "\n".join(out)
+
+
 def build_dashboard(sigs: Signals, bt: BacktestResults) -> str:
     bar = "=" * 72
     parts = [
@@ -204,9 +242,12 @@ def build_dashboard(sigs: Signals, bt: BacktestResults) -> str:
         "",
         section_d_analog(sigs, bt),
         "",
+        section_e_subperiod(bt),
+        "",
         bar,
         "  No score. No recommendation. Decision input, not the decision.",
-        "  Caveats: flat-vol pricing inflates collar; 0 transaction costs.",
+        "  Caveats: synthetic 90mny IV (POC; calibrated, not Bloomberg-observed),",
+        "  0 transaction costs, 0% dividend yield.",
         bar,
     ]
     return "\n".join(parts)
