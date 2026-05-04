@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A research notebook that recommends, on a regular cadence, how Purpose should weight options-overlay sleeves (covered call, cash-covered put, collar, short-strangle) across a small universe of liquid underlyings (SPX, QQQ, plus XIU/XSP if data permits). Drives both product-team strategy work (Phase α — should we launch sleeve X?) and PM-level overlay sizing (Phase β — is PDIV's overlay sized right this week?).
+A research notebook that recommends, on a regular cadence, which options-overlay sleeves (covered call, cash-covered put, collar, short-strangle) are attractive in the current market environment. Universe: SPX and NDX index level (POC) — extends to ETFs/Canadian once on Bloomberg. **Market-general scorecard, no fund-specific specialization** — pivoted away from PDIV (Phase β) on 2026-05-04 to keep scope tight and broadly useful for the quant team.
 
 The original v1.0 HMM-only fund-intelligence notebook (`hmm.ipynb`) is preserved as a legacy single-fund diagnostic. The HMM/Markov-switching layer is demoted to an optional "fragility flag" appendix in v2.0 — not the spine.
 
@@ -14,9 +14,11 @@ Given a vol/skew/trend/drawdown panorama on a few liquid underlyings, output a P
 
 > **This is the only active milestone.** v1.0 (HMM) is closed and archived under `.planning/phases-archive/v1.0-hmm/`. Phase numbering restarts at 1.
 
-**Goal:** Build a notebook that produces, on demand, a PM-readable scorecard of options-overlay sleeve attractiveness across SPX/QQQ (and optionally XIU/XSP), backed by sleeve P&L backtests, conditioned on a transparent signal panel (VRP, skew, term structure, trend, drawdown), with optional Markov-switching fragility flag overlay.
+**Goal:** Build a notebook that produces, on demand, a PM-readable scorecard of options-overlay sleeve attractiveness across SPX/NDX, backed by sleeve P&L backtests, conditioned on a transparent signal panel (VRP, skew, term structure, trend, drawdown), with optional Markov-switching fragility flag overlay. Insight is **market-general** — useful for the quant team's broader trading view, not fund-specific.
 
-**Phases:** Phase α = 1-6 (engine), Phase β = 7 (PDIV), Phase γ = 8 (optional fragility flag)
+**Phases:** Phase α = 1-6 (engine; this is the POC scope). Phase γ = 8 optional. **Phase β (PDIV specialization) dropped 2026-05-04** — scope simplified to market-general only.
+
+**POC dev path:** local development against CBOE/FRED free-source data layer (`local_data.py` + `sleeve_alpha_dev.ipynb`); math layer ports back to Cron2/Bloomberg `sleeve_alpha.ipynb` verbatim because the panel identifier set is identical.
 
 **Target features (Phase α — engine):**
 - Multi-underlying data pull (price + ATM IV + 90% moneyness IV from `con.bdh`, plus VIX and fund NAVs)
@@ -25,10 +27,6 @@ Given a vol/skew/trend/drawdown panorama on a few liquid underlyings, output a P
 - Sleeve scorecard: per-sleeve transparent scoring rule on signal panel, output in [-1, +1]
 - PM output: single dashboard table (sleeve × underlying × score × recommended weight × top-2-driver-signals) + auto-generated commentary block
 - Validation gates: walk-forward sleeve-sign accuracy, turnover, tail-risk metrics
-
-**Target features (Phase β — PDIV specialization):**
-- Engine pointed at PDIV's actual benchmark/sleeve and current overlay rule
-- Output: per-week recommendation on heavier/lighter overlay, optional protective-leg add
 
 **Optional (Phase γ — appendix):**
 - 2-state `statsmodels.tsa.regime_switching.MarkovRegression` fragility flag on a vol-and-credit composite, used as a global short-vol cap, not as primary signal
