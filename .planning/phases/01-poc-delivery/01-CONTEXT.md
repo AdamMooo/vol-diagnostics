@@ -1,4 +1,6 @@
-# Phase 6: Validation & POC Delivery — Context
+# Phase 1: POC Delivery & Calibration — Context
+
+> **Milestone v2.1 — POC Delivery & Validation.** Originally drafted as Phase 6 of v2.0; lifted to Phase 1 of v2.1 on 2026-05-04 once it became clear that v2.0 (engine build) was complete and this work is a new cycle (audience: external quant team; mode: deliver + learn).
 
 **Gathered:** 2026-05-04
 **Status:** Ready for planning
@@ -70,8 +72,8 @@ Scope cap: **delivery + calibration + cleanup**. No new signals, no fund special
 - `options-quant.md` — project hub with constraints (Cron2 locked env, sleeves CC/CSP/Collar/Strangle, no predictive claims).
 - `CLAUDE.md` — project operating manual.
 
-### Prior phase context
-- `.planning/phases/01-extended-data-layer/01-CONTEXT.md` — data layer decisions D-01..D-13 (NYSE alignment, panel schema, deferred-field handling).
+### Prior phase context (v2.0 engine, archived)
+- `.planning/phases-archive/v2.0-engine/01-extended-data-layer/01-CONTEXT.md` — data layer decisions D-01..D-13 (NYSE alignment, panel schema, deferred-field handling).
 
 ### Implementation reference
 - `Data.ipynb` — confirmed working `con.bdh` patterns for Bloomberg swap (price, IV fields, USGG3M for risk-free).
@@ -149,5 +151,6 @@ Scope cap: **delivery + calibration + cleanup**. No new signals, no fund special
 
 ---
 
-*Phase: 06-validation-and-delivery*
+*Milestone: v2.1 — POC Delivery & Validation*
+*Phase: 01-poc-delivery*
 *Context gathered: 2026-05-04*

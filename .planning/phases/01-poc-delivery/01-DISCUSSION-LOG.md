@@ -1,10 +1,11 @@
-# Phase 6: Validation & POC Delivery — Discussion Log
+# Phase 1: POC Delivery & Calibration — Discussion Log (v2.1)
 
 > **Audit trail only.** Do not use as input to planning, research, or execution agents.
-> Decisions are captured in 06-CONTEXT.md — this log preserves the alternatives considered.
+> Decisions are captured in 01-CONTEXT.md — this log preserves the alternatives considered.
 
 **Date:** 2026-05-04
-**Phase:** 06-validation-and-delivery
+**Milestone:** v2.1 — POC Delivery & Validation
+**Phase:** 01-poc-delivery (originally drafted as v2.0 Phase 6; lifted to v2.1 Phase 1 on 2026-05-04 once v2.0 engine build was recognized as complete)
 **Areas discussed:** Audience & primary question, Output medium & cadence, What gets pruned, Definition of done
 
 ---

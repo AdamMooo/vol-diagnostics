@@ -4,7 +4,7 @@ Regime-aware options-overlay sleeve scorecard for Purpose. Phase α (the POC) bu
 
 ## Status
 
-**Active — 2026-05-04 — milestone v2.0** (pivoted from v1.0 HMM on 2026-04-30; renamed `tq-hmm` → `options-quant` 2026-05-01; **scope simplified to α-only / market-general 2026-05-04**, β/PDIV dropped). Phase 1 done on the local POC track (`sleeve_alpha_dev.ipynb` + `local_data.py` against CBOE+FRED). Phase 2 next.
+**Active — 2026-05-04 — milestone v2.1 (POC Delivery & Validation).** v2.0 (engine build, local POC) closed 2026-05-04; archived under `.planning/phases-archive/v2.0-engine/`. v2.1 Phase 1 (POC Delivery & Calibration) has context locked — three deliverables: Bloomberg swap, quant-readable notebook, walkthrough doc. Plan pending (`/gsd-plan-phase 1`).
 
 **v1.0 status:** Closed without ship. `hmm.ipynb` preserved as legacy single-fund diagnostic. See `.planning/MILESTONES.md` for closure rationale and `_audits/2026-04-30-sleeve-pivot-audit.md` for the pivot audit.
 
@@ -59,7 +59,15 @@ See `.planning/PROJECT.md` Strategic Decisions for the full table. Key recent de
 
 ## Planned Phases
 
-POC scope: Phases 1-6 (α engine). Phase γ (HMM fragility flag) optional appendix. Phase β (PDIV) dropped 2026-05-04. See `.planning/ROADMAP.md`. v1.0 phases archived under `.planning/phases-archive/v1.0-hmm/`. Phase 1 done on the local POC track.
+**v2.1 milestone:**
+- Phase 1: POC Delivery & Calibration (active) — Bloomberg swap + notebook + walkthrough doc
+- Phase 2+: open, driven by quant-team feedback
+
+**Closed milestones:**
+- v2.0 (engine build) — closed 2026-05-04, archived under `.planning/phases-archive/v2.0-engine/`
+- v1.0 (HMM diagnostic) — closed 2026-04-30, archived under `.planning/phases-archive/v1.0-hmm/`
+
+See `.planning/ROADMAP.md` and `.planning/MILESTONES.md` for detail.
 
 ## Known Issues
 

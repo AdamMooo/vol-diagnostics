@@ -1,84 +1,97 @@
 ---
 gsd_state_version: "1.0"
-milestone: "v2.0 — Sleeve Allocation Framework (α only, market-general)"
+milestone: "v2.1 — POC Delivery & Validation"
 status: active
 last_updated: 2026-05-04
 context_gathered: Phase 1
-plans_ready: Phase 1
-authored_local: Phase 1
-cron2_pending: Phase 1
+plans_ready: false
+authored_local: false
+cron2_pending: false
 local_poc_active: true
-progress: 17
+progress: 5
 ---
 
 # Project State
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-04-30)
-See: `.planning/MILESTONES.md` (v1.0 pivot rationale)
+See: `.planning/PROJECT.md` (updated 2026-05-04 for v2.1)
+See: `.planning/MILESTONES.md` (v2.0 closure recorded 2026-05-04)
+See: `.planning/ROADMAP.md` (v2.1 roadmap, Phase 1 active)
 
-**Core value:** PM-readable scorecard of options-overlay sleeve attractiveness across SPX/QQQ (and optionally XIU/XSP), backed by sleeve P&L backtests, conditioned on a transparent signal panel.
+**Core value:** Calibrated, quant-readable description of options-overlay environment + exposure mechanics + historical context for the quant team's weekly review. State + history, never prescriptive.
 
-**Current focus:** Phase 2 — Signal Engineering, **on the local POC track** (`sleeve_alpha_dev.ipynb`). v1.0 (HMM) closed/archived. Phase β (PDIV specialization) dropped 2026-05-04 — scope is α only, market-general.
+**Current focus:** v2.1 Phase 1 — POC Delivery & Calibration. Context locked, plan pending.
 
 ## Current Position
 
-Phase: **1 of 6** (Extended Data Layer) — DONE on both tracks
-- Cron2/Bloomberg track: `sleeve_alpha.ipynb` authored locally; Cron2 run pending (deferred — local POC takes priority)
-- Local POC track: `sleeve_alpha_dev.ipynb` runs end-to-end with CBOE+FRED data, panels match Cron2 identifier contract verbatim
+Milestone: **v2.1 — POC Delivery & Validation**
+Phase: **1 of 1+** (POC Delivery & Calibration) — CONTEXT LOCKED · PLAN PENDING
+Next: `/gsd-plan-phase 1` to draft `01-PLAN.md` against locked decisions.
+Status: 16 decisions captured across 4 areas (audience, output, pruning, done bar). v2.0 engine is the dependency — closed and archived. Three deliverables: Bloomberg calibration, notebook artifact, walkthrough doc. Hard scope cap: no PDIV, no HMM, no new signals.
+Last activity: 2026-05-04 — milestone reset (v2.0 → v2.1), Phase 1 context committed
 
-Next: `/gsd-plan-phase 2` — Signal Engineering (RV, VRP, term, skew, trend, drawdown, fragility composite) on the local track.
-Status: 4 plans authored Cron2-side, 16-cell dev notebook executes clean locally. SPX (CBOE) + NDX (FRED) panels both populated, 4107 obs from 2010-01-04. VVIX deferred (no free historical), XIU/XSP deferred (Canadian, revisit on Bloomberg).
-Last activity: 2026-05-04 — local POC scaffold + α-only scope pivot
-
-Progress: [██░░░░░░░░] 17% (1/6 phases done on POC track)
+Progress: [█░░░░░░░░░] 5% (context locked; planning + execution remain)
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed (locally authored): 4 (this milestone — Phase 1: 01-01..01-04)
-- Plans Cron2-confirmed: 0 (pending operator run on first phase)
-- Total execution time: ~30 min local (Phase 1, 4 plans, 8 atomic feat commits + 4 doc commits)
+**v2.0 final velocity (closed):**
+- Engine modules shipped: 7 (`local_data`, `data_layer`, `signals`, `backtest`, `dashboard`, `stats_rigor`, `sensitivity`)
+- Tests: 74 passing
+- Statistical rigor: Holm-Bonferroni, stationary block bootstrap
+- Honest finding: 0 of 30 bucket-mean tests survive Holm correction at FWE α=0.05
+
+**v2.1 velocity (active):**
+- Plans completed: 0
+- Plans pending: 1 (Phase 1 PLAN.md)
 
 ## Accumulated Context
 
-### Decisions (carried forward — see PROJECT.md Strategic Decisions for full list)
+### Decisions (carried forward)
 
-- 2026-05-04: **Drop Phase β (PDIV specialization)** — scope simplified to market-general scorecard only; quant team uses for broader trading view
-- 2026-05-04: Local POC dev path adopted — `sleeve_alpha_dev.ipynb` + `local_data.py` against CBOE+FRED official sources; math ports back to Cron2/Bloomberg verbatim
-- 2026-05-04: yfinance rejected in favour of CBOE direct CSV + FRED — all-official data publishers, zero scrapers
-- 2026-05-04: Universe trimmed to SPX + NDX index level (matches what VIX/VXN measure); QQQ ETF/Canadian add back on Bloomberg
-- 2026-04-30: Pivot from v1.0 HMM to v2.0 Sleeve Framework (audit-driven)
-- 2026-04-30: Scorecard primary, HMM optional — PM-auditable, governance-friendly
-- 2026-04-30: Strategy menu = CC + CSP + Collar + ShortStrangle. Drop dispersion
-- 2026-04-30: `30DAY_IMPVOL_100.0%MNY_DF` and `30DAY_IMPVOL_90.0%MNY_DF` confirmed working via `con.bdh` (emds_client)
-- 2026-04-30: Phase numbering reset to 1 for v2.0 (v1.0 phases archived to `.planning/phases-archive/v1.0-hmm/`)
+**v2.0 closure (2026-05-04):**
+- Engine build complete on free CBOE+FRED data; mode shift to deliver/learn warranted milestone boundary
+- Phases 1-5 archived under `.planning/phases-archive/v2.0-engine/`
+- Original Phase 6 "Validation Gates" re-scoped and lifted to v2.1 Phase 1
+
+**v2.1 Phase 1 locked decisions (16, see `01-CONTEXT.md`):**
+- Audience: quant team first; weekly Monday review; async handoff then meeting
+- Output: Jupyter notebook (.ipynb), manual run, top-of-page current-state, charts critical
+- Pruning: delete `validate.py`; reframe Section D; keep Section C + Holm
+- Calibration: Bloomberg swap BEFORE delivery (synthetic 90mny IV pushback expected)
+- Scope cap: no PDIV, no HMM, no new signals — locked
+
+**Earlier (carried from v2.0):**
+- Strategy menu = CC + CSP + Collar + Short Strangle (drop dispersion)
+- Universe = SPX + NDX index level (POC)
+- Insight framing = state + exposure + history; never prescriptive
 
 ### Pending Todos
 
-- **Cron2 run gate for Phase 1** — deprioritized while local POC is the active track. Open `sleeve_alpha.ipynb` on Cron2, Run All, confirm panels land — only after POC produces math worth porting.
-- ~~Capture PDIV's current overlay rule (gate for Phase 7/β)~~ — N/A; Phase β dropped 2026-05-04
-- ~~Probe XIU and XSP IV field availability during Phase 1~~ — folded into Phase 1 Plan 02 (`[landed]/[deferred]` log); Canadian deferred to Bloomberg
-- ~~Probe `90DAY_IMPVOL_100.0%MNY_DF` for term structure during Phase 1~~ — folded into Phase 1 Plan 01 `IV_FIELDS["iv90_atm"]`
+- **Plan v2.1 Phase 1** — `/gsd-plan-phase 1` to draft `01-PLAN.md` against locked decisions in `01-CONTEXT.md`. Likely 5-6 atomic plans (validate.py delete, Section D reframe, BloombergCon class, notebook builder, charts pass, walkthrough doc).
+- ~~Cron2 run gate for v2.0 Phase 1~~ — moot; v2.0 closed without Cron2 production. Bloomberg run happens as part of v2.1 Phase 1.
+- **Capture for the team meeting:** Does the team already have a vol/regime/sleeve-context dashboard we shouldn't duplicate? Surface in walkthrough doc.
 
 ### Blockers/Concerns
 
-- None active. PDIV overlay rule capture is a Phase β prerequisite, not a Phase α blocker.
+- **Bloomberg/emds_client access required for v2.1 Phase 1** — the calibration step needs Cron2 to run. Plan needs to identify whether Bloomberg fields are pulled locally (via auth'd client) or whether Cron2 is the only path.
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| v1.0 | All v1.0 phases (1-6 HMM diagnostic) | Closed without ship — `.planning/phases-archive/v1.0-hmm/` | 2026-04-30 |
-| v2.0 | Dispersion / implied-correlation sleeve | Out of scope (dealer/HF turf) | Init |
-| v2.0 | Phase β (PDIV specialization) | **Dropped** — market-general scope only | 2026-05-04 |
-| v2.0 | XIU / XSP (Canadian) | Deferred — no free official source; revisit on Bloomberg | 2026-05-04 |
-| v2.0 | VVIX | Deferred — no free historical; revisit on Bloomberg | 2026-05-04 |
-| v2.0 | Phase γ (Markov-switching fragility flag) | Optional — only after Phase α green | Init |
+| v1.0 | All v1.0 phases (HMM diagnostic) | Closed without ship | 2026-04-30 |
+| v2.0 | Phase 6 (original Validation Gates) | Re-scoped → v2.1 Phase 1 | 2026-05-04 |
+| v2.0 | Cron2 production run | Subsumed into v2.1 Bloomberg calibration | 2026-05-04 |
+| v2.0 | Phase 7 (PDIV / fund specialization) | Dropped 2026-05-04, market-general scope only | 2026-05-04 |
+| v2.0 | Phase 8 (Markov-switching fragility flag) | Optional appendix, deferred indefinitely | 2026-05-04 |
+| v2.1 | New signals beyond six + fragility composite | Locked OUT — only after team validates current set | 2026-05-04 |
+| v2.1 | Automated weekly schedule | Manual run for POC; revisit if team uses weekly | 2026-05-04 |
+| v2.1 | HTML/PDF/Slack export formats | POC ships as .ipynb; revisit if asked | 2026-05-04 |
+| v2.1 | Transaction cost calibration to broker desk | Generic 0/5/10/20bp grid in current dashboard | 2026-05-04 |
 
 ## Session Continuity
 
 Last session: 2026-05-04
-Stopped at: Local POC scaffolded — `local_data.py` (CBOE+FRED), `sleeve_alpha_dev.ipynb` runs end-to-end, panels match Cron2 contract. Scope pivoted to α-only/market-general. Ready for Phase 2 math.
-Resume: `/gsd-plan-phase 2` for Signal Engineering on the POC track.
+Stopped at: v2.0 closed; v2.1 opened with Phase 1 context locked. Ready for `/gsd-plan-phase 1`.
+Resume: `/gsd-plan-phase 1` to draft Phase 1 plan against `01-CONTEXT.md`.

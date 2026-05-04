@@ -10,26 +10,29 @@ The original v1.0 HMM-only fund-intelligence notebook (`hmm.ipynb`) is preserved
 
 Given a vol/skew/trend/drawdown panorama on a few liquid underlyings, output a PM-readable scorecard of which option-overlay sleeves are attractive right now, why (which signals are loaded), and what the historical sleeve P&L looked like in similar past environments. Bridges the gap between "intellectually interesting regime model" and "decision a PM can act on tomorrow."
 
-## Current Milestone: v2.0 Sleeve Allocation Framework
+## Current Milestone: v2.1 — POC Delivery & Validation
 
-> **This is the only active milestone.** v1.0 (HMM) is closed and archived under `.planning/phases-archive/v1.0-hmm/`. Phase numbering restarts at 1.
+> v1.0 (HMM) closed/archived. **v2.0 (Sleeve Allocation Framework — Engine Build) closed 2026-05-04** — local POC complete, archived under `.planning/phases-archive/v2.0-engine/`. v2.1 is the only active milestone.
 
-**Goal:** Build a notebook that produces, on demand, a PM-readable scorecard of options-overlay sleeve attractiveness across SPX/NDX, backed by sleeve P&L backtests, conditioned on a transparent signal panel (VRP, skew, term structure, trend, drawdown), with optional Markov-switching fragility flag overlay. Insight is **market-general** — useful for the quant team's broader trading view, not fund-specific.
+**Goal:** Deliver the v2.0 engine to the quant team for evaluation. Calibrate against Bloomberg (replace synthetic 90mny IV), package as a Jupyter notebook with quality charts, write a walkthrough doc, and surface the question *"What would have to be true for this to inform a real decision?"*
 
-**Phases:** Phase α = 1-6 (engine; this is the POC scope). Phase γ = 8 optional. **Phase β (PDIV specialization) dropped 2026-05-04** — scope simplified to market-general only.
+**Audience:** Quant team first. Weekly Monday review cadence. Async handoff (notebook + walkthrough doc) followed by a focused meeting.
 
-**POC dev path:** local development against CBOE/FRED free-source data layer (`local_data.py` + `sleeve_alpha_dev.ipynb`); math layer ports back to Cron2/Bloomberg `sleeve_alpha.ipynb` verbatim because the panel identifier set is identical.
+**Phase 1 — POC Delivery & Calibration (active):** Bloomberg swap + notebook artifact + walkthrough doc + cleanup. Locked decisions in `.planning/phases/01-poc-delivery/01-CONTEXT.md`.
 
-**Target features (Phase α — engine):**
-- Multi-underlying data pull (price + ATM IV + 90% moneyness IV from `con.bdh`, plus VIX and fund NAVs)
-- Signal panel: realized vol, VRP (IV minus RV), skew (IV90 minus IV100), term-shape proxy, trend (12m), drawdown — percentile-ranked on expanding window
-- Sleeve P&L proxies: BXM-style covered call, PUT-style cash-secured put, 95/110 monthly collar, 1m short straddle — Black-Scholes priced from spot + IV + skew, monthly roll
-- Sleeve scorecard: per-sleeve transparent scoring rule on signal panel, output in [-1, +1]
-- PM output: single dashboard table (sleeve × underlying × score × recommended weight × top-2-driver-signals) + auto-generated commentary block
-- Validation gates: walk-forward sleeve-sign accuracy, turnover, tail-risk metrics
+**Future phases (open):** driven by team feedback. May include extensions, scope changes, or a go/no-go decision after the team reviews. Not pre-defined.
 
-**Optional (Phase γ — appendix):**
-- 2-state `statsmodels.tsa.regime_switching.MarkovRegression` fragility flag on a vol-and-credit composite, used as a global short-vol cap, not as primary signal
+**Hard scope cap (locked):** No PDIV / fund specialization. No Markov-switching/HMM. No new signals beyond the six + fragility composite already shipped in v2.0.
+
+**Insight framing (locked from v2.0):**
+- **Market-general** — applicable to the quant team's broader trading view, not fund-specific
+- **State + exposure + history**, never prescriptive — no scoring, no buy-this recommendations
+- **Statistical rigor over predictive claims** — Holm correction, block bootstrap, honest reporting of negative results
+
+**Local engine assets (from v2.0, untouched):**
+- `local_data.py`, `data_layer.py`, `signals.py`, `backtest.py`, `dashboard.py`, `stats_rigor.py`, `sensitivity.py`, `run.py`
+- 74 tests (math + pipeline + property-based)
+- Math layer is portable to Cron2/Bloomberg verbatim — only the data dispatch in `local_data.py` changes
 
 ## Constraints
 
