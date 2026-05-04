@@ -19,8 +19,9 @@ import pandas as pd
 
 from data_layer import build_panels
 from signals import build_signals
-from backtest import run_backtest
+from backtest import run_backtest, SLEEVE_COLS
 from dashboard import build_dashboard
+from stats_rigor import sharpe_with_ci
 
 OUT_DIR = pathlib.Path("out")
 PLOT_DIR = OUT_DIR / "plots"
@@ -87,8 +88,16 @@ def main(start: str = "2010-01-01") -> None:
     bt = run_backtest(panels)
     for u in panels.iv_panel.columns:
         print(f"\n{u} ({len(bt.rolls[u])} rolls, {bt.rolls[u].index.min().date()} → {bt.rolls[u].index.max().date()}):")
-        print(bt.stats[u].round(3).to_string())
-        _save_table(f"03_stats_{u}", bt.stats[u])
+        # base stats
+        base = bt.stats[u].round(3)
+        # add bootstrap CI on Sharpe
+        ci_rows = {}
+        for sleeve in SLEEVE_COLS:
+            point, lo, hi = sharpe_with_ci(bt.rolls[u][sleeve].dropna().values)
+            ci_rows[sleeve] = f"[{lo:+.2f}, {hi:+.2f}]"
+        base["sharpe_95ci"] = pd.Series(ci_rows)
+        print(base.to_string())
+        _save_table(f"03_stats_{u}", base)
 
     fig, axes = plt.subplots(len(panels.iv_panel.columns), 1, figsize=(12, 4 * len(panels.iv_panel.columns)), sharex=True)
     if len(panels.iv_panel.columns) == 1:

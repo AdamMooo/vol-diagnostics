@@ -18,6 +18,7 @@ import pandas as pd
 
 from backtest import SLEEVE_COLS, BacktestResults
 from signals import Signals
+from stats_rigor import sharpe_with_ci, q1_q4_bucket_test
 
 BUCKETED_SIGNALS = ("vrp", "term", "skew", "fragility")
 NEIGHBOR_FEATURES = ("vrp", "term", "skew", "trend", "dd", "fragility")
@@ -112,7 +113,8 @@ def section_c_buckets(sigs: Signals, bt: BacktestResults) -> str:
         "  Q2 = 0.25-0.50      Q3 = 0.50-0.75      Q4 ≥ 0.75",
         "",
         "Mean realized monthly return per sleeve, by quartile of signal AT ROLL OPEN.",
-        "Today's bucket marked '*'.",
+        "Today's bucket marked '*'. Last column 'Δ Q4-Q1' is the mean difference",
+        "with Welch's t-test p-value: marks ** for p<0.05, * for p<0.10.",
         "",
     ]
     for u in bt.rolls:
@@ -133,8 +135,32 @@ def section_c_buckets(sigs: Signals, bt: BacktestResults) -> str:
             agg.index = pd.MultiIndex.from_tuples(
                 [(stat, f"{q}{'*' if q == today_q else ''}") for stat, q in agg.index]
             )
+
+            test_rows = []
+            for sleeve in SLEEVE_COLS:
+                t = q1_q4_bucket_test(sig_at_open, rolls[sleeve].values)
+                if pd.isna(t["p"]):
+                    flag = ""
+                elif t["p"] < 0.05:
+                    flag = "**"
+                elif t["p"] < 0.10:
+                    flag = "*"
+                else:
+                    flag = ""
+                test_rows.append({
+                    "sleeve": sleeve,
+                    "Δ Q4-Q1 (pp)": round(t["diff"] * 100, 2) if not pd.isna(t["diff"]) else float("nan"),
+                    "t": round(t["t"], 2) if not pd.isna(t["t"]) else float("nan"),
+                    "p": round(t["p"], 3) if not pd.isna(t["p"]) else float("nan"),
+                    "sig": flag,
+                })
+            test_df = pd.DataFrame(test_rows).set_index("sleeve")
+
             out.append(f"  {sig:9s}  today: {today_val:.2f} → {today_q}   n by Q1/Q2/Q3/Q4: {n_str}")
             out.append(agg.to_string())
+            out.append("")
+            out.append("    Q4-vs-Q1 difference test (** p<0.05, * p<0.10):")
+            out.append("    " + test_df.to_string().replace("\n", "\n    "))
             out.append("")
     return "\n".join(out)
 
