@@ -4,48 +4,42 @@
 
 ## Overview
 
-v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statistical rigor) and prepares it for evaluation by the quant team. Three deliverables, one phase to start; future phases are driven by team feedback.
+v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statistical rigor) and prepares it for evaluation by the quant team. Deliverable is a self-contained HTML report (`build_report.py`) on free CBOE+FRED data. Phase 1 is complete; future phases are driven by team feedback.
 
 ## Phases
 
-- [x] **Phase 1: POC Delivery & Calibration** — Bloomberg swap, notebook artifact, walkthrough doc, cleanup of forecasting drift. Context locked. **6 plans ready.**
-- [ ] **Phase 2+:** Open — driven by quant-team feedback. May include extensions, scope adjustments, or a go/no-go on production-ize.
+- [x] **Phase 1: POC Delivery & Calibration** — HTML report, WALKTHROUGH.md, cleanup of forecasting drift. **COMPLETE.**
+- [x] **Post-phase: Bayesian Reframe** — Conditional summary leads report; equity chart removed; Section E unconditional caveat. **COMPLETE.**
+- [ ] **Phase 2+:** Open — driven by quant-team feedback. May include data quality fixes (NDX skew identity), extensions, or a go/no-go on productionizing.
 
 ---
 
 ## Phase Details
 
-### Phase 1: POC Delivery & Calibration
-**Goal:** Hand a calibrated, quant-readable POC to the quant team for async review followed by a meeting. Notebook + Bloomberg-calibrated data + walkthrough doc.
+### Phase 1: POC Delivery & Calibration — COMPLETE
+**Goal:** Deliver a quant-readable POC to the quant team for async review followed by a meeting.
 
-**Depends on:** v2.0 engine (closed) — `local_data.py`, `data_layer.py`, `signals.py`, `backtest.py`, `dashboard.py`, `stats_rigor.py`, `sensitivity.py`, `run.py`, 74 tests.
+**Shipped:**
+- `build_report.py` — HTML report generator producing `out/sleeve_report_YYYYMMDD.html`; sections A–H; charts as base64 data URIs
+- Section D reframed — forward-realized environment (signals) after analog match; K-NN logic untouched
+- `validate.py` deleted (forecasting drift)
+- `WALKTHROUGH.md` — per-section quant guide; Holm framing; two team questions
+- Chart styling — CHART_STYLE dict, regime shading, consistent palette
 
-**Locked decisions:** `.planning/phases/01-poc-delivery/01-CONTEXT.md` (16 decisions across 4 areas).
+**Note on scope:** Deliverable is the HTML report, not a Jupyter notebook. Bloomberg calibration deferred; free-data POC ships as-is.
 
-**Three deliverables:**
-1. **Bloomberg calibration** — replace synthesized 90mny IV with `con.bdh('SPX Index', '30DAY_IMPVOL_90.0%MNY_DF', ...)`. Math layer untouched (identifier set is portable). Add `BloombergCon` class mirroring `FreeCon.bdh` interface; config switch selects which.
-2. **Quant-readable notebook (`.ipynb`)** — top-of-page current-state strip, drill-down sections below (A → B → C → D-reframed → E → G → H), embedded charts with regime shading and consistent palette.
-3. **Walkthrough doc (`WALKTHROUGH.md`)** — per-section: what it shows, how to read it, what it doesn't show / its limits, how it was built (sample size, statistical method).
+**Plans:** 01-02, 01-03, 01-04, 01-05, 01-06 (01-01 BloombergCon dropped as not needed for free-data delivery)
 
-**Cleanup:**
-- Delete `validate.py` (forecasting drift)
-- Reframe Section D — show realized environment after analog match, not realized sleeve P&L
-- Keep Section C bucket means + Welch's t-test + Holm-Bonferroni (rigor is the point)
+### Post-phase: Bayesian Reframe — COMPLETE (2026-05-04)
+**Goal:** Remove the misleading unconditional narrative; add explicit conditional bridge from today's signals to historical sleeve returns.
 
-**Hard scope cap (explicitly OUT):** PDIV / fund specialization, Markov-switching/HMM, any new signals.
-
-**Audience & cadence:** Quant team first, weekly Monday review, async handoff then meeting.
-
-**Success criteria:**
-1. Notebook compiles top-to-bottom on Bloomberg data; current-state-led layout; chart quality good enough that a quant-team reader gets the regime in 3 seconds.
-2. Walkthrough doc covers every dashboard section with read-this-way / its-limits guidance, plus the open question for the team: *"Does the team already have a vol/regime/sleeve-context dashboard we shouldn't duplicate?"*
-3. `validate.py` removed; Section D reframed; Section C + Holm rigor preserved verbatim.
-4. POC handed to quant team async with the question: *"What would have to be true for this to inform a real decision?"*
-
-**Plans:** 6 plans across 3 waves
-- Wave 1 (parallel): 01-01 (BloombergCon class), 01-02 (remove validate.py)
-- Wave 2: 01-03 (Section D reframe), 01-04 (notebook builder)
-- Wave 3: 01-05 (chart styling), 01-06 (WALKTHROUGH.md)
+**Shipped:**
+- `section_today_conditional()` in `dashboard.py` — for each bucketed signal, today's quartile + mean monthly return per sleeve in that quartile; no new math (same bucket computation as Section C)
+- `_equity_chart()` deleted from `build_report.py` — growth-of-$1 chart was loudest unconditional strategy-ranking signal
+- Section order: conditional summary → A → signal chart → B → C → D → E → G → H
+- Section E: "Unconditional reference class over 2010–2026 (a sustained equity bull market)" caveat
+- `build_dashboard()` updated — `run.py` parity
+- WALKTHROUGH.md updated — conditional summary section entry, updated sections table, Section E description
 
 ---
 
@@ -53,14 +47,27 @@ v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statis
 
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
-| 1. POC Delivery & Calibration | 5 plans (01-01 dropped) | COMPLETE | 01-02, 01-03, 01-04, 01-05, 01-06 (2026-05-04) |
+| 1. POC Delivery & Calibration | 5 plans (01-01 dropped) | COMPLETE | 2026-05-04 |
+| Post-phase: Bayesian Reframe | inline (no GSD phase) | COMPLETE | 2026-05-04 |
+| 2+. Post-team-feedback | TBD | OPEN | — |
+
+---
+
+## Known Open Items (pre-Phase 2)
+
+| Item | Description | Priority |
+|------|-------------|----------|
+| NDX skew identity | NDX/SPX share the same CBOE SKEW signal — readings always identical | Fix before team meeting |
+| NDX iv90_atm synthesis | Uses SPX term-structure ratio — same data accuracy category | Fix before team meeting |
+| Bloomberg calibration | Replace synthesized 90mny IV with `30DAY_IMPVOL_90.0%MNY_DF` | Pending team greenlight |
+| UAT | Open `out/sleeve_report_YYYYMMDD.html` in browser; verify conditional summary | Now |
 
 ---
 
 ## Closed milestones
 
 ### v2.0 — Sleeve Allocation Framework: Engine Build
-Closed 2026-05-04. Engine functionally complete on free CBOE+FRED data with statistical rigor (Holm correction, block bootstrap, 74 tests). Mode shift from build → deliver/learn warranted milestone boundary. Phases archived under `.planning/phases-archive/v2.0-engine/`. Original Phase 6 ("Validation Gates") re-scoped and lifted to v2.1 Phase 1.
+Closed 2026-05-04. Engine functionally complete on free CBOE+FRED data with statistical rigor (Holm correction, block bootstrap, 74 tests). Phases archived under `.planning/phases-archive/v2.0-engine/`.
 
 ### v1.0 — Regime-Aware Fund Intelligence Notebook (HMM)
-Closed 2026-04-30 without ship. Pivoted to v2.0. `hmm.ipynb` preserved as legacy single-fund diagnostic. Phases archived under `.planning/phases-archive/v1.0-hmm/`. See `.planning/MILESTONES.md` for closure rationale.
+Closed 2026-04-30 without ship. Pivoted to v2.0. `hmm.ipynb` preserved as legacy single-fund diagnostic. Phases archived under `.planning/phases-archive/v1.0-hmm/`.

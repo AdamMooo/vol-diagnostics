@@ -4,11 +4,11 @@ milestone: "v2.1 — POC Delivery & Validation"
 status: active
 last_updated: 2026-05-04
 context_gathered: Phase 1
-plans_ready: true
-authored_local: false
+plans_ready: false
+authored_local: true
 cron2_pending: false
 local_poc_active: true
-progress: 5
+progress: 6
 ---
 
 # Project State
@@ -17,21 +17,20 @@ progress: 5
 
 See: `.planning/PROJECT.md` (updated 2026-05-04 for v2.1)
 See: `.planning/MILESTONES.md` (v2.0 closure recorded 2026-05-04)
-See: `.planning/ROADMAP.md` (v2.1 roadmap, Phase 1 active)
+See: `.planning/ROADMAP.md` (v2.1 roadmap, Phase 1 complete)
 
 **Core value:** Calibrated, quant-readable description of options-overlay environment + exposure mechanics + historical context for the quant team's weekly review. State + history, never prescriptive.
 
-**Current focus:** v2.1 Phase 1 — POC Delivery & Calibration. 6 plans ready, 3 waves.
+**Current focus:** v2.1 post-Phase-1 iteration. HTML report is the deliverable (not a notebook). Bayesian reframe shipped — conditional context leads the report. Next work: open data quality items or quant-team feedback.
 
 ## Current Position
 
 Milestone: **v2.1 — POC Delivery & Validation**
-Phase: **1 of 1+** (POC Delivery & Calibration) — PLANS READY · READY TO EXECUTE
-Next: `/gsd-execute-phase 1` to run all 6 plans across 3 waves.
-Status: 16 decisions captured across 4 areas (audience, output, pruning, done bar). v2.0 engine is the dependency — closed and archived. Three deliverables: Bloomberg calibration, notebook artifact, walkthrough doc. Hard scope cap: no PDIV, no HMM, no new signals.
-Last activity: 2026-05-04 — Phase 1 re-scoped: local-first (drop Cron2 constraint), Bloomberg deferred, Plan 01-01 dropped. 5 plans remain.
+Phase: **1 of 1+ — COMPLETE.** Post-phase iteration ongoing.
+Status: HTML report (`build_report.py`) fully operational on free CBOE+FRED data. Bayesian reframe shipped 2026-05-04.
+Last activity: 2026-05-04 — Bayesian reframe: `section_today_conditional()` added to `dashboard.py`, `_equity_chart()` deleted from `build_report.py`, section order updated (conditional summary → A → signal chart → B → C → D → E → G → H), Section E bull-market caveat added, `build_dashboard()` updated for `run.py` parity, WALKTHROUGH.md updated.
 
-Progress: [██████████] 100% (01-02, 01-03, 01-04, 01-05, 01-06 complete — Phase 1 done)
+Progress: [██████████] 100% (Phase 1 + Bayesian reframe — report ready to send)
 
 ## Performance Metrics
 
@@ -42,45 +41,32 @@ Progress: [██████████] 100% (01-02, 01-03, 01-04, 01-05, 01-
 - Honest finding: 0 of 30 bucket-mean tests survive Holm correction at FWE α=0.05
 
 **v2.1 velocity (active):**
-- Plans completed: 5 (01-02 validate.py cleanup, 01-03 Section D reframe, 01-04 HTML report generator, 01-05 chart styling, 01-06 WALKTHROUGH.md)
-- Plans pending: 0 — Phase 1 complete
+- Phase 1 plans completed: 5 (01-02 validate.py cleanup, 01-03 Section D reframe, 01-04 HTML report generator, 01-05 chart styling, 01-06 WALKTHROUGH.md)
+- Post-phase: Bayesian reframe (conditional summary, equity chart removal, Section E caveat)
 
 ## Accumulated Context
 
 ### Decisions (carried forward)
 
+**Bayesian reframe (2026-05-04):**
+- HTML report leads with `section_today_conditional()` — conditional bridge from today's signal quartiles to historical sleeve returns
+- Growth-of-$1 equity chart deleted — was the loudest unconditional strategy-ranking signal; data still in Section E stats
+- Section E carries explicit caveat: "unconditional reference class over 2010–2026 (sustained equity bull market)"
+- Section order: conditional summary → A → signal chart → B → C → D → E → G → H (C before E so conditional frame lands first)
+- No new math — `section_today_conditional()` pulls from the same bucket computation as Section C
+
 **v2.0 closure (2026-05-04):**
 - Engine build complete on free CBOE+FRED data; mode shift to deliver/learn warranted milestone boundary
 - Phases 1-5 archived under `.planning/phases-archive/v2.0-engine/`
-- Original Phase 6 "Validation Gates" re-scoped and lifted to v2.1 Phase 1
 
-**01-06 execution (2026-05-04):**
-- WALKTHROUGH.md at repo root; 314 lines; all sections A, B, C, D, E, G, H covered
-- Holm-Bonferroni framed as credibility feature: "0 of 30 survive = rigor, not failure"
-- Section D reframing language: "realized environment after analog match", not forecast
-- Two sharp team questions explicit: vol/regime dashboard duplication + "what would have to be true"
-- Known Limitations table consolidated at end for scan-friendly reference
+**v2.1 Phase 1 execution (2026-05-04):**
+- Deliverable is HTML report (`build_report.py` → `out/sleeve_report_YYYYMMDD.html`), not a Jupyter notebook — notebook deliverable dropped as scope simplification
+- Bloomberg calibration deferred; free-data POC ships as-is; Bloomberg is a one-class swap when team greenlights
+- WALKTHROUGH.md at repo root; covers all sections + two team questions
 
-**01-05 execution (2026-05-04):**
-- CHART_STYLE dict at module level; all chart functions reference it — no hardcoded numbers
-- _add_regime_shading() uses axvspan; graceful no-op when fragility_ts is None (T-01-10 mitigation)
-- X-axis: YearLocator + DateFormatter on bottom subplot only; 45-degree rotation
-
-**01-04 execution (2026-05-04):**
-- Import corrected: data_layer.build_panels (not local_data) — local_data has no build_panels
-- run_backtest(panels) only — plan had wrong signature showing (panels, sigs); actual is panels-only
-- HTML report generator: sections A–H, charts as base64 data URIs, matplotlib Agg backend
-
-**01-03 execution (2026-05-04):**
-- Section D reframed: forward-realized environment signals replace sleeve P&L table; K-NN logic untouched
-- _forward_realized_environment snaps to nearest valid date; returns None when no forward data (safe for recent matches)
-
-**v2.1 Phase 1 locked decisions (16, see `01-CONTEXT.md`):**
-- Audience: quant team first; weekly Monday review; async handoff then meeting
-- Output: Jupyter notebook (.ipynb), manual run, top-of-page current-state, charts critical
-- Pruning: delete `validate.py`; reframe Section D; keep Section C + Holm
-- Calibration: Bloomberg swap BEFORE delivery (synthetic 90mny IV pushback expected)
-- Scope cap: no PDIV, no HMM, no new signals — locked
+**Scope cap (locked):**
+- No PDIV, no HMM, no new signals — locked until team validates current set
+- Audience: quant team first; async handoff then meeting
 
 **Earlier (carried from v2.0):**
 - Strategy menu = CC + CSP + Collar + Short Strangle (drop dispersion)
@@ -89,31 +75,30 @@ Progress: [██████████] 100% (01-02, 01-03, 01-04, 01-05, 01-
 
 ### Pending Todos
 
-- ~~Execute v2.1 Phase 1~~ — COMPLETE. All 5 plans shipped (01-02 through 01-06). Three deliverables: HTML report (build_report.py), Section D reframe, WALKTHROUGH.md.
-- ~~Cron2 run gate for v2.0 Phase 1~~ — moot; v2.0 closed without Cron2 production. Bloomberg run happens as part of v2.1 Phase 1.
-- ~~Capture for the team meeting~~ — Done. WALKTHROUGH.md includes explicit question: "Does your team already have a vol/regime/sleeve-context dashboard?"
-- **Send async to quant team** — Send `out/sleeve_report_YYYYMMDD.html` + `WALKTHROUGH.md`. Follow D-14: async first, then meeting.
+- **Send async to quant team** — Send `out/sleeve_report_YYYYMMDD.html` + `WALKTHROUGH.md`. Async first, then meeting.
+- **UAT** — Open `out/sleeve_report_20260504.html` in browser; verify conditional summary renders and n/mean values match Section C for today's quartiles.
+- **NDX skew identity bug** — both underlyings share the same CBOE SKEW signal; readings always identical. Data accuracy issue, separate phase after team feedback.
 
 ### Blockers/Concerns
 
-- **Bloomberg/emds_client access required for v2.1 Phase 1** — the calibration step needs Cron2 to run. Plan needs to identify whether Bloomberg fields are pulled locally (via auth'd client) or whether Cron2 is the only path.
+- Bloomberg calibration deferred (not blocking) — free-data POC is the deliverable. Bloomberg is a one-class swap in `local_data.py` when team greenlights production.
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
 | v1.0 | All v1.0 phases (HMM diagnostic) | Closed without ship | 2026-04-30 |
-| v2.0 | Phase 6 (original Validation Gates) | Re-scoped → v2.1 Phase 1 | 2026-05-04 |
-| v2.0 | Cron2 production run | Subsumed into v2.1 Bloomberg calibration | 2026-05-04 |
-| v2.0 | Phase 7 (PDIV / fund specialization) | Dropped 2026-05-04, market-general scope only | 2026-05-04 |
-| v2.0 | Phase 8 (Markov-switching fragility flag) | Optional appendix, deferred indefinitely | 2026-05-04 |
-| v2.1 | New signals beyond six + fragility composite | Locked OUT — only after team validates current set | 2026-05-04 |
-| v2.1 | Automated weekly schedule | Manual run for POC; revisit if team uses weekly | 2026-05-04 |
-| v2.1 | HTML/PDF/Slack export formats | POC ships as .ipynb; revisit if asked | 2026-05-04 |
-| v2.1 | Transaction cost calibration to broker desk | Generic 0/5/10/20bp grid in current dashboard | 2026-05-04 |
+| v2.0 | Phase 7 (PDIV / fund specialization) | Dropped, market-general scope only | 2026-05-04 |
+| v2.0 | Phase 8 (Markov-switching fragility flag) | Optional, deferred indefinitely | 2026-05-04 |
+| v2.1 | Bloomberg calibration | Deferred pending team greenlight; one-class swap | 2026-05-04 |
+| v2.1 | New signals beyond six + fragility composite | Locked OUT until team validates current set | 2026-05-04 |
+| v2.1 | NDX skew identity bug | NDX/SPX share same CBOE SKEW signal — data accuracy fix | 2026-05-04 |
+| v2.1 | NDX iv90_atm synthesis | Uses SPX term-structure ratio — same category as skew bug | 2026-05-04 |
+| v2.1 | Automated weekly schedule | Manual run for POC; revisit if team adopts weekly cadence | 2026-05-04 |
+| v2.1 | TC sensitivity calibration to broker desk | Generic 0/5/10/20bp grid; desk-specific calibration deferred | 2026-05-04 |
 
 ## Session Continuity
 
 Last session: 2026-05-04
-Stopped at: 01-06 complete (WALKTHROUGH.md — per-section quant guide, Holm framing, Section D reframing, team questions). Phase 1 fully complete.
-Resume: None — await quant team feedback. Next action: send HTML report + WALKTHROUGH.md async per D-14.
+Stopped at: Bayesian reframe complete. Conditional summary leads report, equity chart gone, Section E reframed, WALKTHROUGH.md updated. Planning docs cleaned up.
+Resume: UAT the HTML report, then send async to quant team. Next dev work: NDX skew identity bug or await team feedback.

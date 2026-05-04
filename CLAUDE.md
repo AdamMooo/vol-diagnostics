@@ -1,17 +1,17 @@
 # CLAUDE — Options Quant — Sleeve Allocation Framework
-Last updated: 2026-05-04 | Status: active milestone v2.1 — local-first POC build
+Last updated: 2026-05-04 | Status: active milestone v2.1 — HTML report ready, Bayesian reframe shipped
 
 ## Repo Card
 
-- **Runtime:** local Python (venv). Cron2/Jupyter is a future migration target, not the build environment.
+- **Runtime:** local Python (venv). Bloomberg/Cron2 is a future swap, not the build environment.
 - **Entry points:** `python run.py` (text dashboard to stdout), `python build_report.py` (generates HTML report)
 - **Output artifact:** `out/sleeve_report_YYYYMMDD.html` — single self-contained file, charts embedded as base64
-- **Data:** free public sources (CBOE + FRED via `pandas-datareader`). Bloomberg/emds_client deferred — add if team greenlights the POC.
+- **Data:** free public sources (CBOE + FRED). Bloomberg deferred — one-class swap in `local_data.py` if team greenlights.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
 
-**v2.1 (current):** Polish, calibrate, and deliver the engine as a quant-readable POC. Three deliverables: (1) HTML report (`out/sleeve_report_YYYYMMDD.html`) with top-of-page current state + embedded charts, (2) WALKTHROUGH.md for async team handoff, (3) cleanup of forecasting drift. Ship on free data; if the team sees value, Bloomberg calibration is a one-class swap.
+**v2.1 (current):** Deliver the engine as a quant-readable HTML report. Leads with a conditional summary (today's signal quartiles → historical base rates per sleeve), followed by full signal analysis and statistical context. Ships on free data. Bayesian reframe complete: equity chart removed, Section E carries unconditional bull-market caveat, section order is conditional → A → signal chart → B → C → D → E → G → H.
 
 **v2.0 (closed):** Engine build — signals, sleeve backtest, decision dashboard, statistical rigor (Holm-Bonferroni, block bootstrap, 74 tests). Archived under `.planning/phases-archive/v2.0-engine/`.
 
@@ -32,11 +32,11 @@ python build_report.py # generates out/sleeve_report_YYYYMMDD.html
 ## Constraints
 
 - **No predictive claims:** descriptive of current environment + historical analog only.
-- **Interpretability first:** scorecard primary, weights printed, no hidden coefficients.
+- **Interpretability first:** conditional base rates primary, no hidden scoring or weighting.
 - **Strategy menu:** covered call, cash-covered put, collar, short straddle. Dispersion out of scope.
-- **No new signals this phase:** six signals + fragility composite. Locked until team validates.
+- **No new signals:** six signals + fragility composite locked until team validates current set.
 - **Windows paths:** use pathlib or `os.path.join` throughout.
-- **No PDIV / HMM this phase:** locked out per D-16 in `01-CONTEXT.md`.
+- **No PDIV / HMM this phase:** locked per scope cap.
 
 ## Key Files
 
@@ -48,12 +48,11 @@ python build_report.py # generates out/sleeve_report_YYYYMMDD.html
 | `data_layer.py` | `build_panels()` → `Panels` dataclass |
 | `signals.py` | `build_signals()` → `Signals` dataclass |
 | `backtest.py` | `run_backtest()` → `BacktestResults` |
-| `dashboard.py` | Section helpers (`section_a_state`, `section_c_buckets`, etc.) |
+| `dashboard.py` | Section helpers including `section_today_conditional`, `section_a_state`, `section_c_buckets`, etc. |
 | `stats_rigor.py` | Holm-Bonferroni, stationary block bootstrap |
 | `sensitivity.py` | TC sensitivity + tail risk metrics |
-| `WALKTHROUGH.md` | Per-section quant team guide (generated this phase) |
+| `WALKTHROUGH.md` | Per-section quant team guide |
 | `hmm.ipynb` | v1.0 legacy — DO NOT MODIFY |
-| `Data.ipynb` | Reference for data access patterns |
 
 ## Workflow
 

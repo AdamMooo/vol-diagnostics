@@ -1,79 +1,75 @@
 # Options Quant — Sleeve Allocation Framework
 
-Regime-aware options-overlay sleeve scorecard for Purpose. Phase α (the POC) builds an engine that recommends sleeve attractiveness (covered call, cash-covered put, collar, short strangle) on SPX + NDX, driven by a transparent percentile-rank scorecard on VRP / skew / term / trend / drawdown signals. **Market-general** — no fund specialization (Phase β dropped 2026-05-04). Phase γ (optional) adds a Markov-switching fragility flag.
+Regime-aware options-overlay sleeve decision dashboard for Purpose. Describes the current options environment (VRP, skew, term structure, trend, drawdown, fragility) and the historical base rates for each sleeve (covered call, cash-covered put, collar, short strangle) in similar environments. **Market-general** — no fund specialization. Ships as a self-contained HTML report on free CBOE+FRED data.
 
 ## Status
 
-**Active — 2026-05-04 — milestone v2.1 (POC Delivery & Validation).** v2.0 (engine build, local POC) closed 2026-05-04; archived under `.planning/phases-archive/v2.0-engine/`. v2.1 Phase 1 (POC Delivery & Calibration) has context locked — three deliverables: Bloomberg swap, quant-readable notebook, walkthrough doc. Plan pending (`/gsd-plan-phase 1`).
+**Active — 2026-05-04 — milestone v2.1 (POC Delivery & Validation).** Phase 1 complete. Bayesian reframe shipped: conditional summary leads the HTML report, equity chart removed, Section E carries unconditional bull-market caveat. Report is ready to send to quant team.
 
-**v1.0 status:** Closed without ship. `hmm.ipynb` preserved as legacy single-fund diagnostic. See `.planning/MILESTONES.md` for closure rationale and `_audits/2026-04-30-sleeve-pivot-audit.md` for the pivot audit.
+Open items before sending: UAT the HTML in a browser; NDX skew identity bug (NDX/SPX share the same CBOE SKEW signal).
 
-**Research question:** Given a vol/skew/trend/drawdown panorama on a small set of liquid underlyings, which option-overlay sleeves are attractive right now, and what would historical sleeve P&L have looked like in similar past environments?
+**v1.0 status:** Closed without ship. `hmm.ipynb` preserved as legacy single-fund diagnostic.
+
+**Research question:** Given today's vol/skew/trend/drawdown readings, what have options sleeves historically returned in similar environments — and what is the honest statistical confidence in that pattern?
+
+## How to Run
+
+```
+python run.py           # text dashboard to stdout
+python build_report.py  # generates out/sleeve_report_YYYYMMDD.html
+```
+
+Open `out/sleeve_report_YYYYMMDD.html` in any browser. No Jupyter needed.
 
 ## Memory
 
 - **Operations:** [[options-quant/CLAUDE|CLAUDE.md]] (run commands & constraints)
 - **Plan:** `.planning/ROADMAP.md` (open via VS Code — dotfolder, Obsidian can't index)
 - **Tasks:** [[../tasks/Options-Quant-Tasks|Task board]]
-- **Auto-memory:** `claude-memory/project_options_quant.md` (project hub), `project_v2_pivot.md` (v2.0 pivot rationale), `project_execution_split.md` (deck-auto-style local-plan/Cron2-run pattern)
-- **Skills:** _(none yet linked)_
-
-## How to Run
-
-- **Local POC (active dev path):** `.venv/Scripts/python.exe -m jupyter lab` → open `sleeve_alpha_dev.ipynb`. Data via CBOE + FRED, no auth needed. Math layer ports back to Cron2 verbatim.
-- **Cron2 / Bloomberg (production):** open `sleeve_alpha.ipynb` on the Cron2 server. Run All on a fresh kernel. Same identifier set as the local notebook so math cells transplant unchanged.
 
 ## Design Decisions
 
-See `.planning/PROJECT.md` Strategic Decisions for the full table. Key recent decisions:
+See `.planning/PROJECT.md` for the full table. Key decisions:
 
 | Date | Decision | Why |
 |------|----------|-----|
-| 2026-05-04 | Drop Phase β (PDIV specialization) — α-only scope | Quant-team usefulness comes from a market-general scorecard, not a fund-tuned overlay rule. Keeps POC tight. |
-| 2026-05-04 | Local POC dev track (CBOE + FRED) | Cron2 latency was blocking iteration. Free official sources let math iterate locally; identifier set matches Cron2 so math is portable. |
-| 2026-05-04 | yfinance rejected, all-official sources | yfinance is unofficial Yahoo scraper; CBOE publishes its own indices and FRED is government — cleanest data provenance for the quant team's review. |
-| 2026-05-04 | Universe = SPX + NDX index level (POC) | Matches what VIX/VXN actually measure (index options). ETFs and Canadian tickers add back when on Bloomberg. |
-| 2026-05-01 | Rename `tq-hmm` → `options-quant` | Old name reflected v1.0 HMM diagnostic; v2.0 is an options sleeve allocation framework |
-| 2026-04-30 | Pivot v1.0 HMM → v2.0 Sleeve Framework | Stated business goal (options sleeve allocation) cannot be answered by an HMM on benchmark returns alone |
-| 2026-04-30 | Scorecard primary, HMM optional | PM-auditable, governance-friendly, robust to data limits |
-| 2026-04-30 | Strategy menu = CC + CSP + Collar + ShortStrangle (drop dispersion) | Dispersion is dealer/HF turf, capacity-limited, governance-unfriendly for retail AM |
-| 2026-04-30 | Use `statsmodels.MarkovRegression` if HMM ever needed | `hmmlearn` not in locked env; statsmodels gives proper sticky Markov-switching |
+| 2026-05-04 | Bayesian reframe — conditional summary leads report; equity chart removed | Growth-of-$1 chart was a strategy-ranking signal, not a decision-support signal. Conditional base rates are the point. |
+| 2026-05-04 | Deliverable is HTML report (`build_report.py`), not a Jupyter notebook | Simpler, no Jupyter dependency, opens in any browser; same content |
+| 2026-05-04 | Bloomberg calibration deferred — ship on free data | POC value is the framing and conditional analysis, not absolute IV calibration; Bloomberg is a one-class swap |
+| 2026-05-04 | Drop Phase β (PDIV specialization) — α-only scope | Market-general scorecard is more useful than a fund-tuned overlay rule |
+| 2026-05-04 | Local POC dev track (CBOE + FRED) | Free official sources; identifier set matches Bloomberg so math is portable |
+| 2026-05-04 | yfinance rejected, all-official sources | yfinance is unofficial Yahoo scraper; CBOE/FRED are clean provenance |
+| 2026-05-04 | Universe = SPX + NDX index level (POC) | Matches what VIX/VXN actually measure |
+| 2026-04-30 | Pivot v1.0 HMM → v2.0 Sleeve Framework | HMM alone cannot answer options sleeve allocation |
+| 2026-04-30 | Strategy menu = CC + CSP + Collar + ShortStrangle (drop dispersion) | Dispersion is dealer/HF turf; out of scope for retail AM |
 
 ## Data Requirements
 
-**Local POC (active) — all-official free sources:**
-- CBOE: SPX (1975+), VIX (1990+), SKEW (1990+), VIX3M (2009+), VXN (2009+) via `cdn.cboe.com/api/global/us_indices/daily_prices/{IDX}_History.csv`
+**Active — all-official free sources:**
+- CBOE: SPX (1975+), VIX (1990+), SKEW (1990+), VIX3M (2009+), VXN (2009+)
 - FRED: NASDAQ100 (NDX prices, 2010+), DGS3MO (3M T-bill, rf_rate)
 - Synthesized: `iv30_90mny = ATM + (SKEW - 100) * 0.5`; NDX `iv90_atm` via SPX term-ratio scaling
 
-**Cron2 / Bloomberg (production target) — confirmed working:**
-- Price + 30d ATM IV (`30DAY_IMPVOL_100.0%MNY_DF`) via `con.bdh`
-- 30d 90%-moneyness IV (`30DAY_IMPVOL_90.0%MNY_DF`) via `con.bdh`
-- 90d ATM IV (`90DAY_IMPVOL_100.0%MNY_DF`) — probed in Phase 1 Plan 01
-- VIX (`PX_LAST`) via `con.bdh`
-- Risk-free `USGG3M Index` `PX_LAST`
-
-**Deferred (revisit on Bloomberg):**
-- VVIX — no free historical
-- XIU / XSP (Canadian) — no free official source
+**Bloomberg (deferred — pending team greenlight):**
+- `30DAY_IMPVOL_90.0%MNY_DF`, `30DAY_IMPVOL_100.0%MNY_DF`, `90DAY_IMPVOL_100.0%MNY_DF` via `con.bdh`
+- VIX (`PX_LAST`), risk-free `USGG3M Index`
 
 ## Planned Phases
 
 **v2.1 milestone:**
-- Phase 1: POC Delivery & Calibration (active) — Bloomberg swap + notebook + walkthrough doc
+- Phase 1: COMPLETE — HTML report, Section D reframe, WALKTHROUGH.md
+- Post-phase: COMPLETE — Bayesian reframe (conditional summary, equity chart removal, Section E caveat)
 - Phase 2+: open, driven by quant-team feedback
 
 **Closed milestones:**
 - v2.0 (engine build) — closed 2026-05-04, archived under `.planning/phases-archive/v2.0-engine/`
 - v1.0 (HMM diagnostic) — closed 2026-04-30, archived under `.planning/phases-archive/v1.0-hmm/`
 
-See `.planning/ROADMAP.md` and `.planning/MILESTONES.md` for detail.
-
 ## Known Issues
 
-- v1.0 `hmm.ipynb` uses GMM, not HMM — preserved as-is per pivot decision
-- v1.0 annualization uses `(1+log_mean)^252-1` (technically wrong for log returns); not corrected in legacy notebook
-- v1.0 has no causal regime labels (full-sample fit) — diagnostic-only, not for decision support
-
-## Skills (relevant)
-
+| Issue | Description | Status |
+|-------|-------------|--------|
+| NDX skew identity | NDX/SPX share the same CBOE SKEW signal — readings always identical | Open — fix before team meeting |
+| NDX iv90_atm synthesis | Uses SPX term-structure ratio | Open — same category as skew |
+| 90mny IV synthesis | `slope=0.2` approximation; absolute level uncalibrated | Deferred pending Bloomberg greenlight |
+| v1.0 GMM mislabeled as HMM | `hmm.ipynb` uses `GaussianMixture`, not HMM | Preserved as-is, legacy artifact |
