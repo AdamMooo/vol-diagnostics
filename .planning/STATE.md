@@ -31,7 +31,7 @@ Next: `/gsd-execute-phase 1` to run all 6 plans across 3 waves.
 Status: 16 decisions captured across 4 areas (audience, output, pruning, done bar). v2.0 engine is the dependency — closed and archived. Three deliverables: Bloomberg calibration, notebook artifact, walkthrough doc. Hard scope cap: no PDIV, no HMM, no new signals.
 Last activity: 2026-05-04 — Phase 1 re-scoped: local-first (drop Cron2 constraint), Bloomberg deferred, Plan 01-01 dropped. 5 plans remain.
 
-Progress: [███░░░░░░░] 20% (01-02 complete; 01-03 through 01-06 remain)
+Progress: [████░░░░░░] 40% (01-02, 01-03 complete; 01-04 through 01-06 remain)
 
 ## Performance Metrics
 
@@ -42,8 +42,8 @@ Progress: [███░░░░░░░] 20% (01-02 complete; 01-03 through 01
 - Honest finding: 0 of 30 bucket-mean tests survive Holm correction at FWE α=0.05
 
 **v2.1 velocity (active):**
-- Plans completed: 1 (01-02 validate.py cleanup)
-- Plans pending: 4 (01-03, 01-04, 01-05, 01-06)
+- Plans completed: 2 (01-02 validate.py cleanup, 01-03 Section D reframe)
+- Plans pending: 3 (01-04, 01-05, 01-06)
 
 ## Accumulated Context
 
@@ -53,6 +53,10 @@ Progress: [███░░░░░░░] 20% (01-02 complete; 01-03 through 01
 - Engine build complete on free CBOE+FRED data; mode shift to deliver/learn warranted milestone boundary
 - Phases 1-5 archived under `.planning/phases-archive/v2.0-engine/`
 - Original Phase 6 "Validation Gates" re-scoped and lifted to v2.1 Phase 1
+
+**01-03 execution (2026-05-04):**
+- Section D reframed: forward-realized environment signals replace sleeve P&L table; K-NN logic untouched
+- _forward_realized_environment snaps to nearest valid date; returns None when no forward data (safe for recent matches)
 
 **v2.1 Phase 1 locked decisions (16, see `01-CONTEXT.md`):**
 - Audience: quant team first; weekly Monday review; async handoff then meeting
@@ -93,5 +97,5 @@ Progress: [███░░░░░░░] 20% (01-02 complete; 01-03 through 01
 ## Session Continuity
 
 Last session: 2026-05-04
-Stopped at: 01-02 complete (validate.py deleted, run.py cleaned). Wave 1 done (01-01 was dropped; 01-02 is the only wave-1 plan).
-Resume: Execute 01-03 (Section D reframe) — Wave 2.
+Stopped at: 01-03 complete (Section D reframed to "Past Periods That Looked Like Now"; _forward_realized_environment helper added). Wave 2 half-done.
+Resume: Execute 01-04 (notebook builder) — Wave 2 continuation.
