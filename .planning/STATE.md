@@ -31,7 +31,7 @@ Next: `/gsd-execute-phase 1` to run all 6 plans across 3 waves.
 Status: 16 decisions captured across 4 areas (audience, output, pruning, done bar). v2.0 engine is the dependency — closed and archived. Three deliverables: Bloomberg calibration, notebook artifact, walkthrough doc. Hard scope cap: no PDIV, no HMM, no new signals.
 Last activity: 2026-05-04 — Phase 1 re-scoped: local-first (drop Cron2 constraint), Bloomberg deferred, Plan 01-01 dropped. 5 plans remain.
 
-Progress: [█████░░░░░] 60% (01-02, 01-03, 01-04 complete; 01-05, 01-06 remain)
+Progress: [███████░░░] 80% (01-02, 01-03, 01-04, 01-05 complete; 01-06 remains)
 
 ## Performance Metrics
 
@@ -42,8 +42,8 @@ Progress: [█████░░░░░] 60% (01-02, 01-03, 01-04 complete; 01
 - Honest finding: 0 of 30 bucket-mean tests survive Holm correction at FWE α=0.05
 
 **v2.1 velocity (active):**
-- Plans completed: 3 (01-02 validate.py cleanup, 01-03 Section D reframe, 01-04 HTML report generator)
-- Plans pending: 2 (01-05, 01-06)
+- Plans completed: 4 (01-02 validate.py cleanup, 01-03 Section D reframe, 01-04 HTML report generator, 01-05 chart styling)
+- Plans pending: 1 (01-06 WALKTHROUGH.md)
 
 ## Accumulated Context
 
@@ -53,6 +53,11 @@ Progress: [█████░░░░░] 60% (01-02, 01-03, 01-04 complete; 01
 - Engine build complete on free CBOE+FRED data; mode shift to deliver/learn warranted milestone boundary
 - Phases 1-5 archived under `.planning/phases-archive/v2.0-engine/`
 - Original Phase 6 "Validation Gates" re-scoped and lifted to v2.1 Phase 1
+
+**01-05 execution (2026-05-04):**
+- CHART_STYLE dict at module level; all chart functions reference it — no hardcoded numbers
+- _add_regime_shading() uses axvspan; graceful no-op when fragility_ts is None (T-01-10 mitigation)
+- X-axis: YearLocator + DateFormatter on bottom subplot only; 45-degree rotation
 
 **01-04 execution (2026-05-04):**
 - Import corrected: data_layer.build_panels (not local_data) — local_data has no build_panels
@@ -102,5 +107,5 @@ Progress: [█████░░░░░] 60% (01-02, 01-03, 01-04 complete; 01
 ## Session Continuity
 
 Last session: 2026-05-04
-Stopped at: 01-04 complete (build_report.py HTML report generator created; sections A–H, base64 charts, matplotlib Agg). Wave 2 complete.
-Resume: Execute 01-05 (chart styling) — Wave 3.
+Stopped at: 01-05 complete (build_report.py chart styling — CHART_STYLE dict, _add_regime_shading, consistent signal chart layout). Wave 3 partially done.
+Resume: Execute 01-06 (WALKTHROUGH.md) — Wave 3 final plan.
