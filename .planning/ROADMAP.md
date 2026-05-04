@@ -53,7 +53,7 @@ v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statis
 
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
-| 1. POC Delivery & Calibration | 5 plans (01-01 dropped) | In progress — 01-05 done | 01-02, 01-03, 01-04, 01-05 (2026-05-04) |
+| 1. POC Delivery & Calibration | 5 plans (01-01 dropped) | COMPLETE | 01-02, 01-03, 01-04, 01-05, 01-06 (2026-05-04) |
 
 ---
 

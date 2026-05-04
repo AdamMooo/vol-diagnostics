@@ -31,7 +31,7 @@ Next: `/gsd-execute-phase 1` to run all 6 plans across 3 waves.
 Status: 16 decisions captured across 4 areas (audience, output, pruning, done bar). v2.0 engine is the dependency — closed and archived. Three deliverables: Bloomberg calibration, notebook artifact, walkthrough doc. Hard scope cap: no PDIV, no HMM, no new signals.
 Last activity: 2026-05-04 — Phase 1 re-scoped: local-first (drop Cron2 constraint), Bloomberg deferred, Plan 01-01 dropped. 5 plans remain.
 
-Progress: [███████░░░] 80% (01-02, 01-03, 01-04, 01-05 complete; 01-06 remains)
+Progress: [██████████] 100% (01-02, 01-03, 01-04, 01-05, 01-06 complete — Phase 1 done)
 
 ## Performance Metrics
 
@@ -42,8 +42,8 @@ Progress: [███████░░░] 80% (01-02, 01-03, 01-04, 01-05 compl
 - Honest finding: 0 of 30 bucket-mean tests survive Holm correction at FWE α=0.05
 
 **v2.1 velocity (active):**
-- Plans completed: 4 (01-02 validate.py cleanup, 01-03 Section D reframe, 01-04 HTML report generator, 01-05 chart styling)
-- Plans pending: 1 (01-06 WALKTHROUGH.md)
+- Plans completed: 5 (01-02 validate.py cleanup, 01-03 Section D reframe, 01-04 HTML report generator, 01-05 chart styling, 01-06 WALKTHROUGH.md)
+- Plans pending: 0 — Phase 1 complete
 
 ## Accumulated Context
 
@@ -53,6 +53,13 @@ Progress: [███████░░░] 80% (01-02, 01-03, 01-04, 01-05 compl
 - Engine build complete on free CBOE+FRED data; mode shift to deliver/learn warranted milestone boundary
 - Phases 1-5 archived under `.planning/phases-archive/v2.0-engine/`
 - Original Phase 6 "Validation Gates" re-scoped and lifted to v2.1 Phase 1
+
+**01-06 execution (2026-05-04):**
+- WALKTHROUGH.md at repo root; 314 lines; all sections A, B, C, D, E, G, H covered
+- Holm-Bonferroni framed as credibility feature: "0 of 30 survive = rigor, not failure"
+- Section D reframing language: "realized environment after analog match", not forecast
+- Two sharp team questions explicit: vol/regime dashboard duplication + "what would have to be true"
+- Known Limitations table consolidated at end for scan-friendly reference
 
 **01-05 execution (2026-05-04):**
 - CHART_STYLE dict at module level; all chart functions reference it — no hardcoded numbers
@@ -82,9 +89,10 @@ Progress: [███████░░░] 80% (01-02, 01-03, 01-04, 01-05 compl
 
 ### Pending Todos
 
-- **Execute v2.1 Phase 1** — `/gsd-execute-phase 1` to run 6 plans across 3 waves. Wave 1: BloombergCon + validate cleanup. Wave 2: Section D reframe + notebook builder. Wave 3: chart styling + WALKTHROUGH.md.
+- ~~Execute v2.1 Phase 1~~ — COMPLETE. All 5 plans shipped (01-02 through 01-06). Three deliverables: HTML report (build_report.py), Section D reframe, WALKTHROUGH.md.
 - ~~Cron2 run gate for v2.0 Phase 1~~ — moot; v2.0 closed without Cron2 production. Bloomberg run happens as part of v2.1 Phase 1.
-- **Capture for the team meeting:** Does the team already have a vol/regime/sleeve-context dashboard we shouldn't duplicate? Surface in walkthrough doc.
+- ~~Capture for the team meeting~~ — Done. WALKTHROUGH.md includes explicit question: "Does your team already have a vol/regime/sleeve-context dashboard?"
+- **Send async to quant team** — Send `out/sleeve_report_YYYYMMDD.html` + `WALKTHROUGH.md`. Follow D-14: async first, then meeting.
 
 ### Blockers/Concerns
 
@@ -107,5 +115,5 @@ Progress: [███████░░░] 80% (01-02, 01-03, 01-04, 01-05 compl
 ## Session Continuity
 
 Last session: 2026-05-04
-Stopped at: 01-05 complete (build_report.py chart styling — CHART_STYLE dict, _add_regime_shading, consistent signal chart layout). Wave 3 partially done.
-Resume: Execute 01-06 (WALKTHROUGH.md) — Wave 3 final plan.
+Stopped at: 01-06 complete (WALKTHROUGH.md — per-section quant guide, Holm framing, Section D reframing, team questions). Phase 1 fully complete.
+Resume: None — await quant team feedback. Next action: send HTML report + WALKTHROUGH.md async per D-14.
