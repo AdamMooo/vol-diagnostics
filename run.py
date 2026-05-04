@@ -20,6 +20,7 @@ import pandas as pd
 from data_layer import build_panels
 from signals import build_signals
 from backtest import run_backtest
+from dashboard import build_dashboard
 
 OUT_DIR = pathlib.Path("out")
 PLOT_DIR = OUT_DIR / "plots"
@@ -99,6 +100,13 @@ def main(start: str = "2010-01-01") -> None:
         ax.axhline(1, color="grey", lw=0.5)
     plt.tight_layout()
     print(f"\n  saved → {_save('03_equity_curves', fig)}")
+
+    _section("Phase 4 — Decision Dashboard")
+    dash = build_dashboard(sigs, bt)
+    print(dash)
+    dash_path = OUT_DIR / f"dashboard_{sigs.latest_date().date()}.txt"
+    dash_path.write_text(dash, encoding="utf-8")
+    print(f"\n  saved → {dash_path}")
 
     _section("Done")
     print(f"Outputs in {OUT_DIR.resolve()}")
