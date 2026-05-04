@@ -31,7 +31,7 @@ Next: `/gsd-execute-phase 1` to run all 6 plans across 3 waves.
 Status: 16 decisions captured across 4 areas (audience, output, pruning, done bar). v2.0 engine is the dependency — closed and archived. Three deliverables: Bloomberg calibration, notebook artifact, walkthrough doc. Hard scope cap: no PDIV, no HMM, no new signals.
 Last activity: 2026-05-04 — Phase 1 re-scoped: local-first (drop Cron2 constraint), Bloomberg deferred, Plan 01-01 dropped. 5 plans remain.
 
-Progress: [████░░░░░░] 40% (01-02, 01-03 complete; 01-04 through 01-06 remain)
+Progress: [█████░░░░░] 60% (01-02, 01-03, 01-04 complete; 01-05, 01-06 remain)
 
 ## Performance Metrics
 
@@ -42,8 +42,8 @@ Progress: [████░░░░░░] 40% (01-02, 01-03 complete; 01-04 thr
 - Honest finding: 0 of 30 bucket-mean tests survive Holm correction at FWE α=0.05
 
 **v2.1 velocity (active):**
-- Plans completed: 2 (01-02 validate.py cleanup, 01-03 Section D reframe)
-- Plans pending: 3 (01-04, 01-05, 01-06)
+- Plans completed: 3 (01-02 validate.py cleanup, 01-03 Section D reframe, 01-04 HTML report generator)
+- Plans pending: 2 (01-05, 01-06)
 
 ## Accumulated Context
 
@@ -53,6 +53,11 @@ Progress: [████░░░░░░] 40% (01-02, 01-03 complete; 01-04 thr
 - Engine build complete on free CBOE+FRED data; mode shift to deliver/learn warranted milestone boundary
 - Phases 1-5 archived under `.planning/phases-archive/v2.0-engine/`
 - Original Phase 6 "Validation Gates" re-scoped and lifted to v2.1 Phase 1
+
+**01-04 execution (2026-05-04):**
+- Import corrected: data_layer.build_panels (not local_data) — local_data has no build_panels
+- run_backtest(panels) only — plan had wrong signature showing (panels, sigs); actual is panels-only
+- HTML report generator: sections A–H, charts as base64 data URIs, matplotlib Agg backend
 
 **01-03 execution (2026-05-04):**
 - Section D reframed: forward-realized environment signals replace sleeve P&L table; K-NN logic untouched
@@ -97,5 +102,5 @@ Progress: [████░░░░░░] 40% (01-02, 01-03 complete; 01-04 thr
 ## Session Continuity
 
 Last session: 2026-05-04
-Stopped at: 01-03 complete (Section D reframed to "Past Periods That Looked Like Now"; _forward_realized_environment helper added). Wave 2 half-done.
-Resume: Execute 01-04 (notebook builder) — Wave 2 continuation.
+Stopped at: 01-04 complete (build_report.py HTML report generator created; sections A–H, base64 charts, matplotlib Agg). Wave 2 complete.
+Resume: Execute 01-05 (chart styling) — Wave 3.
