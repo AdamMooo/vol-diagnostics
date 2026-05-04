@@ -19,6 +19,7 @@ from datetime import datetime
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend — must come before pyplot import
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import pandas as pd
 
 from data_layer import build_panels
@@ -40,6 +41,17 @@ OUT_DIR = pathlib.Path("out")
 
 _SIGS_TO_PLOT = ["vrp", "skew", "term", "trend", "dd", "fragility"]
 
+CHART_STYLE = {
+    "figsize": (12, 3),
+    "dpi": 110,
+    "linewidth": 0.9,
+    "fontsize_title": 10,
+    "fontsize_legend": 8,
+    "color_grid": "grey",
+    "color_signal": "steelblue",
+    "figsize_multi_height": 2.5,  # per-subplot height for stacked charts
+}
+
 CSS = """
 body { font-family: Georgia, serif; max-width: 1100px; margin: 40px auto; padding: 0 20px; color: #222; }
 h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
@@ -53,25 +65,61 @@ img { max-width: 100%; margin: 16px 0; display: block; }
 def _fig_to_b64(fig) -> str:
     """Save a matplotlib figure to a base64-encoded PNG string and close it."""
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=110, bbox_inches="tight")
+    fig.savefig(buf, format="png", dpi=CHART_STYLE["dpi"], bbox_inches="tight")
     buf.seek(0)
     b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
     plt.close(fig)
     return b64
 
 
+def _add_regime_shading(ax, sigs, fragility_threshold=0.67):
+    """Add vertical bands to indicate high-fragility periods (background shading).
+
+    Args:
+        ax: matplotlib axis to shade
+        sigs: Signals object with fragility pct-rank time-series
+        fragility_threshold: pct-rank threshold for "high fragility" (default 0.67 = top third)
+    """
+    fragility_ts = sigs.pct.get("fragility")
+    if fragility_ts is None:
+        return  # No fragility data; skip shading
+
+    high_frag = fragility_ts >= fragility_threshold
+    # Find periods where high_frag changes from False to True (start) and True to False (end)
+    transitions = high_frag != high_frag.shift()
+    frag_periods = fragility_ts[transitions].index
+
+    # Shade each high-fragility period
+    for i in range(0, len(frag_periods), 2):
+        if i + 1 < len(frag_periods):
+            start = frag_periods[i]
+            end = frag_periods[i + 1]
+            ax.axvspan(start, end, alpha=0.1, color="red", label="High fragility" if i == 0 else "")
+        elif i == len(frag_periods) - 1 and high_frag.iloc[-1]:
+            # Last period is still in high-fragility
+            start = frag_periods[i]
+            ax.axvspan(start, fragility_ts.index[-1], alpha=0.1, color="red")
+
+
 def _signal_chart(sigs) -> str:
     """Time-series chart of all signal pct ranks. Returns base64 PNG."""
     n = len(_SIGS_TO_PLOT)
-    fig, axes = plt.subplots(n, 1, figsize=(12, 2 * n), sharex=True)
+    fig, axes = plt.subplots(n, 1, figsize=(12, CHART_STYLE["figsize_multi_height"] * n), sharex=True)
     for ax, sig in zip(axes, _SIGS_TO_PLOT):
         if sig not in sigs.pct:
             continue
-        sigs.pct[sig].plot(ax=ax, lw=0.9)
-        ax.axhline(0.5, color="grey", ls="--", lw=0.5)
+        sigs.pct[sig].plot(ax=ax, lw=CHART_STYLE["linewidth"], color=CHART_STYLE["color_signal"])
+        ax.axhline(0.5, color=CHART_STYLE["color_grid"], ls="--", lw=0.5, alpha=0.5)
+        _add_regime_shading(ax, sigs, fragility_threshold=0.67)
         ax.set_ylim(0, 1)
-        ax.set_title(f"{sig} (causal 5y pct rank)", fontsize=10)
-        ax.legend(loc="upper left", fontsize=8)
+        ax.set_ylabel("Pct Rank", fontsize=CHART_STYLE["fontsize_legend"])
+        ax.set_title(f"{sig} (causal 5y pct rank)", fontsize=CHART_STYLE["fontsize_title"])
+        ax.legend(loc="upper left", fontsize=CHART_STYLE["fontsize_legend"], framealpha=0.9)
+        ax.grid(True, alpha=0.3)
+    # X-axis formatting on the bottom subplot only
+    axes[-1].xaxis.set_major_locator(mdates.YearLocator())
+    axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    plt.setp(axes[-1].xaxis.get_majorticklabels(), rotation=45, ha="right")
     plt.tight_layout()
     return _fig_to_b64(fig)
 
