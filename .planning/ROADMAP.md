@@ -13,7 +13,7 @@ Eight phases (1-8) build a regime-aware options-overlay sleeve scorecard. Phase 
 - [ ] **Phase 3: Sleeve Backtest Engine** — BS pricing + synthetic monthly-roll P&L for CC, CSP, Collar, Short Straddle on each underlying
 - [ ] **Phase 4: Scorecard** — Per-sleeve linear scoring rules on signal panel, normalized weight allocation
 - [ ] **Phase 5: PM-Grade Output** — Dashboard table + auto-commentary + small-multiple charts + parquet snapshot
-- [ ] **Phase 6: Validation Gates** — Causality, walk-forward sign accuracy, turnover, tail-risk, robustness, trust scorecard
+- [ ] **Phase 6: Validation & POC Delivery** — Bloomberg calibration swap, quant-readable notebook artifact, walkthrough doc, prune validate.py / Section D forecast drift. Re-scoped 2026-05-04 from "Validation Gates" — see `06-CONTEXT.md`.
 
 ## Phases (Phase β — PDIV Specialization)
 
@@ -99,17 +99,32 @@ Eight phases (1-8) build a regime-aware options-overlay sleeve scorecard. Phase 
 3. Sleeve scores small-multiples chart + cumulative P&L chart present
 4. Output snapshotted to parquet/csv per refresh date
 
-### Phase 6: Validation Gates (α)
-**Goal:** All six validation gates pass, producing a one-line trust verdict at the top of the notebook.
+### Phase 6: Validation & POC Delivery (α) — *re-scoped 2026-05-04*
+**Goal:** Calibrated, quant-readable POC ready to hand to the quant team for evaluation. Original "Validation Gates" framing assumed an algorithmic recommendation engine that needed gates to certify before acting. The framework no longer prescribes — it describes state, exposure, and history. Phase 6 is therefore the polish + calibrate + deliver phase.
 
-**Depends on:** Phase 5
+**Depends on:** Phases 1-5 (all engine work) — done locally with free data
 
-**Requirements:** VAL-01, VAL-02, VAL-03, VAL-04, VAL-05, VAL-06
+**Locked decisions:** See `.planning/phases/06-validation-and-delivery/06-CONTEXT.md`
 
-**Success Criteria:**
-1. Causality, walk-forward sign accuracy, turnover, tail-risk, robustness all tested
-2. Trust scorecard prints PASS/WARN/FAIL with per-gate detail
-3. Any FAIL is documented with mitigation or scope decision
+**Three deliverables:**
+1. **Bloomberg calibration** — swap synthesized 90mny IV for `30DAY_IMPVOL_90.0%MNY_DF` via `con.bdh`. Math layer untouched (identifier set is portable).
+2. **Quant-readable notebook** — `.ipynb` artifact with embedded charts, top-of-page current-state, drill-down sections below.
+3. **Walkthrough doc** — markdown explaining each section: what it shows, how to read it, its limits.
+
+**Cleanup:**
+- Delete `validate.py` (forecasting drift)
+- Reframe Section D ("Closest Regime Analogs") — show realized environment post-analog, not realized sleeve P&L
+- Keep Section C bucket means + Welch's t + Holm correction (rigor is the point)
+
+**Hard scope cap (explicitly OUT):** PDIV / fund specialization, Markov-switching/HMM, any new signals.
+
+**Audience & cadence:** quant team first, weekly review, async-then-meeting handoff.
+
+**Success criteria:**
+1. Notebook compiles top-to-bottom on Bloomberg data; current-state-led layout
+2. Walkthrough doc covers all dashboard sections with read-this-way / its-limits guidance
+3. `validate.py` removed; Section D reframed; Holm rigor preserved
+4. POC handed to quant team async with the question: *"What would have to be true for this to inform a real decision?"*
 
 ### Phase 7: PDIV Specialization (β)
 **Goal:** Engine specialized to PDIV — produces a per-week sizing recommendation vs PDIV's current overlay rule, plus historical overlay-alpha quantification.
