@@ -207,14 +207,46 @@ def section_c_buckets(sigs: Signals, bt: BacktestResults) -> str:
     return "\n".join(out)
 
 
+def _forward_realized_environment(close_dt: pd.Timestamp, sigs: Signals,
+                                   horizons: list[int] = [21, 63, 126]) -> dict:
+    """For a given match date, return realized signals at forward horizons.
+
+    Args:
+        close_dt: roll close date (end of match period)
+        sigs: Signals object with pct-rank panels
+        horizons: trading days forward [21, 63, 126] ~ [1m, 3m, 6m]
+
+    Returns:
+        dict of {horizon_days: {signal_name: value, ...}} for matched horizons.
+        Returns None for horizon if no data available.
+    """
+    result = {}
+    all_sigs = pd.concat(sigs.pct, axis=1)  # All signals (columns), all dates (rows)
+
+    for h in horizons:
+        future_dt = close_dt + pd.Timedelta(days=h)
+        if future_dt not in all_sigs.index:
+            # Snap to nearest valid date >= future_dt
+            valid = all_sigs[all_sigs.index >= future_dt].index
+            if len(valid) == 0:
+                result[h] = None  # No data after match date
+            else:
+                future_dt = valid[0]
+                result[h] = all_sigs.loc[future_dt].to_dict()
+        else:
+            result[h] = all_sigs.loc[future_dt].to_dict()
+
+    return result
+
+
 def section_d_analog(sigs: Signals, bt: BacktestResults, k: int = K_NEIGHBORS) -> str:
     last_dt = sigs.latest_date()
     out = [
-        "## Section D — Closest Regime Analogs",
+        "## Section D — Past Periods That Looked Like Now",
         "",
         f"K={k} nearest historical roll-opens, Euclidean distance over signal vector:",
         f"  features: {', '.join(NEIGHBOR_FEATURES)}",
-        "Mean and dispersion of realized sleeve returns from those analogs.",
+        "For each matched period, the realized environment (signals) that followed.",
         "",
     ]
     for u in bt.rolls:
@@ -232,28 +264,30 @@ def section_d_analog(sigs: Signals, bt: BacktestResults, k: int = K_NEIGHBORS) -
         d = np.linalg.norm(feat.values - today_vec, axis=1)
         feat["_d"] = d
         nn = feat.nsmallest(k, "_d")
-        nn_rolls = rolls.loc[nn.index, ["open"] + SLEEVE_COLS]
 
         out.append(f"### {u}")
-        out.append(f"Today's vector: " + ", ".join(
+        out.append("Today's vector: " + ", ".join(
             f"{s}={v:.2f}" for s, v in zip(NEIGHBOR_FEATURES, today_vec)
         ))
         out.append("")
-        out.append("Closest analogs:")
+        out.append(f"Closest historical analogs (n={len(nn)}) — realized environment after each match:")
+        out.append("")
         for close_dt, dist in nn["_d"].items():
             open_dt = rolls.loc[close_dt, "open"]
-            out.append(f"  open {open_dt.date()}  close {close_dt.date()}  d={dist:.3f}")
-        out.append("")
-        out.append("Realized sleeve returns from those analogs (% monthly, n=" + str(len(nn)) + "):")
-        agg = pd.DataFrame({
-            "mean%": nn_rolls[SLEEVE_COLS].mean() * 100,
-            "std%":  nn_rolls[SLEEVE_COLS].std() * 100,
-            "min%":  nn_rolls[SLEEVE_COLS].min() * 100,
-            "max%":  nn_rolls[SLEEVE_COLS].max() * 100,
-            "hit%":  (nn_rolls[SLEEVE_COLS] > 0).mean() * 100,
-        }).round(2)
-        out.append(agg.to_string())
-        out.append("")
+            out.append(f"  Match: open {open_dt.date()}  close {close_dt.date()}  d={dist:.3f}")
+
+            fwd = _forward_realized_environment(close_dt, sigs, horizons=[21, 63, 126])
+            for h, sig_dict in fwd.items():
+                if sig_dict is None:
+                    out.append(f"    {h}d forward: (no data)")
+                else:
+                    out.append(
+                        f"    {h}d forward: vrp={sig_dict.get('vrp', np.nan):.2f}, "
+                        f"skew={sig_dict.get('skew', np.nan):.2f}, "
+                        f"term={sig_dict.get('term', np.nan):.2f}, "
+                        f"dd={sig_dict.get('dd', np.nan):.2f}"
+                    )
+            out.append("")
     return "\n".join(out)
 
 
