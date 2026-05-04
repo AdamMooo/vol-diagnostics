@@ -208,12 +208,14 @@ def section_c_buckets(sigs: Signals, bt: BacktestResults) -> str:
 
 
 def _forward_realized_environment(close_dt: pd.Timestamp, sigs: Signals,
+                                   u: str,
                                    horizons: list[int] = [21, 63, 126]) -> dict:
     """For a given match date, return realized signals at forward horizons.
 
     Args:
         close_dt: roll close date (end of match period)
         sigs: Signals object with pct-rank panels
+        u: underlying ticker (e.g. 'SPX') — selects one column per signal panel
         horizons: trading days forward [21, 63, 126] ~ [1m, 3m, 6m]
 
     Returns:
@@ -221,7 +223,10 @@ def _forward_realized_environment(close_dt: pd.Timestamp, sigs: Signals,
         Returns None for horizon if no data available.
     """
     result = {}
-    all_sigs = pd.concat(sigs.pct, axis=1)  # All signals (columns), all dates (rows)
+    # Slice each signal panel to the single underlying so columns are plain signal names
+    all_sigs = pd.concat(
+        {sig: panel[u] for sig, panel in sigs.pct.items()}, axis=1
+    )
 
     for h in horizons:
         future_dt = close_dt + pd.Timedelta(days=h)
@@ -276,7 +281,7 @@ def section_d_analog(sigs: Signals, bt: BacktestResults, k: int = K_NEIGHBORS) -
             open_dt = rolls.loc[close_dt, "open"]
             out.append(f"  Match: open {open_dt.date()}  close {close_dt.date()}  d={dist:.3f}")
 
-            fwd = _forward_realized_environment(close_dt, sigs, horizons=[21, 63, 126])
+            fwd = _forward_realized_environment(close_dt, sigs, u, horizons=[21, 63, 126])
             for h, sig_dict in fwd.items():
                 if sig_dict is None:
                     out.append(f"    {h}d forward: (no data)")
