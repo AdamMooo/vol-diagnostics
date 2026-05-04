@@ -18,7 +18,12 @@ import pandas as pd
 
 from backtest import SLEEVE_COLS, BacktestResults
 from signals import Signals
-from stats_rigor import sharpe_with_ci, q1_q4_bucket_test
+from stats_rigor import (
+    holm_bonferroni,
+    q1_q4_bucket_test,
+    sharpe_with_ci,
+    stationary_block_bootstrap_sharpe,
+)
 
 BUCKETED_SIGNALS = ("vrp", "term", "skew", "fragility")
 NEIGHBOR_FEATURES = ("vrp", "term", "skew", "trend", "dd", "fragility")
@@ -104,17 +109,49 @@ def _today_quartile(today_val: float) -> str:
 
 
 def section_c_buckets(sigs: Signals, bt: BacktestResults) -> str:
+    """Section C: bucket-mean tables + Q4-vs-Q1 t-tests with Holm-Bonferroni
+    correction applied jointly across all (underlying × signal × sleeve)
+    comparisons, since they form one decision family.
+    """
     last_dt = sigs.latest_date()
+
+    # Pass 1: gather every Q4-Q1 test, build the family
+    family = []
+    for u in bt.rolls:
+        rolls = bt.rolls[u]
+        for sig in BUCKETED_SIGNALS:
+            sig_at_open = sigs.pct[sig].reindex(rolls["open"].values)[u].values
+            for sleeve in SLEEVE_COLS:
+                t = q1_q4_bucket_test(sig_at_open, rolls[sleeve].values)
+                family.append({"u": u, "sig": sig, "sleeve": sleeve,
+                               "diff": t["diff"], "t": t["t"], "p": t["p"]})
+    fam_df = pd.DataFrame(family)
+    holm = holm_bonferroni(fam_df["p"].values, alpha=0.05)
+    fam_df["adj_p"] = holm["adj_p"]
+    fam_df["reject"] = holm["reject"]
+
+    n_tests = int(fam_df["p"].notna().sum())
+    n_raw_sig_5 = int((fam_df["p"] < 0.05).sum())
+    n_raw_sig_10 = int(((fam_df["p"] >= 0.05) & (fam_df["p"] < 0.10)).sum())
+    n_holm_sig = int(fam_df["reject"].sum())
+
     out = [
         "## Section C — Sleeve Returns by Signal Quartile",
         "",
-        "Signals are already percentile ranks (0-1). Buckets use fixed edges:",
-        "  Q1 = pct rank < 0.25 (signal was in bottom 25% of trailing 5y)",
-        "  Q2 = 0.25-0.50      Q3 = 0.50-0.75      Q4 ≥ 0.75",
+        "Signals are already percentile ranks (0-1). Fixed bucket edges:",
+        "  Q1 = pct rank < 0.25      Q2 = 0.25-0.50",
+        "  Q3 = 0.50-0.75            Q4 ≥ 0.75",
         "",
-        "Mean realized monthly return per sleeve, by quartile of signal AT ROLL OPEN.",
-        "Today's bucket marked '*'. Last column 'Δ Q4-Q1' is the mean difference",
-        "with Welch's t-test p-value: marks ** for p<0.05, * for p<0.10.",
+        "Mean realized monthly return per sleeve by quartile of signal AT ROLL OPEN.",
+        "Today's bucket marked '*'.",
+        "",
+        "Q4-vs-Q1 differences tested with Welch's t-test. Because we run many",
+        f"comparisons ({n_tests} across underlyings × signals × sleeves), raw p-values",
+        "must be adjusted for family-wise error. Holm-Bonferroni step-down used.",
+        "",
+        f"  Raw p < 0.05:   {n_raw_sig_5} of {n_tests}",
+        f"  Raw p < 0.10:   {n_raw_sig_10} additional",
+        f"  Holm at FWE α=0.05:  {n_holm_sig} survive (** marker)",
         "",
     ]
     for u in bt.rolls:
@@ -136,30 +173,35 @@ def section_c_buckets(sigs: Signals, bt: BacktestResults) -> str:
                 [(stat, f"{q}{'*' if q == today_q else ''}") for stat, q in agg.index]
             )
 
+            sub = fam_df[(fam_df["u"] == u) & (fam_df["sig"] == sig)].set_index("sleeve")
             test_rows = []
             for sleeve in SLEEVE_COLS:
-                t = q1_q4_bucket_test(sig_at_open, rolls[sleeve].values)
-                if pd.isna(t["p"]):
-                    flag = ""
-                elif t["p"] < 0.05:
+                row = sub.loc[sleeve]
+                p_raw = row["p"]
+                p_adj = row["adj_p"]
+                survive = bool(row["reject"])
+                if survive:
                     flag = "**"
-                elif t["p"] < 0.10:
-                    flag = "*"
+                elif (not pd.isna(p_raw)) and p_raw < 0.05:
+                    flag = "(raw)"
+                elif (not pd.isna(p_raw)) and p_raw < 0.10:
+                    flag = "(raw·)"
                 else:
                     flag = ""
                 test_rows.append({
                     "sleeve": sleeve,
-                    "Δ Q4-Q1 (pp)": round(t["diff"] * 100, 2) if not pd.isna(t["diff"]) else float("nan"),
-                    "t": round(t["t"], 2) if not pd.isna(t["t"]) else float("nan"),
-                    "p": round(t["p"], 3) if not pd.isna(t["p"]) else float("nan"),
-                    "sig": flag,
+                    "Δ Q4-Q1 (pp)": round(row["diff"] * 100, 2) if not pd.isna(row["diff"]) else float("nan"),
+                    "t":     round(row["t"], 2) if not pd.isna(row["t"]) else float("nan"),
+                    "raw_p": round(p_raw, 3) if not pd.isna(p_raw) else float("nan"),
+                    "holm_p": round(p_adj, 3) if not pd.isna(p_adj) else float("nan"),
+                    "verdict": flag,
                 })
             test_df = pd.DataFrame(test_rows).set_index("sleeve")
 
             out.append(f"  {sig:9s}  today: {today_val:.2f} → {today_q}   n by Q1/Q2/Q3/Q4: {n_str}")
             out.append(agg.to_string())
             out.append("")
-            out.append("    Q4-vs-Q1 difference test (** p<0.05, * p<0.10):")
+            out.append("    Q4-vs-Q1 test  (** Holm-survives at α=0.05; (raw) raw-only):")
             out.append("    " + test_df.to_string().replace("\n", "\n    "))
             out.append("")
     return "\n".join(out)

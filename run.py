@@ -21,7 +21,7 @@ from data_layer import build_panels
 from signals import build_signals
 from backtest import run_backtest, SLEEVE_COLS
 from dashboard import build_dashboard
-from stats_rigor import sharpe_with_ci
+from stats_rigor import sharpe_with_ci, stationary_block_bootstrap_sharpe
 
 OUT_DIR = pathlib.Path("out")
 PLOT_DIR = OUT_DIR / "plots"
@@ -90,12 +90,17 @@ def main(start: str = "2010-01-01") -> None:
         print(f"\n{u} ({len(bt.rolls[u])} rolls, {bt.rolls[u].index.min().date()} → {bt.rolls[u].index.max().date()}):")
         # base stats
         base = bt.stats[u].round(3)
-        # add bootstrap CI on Sharpe
-        ci_rows = {}
+        # add Sharpe CI: IID and stationary block bootstrap (block ≈ 6 months
+        # to span vol-clustering autocorrelation in monthly returns)
+        ci_iid, ci_blk = {}, {}
         for sleeve in SLEEVE_COLS:
-            point, lo, hi = sharpe_with_ci(bt.rolls[u][sleeve].dropna().values)
-            ci_rows[sleeve] = f"[{lo:+.2f}, {hi:+.2f}]"
-        base["sharpe_95ci"] = pd.Series(ci_rows)
+            rets = bt.rolls[u][sleeve].dropna().values
+            _, lo_i, hi_i = sharpe_with_ci(rets)
+            _, lo_b, hi_b = stationary_block_bootstrap_sharpe(rets, expected_block_len=6)
+            ci_iid[sleeve] = f"[{lo_i:+.2f}, {hi_i:+.2f}]"
+            ci_blk[sleeve] = f"[{lo_b:+.2f}, {hi_b:+.2f}]"
+        base["sharpe_iid"]   = pd.Series(ci_iid)
+        base["sharpe_block"] = pd.Series(ci_blk)
         print(base.to_string())
         _save_table(f"03_stats_{u}", base)
 

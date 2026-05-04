@@ -81,3 +81,74 @@ def q1_q4_bucket_test(
         "diff": diff, "t": t, "p": p,
         "n_q1": int(q1_mask.sum()), "n_q4": int(q4_mask.sum()),
     }
+
+
+def holm_bonferroni(pvals: np.ndarray, alpha: float = 0.05) -> dict[str, np.ndarray]:
+    """Holm-Bonferroni step-down family-wise error correction.
+
+    Returns:
+        adjusted_p: each raw p multiplied by (m - rank + 1), monotonized
+        reject:     boolean array — True if survives FWE at α
+
+    More powerful than naive Bonferroni; controls family-wise Type I.
+    """
+    p = np.asarray(pvals, dtype=float)
+    m = len(p)
+    valid = ~np.isnan(p)
+    order = np.argsort(np.where(valid, p, np.inf))
+    p_sorted = p[order]
+    n_valid = int(valid.sum())
+    adj = np.full(m, np.nan)
+    reject = np.zeros(m, dtype=bool)
+    running_max = 0.0
+    found_first_fail = False
+    for i in range(n_valid):
+        # multiplier = m_remaining = (n_valid - i)
+        adj_i = min(p_sorted[i] * (n_valid - i), 1.0)
+        running_max = max(running_max, adj_i)
+        adj[order[i]] = running_max
+        if not found_first_fail and adj_i <= alpha:
+            reject[order[i]] = True
+        else:
+            found_first_fail = True
+    return {"adj_p": adj, "reject": reject}
+
+
+def stationary_block_bootstrap_sharpe(
+    rets: np.ndarray,
+    expected_block_len: int = 6,
+    n_boot: int = N_BOOT,
+    ci: float = DEFAULT_CI,
+    seed: int = 42,
+    periods_per_year: int = 12,
+) -> tuple[float, float, float]:
+    """Politis-Romano stationary block bootstrap for serially-correlated returns.
+
+    Block length is geometrically distributed with mean `expected_block_len`,
+    chosen to roughly cover monthly autocorrelation horizons (~6 months).
+    Wider CIs than IID bootstrap reflect the true uncertainty for
+    autocorrelated series.
+    """
+    rng = np.random.default_rng(seed)
+    arr = np.asarray(rets, dtype=float)
+    arr = arr[~np.isnan(arr)]
+    n = len(arr)
+    if n < 5:
+        return float("nan"), float("nan"), float("nan")
+    p_continue = 1.0 - 1.0 / max(expected_block_len, 1)
+    boots = np.empty(n_boot)
+    for b in range(n_boot):
+        sample = np.empty(n)
+        i = 0
+        while i < n:
+            start = rng.integers(0, n)
+            j = 0
+            while i < n and (j == 0 or rng.random() < p_continue):
+                sample[i] = arr[(start + j) % n]
+                i += 1
+                j += 1
+        boots[b] = sharpe_annualized(sample, periods_per_year)
+    point = sharpe_annualized(arr, periods_per_year)
+    lo = float(np.quantile(boots[~np.isnan(boots)], (1 - ci) / 2))
+    hi = float(np.quantile(boots[~np.isnan(boots)], 1 - (1 - ci) / 2))
+    return point, lo, hi
