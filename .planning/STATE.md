@@ -4,7 +4,7 @@ milestone: "v2.1 — POC Delivery & Validation"
 status: active
 last_updated: 2026-05-04
 context_gathered: Phase 1
-plans_ready: false
+plans_ready: true
 authored_local: false
 cron2_pending: false
 local_poc_active: true
@@ -21,17 +21,17 @@ See: `.planning/ROADMAP.md` (v2.1 roadmap, Phase 1 active)
 
 **Core value:** Calibrated, quant-readable description of options-overlay environment + exposure mechanics + historical context for the quant team's weekly review. State + history, never prescriptive.
 
-**Current focus:** v2.1 Phase 1 — POC Delivery & Calibration. Context locked, plan pending.
+**Current focus:** v2.1 Phase 1 — POC Delivery & Calibration. 6 plans ready, 3 waves.
 
 ## Current Position
 
 Milestone: **v2.1 — POC Delivery & Validation**
-Phase: **1 of 1+** (POC Delivery & Calibration) — CONTEXT LOCKED · PLAN PENDING
-Next: `/gsd-plan-phase 1` to draft `01-PLAN.md` against locked decisions.
+Phase: **1 of 1+** (POC Delivery & Calibration) — PLANS READY · READY TO EXECUTE
+Next: `/gsd-execute-phase 1` to run all 6 plans across 3 waves.
 Status: 16 decisions captured across 4 areas (audience, output, pruning, done bar). v2.0 engine is the dependency — closed and archived. Three deliverables: Bloomberg calibration, notebook artifact, walkthrough doc. Hard scope cap: no PDIV, no HMM, no new signals.
-Last activity: 2026-05-04 — milestone reset (v2.0 → v2.1), Phase 1 context committed
+Last activity: 2026-05-04 — Phase 1 re-scoped: local-first (drop Cron2 constraint), Bloomberg deferred, Plan 01-01 dropped. 5 plans remain.
 
-Progress: [█░░░░░░░░░] 5% (context locked; planning + execution remain)
+Progress: [███░░░░░░░] 20% (01-02 complete; 01-03 through 01-06 remain)
 
 ## Performance Metrics
 
@@ -42,8 +42,8 @@ Progress: [█░░░░░░░░░] 5% (context locked; planning + execut
 - Honest finding: 0 of 30 bucket-mean tests survive Holm correction at FWE α=0.05
 
 **v2.1 velocity (active):**
-- Plans completed: 0
-- Plans pending: 1 (Phase 1 PLAN.md)
+- Plans completed: 1 (01-02 validate.py cleanup)
+- Plans pending: 4 (01-03, 01-04, 01-05, 01-06)
 
 ## Accumulated Context
 
@@ -68,7 +68,7 @@ Progress: [█░░░░░░░░░] 5% (context locked; planning + execut
 
 ### Pending Todos
 
-- **Plan v2.1 Phase 1** — `/gsd-plan-phase 1` to draft `01-PLAN.md` against locked decisions in `01-CONTEXT.md`. Likely 5-6 atomic plans (validate.py delete, Section D reframe, BloombergCon class, notebook builder, charts pass, walkthrough doc).
+- **Execute v2.1 Phase 1** — `/gsd-execute-phase 1` to run 6 plans across 3 waves. Wave 1: BloombergCon + validate cleanup. Wave 2: Section D reframe + notebook builder. Wave 3: chart styling + WALKTHROUGH.md.
 - ~~Cron2 run gate for v2.0 Phase 1~~ — moot; v2.0 closed without Cron2 production. Bloomberg run happens as part of v2.1 Phase 1.
 - **Capture for the team meeting:** Does the team already have a vol/regime/sleeve-context dashboard we shouldn't duplicate? Surface in walkthrough doc.
 
@@ -93,5 +93,5 @@ Progress: [█░░░░░░░░░] 5% (context locked; planning + execut
 ## Session Continuity
 
 Last session: 2026-05-04
-Stopped at: v2.0 closed; v2.1 opened with Phase 1 context locked. Ready for `/gsd-plan-phase 1`.
-Resume: `/gsd-plan-phase 1` to draft Phase 1 plan against `01-CONTEXT.md`.
+Stopped at: 01-02 complete (validate.py deleted, run.py cleaned). Wave 1 done (01-01 was dropped; 01-02 is the only wave-1 plan).
+Resume: Execute 01-03 (Section D reframe) — Wave 2.
