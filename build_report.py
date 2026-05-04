@@ -83,11 +83,14 @@ def _add_regime_shading(ax, sigs, fragility_threshold=0.67):
     fragility_ts = sigs.pct.get("fragility")
     if fragility_ts is None:
         return  # No fragility data; skip shading
+    # Collapse DataFrame (one column per underlying) → single Series
+    if isinstance(fragility_ts, pd.DataFrame):
+        fragility_ts = fragility_ts.mean(axis=1)
 
     high_frag = fragility_ts >= fragility_threshold
     # Find periods where high_frag changes from False to True (start) and True to False (end)
     transitions = high_frag != high_frag.shift()
-    frag_periods = fragility_ts[transitions].index
+    frag_periods = high_frag[transitions].index
 
     # Shade each high-fragility period
     for i in range(0, len(frag_periods), 2):
