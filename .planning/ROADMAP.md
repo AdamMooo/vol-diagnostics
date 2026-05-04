@@ -8,7 +8,7 @@ v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statis
 
 ## Phases
 
-- [x] **Phase 1: POC Delivery & Calibration** — Bloomberg swap, notebook artifact, walkthrough doc, cleanup of forecasting drift. Context locked. *(plans pending)*
+- [x] **Phase 1: POC Delivery & Calibration** — Bloomberg swap, notebook artifact, walkthrough doc, cleanup of forecasting drift. Context locked. **6 plans ready.**
 - [ ] **Phase 2+:** Open — driven by quant-team feedback. May include extensions, scope adjustments, or a go/no-go on production-ize.
 
 ---
@@ -42,13 +42,18 @@ v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statis
 3. `validate.py` removed; Section D reframed; Section C + Holm rigor preserved verbatim.
 4. POC handed to quant team async with the question: *"What would have to be true for this to inform a real decision?"*
 
+**Plans:** 6 plans across 3 waves
+- Wave 1 (parallel): 01-01 (BloombergCon class), 01-02 (remove validate.py)
+- Wave 2: 01-03 (Section D reframe), 01-04 (notebook builder)
+- Wave 3: 01-05 (chart styling), 01-06 (WALKTHROUGH.md)
+
 ---
 
 ## Progress
 
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
-| 1. POC Delivery & Calibration | 0 (pending plan) | Context locked, plans pending | - |
+| 1. POC Delivery & Calibration | 6 plans | Plans complete, ready for execution | - |
 
 ---
 
