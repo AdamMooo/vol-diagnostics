@@ -245,17 +245,14 @@ def section_short_vol_environment(sigs: Signals, panels: Panels) -> str:
     log_rets = np.log(prices / prices.shift(1))
 
     def _forward_rv21(dt: pd.Timestamp) -> float:
-        try:
-            loc = prices.index.get_loc(dt)
-            future_prices = prices.iloc[loc + 1: loc + 23]
-            if len(future_prices) < 15:
-                return np.nan
-            lr = np.log(future_prices / future_prices.shift(1)).dropna()
-            if len(lr) < 15:
-                return np.nan
-            return float(lr.std() * np.sqrt(252) * 100)
-        except Exception:
+        loc = prices.index.get_loc(dt)
+        future_prices = prices.iloc[loc + 1: loc + 23]
+        if len(future_prices) < 15:
             return np.nan
+        lr = np.log(future_prices / future_prices.shift(1)).dropna()
+        if len(lr) < 15:
+            return np.nan
+        return float(lr.std() * np.sqrt(252) * 100)
 
     rows = []
     for dt in monthly_dates:
