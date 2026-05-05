@@ -15,6 +15,7 @@ env/
 
 # IDE / OS
 .vscode/
+.vault.yaml
 .idea/
 *.swp
 .DS_Store
