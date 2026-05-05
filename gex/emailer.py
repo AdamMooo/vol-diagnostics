@@ -28,8 +28,14 @@ def send(subject: str, html_body: str, attachments: list[Path] | None = None,
     try:
         outlook = win32com.client.GetActiveObject("Outlook.Application")
     except Exception:
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        time.sleep(3)
+        try:
+            outlook = win32com.client.DispatchEx("Outlook.Application")
+            time.sleep(3)
+        except Exception as exc:
+            raise RuntimeError(
+                "Cannot connect to Outlook — open Outlook and retry, "
+                f"or use --dry-run to skip email. ({exc})"
+            ) from exc
 
     mail = outlook.CreateItem(0)
     mail.To = "; ".join(recipients)

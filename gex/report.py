@@ -293,7 +293,6 @@ def build_email(results: list[dict],
     date = date or datetime.date.today()
     valid = [r for r in results if not r.get("error")]
 
-    scorecard  = _scorecard(valid)
     narrative  = _narrative(valid)
     table_rows = _build_table(results)
     chart_sec  = _chart_grid(charts_b64) if charts_b64 else ""
@@ -314,7 +313,6 @@ def build_email(results: list[dict],
     &nbsp;&middot;&nbsp; yfinance chains &nbsp;&middot;&nbsp; Dealer gamma exposure proxy
   </p>
 
-  {scorecard}
   {narrative}
 
   <table width="100%" cellpadding="0" cellspacing="0"

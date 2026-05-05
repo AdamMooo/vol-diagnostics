@@ -81,30 +81,33 @@ def run(dry_run: bool = False) -> None:
     results = [d["summary"] for d in all_data]
     good    = [d for d in all_data if not d["summary"].get("error")]
 
-    if not dry_run:
-        # Overview bar chart
-        overview_fig = plot_overview(results)
-        overview_b64 = fig_to_b64(overview_fig)
-        plt.close(overview_fig)
+    # Build charts and HTML regardless of dry_run
+    overview_fig = plot_overview(results)
+    overview_b64 = fig_to_b64(overview_fig)
+    plt.close(overview_fig)
 
-        # Gamma profile per ticker (smaller size for email)
-        charts_b64: dict[str, str] = {}
-        for d in good:
-            ticker = d["summary"]["ticker"]
-            fig = plot_gamma_profile(d["p_df"], d["spot"], ticker, d["summary"])
-            fig.set_size_inches(6, 2.8)
-            charts_b64[ticker] = fig_to_b64(fig)
-            plt.close(fig)
+    charts_b64: dict[str, str] = {}
+    for d in good:
+        ticker = d["summary"]["ticker"]
+        fig = plot_gamma_profile(d["p_df"], d["spot"], ticker, d["summary"])
+        fig.set_size_inches(6, 2.8)
+        charts_b64[ticker] = fig_to_b64(fig)
+        plt.close(fig)
 
-        subject = f"GEX Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
-        html = rpt.build_email(results, date=today, overview_b64=overview_b64, charts_b64=charts_b64)
+    subject = f"GEX Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
+    html = rpt.build_email(results, date=today, overview_b64=overview_b64, charts_b64=charts_b64)
+
+    if dry_run:
+        out_path = OUT_DIR / f"gex_{today.strftime('%Y%m%d')}.html"
+        out_path.write_text(html, encoding="utf-8")
+        print(f"[gex-daily] Report saved: {out_path}")
+        return
+
+    try:
         emailer.send(subject=subject, html_body=html)
         print("[gex-daily] Email sent.")
-    else:
-        print("\n[dry-run] Email skipped.")
-        for d in good:
-            s = d["summary"]
-            print(f"  {s['ticker']:6s} spot={s['spot']:.2f}  gex=${s['net_gex']/1e9:.2f}B  {s['gamma_regime']}")
+    except Exception as exc:
+        print(f"[gex-daily] Email failed: {exc}")
 
 
 if __name__ == "__main__":
