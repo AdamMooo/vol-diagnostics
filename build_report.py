@@ -15,7 +15,7 @@ import base64
 import pathlib
 import sys
 import html as _html
-from datetime import datetime
+from datetime import datetime, timezone
 
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend — must come before pyplot import
@@ -120,7 +120,7 @@ def build_html(panels, sigs) -> str:
     )
     parts.append("<h1>Options Quant — Market Intelligence Dashboard</h1>")
     parts.append(
-        f"<p class='meta'>Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC &middot; "
+        f"<p class='meta'>Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC &middot; "
         "Data: CBOE + FRED (free sources) &middot; "
         "90mny IV: synthesized (slope=0.2 approximation &mdash; see WALKTHROUGH.md)</p>"
     )
@@ -155,7 +155,7 @@ def build_html(panels, sigs) -> str:
 
 def main() -> None:
     OUT_DIR.mkdir(exist_ok=True)
-    fname = OUT_DIR / f"sleeve_report_{datetime.utcnow().strftime('%Y%m%d')}.html"
+    fname = OUT_DIR / f"sleeve_report_{datetime.now(timezone.utc).strftime('%Y%m%d')}.html"
 
     print("Loading data...")
     panels = build_panels(start="2010-01-01")
