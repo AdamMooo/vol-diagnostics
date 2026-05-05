@@ -1,5 +1,4 @@
-"""End-to-end POC orchestrator. Runs data → signals → backtest, prints
-summaries to stdout, saves plots/tables to ./out/.
+"""End-to-end orchestrator. Runs data → signals, prints summaries to stdout.
 
 Usage:
     python run.py
@@ -19,9 +18,7 @@ import pandas as pd
 
 from data_layer import build_panels
 from signals import build_signals
-from backtest import run_backtest, SLEEVE_COLS
 from dashboard import build_dashboard
-from stats_rigor import sharpe_with_ci, stationary_block_bootstrap_sharpe
 
 OUT_DIR = pathlib.Path("out")
 PLOT_DIR = OUT_DIR / "plots"
@@ -84,39 +81,8 @@ def main(start: str = "2010-01-01") -> None:
     plt.tight_layout()
     print(f"  saved → {_save('02_signals_timeseries', fig)}")
 
-    _section("Phase 3 — Sleeve Backtest")
-    bt = run_backtest(panels)
-    for u in panels.iv_panel.columns:
-        print(f"\n{u} ({len(bt.rolls[u])} rolls, {bt.rolls[u].index.min().date()} → {bt.rolls[u].index.max().date()}):")
-        # base stats
-        base = bt.stats[u].round(3)
-        # add Sharpe CI: IID and stationary block bootstrap (block ≈ 6 months
-        # to span vol-clustering autocorrelation in monthly returns)
-        ci_iid, ci_blk = {}, {}
-        for sleeve in SLEEVE_COLS:
-            rets = bt.rolls[u][sleeve].dropna().values
-            _, lo_i, hi_i = sharpe_with_ci(rets)
-            _, lo_b, hi_b = stationary_block_bootstrap_sharpe(rets, expected_block_len=6)
-            ci_iid[sleeve] = f"[{lo_i:+.2f}, {hi_i:+.2f}]"
-            ci_blk[sleeve] = f"[{lo_b:+.2f}, {hi_b:+.2f}]"
-        base["sharpe_iid"]   = pd.Series(ci_iid)
-        base["sharpe_block"] = pd.Series(ci_blk)
-        print(base.to_string())
-        _save_table(f"03_stats_{u}", base)
-
-    fig, axes = plt.subplots(len(panels.iv_panel.columns), 1, figsize=(12, 4 * len(panels.iv_panel.columns)), sharex=True)
-    if len(panels.iv_panel.columns) == 1:
-        axes = [axes]
-    for ax, u in zip(axes, panels.iv_panel.columns):
-        bt.equity[u].plot(ax=ax, lw=1.0)
-        ax.set_title(f"{u} — sleeve equity curves (monthly roll)")
-        ax.set_ylabel("Growth of $1")
-        ax.axhline(1, color="grey", lw=0.5)
-    plt.tight_layout()
-    print(f"\n  saved → {_save('03_equity_curves', fig)}")
-
-    _section("Phase 4 — Decision Dashboard")
-    dash = build_dashboard(sigs, bt)
+    _section("Phase 3 — Market Intelligence Dashboard")
+    dash = build_dashboard(sigs, panels)
     print(dash)
     dash_path = OUT_DIR / f"dashboard_{sigs.latest_date().date()}.txt"
     dash_path.write_text(dash, encoding="utf-8")

@@ -10,7 +10,7 @@ v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statis
 
 - [x] **Phase 1: POC Delivery & Calibration** — HTML report, WALKTHROUGH.md, cleanup of forecasting drift. **COMPLETE.**
 - [x] **Post-phase: Bayesian Reframe** — Conditional summary leads report; equity chart removed; Section E unconditional caveat. **COMPLETE.**
-- [ ] **Phase 2: Short-Vol Environment Historical Distributions** — `section_short_vol_environment()` in `dashboard.py`: percentile distributions (10/25/50/75/90) of three market-level metrics by signal quartile. No sleeve labels, no strategy ranking. PM reads raw environmental outcomes and draws their own conclusion about book risk.
+- [x] **Phase 2: Short-Vol Environment Historical Distributions** — `section_short_vol_environment()` in `dashboard.py`: percentile distributions (10/25/50/75/90) of three market-level metrics by signal quartile. No sleeve labels, no strategy ranking. PM reads raw environmental outcomes and draws their own conclusion about book risk. **COMPLETE.**
 - [ ] **Phase 3+:** Open — data quality fixes (NDX skew identity), Tier 2 features (GEX/OI), or productionizing based on team feedback.
 
 ---
@@ -50,10 +50,10 @@ v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statis
 |-------|-------|--------|-----------|
 | 1. POC Delivery & Calibration | 5 plans (01-01 dropped) | COMPLETE | 2026-05-04 |
 | Post-phase: Bayesian Reframe | inline (no GSD phase) | COMPLETE | 2026-05-04 |
-| 2. Short-Vol Environment Historical Distributions | 2 plans | OPEN | — |
+| 2. Short-Vol Environment Historical Distributions | 2 plans | COMPLETE | 2026-05-05 |
 | 3+. Post-feedback | TBD | OPEN | — |
 
-### Phase 2: Short-Vol Environment Historical Distributions — OPEN
+### Phase 2: Short-Vol Environment Historical Distributions — COMPLETE (2026-05-05)
 **Goal:** Add a signal-conditioned historical distribution section that shows what the short-vol environment actually did when each signal was in each quartile. PM uses this to calibrate whether current conditions are permissive or hostile to their existing short-convexity book — not to pick a strategy.
 
 **Deliverables:**

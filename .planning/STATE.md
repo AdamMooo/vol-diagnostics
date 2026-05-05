@@ -2,8 +2,8 @@
 gsd_state_version: "1.0"
 milestone: "v2.1 — POC Delivery & Validation"
 status: active
-last_updated: 2026-05-04
-context_gathered: Phase 1
+last_updated: 2026-05-05 (Phase 2 complete — section_short_vol_environment shipped)
+context_gathered: Phase 2
 plans_ready: false
 authored_local: true
 cron2_pending: false
@@ -26,9 +26,9 @@ See: `.planning/ROADMAP.md` (v2.1 roadmap, Phase 1 complete)
 ## Current Position
 
 Milestone: **v2.1 — POC Delivery & Validation**
-Phase: **1 of 1+ — COMPLETE.** Post-phase iteration ongoing.
-Status: HTML report (`build_report.py`) fully operational on free CBOE+FRED data. Bayesian reframe shipped 2026-05-04.
-Last activity: 2026-05-04 — Bayesian reframe: `section_today_conditional()` added to `dashboard.py`, `_equity_chart()` deleted from `build_report.py`, section order updated (conditional summary → A → signal chart → B → C → D → E → G → H), Section E bull-market caveat added, `build_dashboard()` updated for `run.py` parity, WALKTHROUGH.md updated.
+Phase: **2 of 2+ — COMPLETE.** Phase 2 shipped 2026-05-05.
+Status: HTML report fully operational. Phase 2 adds signal-conditioned historical distributions section (Short-Vol Environment) to the report.
+Last activity: 2026-05-05 — Phase 2: `section_short_vol_environment(sigs, panels)` added to `dashboard.py`; wired into `build_report.py` replacing `section_market_outcomes`. Percentile tables (p10/25/50/75/90 + n) for VRP capture ratio, move magnitude, IV change across 4 signal quartiles × 4 signals. Today's quartile marked `*`.
 
 Progress: [██████████] 100% (Phase 1 + Bayesian reframe — report ready to send)
 
