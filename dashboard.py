@@ -278,7 +278,12 @@ def section_short_vol_environment(sigs: Signals, panels: Panels) -> str:
     df = pd.DataFrame(rows, index=monthly_dates)
 
     non_nan_count = df["vrp_capture"].notna().sum()
-    assert non_nan_count >= 150, f"Only {non_nan_count} non-NaN forward_rv rows — insufficient data"
+    if non_nan_count < 150:
+        return (
+            "## Short-Vol Environment Historical Distributions\n\n"
+            f"Insufficient data: only {non_nan_count} non-NaN forward_rv rows (need >= 150). "
+            "Widen the start date or check data coverage.\n"
+        )
 
     PCTS = [10, 25, 50, 75, 90]
     METRIC_COLS = ["vrp_capture", "move_mag", "iv_change"]
