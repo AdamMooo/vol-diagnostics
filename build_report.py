@@ -1,4 +1,4 @@
-"""HTML report generator for the Options Quant sleeve allocation POC.
+"""HTML report generator for the Options Quant market intelligence POC.
 
 Produces a single self-contained HTML file with all sections and charts
 embedded as base64 PNG data URIs. No external template engines required.
@@ -24,16 +24,12 @@ import pandas as pd
 
 from data_layer import build_panels
 from signals import build_signals
-from backtest import run_backtest
 from dashboard import (
-    section_a_state,
-    section_b_mechanics,
-    section_c_buckets,
-    section_d_analog,
-    section_e_subperiod,
-    section_today_conditional,
+    section_environment_context,
+    section_short_vol_environment,
+    section_analog_periods,
+    section_signal_dynamics,
 )
-from sensitivity import format_tc_grid, format_tail_metrics, tc_sensitivity_table, tail_metrics_table
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -50,7 +46,7 @@ CHART_STYLE = {
     "fontsize_legend": 8,
     "color_grid": "grey",
     "color_signal": "steelblue",
-    "figsize_multi_height": 2.5,  # per-subplot height for stacked charts
+    "figsize_multi_height": 2.5,
 }
 
 CSS = """
@@ -64,7 +60,6 @@ img { max-width: 100%; margin: 16px 0; display: block; }
 
 
 def _fig_to_b64(fig) -> str:
-    """Save a matplotlib figure to a base64-encoded PNG string and close it."""
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=CHART_STYLE["dpi"], bbox_inches="tight")
     buf.seek(0)
@@ -74,39 +69,27 @@ def _fig_to_b64(fig) -> str:
 
 
 def _add_regime_shading(ax, sigs, fragility_threshold=0.67):
-    """Add vertical bands to indicate high-fragility periods (background shading).
-
-    Args:
-        ax: matplotlib axis to shade
-        sigs: Signals object with fragility pct-rank time-series
-        fragility_threshold: pct-rank threshold for "high fragility" (default 0.67 = top third)
-    """
     fragility_ts = sigs.pct.get("fragility")
     if fragility_ts is None:
-        return  # No fragility data; skip shading
-    # Collapse DataFrame (one column per underlying) → single Series
+        return
     if isinstance(fragility_ts, pd.DataFrame):
         fragility_ts = fragility_ts.mean(axis=1)
 
     high_frag = fragility_ts >= fragility_threshold
-    # Find periods where high_frag changes from False to True (start) and True to False (end)
     transitions = high_frag != high_frag.shift()
     frag_periods = high_frag[transitions].index
 
-    # Shade each high-fragility period
     for i in range(0, len(frag_periods), 2):
         if i + 1 < len(frag_periods):
             start = frag_periods[i]
             end = frag_periods[i + 1]
             ax.axvspan(start, end, alpha=0.1, color="red", label="High fragility" if i == 0 else "")
         elif i == len(frag_periods) - 1 and high_frag.iloc[-1]:
-            # Last period is still in high-fragility
             start = frag_periods[i]
             ax.axvspan(start, fragility_ts.index[-1], alpha=0.1, color="red")
 
 
 def _signal_chart(sigs) -> str:
-    """Time-series chart of all signal pct ranks. Returns base64 PNG."""
     n = len(_SIGS_TO_PLOT)
     fig, axes = plt.subplots(n, 1, figsize=(12, CHART_STYLE["figsize_multi_height"] * n), sharex=True)
     for ax, sig in zip(axes, _SIGS_TO_PLOT):
@@ -120,7 +103,6 @@ def _signal_chart(sigs) -> str:
         ax.set_title(f"{sig} (causal 5y pct rank)", fontsize=CHART_STYLE["fontsize_title"])
         ax.legend(loc="upper left", fontsize=CHART_STYLE["fontsize_legend"], framealpha=0.9)
         ax.grid(True, alpha=0.3)
-    # X-axis formatting on the bottom subplot only
     axes[-1].xaxis.set_major_locator(mdates.YearLocator())
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     plt.setp(axes[-1].xaxis.get_majorticklabels(), rotation=45, ha="right")
@@ -128,56 +110,44 @@ def _signal_chart(sigs) -> str:
     return _fig_to_b64(fig)
 
 
-
-def build_html(panels, sigs, bt) -> str:
+def build_html(panels, sigs) -> str:
     parts = []
     parts.append(
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
-        "<title>Options Quant POC</title>"
+        "<title>Options Quant — Market Intelligence</title>"
         f"<style>{CSS}</style></head><body>"
     )
-    parts.append("<h1>Options Quant — Sleeve Allocation Framework (α Engine)</h1>")
+    parts.append("<h1>Options Quant — Market Intelligence Dashboard</h1>")
     parts.append(
         f"<p class='meta'>Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC &middot; "
         "Data: CBOE + FRED (free sources) &middot; "
         "90mny IV: synthesized (slope=0.2 approximation &mdash; see WALKTHROUGH.md)</p>"
     )
 
-    # Conditional summary — leads the report
-    parts.append(f"<pre>{section_today_conditional(sigs, bt)}</pre>")
-
-    # Section A
-    parts.append("<h2>Section A &mdash; Current State</h2>")
-    parts.append(f"<pre>{section_a_state(sigs)}</pre>")
+    # Section 1 — current environment
+    parts.append(f"<pre>{section_environment_context(sigs)}</pre>")
 
     # Signal percentile-rank time-series chart
     sig_b64 = _signal_chart(sigs)
     parts.append(f"<img src='data:image/png;base64,{sig_b64}' alt='Signal percentile ranks'>")
 
-    # Section B
-    parts.append("<h2>Section B &mdash; Sleeve Mechanics</h2>")
-    parts.append(f"<pre>{section_b_mechanics()}</pre>")
+    # Section 2 — short-vol environment historical distributions
+    parts.append("<h2>Short-Vol Environment Historical Distributions</h2>")
+    parts.append(f"<pre>{section_short_vol_environment(sigs, panels)}</pre>")
 
-    # Section C — full bucket analysis (before E so conditional frame lands first)
-    parts.append("<h2>Section C &mdash; Bucket Returns &amp; Holm Correction</h2>")
-    parts.append(f"<pre>{section_c_buckets(sigs, bt)}</pre>")
+    # Section 3 — analog periods
+    parts.append("<h2>Past Periods That Looked Like Now</h2>")
+    parts.append(f"<pre>{section_analog_periods(sigs, panels)}</pre>")
 
-    # Section D
-    parts.append("<h2>Section D &mdash; Past Periods That Looked Like Now</h2>")
-    parts.append(f"<pre>{section_d_analog(sigs, bt)}</pre>")
+    # Section 4 — signal dynamics
+    parts.append("<h2>Signal Dynamics</h2>")
+    parts.append(f"<pre>{section_signal_dynamics(sigs)}</pre>")
 
-    # Section E — unconditional reference (after C so reader's frame is set)
-    parts.append("<h2>Section E &mdash; Subperiod Stability</h2>")
-    parts.append(f"<pre>{section_e_subperiod(bt)}</pre>")
-
-    # Section G — TC Sensitivity
-    parts.append("<h2>Section G &mdash; Transaction Cost Sensitivity</h2>")
-    parts.append(f"<pre>{format_tc_grid(tc_sensitivity_table(bt))}</pre>")
-
-    # Section H — Tail Risk
-    parts.append("<h2>Section H &mdash; Tail-Risk Metrics</h2>")
-    parts.append(f"<pre>{format_tail_metrics(tail_metrics_table(bt))}</pre>")
-
+    parts.append(
+        "<p class='meta'>No score. No recommendation. Market intelligence, not a signal. "
+        "Caveats: synthetic 90mny IV (POC; calibrated, not Bloomberg-observed), "
+        "0% dividend yield. Historical base rates only; no predictive warrant.</p>"
+    )
     parts.append("</body></html>")
     return "\n".join(parts)
 
@@ -190,10 +160,8 @@ def main() -> None:
     panels = build_panels(start="2010-01-01")
     print("Building signals...")
     sigs = build_signals(panels)
-    print("Running backtest...")
-    bt = run_backtest(panels)
     print("Generating HTML report...")
-    html = build_html(panels, sigs, bt)
+    html = build_html(panels, sigs)
 
     fname.write_text(html, encoding="utf-8")
     print(f"Report saved: {fname.resolve()}")
