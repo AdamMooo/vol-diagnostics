@@ -38,7 +38,27 @@ python build_report.py # generates out/sleeve_report_YYYYMMDD.html
 - **Windows paths:** use pathlib or `os.path.join` throughout.
 - **No PDIV / HMM this phase:** locked per scope cap.
 
-## Key Files
+## GEX POC (new direction — dealer gamma exposure)
+
+```
+python -m gex.run_gex                # SPY, saves charts to out/
+python -m gex.run_gex --ticker QQQ   # different underlying
+```
+
+| Module | Purpose |
+|--------|---------|
+| `gex/data_loader.py` | yfinance chain pull → `ChainSnapshot` |
+| `gex/greeks_engine.py` | Black-Scholes gamma vectorised; `add_greeks()` enriches chain df |
+| `gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; strike/expiry aggregation; gamma profile curve |
+| `gex/analytics.py` | Net GEX, zero-gamma level, call/put walls, regime classification, matplotlib charts |
+| `gex/run_gex.py` | Entry point — fetch → compute → print summary → save PNGs to `out/` |
+| `gex/validation.py` | Parquet snapshot store + event-study (positive vs negative gamma days vs next-day range) |
+
+Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change.
+
+Bloomberg upgrade path: swap `gex/data_loader.py` only — everything else is data-source-agnostic.
+
+## Key Files (v2.1 — parked)
 
 | File | Purpose |
 |------|---------|
