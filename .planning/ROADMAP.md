@@ -10,7 +10,8 @@ v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statis
 
 - [x] **Phase 1: POC Delivery & Calibration** — HTML report, WALKTHROUGH.md, cleanup of forecasting drift. **COMPLETE.**
 - [x] **Post-phase: Bayesian Reframe** — Conditional summary leads report; equity chart removed; Section E unconditional caveat. **COMPLETE.**
-- [ ] **Phase 2+:** Open — driven by quant-team feedback. May include data quality fixes (NDX skew identity), extensions, or a go/no-go on productionizing.
+- [ ] **Phase 2: Short-Vol Environment Historical Distributions** — `section_short_vol_environment()` in `dashboard.py`: percentile distributions (10/25/50/75/90) of three market-level metrics by signal quartile. No sleeve labels, no strategy ranking. PM reads raw environmental outcomes and draws their own conclusion about book risk.
+- [ ] **Phase 3+:** Open — data quality fixes (NDX skew identity), Tier 2 features (GEX/OI), or productionizing based on team feedback.
 
 ---
 
@@ -49,7 +50,28 @@ v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statis
 |-------|-------|--------|-----------|
 | 1. POC Delivery & Calibration | 5 plans (01-01 dropped) | COMPLETE | 2026-05-04 |
 | Post-phase: Bayesian Reframe | inline (no GSD phase) | COMPLETE | 2026-05-04 |
-| 2+. Post-team-feedback | TBD | OPEN | — |
+| 2. Short-Vol Environment Historical Distributions | 2 plans | OPEN | — |
+| 3+. Post-feedback | TBD | OPEN | — |
+
+### Phase 2: Short-Vol Environment Historical Distributions — OPEN
+**Goal:** Add a signal-conditioned historical distribution section that shows what the short-vol environment actually did when each signal was in each quartile. PM uses this to calibrate whether current conditions are permissive or hostile to their existing short-convexity book — not to pick a strategy.
+
+**Deliverables:**
+- `dashboard.py` — `section_short_vol_environment(sigs, panels)`: percentile table (10/25/50/75/90 + n) for three metrics × four signals × four quartiles
+- `build_report.py` — new section in HTML output; `section_market_outcomes` removed
+
+**Three metrics (market-level, no strategy labels):**
+1. Realized vol / implied vol at period open — did the vol-selling premise hold?
+2. Absolute monthly SPX return — how violent were the moves? (gamma exposure proxy)
+3. IV change over the period — did vol spike further? (vega risk proxy)
+
+**Constraints:** Single-signal quartile slices only. Always show n. No "best sleeve" language. No Holm discussion. Frame as "historical calibration only, not a forecast."
+
+**Depends on:** Phase 1 (complete)
+
+**Plans:**
+- [ ] 02-01-PLAN.md — implement section_short_vol_environment in dashboard.py
+- [ ] 02-02-PLAN.md — wire into build_report.py; remove section_market_outcomes from HTML
 
 ---
 

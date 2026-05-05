@@ -1,32 +1,22 @@
-"""Phase 4 — decision dashboard.
+"""Market intelligence dashboard — signal environment + market outcomes.
 
-State + exposure + conditional historical context. No scoring, no
-recommendations. Outputs four sections:
+No sleeve P&L. Four sections:
 
-    A. Current market state (signal pct ranks + interpretation)
-    B. Sleeve mechanics (static cheat sheet — what each tool does)
-    C. Sleeve returns by signal quartile (when VRP was X, sleeve Y returned Z)
-    D. Closest regime analogs (K-nearest neighbour on signal vector)
-
-The trader synthesizes. Quant team can audit any number against the
-underlying data.
+    Environment  — current signal readings with cross-signal interpretation
+    Market       — SPX returns + IV changes by signal quartile (historical base rates)
+    Analogs      — K-nearest historical periods; realized market outcomes after each
+    Dynamics     — signal trends, extremes, cross-signal divergences
 """
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
-from backtest import SLEEVE_COLS, BacktestResults
+from data_layer import Panels
 from signals import Signals
-from stats_rigor import (
-    holm_bonferroni,
-    q1_q4_bucket_test,
-    sharpe_with_ci,
-    stationary_block_bootstrap_sharpe,
-)
 
-BUCKETED_SIGNALS = ("vrp", "term", "skew", "fragility")
 NEIGHBOR_FEATURES = ("vrp", "term", "skew", "trend", "dd", "fragility")
+BUCKETED_SIGNALS = ("vrp", "term", "skew", "fragility")
 K_NEIGHBORS = 12
 
 INTERPRET = {
@@ -39,13 +29,8 @@ INTERPRET = {
     "fragility": "calm / mid / fragile",
 }
 
-SLEEVE_DESC = {
-    "spot_ret": "Buy & hold the index. Reference benchmark.",
-    "cc":       "Long u/l + premium from short ~25Δ call. Capped above strike.",
-    "csp":      "Cash earning rf + premium from short ~25Δ put. Loses on sharp drops.",
-    "collar":   "Long u/l with floor (long ~25Δ put) + ceiling (short ~25Δ call). Defined-risk.",
-    "strangle": "Cash + short ~20Δ call + short ~20Δ put. Vol-selling neutral.",
-}
+_PCT_EDGES = [-np.inf, 0.25, 0.50, 0.75, np.inf]
+_PCT_LABELS = ["Q1", "Q2", "Q3", "Q4"]
 
 
 def _interp(pct: float, sig: str) -> str:
@@ -59,101 +44,6 @@ def _interp(pct: float, sig: str) -> str:
     return mid
 
 
-def section_a_state(sigs: Signals) -> str:
-    last_dt = sigs.latest_date()
-    underlyings = sigs.pct["vrp"].columns.tolist()
-    out = [
-        f"## Section A — Current Market State ({last_dt.date()})",
-        "",
-        "Causal 5y rolling percentile rank. 0 = trailing 5y min, 0.5 = median, 1 = max.",
-        "",
-    ]
-    header = f"  {'signal':10s}"
-    for u in underlyings:
-        header += f" | {u:>5s} {'reading':<22s}"
-    out.append(header)
-    out.append("  " + "-" * (len(header) - 2))
-    for sig in sigs.pct.keys():
-        line = f"  {sig:10s}"
-        for u in underlyings:
-            v = sigs.pct[sig].loc[last_dt, u]
-            line += f" | {v:>5.2f} {_interp(v, sig):<22s}"
-        out.append(line)
-    return "\n".join(out)
-
-
-def section_b_mechanics() -> str:
-    out = ["## Section B — Sleeve Mechanics", ""]
-    out.append("What each sleeve gives you. Not a recommendation — context for choice.")
-    out.append("")
-    for k, v in SLEEVE_DESC.items():
-        out.append(f"  {k:9s}  {v}")
-    return "\n".join(out)
-
-
-def section_today_conditional(sigs: Signals, bt: BacktestResults) -> str:
-    """Conditional historical returns for today's signal quartiles.
-
-    For each bucketed signal, shows today's quartile and the mean monthly return
-    for each sleeve historically when that signal was in the same quartile at roll open.
-    Pulls from the same bucket computation as Section C — no new math.
-    """
-    last_dt = sigs.latest_date()
-    out = [
-        "## Current Environment — Historical Conditional Returns",
-        "",
-        "Historical base rates for each sleeve, conditional on today's signal quartiles.",
-        "Starting point for your judgment — not forecasts.",
-        "0 of 30 tests survive Holm correction; temper accordingly.",
-        "",
-        "Read with Section C for full return distributions by quartile.",
-        "",
-    ]
-
-    for u in bt.rolls:
-        rolls = bt.rolls[u].copy()
-        out.append(f"### {u}")
-        out.append("")
-        header = (
-            f"  {'signal':<12s}  {'Q today':>7s}  {'n':>3s} | "
-            + " | ".join(f"{s:>8s}" for s in SLEEVE_COLS)
-        )
-        out.append(header)
-        out.append("  " + "-" * (len(header) - 2))
-
-        for sig in BUCKETED_SIGNALS:
-            sig_at_open = sigs.pct[sig].reindex(rolls["open"].values)[u].values
-            today_val = sigs.pct[sig].loc[last_dt, u]
-            today_q = _today_quartile(today_val)
-            rolls["_q"] = _bucket_by_pct(sig_at_open)
-            mean_ret = rolls.groupby("_q", observed=False)[SLEEVE_COLS].mean() * 100
-            n_per_q = rolls.groupby("_q", observed=False)[SLEEVE_COLS[0]].count()
-
-            if today_q == "n/a" or today_q not in mean_ret.index:
-                out.append(f"  {sig:<12s}  {'n/a':>7s}  {'':>3s} | (no data)")
-                continue
-
-            n_today = int(n_per_q.get(today_q, 0))
-            means = mean_ret.loc[today_q]
-            vals = " | ".join(f"{means[s]:>+8.2f}" for s in SLEEVE_COLS)
-            out.append(f"  {sig:<12s}  {today_q:>7s}  {n_today:>3d} | {vals}")
-
-        out.append("")
-        out.append("  Conditional on signal quartile at roll open. Not a forecast.")
-        out.append("  Read with Section C for full return distributions.")
-        out.append("")
-
-    return "\n".join(out)
-
-
-_PCT_EDGES = [-np.inf, 0.25, 0.50, 0.75, np.inf]
-_PCT_LABELS = ["Q1", "Q2", "Q3", "Q4"]
-
-
-def _bucket_by_pct(values: np.ndarray) -> pd.Categorical:
-    return pd.cut(values, bins=_PCT_EDGES, labels=_PCT_LABELS, include_lowest=True)
-
-
 def _today_quartile(today_val: float) -> str:
     if pd.isna(today_val):
         return "n/a"
@@ -163,270 +53,449 @@ def _today_quartile(today_val: float) -> str:
     return "Q4"
 
 
-def section_c_buckets(sigs: Signals, bt: BacktestResults) -> str:
-    """Section C: bucket-mean tables + Q4-vs-Q1 t-tests with Holm-Bonferroni
-    correction applied jointly across all (underlying × signal × sleeve)
-    comparisons, since they form one decision family.
-    """
+def _bucket_by_pct(values: np.ndarray) -> pd.Categorical:
+    return pd.cut(values, bins=_PCT_EDGES, labels=_PCT_LABELS, include_lowest=True)
+
+
+def _primary_underlying(panels: Panels) -> str:
+    cols = list(panels.prices_panel.columns)
+    return "SPX" if "SPX" in cols else cols[0]
+
+
+def _forward_returns(prices: pd.Series, horizons: list[int] = [21, 63]) -> dict[int, pd.Series]:
+    """Total % return from each date over the next h trading days."""
+    return {h: prices.shift(-h) / prices - 1 for h in horizons}
+
+
+def _forward_iv_change(iv: pd.Series, horizons: list[int] = [21]) -> dict[int, pd.Series]:
+    """Absolute IV change (vol pts) from each date over next h trading days."""
+    return {h: iv.shift(-h) - iv for h in horizons}
+
+
+def section_environment_context(sigs: Signals) -> str:
     last_dt = sigs.latest_date()
-
-    # Pass 1: gather every Q4-Q1 test, build the family
-    family = []
-    for u in bt.rolls:
-        rolls = bt.rolls[u]
-        for sig in BUCKETED_SIGNALS:
-            sig_at_open = sigs.pct[sig].reindex(rolls["open"].values)[u].values
-            for sleeve in SLEEVE_COLS:
-                t = q1_q4_bucket_test(sig_at_open, rolls[sleeve].values)
-                family.append({"u": u, "sig": sig, "sleeve": sleeve,
-                               "diff": t["diff"], "t": t["t"], "p": t["p"]})
-    fam_df = pd.DataFrame(family)
-    holm = holm_bonferroni(fam_df["p"].values, alpha=0.05)
-    fam_df["adj_p"] = holm["adj_p"]
-    fam_df["reject"] = holm["reject"]
-
-    n_tests = int(fam_df["p"].notna().sum())
-    n_raw_sig_5 = int((fam_df["p"] < 0.05).sum())
-    n_raw_sig_10 = int(((fam_df["p"] >= 0.05) & (fam_df["p"] < 0.10)).sum())
-    n_holm_sig = int(fam_df["reject"].sum())
-
     out = [
-        "## Section C — Sleeve Returns by Signal Quartile",
+        f"## Market Environment — {last_dt.date()}",
         "",
-        "Signals are already percentile ranks (0-1). Fixed bucket edges:",
-        "  Q1 = pct rank < 0.25      Q2 = 0.25-0.50",
-        "  Q3 = 0.50-0.75            Q4 ≥ 0.75",
-        "",
-        "Mean realized monthly return per sleeve by quartile of signal AT ROLL OPEN.",
-        "Today's bucket marked '*'.",
-        "",
-        "Q4-vs-Q1 differences tested with Welch's t-test. Because we run many",
-        f"comparisons ({n_tests} across underlyings × signals × sleeves), raw p-values",
-        "must be adjusted for family-wise error. Holm-Bonferroni step-down used.",
-        "",
-        f"  Raw p < 0.05:   {n_raw_sig_5} of {n_tests}",
-        f"  Raw p < 0.10:   {n_raw_sig_10} additional",
-        f"  Holm at FWE α=0.05:  {n_holm_sig} survive (** marker)",
+        "Causal 5y rolling percentile rank. 0 = 5y min, 0.5 = median, 1 = 5y max.",
+        "Extremes (>= 0.80 or <= 0.20) flagged with <<.",
         "",
     ]
-    for u in bt.rolls:
-        rolls = bt.rolls[u].copy()
-        out.append(f"### {u}  ({len(rolls)} rolls)")
+
+    underlyings = sigs.pct["vrp"].columns.tolist()
+    for u in underlyings:
+        out.append(f"### {u}")
         out.append("")
-        for sig in BUCKETED_SIGNALS:
-            sig_at_open = sigs.pct[sig].reindex(rolls["open"].values)[u].values
-            today_val = sigs.pct[sig].loc[last_dt, u]
-            today_q = _today_quartile(today_val)
-            rolls["_q"] = _bucket_by_pct(sig_at_open)
-            mean_ret = rolls.groupby("_q", observed=False)[SLEEVE_COLS].mean() * 100
-            hit_ret  = rolls.groupby("_q", observed=False)[SLEEVE_COLS].apply(lambda x: (x > 0).mean()) * 100
-            n_per_q  = rolls.groupby("_q", observed=False)[SLEEVE_COLS[0]].count()
+        out.append(f"  {'signal':12s}  {'pct':>5s}  reading")
+        out.append("  " + "-" * 48)
+        for sig in sigs.pct:
+            v = sigs.pct[sig].loc[last_dt, u]
+            flag = "  <<" if (not pd.isna(v) and (v >= 0.80 or v <= 0.20)) else ""
+            vstr = f"{v:.2f}" if not pd.isna(v) else " n/a"
+            out.append(f"  {sig:12s}  {vstr:>5s}  {_interp(v, sig)}{flag}")
+        out.append("")
 
-            n_str = "/".join(str(int(n_per_q.get(q, 0))) for q in _PCT_LABELS)
-            agg = pd.concat({"mean%": mean_ret.round(2), "hit%": hit_ret.round(0)}, axis=0)
-            agg.index = pd.MultiIndex.from_tuples(
-                [(stat, f"{q}{'*' if q == today_q else ''}") for stat, q in agg.index]
-            )
+    out.append("### Cross-signal notes")
+    out.append("")
+    for u in underlyings:
+        def _v(sig):
+            return sigs.pct[sig].loc[last_dt, u]
 
-            sub = fam_df[(fam_df["u"] == u) & (fam_df["sig"] == sig)].set_index("sleeve")
-            test_rows = []
-            for sleeve in SLEEVE_COLS:
-                row = sub.loc[sleeve]
-                p_raw = row["p"]
-                p_adj = row["adj_p"]
-                survive = bool(row["reject"])
-                if survive:
-                    flag = "**"
-                elif (not pd.isna(p_raw)) and p_raw < 0.05:
-                    flag = "(raw)"
-                elif (not pd.isna(p_raw)) and p_raw < 0.10:
-                    flag = "(raw·)"
-                else:
-                    flag = ""
-                test_rows.append({
-                    "sleeve": sleeve,
-                    "Δ Q4-Q1 (pp)": round(row["diff"] * 100, 2) if not pd.isna(row["diff"]) else float("nan"),
-                    "t":     round(row["t"], 2) if not pd.isna(row["t"]) else float("nan"),
-                    "raw_p": round(p_raw, 3) if not pd.isna(p_raw) else float("nan"),
-                    "holm_p": round(p_adj, 3) if not pd.isna(p_adj) else float("nan"),
-                    "verdict": flag,
-                })
-            test_df = pd.DataFrame(test_rows).set_index("sleeve")
+        vrp_v, skew_v = _v("vrp"), _v("skew")
+        trend_v, dd_v = _v("trend"), _v("dd")
+        frag_v = _v("fragility")
 
-            out.append(f"  {sig:9s}  today: {today_val:.2f} → {today_q}   n by Q1/Q2/Q3/Q4: {n_str}")
-            out.append(agg.to_string())
-            out.append("")
-            out.append("    Q4-vs-Q1 test  (** Holm-survives at α=0.05; (raw) raw-only):")
-            out.append("    " + test_df.to_string().replace("\n", "\n    "))
-            out.append("")
+        notes = []
+        if not (pd.isna(vrp_v) or pd.isna(skew_v)):
+            if vrp_v > 0.67 and skew_v < 0.33:
+                notes.append("VRP elevated but skew cheap — vol rich ATM, tails not bid")
+            elif vrp_v < 0.33 and skew_v > 0.67:
+                notes.append("Vol cheap ATM but tails expensive — skew steep vs VRP")
+        if not (pd.isna(trend_v) or pd.isna(frag_v)):
+            if trend_v > 0.67 and frag_v > 0.67:
+                notes.append("Uptrend but fragility elevated — extended with expensive options")
+            elif trend_v < 0.33 and frag_v < 0.33:
+                notes.append("Downtrend but fragility calm — vol not confirming price stress")
+        if not (pd.isna(dd_v) or pd.isna(frag_v)):
+            if dd_v < 0.25 and frag_v < 0.33:
+                notes.append("In drawdown but fragility low — vol hasn't spiked with price")
+
+        if notes:
+            out.append(f"  {u}:")
+            for note in notes:
+                out.append(f"    - {note}")
+        else:
+            out.append(f"  {u}: No notable cross-signal divergences")
+        out.append("")
+
     return "\n".join(out)
 
 
-def _forward_realized_environment(close_dt: pd.Timestamp, sigs: Signals,
-                                   u: str,
-                                   horizons: list[int] = [21, 63, 126]) -> dict:
-    """For a given match date, return realized signals at forward horizons.
-
-    Args:
-        close_dt: roll close date (end of match period)
-        sigs: Signals object with pct-rank panels
-        u: underlying ticker (e.g. 'SPX') — selects one column per signal panel
-        horizons: trading days forward [21, 63, 126] ~ [1m, 3m, 6m]
-
-    Returns:
-        dict of {horizon_days: {signal_name: value, ...}} for matched horizons.
-        Returns None for horizon if no data available.
-    """
-    result = {}
-    # Slice each signal panel to the single underlying so columns are plain signal names
-    all_sigs = pd.concat(
-        {sig: panel[u] for sig, panel in sigs.pct.items()}, axis=1
+def _last_trading_day_per_month(daily_df: pd.DataFrame, before: pd.Timestamp) -> pd.DataFrame:
+    """Return daily_df rows at the last trading day of each calendar month, before `before`."""
+    # Resample the index (trading days) to get the actual last trading day of each month
+    actual_month_ends = pd.DatetimeIndex(
+        daily_df.index.to_series().resample("ME").last().dropna().values
     )
-
-    for h in horizons:
-        future_dt = close_dt + pd.Timedelta(days=h)
-        if future_dt not in all_sigs.index:
-            # Snap to nearest valid date >= future_dt
-            valid = all_sigs[all_sigs.index >= future_dt].index
-            if len(valid) == 0:
-                result[h] = None  # No data after match date
-            else:
-                future_dt = valid[0]
-                result[h] = all_sigs.loc[future_dt].to_dict()
-        else:
-            result[h] = all_sigs.loc[future_dt].to_dict()
-
-    return result
+    actual_month_ends = actual_month_ends[actual_month_ends < before]
+    return daily_df.loc[actual_month_ends].dropna()
 
 
-def section_d_analog(sigs: Signals, bt: BacktestResults, k: int = K_NEIGHBORS) -> str:
+def section_market_outcomes(sigs: Signals, panels: Panels) -> str:
+    """Historical SPX returns + IV changes by signal quartile.
+
+    Monthly-sampled signal values to reduce autocorrelation.
+    Today's quartile marked '*'.
+    """
     last_dt = sigs.latest_date()
+    primary = _primary_underlying(panels)
+    price_col = panels.prices_panel[primary]
+    iv_col = panels.iv_panel[primary]
+
+    fwd_ret = _forward_returns(price_col, [21, 63])
+    fwd_iv = _forward_iv_change(iv_col, [21])
+
+    # Monthly sample: actual last trading day of each month (avoids calendar month-end mismatch)
+    all_sigs_daily = pd.concat(
+        {sig: sigs.pct[sig][primary] for sig in BUCKETED_SIGNALS}, axis=1
+    ).dropna()
+    all_sigs_monthly = _last_trading_day_per_month(all_sigs_daily, before=last_dt)
+    monthly_dates = all_sigs_monthly.index
+
     out = [
-        "## Section D — Past Periods That Looked Like Now",
+        "## Market Outcomes by Signal Quartile",
         "",
-        f"K={k} nearest historical roll-opens, Euclidean distance over signal vector:",
-        f"  features: {', '.join(NEIGHBOR_FEATURES)}",
-        "For each matched period, the realized environment (signals) that followed.",
+        f"Signal sampled monthly (month-end). Forward outcomes: {primary} returns + IV change.",
+        "Mean % return and hit rate (% > 0) over next 1m (21d) and 3m (63d).",
+        "Today's quartile marked '*'. Base rates only — no predictive warrant.",
         "",
     ]
-    for u in bt.rolls:
-        rolls = bt.rolls[u]
-        today_vec = np.array([sigs.pct[s].loc[last_dt, u] for s in NEIGHBOR_FEATURES])
-        if np.isnan(today_vec).any():
-            out.append(f"### {u}: today's vector has NaN — skipping")
+
+    for sig in BUCKETED_SIGNALS:
+        sig_monthly = all_sigs_monthly[sig]
+        today_val = sigs.pct[sig][primary].loc[last_dt] if last_dt in sigs.pct[sig][primary].index else np.nan
+        today_q = _today_quartile(today_val)
+
+        rows = []
+        for dt in monthly_dates:
+            sig_val = sig_monthly.loc[dt] if dt in sig_monthly.index else np.nan
+            if pd.isna(sig_val):
+                continue
+            r21 = fwd_ret[21].loc[dt] if dt in fwd_ret[21].index else np.nan
+            r63 = fwd_ret[63].loc[dt] if dt in fwd_ret[63].index else np.nan
+            iv21 = fwd_iv[21].loc[dt] if dt in fwd_iv[21].index else np.nan
+            rows.append({"sig_val": sig_val, "r21": r21, "r63": r63, "iv21": iv21})
+
+        if not rows:
             continue
 
-        feat = pd.DataFrame({
-            s: sigs.pct[s].reindex(rolls["open"].values)[u].values
-            for s in NEIGHBOR_FEATURES
-        }, index=rolls.index)
-        feat = feat.dropna()
-        d = np.linalg.norm(feat.values - today_vec, axis=1)
-        feat["_d"] = d
-        nn = feat.nsmallest(k, "_d")
+        df = pd.DataFrame(rows)
+        df["q"] = _bucket_by_pct(df["sig_val"].values)
 
-        out.append(f"### {u}")
-        out.append("Today's vector: " + ", ".join(
-            f"{s}={v:.2f}" for s, v in zip(NEIGHBOR_FEATURES, today_vec)
-        ))
-        out.append("")
-        out.append(f"Closest historical analogs (n={len(nn)}) — realized environment after each match:")
-        out.append("")
-        for close_dt, dist in nn["_d"].items():
-            open_dt = rolls.loc[close_dt, "open"]
-            out.append(f"  Match: open {open_dt.date()}  close {close_dt.date()}  d={dist:.3f}")
+        agg = df.groupby("q", observed=False).agg(
+            n=("r21", "count"),
+            r21_mean=("r21", lambda x: x.dropna().mean() * 100 if x.notna().any() else np.nan),
+            r21_hit=("r21", lambda x: (x.dropna() > 0).mean() * 100 if x.notna().any() else np.nan),
+            r63_mean=("r63", lambda x: x.dropna().mean() * 100 if x.notna().any() else np.nan),
+            r63_hit=("r63", lambda x: (x.dropna() > 0).mean() * 100 if x.notna().any() else np.nan),
+            iv21_mean=("iv21", lambda x: x.dropna().mean() if x.notna().any() else np.nan),
+        ).round(2)
 
-            fwd = _forward_realized_environment(close_dt, sigs, u, horizons=[21, 63, 126])
-            for h, sig_dict in fwd.items():
-                if sig_dict is None:
-                    out.append(f"    {h}d forward: (no data)")
-                else:
-                    out.append(
-                        f"    {h}d forward: vrp={sig_dict.get('vrp', np.nan):.2f}, "
-                        f"skew={sig_dict.get('skew', np.nan):.2f}, "
-                        f"term={sig_dict.get('term', np.nan):.2f}, "
-                        f"dd={sig_dict.get('dd', np.nan):.2f}"
-                    )
-            out.append("")
+        out.append(f"### {sig}  (today: {today_val:.2f} → {today_q})")
+        out.append("")
+        header = (
+            f"  {'Q':3s}  {'n':>4s}  {'1m ret%':>8s}  {'1m hit%':>7s}  "
+            f"{'3m ret%':>8s}  {'3m hit%':>7s}  {'1m ΔIV':>7s}"
+        )
+        out.append(header)
+        out.append("  " + "-" * (len(header) - 2))
+        for q in _PCT_LABELS:
+            marker = "*" if q == today_q else " "
+            if q not in agg.index or agg.loc[q, "n"] == 0:
+                out.append(f"  {q}{marker}   (no data)")
+                continue
+            row = agg.loc[q]
+            r21m = f"{row['r21_mean']:>+8.2f}" if not pd.isna(row["r21_mean"]) else "     n/a"
+            r21h = f"{row['r21_hit']:>7.1f}" if not pd.isna(row["r21_hit"]) else "    n/a"
+            r63m = f"{row['r63_mean']:>+8.2f}" if not pd.isna(row["r63_mean"]) else "     n/a"
+            r63h = f"{row['r63_hit']:>7.1f}" if not pd.isna(row["r63_hit"]) else "    n/a"
+            iv21 = f"{row['iv21_mean']:>+7.2f}" if not pd.isna(row["iv21_mean"]) else "    n/a"
+            out.append(
+                f"  {q}{marker}  {int(row['n']):>4d}  {r21m}  {r21h}  {r63m}  {r63h}  {iv21}"
+            )
+        out.append("")
+
     return "\n".join(out)
 
 
-SUBPERIOD_SPLITS = [
-    ("2010-02-19", "2015-12-31", "Recovery / bull"),
-    ("2016-01-01", "2020-12-31", "Late cycle / COVID"),
-    ("2021-01-01", "2026-12-31", "Post-COVID / 2022 bear"),
-]
+def section_short_vol_environment(sigs: Signals, panels: Panels) -> str:
+    last_dt = sigs.latest_date()
+    primary = _primary_underlying(panels)
 
+    all_sigs_daily = pd.concat(
+        {sig: sigs.pct[sig][primary] for sig in BUCKETED_SIGNALS}, axis=1
+    ).dropna()
+    all_sigs_monthly = _last_trading_day_per_month(all_sigs_daily, before=last_dt)
+    monthly_dates = all_sigs_monthly.index
 
-def section_e_subperiod(bt: BacktestResults) -> str:
+    prices = panels.prices_panel[primary]
+    iv = panels.iv_panel[primary]
+
+    # Forward realized vol: annualized std of next 21 daily log returns
+    log_rets = np.log(prices / prices.shift(1))
+
+    def _forward_rv21(dt: pd.Timestamp) -> float:
+        try:
+            loc = prices.index.get_loc(dt)
+            future_prices = prices.iloc[loc + 1: loc + 23]
+            if len(future_prices) < 15:
+                return np.nan
+            lr = np.log(future_prices / future_prices.shift(1)).dropna()
+            if len(lr) < 15:
+                return np.nan
+            return float(lr.std() * np.sqrt(252) * 100)
+        except Exception:
+            return np.nan
+
+    rows = []
+    for dt in monthly_dates:
+        fwd_rv = _forward_rv21(dt)
+        iv_open = iv.loc[dt] if dt in iv.index else np.nan
+        vrp_capture = fwd_rv / iv_open if (not np.isnan(fwd_rv) and not np.isnan(iv_open) and iv_open > 0) else np.nan
+
+        spot_fwd = prices.shift(-21).loc[dt] if dt in prices.index else np.nan
+        spot_now = prices.loc[dt] if dt in prices.index else np.nan
+        move_mag = abs(spot_fwd / spot_now - 1) * 100 if (not np.isnan(spot_fwd) and not np.isnan(spot_now) and spot_now != 0) else np.nan
+
+        iv_fwd = iv.shift(-21).loc[dt] if dt in iv.index else np.nan
+        iv_change = iv_fwd - iv_open if (not np.isnan(iv_fwd) and not np.isnan(iv_open)) else np.nan
+
+        row = {"vrp_capture": vrp_capture, "move_mag": move_mag, "iv_change": iv_change}
+        for sig in BUCKETED_SIGNALS:
+            row[f"sig_{sig}"] = all_sigs_monthly.loc[dt, sig] if dt in all_sigs_monthly.index else np.nan
+        rows.append(row)
+
+    df = pd.DataFrame(rows, index=monthly_dates)
+
+    non_nan_count = df["vrp_capture"].notna().sum()
+    assert non_nan_count >= 150, f"Only {non_nan_count} non-NaN forward_rv rows — insufficient data"
+
+    PCTS = [10, 25, 50, 75, 90]
+    METRIC_COLS = ["vrp_capture", "move_mag", "iv_change"]
+    METRIC_LABELS = ["VRP capture (rv/iv)", "Move magnitude (abs%)", "IV change (vol pts)"]
+
     out = [
-        "## Section E — Subperiod Stability",
+        "## Short-Vol Environment Historical Distributions",
         "",
-        "Unconditional reference class over 2010–2026 (a sustained equity bull market).",
-        "Use as structural context for the regime-conditioned base rates above —",
-        "not as evidence of sleeve superiority.",
-        "",
-        "Same sleeve stats as Phase 3, computed on three rough 5y windows.",
-        "Stability check — does the sleeve's behavior persist across regimes,",
-        "or is the full-period number averaging two opposite halves?",
+        "Signal-conditioned distributions of short-vol environment outcomes.",
+        "Monthly sample ~2010–present. Today's quartile marked '*'.",
         "",
     ]
-    for u in bt.rolls:
-        rolls = bt.rolls[u]
-        out.append(f"### {u}")
-        for start, end, label in SUBPERIOD_SPLITS:
-            sub = rolls.loc[start:end]
-            if len(sub) == 0:
-                continue
-            rets = sub[SLEEVE_COLS]
-            n_per_year = 12
-            stats = pd.DataFrame({
-                "cagr":   ((1 + rets).prod() ** (n_per_year / max(len(rets), 1)) - 1),
-                "vol":    rets.std() * np.sqrt(n_per_year),
-                "sharpe": rets.mean() / rets.std() * np.sqrt(n_per_year),
-                "max_dd": ((1 + rets).cumprod() / (1 + rets).cumprod().cummax() - 1).min(),
-                "hit":    (rets > 0).mean(),
-            })
-            out.append(f"  {start[:7]} → {end[:7]}  ({label}, n={len(sub)})")
-            out.append(stats.round(3).to_string())
-            out.append("")
+
+    for sig in BUCKETED_SIGNALS:
+        today_val = sigs.pct[sig][primary].loc[last_dt] if last_dt in sigs.pct[sig][primary].index else np.nan
+        today_q = _today_quartile(today_val)
+
+        today_str = f"{today_val:.2f}" if not np.isnan(today_val) else "n/a"
+        out.append(f"### {sig}  (today: {today_str} → {today_q})")
+        out.append("")
+
+        df["q"] = _bucket_by_pct(df[f"sig_{sig}"].values)
+
+        # Build per-quartile stats
+        q_stats: dict[str, dict] = {}
+        for q_label in _PCT_LABELS:
+            mask = df["q"] == q_label
+            subset = df.loc[mask]
+            q_stats[q_label] = {
+                "n": int(subset["vrp_capture"].dropna().shape[0]),
+                "pcts": {
+                    col: [np.nanpercentile(subset[col].values, p) if subset[col].notna().any() else np.nan for p in PCTS]
+                    for col in METRIC_COLS
+                },
+            }
+
+        # Header row 1: quartile labels with n
+        col_w = 30
+        hdr1 = f"{'Metric':<24s}"
+        hdr2 = f"{'':24s}"
+        sep = f"{'':24s}"
+        for q_label in _PCT_LABELS:
+            marker = "*" if q_label == today_q else " "
+            n = q_stats[q_label]["n"]
+            label = f"{q_label}{marker} (n={n})"
+            hdr1 += f"  {label:<28s}"
+            hdr2 += f"  {'p10':>5s} {'p25':>5s} {'p50':>5s} {'p75':>5s} {'p90':>5s}   "
+            sep += f"  {'—'*29}"
+
+        out.append(hdr1.rstrip())
+        out.append(hdr2.rstrip())
+        out.append(sep.rstrip())
+
+        for col, label in zip(METRIC_COLS, METRIC_LABELS):
+            row_str = f"{label:<24s}"
+            for q_label in _PCT_LABELS:
+                pct_vals = q_stats[q_label]["pcts"][col]
+                cells = []
+                for v in pct_vals:
+                    if np.isnan(v):
+                        cells.append("  n/a")
+                    elif col == "iv_change":
+                        cells.append(f"{v:>+5.1f}")
+                    else:
+                        cells.append(f"{v:>5.2f}")
+                row_str += "  " + " ".join(cells) + "   "
+            out.append(row_str.rstrip())
+
+        out.append("")
+        out.append("Historical calibration only. ~48 obs per quartile. Not a forecast.")
+        out.append("")
+
     return "\n".join(out)
 
 
-def build_dashboard(sigs: Signals, bt: BacktestResults) -> str:
-    from sensitivity import (
-        format_tail_metrics,
-        format_tc_grid,
-        tail_metrics_table,
-        tc_sensitivity_table,
-    )
+def section_analog_periods(sigs: Signals, panels: Panels, k: int = K_NEIGHBORS) -> str:
+    """K-nearest historical month-ends + realized market outcomes after each."""
+    last_dt = sigs.latest_date()
+    primary = _primary_underlying(panels)
+    price_col = panels.prices_panel[primary]
+    iv_col = panels.iv_panel[primary]
 
+    out = [
+        "## Past Periods That Looked Like Now",
+        "",
+        f"K={k} nearest historical month-ends, Euclidean distance over signal vector:",
+        f"  features: {', '.join(NEIGHBOR_FEATURES)}",
+        f"Realized market outcomes ({primary}): 1m (21d) and 3m (63d) after each match.",
+        "",
+    ]
+
+    # Build monthly signal matrix using actual last trading days (not calendar month-ends)
+    signal_daily = pd.concat(
+        {sig: sigs.pct[sig][primary] for sig in NEIGHBOR_FEATURES}, axis=1
+    ).dropna()
+    historical = _last_trading_day_per_month(signal_daily, before=last_dt)
+
+    today_vec = np.array([sigs.pct[s].loc[last_dt, primary] for s in NEIGHBOR_FEATURES])
+    if np.isnan(today_vec).any():
+        out.append("Today's signal vector has NaN — cannot compute neighbors.")
+        return "\n".join(out)
+
+    out.append("Today's vector: " + ", ".join(
+        f"{s}={v:.2f}" for s, v in zip(NEIGHBOR_FEATURES, today_vec)
+    ))
+    out.append("")
+
+    d = np.linalg.norm(historical.values - today_vec, axis=1)
+    hist_with_d = historical.copy()
+    hist_with_d["_d"] = d
+    nn = hist_with_d.nsmallest(k, "_d")
+
+    fwd_ret = _forward_returns(price_col, [21, 63])
+    fwd_iv = _forward_iv_change(iv_col, [21])
+
+    out.append(f"  {'Date':12s}  {'Dist':>5s}  {'1m ret%':>8s}  {'3m ret%':>8s}  {'1m ΔIV':>7s}")
+    out.append("  " + "-" * 52)
+
+    r21_vals, r63_vals, iv21_vals = [], [], []
+    for dt in nn.index:
+        dist = nn.loc[dt, "_d"]
+        r21 = fwd_ret[21].loc[dt] if dt in fwd_ret[21].index else np.nan
+        r63 = fwd_ret[63].loc[dt] if dt in fwd_ret[63].index else np.nan
+        iv21 = fwd_iv[21].loc[dt] if dt in fwd_iv[21].index else np.nan
+        r21_vals.append(r21)
+        r63_vals.append(r63)
+        iv21_vals.append(iv21)
+        r21s = f"{r21*100:>+8.2f}" if not pd.isna(r21) else "     n/a"
+        r63s = f"{r63*100:>+8.2f}" if not pd.isna(r63) else "     n/a"
+        iv21s = f"{iv21:>+7.2f}" if not pd.isna(iv21) else "    n/a"
+        out.append(f"  {str(dt.date()):12s}  {dist:>5.3f}  {r21s}  {r63s}  {iv21s}")
+
+    out.append("")
+    r21_arr = np.array([v * 100 for v in r21_vals if not pd.isna(v)])
+    r63_arr = np.array([v * 100 for v in r63_vals if not pd.isna(v)])
+    iv21_arr = np.array([v for v in iv21_vals if not pd.isna(v)])
+    out.append(f"  Summary (n={len(nn)}):")
+    if len(r21_arr) > 0:
+        out.append(
+            f"    1m:    mean={r21_arr.mean():+.2f}%  "
+            f"hit={100*(r21_arr>0).mean():.0f}%  med={np.median(r21_arr):+.2f}%"
+        )
+    if len(r63_arr) > 0:
+        out.append(
+            f"    3m:    mean={r63_arr.mean():+.2f}%  "
+            f"hit={100*(r63_arr>0).mean():.0f}%  med={np.median(r63_arr):+.2f}%"
+        )
+    if len(iv21_arr) > 0:
+        out.append(
+            f"    1m ΔIV: mean={iv21_arr.mean():+.2f}  med={np.median(iv21_arr):+.2f}"
+        )
+
+    return "\n".join(out)
+
+
+def section_signal_dynamics(sigs: Signals) -> str:
+    """Signal trends, extremes, and cross-signal divergences."""
+    last_dt = sigs.latest_date()
+    out = [
+        "## Signal Dynamics",
+        "",
+        "Current vs ~1m (21 trading days) and ~3m (63 trading days) ago.",
+        "Rising/falling: pct-rank shift > 0.05. Extremes (>= 0.80 or <= 0.20) flagged.",
+        "",
+    ]
+
+    underlyings = sigs.pct["vrp"].columns.tolist()
+    for u in underlyings:
+        out.append(f"### {u}")
+        out.append("")
+        out.append(f"  {'signal':12s}  {'now':>5s}  {'1m ago':>6s}  {'3m ago':>6s}  {'trend':>8s}  reading")
+        out.append("  " + "-" * 68)
+
+        for sig in sigs.pct:
+            ts = sigs.pct[sig][u].dropna()
+            now_val = ts.iloc[-1] if len(ts) > 0 else np.nan
+
+            v1m = ts.iloc[-22] if len(ts) > 21 else np.nan
+            v3m = ts.iloc[-64] if len(ts) > 63 else np.nan
+
+            if not pd.isna(now_val) and not pd.isna(v1m):
+                diff = now_val - v1m
+                trend = "rising" if diff > 0.05 else ("falling" if diff < -0.05 else "stable")
+            else:
+                trend = "n/a"
+
+            flag = "  <<" if (not pd.isna(now_val) and (now_val >= 0.80 or now_val <= 0.20)) else ""
+            ns = f"{now_val:.2f}" if not pd.isna(now_val) else " n/a"
+            v1s = f"{v1m:.2f}" if not pd.isna(v1m) else "  n/a"
+            v3s = f"{v3m:.2f}" if not pd.isna(v3m) else "  n/a"
+            out.append(
+                f"  {sig:12s}  {ns:>5s}  {v1s:>6s}  {v3s:>6s}  {trend:>8s}  {_interp(now_val, sig)}{flag}"
+            )
+        out.append("")
+
+    return "\n".join(out)
+
+
+def build_dashboard(sigs: Signals, panels: Panels) -> str:
     bar = "=" * 72
     parts = [
         bar,
-        "  OPTIONS QUANT — DECISION DASHBOARD",
+        "  OPTIONS QUANT — MARKET INTELLIGENCE DASHBOARD",
         bar,
         "",
-        section_today_conditional(sigs, bt),
+        section_environment_context(sigs),
         "",
-        section_a_state(sigs),
+        section_market_outcomes(sigs, panels),
         "",
-        section_b_mechanics(),
+        section_analog_periods(sigs, panels),
         "",
-        section_c_buckets(sigs, bt),
-        "",
-        section_d_analog(sigs, bt),
-        "",
-        section_e_subperiod(bt),
-        "",
-        format_tc_grid(tc_sensitivity_table(bt)),
-        "",
-        format_tail_metrics(tail_metrics_table(bt)),
+        section_signal_dynamics(sigs),
         "",
         bar,
-        "  No score. No recommendation. Decision input, not the decision.",
+        "  No score. No recommendation. Market intelligence, not a signal.",
         "  Caveats: synthetic 90mny IV (POC; calibrated, not Bloomberg-observed),",
-        "  0% dividend yield. Transaction-cost sensitivity in Section G.",
+        "  0% dividend yield. Historical base rates only; no predictive warrant.",
         bar,
     ]
     return "\n".join(parts)
