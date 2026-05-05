@@ -258,14 +258,14 @@ def section_short_vol_environment(sigs: Signals, panels: Panels) -> str:
     for dt in monthly_dates:
         fwd_rv = _forward_rv21(dt)
         iv_open = iv.loc[dt] if dt in iv.index else np.nan
-        vrp_capture = fwd_rv / iv_open if (not np.isnan(fwd_rv) and not np.isnan(iv_open) and iv_open > 0) else np.nan
+        vrp_capture = fwd_rv / iv_open if (not np.isnan(fwd_rv) and not pd.isna(iv_open) and iv_open > 0) else np.nan
 
         spot_fwd = prices.shift(-21).loc[dt] if dt in prices.index else np.nan
         spot_now = prices.loc[dt] if dt in prices.index else np.nan
-        move_mag = abs(spot_fwd / spot_now - 1) * 100 if (not np.isnan(spot_fwd) and not np.isnan(spot_now) and spot_now != 0) else np.nan
+        move_mag = abs(spot_fwd / spot_now - 1) * 100 if (not pd.isna(spot_fwd) and not pd.isna(spot_now) and spot_now != 0) else np.nan
 
         iv_fwd = iv.shift(-21).loc[dt] if dt in iv.index else np.nan
-        iv_change = iv_fwd - iv_open if (not np.isnan(iv_fwd) and not np.isnan(iv_open)) else np.nan
+        iv_change = iv_fwd - iv_open if (not pd.isna(iv_fwd) and not pd.isna(iv_open)) else np.nan
 
         row = {"vrp_capture": vrp_capture, "move_mag": move_mag, "iv_change": iv_change}
         for sig in BUCKETED_SIGNALS:
