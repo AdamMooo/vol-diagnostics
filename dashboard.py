@@ -241,9 +241,11 @@ def section_short_vol_environment(sigs: Signals, panels: Panels) -> str:
     prices = panels.prices_panel[primary]
     iv = panels.iv_panel[primary]
 
+    _FWD_WINDOW = 21  # trading days; fetch 22 prices → 21 log returns
+
     def _forward_rv21(dt: pd.Timestamp) -> float:
         loc = prices.index.get_loc(dt)
-        future_prices = prices.iloc[loc + 1: loc + 23]
+        future_prices = prices.iloc[loc + 1: loc + _FWD_WINDOW + 2]
         if len(future_prices) < 15:
             return np.nan
         lr = np.log(future_prices / future_prices.shift(1)).dropna()
