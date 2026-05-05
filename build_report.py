@@ -14,6 +14,7 @@ import io
 import base64
 import pathlib
 import sys
+import html as _html
 from datetime import datetime
 
 import matplotlib
@@ -125,7 +126,7 @@ def build_html(panels, sigs) -> str:
     )
 
     # Section 1 — current environment
-    parts.append(f"<pre>{section_environment_context(sigs)}</pre>")
+    parts.append(f"<pre>{_html.escape(section_environment_context(sigs))}</pre>")
 
     # Signal percentile-rank time-series chart
     sig_b64 = _signal_chart(sigs)
@@ -133,15 +134,15 @@ def build_html(panels, sigs) -> str:
 
     # Section 2 — short-vol environment historical distributions
     parts.append("<h2>Short-Vol Environment Historical Distributions</h2>")
-    parts.append(f"<pre>{section_short_vol_environment(sigs, panels)}</pre>")
+    parts.append(f"<pre>{_html.escape(section_short_vol_environment(sigs, panels))}</pre>")
 
     # Section 3 — analog periods
     parts.append("<h2>Past Periods That Looked Like Now</h2>")
-    parts.append(f"<pre>{section_analog_periods(sigs, panels)}</pre>")
+    parts.append(f"<pre>{_html.escape(section_analog_periods(sigs, panels))}</pre>")
 
     # Section 4 — signal dynamics
     parts.append("<h2>Signal Dynamics</h2>")
-    parts.append(f"<pre>{section_signal_dynamics(sigs)}</pre>")
+    parts.append(f"<pre>{_html.escape(section_signal_dynamics(sigs))}</pre>")
 
     parts.append(
         "<p class='meta'>No score. No recommendation. Market intelligence, not a signal. "
