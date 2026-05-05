@@ -241,9 +241,6 @@ def section_short_vol_environment(sigs: Signals, panels: Panels) -> str:
     prices = panels.prices_panel[primary]
     iv = panels.iv_panel[primary]
 
-    # Forward realized vol: annualized std of next 21 daily log returns
-    log_rets = np.log(prices / prices.shift(1))
-
     def _forward_rv21(dt: pd.Timestamp) -> float:
         loc = prices.index.get_loc(dt)
         future_prices = prices.iloc[loc + 1: loc + 23]
