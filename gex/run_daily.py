@@ -13,14 +13,10 @@ import argparse
 import datetime
 import pathlib
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import pandas_market_calendars as mcal
 import pytz
 
 from gex.compute import compute_ticker
-from gex.analytics import plot_email_composite, plot_overview, fig_to_b64
 from gex.validation import save_snapshot
 from gex import report as rpt
 from gex import emailer
@@ -78,23 +74,11 @@ def run(dry_run: bool = False) -> None:
     all_results     = [d["summary"] for d in all_data]
     good            = [d for d in all_data if not d["summary"].get("error")]
 
-    overview_fig = plot_overview(all_results)
-    overview_b64 = fig_to_b64(overview_fig)
-    plt.close(overview_fig)
-
-    charts_b64: dict[str, str] = {}
-    for d in good:
-        ticker = d["summary"]["ticker"]
-        fig = plot_email_composite(d["s_df"], d["p_df"], d["spot"], ticker, d["summary"])
-        charts_b64[ticker] = fig_to_b64(fig)
-        plt.close(fig)
-
     subject = f"GEX Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
     html = rpt.build_email(
         index_results=index_results,
         purpose_results=purpose_results,
         date=today,
-        charts_b64=charts_b64,
     )
 
     if dry_run:

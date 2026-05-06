@@ -305,27 +305,6 @@ def _purpose_table(results: list[dict]) -> str:
 </table>"""
 
 
-# ── Chart grid ────────────────────────────────────────────────────────
-
-def _chart_grid(charts_b64: dict[str, str], section_tickers: list[str], title: str) -> str:
-    tickers = [t for t in section_tickers if t in charts_b64]
-    if not tickers:
-        return ""
-    rows = ""
-    for t in tickers:
-        rows += (
-            f'<div style="margin-bottom:18px;">'
-            f'<img src="data:image/png;base64,{charts_b64[t]}" '
-            f'style="width:100%;border:1px solid #e2e8f0;border-radius:6px;display:block;">'
-            f'</div>'
-        )
-    return f"""
-<div style="font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;
-            color:#64748b;border-bottom:1px solid #e2e8f0;padding-bottom:5px;
-            margin:24px 0 14px;">{title} — Charts</div>
-{rows}"""
-
-
 # ── Section header ────────────────────────────────────────────────────
 
 def _section_header(label: str) -> str:
@@ -342,13 +321,8 @@ def build_email(
     index_results: list[dict],
     purpose_results: list[dict],
     date: datetime.date | None = None,
-    charts_b64: dict[str, str] | None = None,
 ) -> str:
     date = date or datetime.date.today()
-    charts_b64 = charts_b64 or {}
-
-    index_tickers   = [r["ticker"] for r in index_results]
-    purpose_tickers = [r["ticker"] for r in purpose_results]
 
     obs_html = _observations(index_results)
 
@@ -383,9 +357,6 @@ def build_email(
   {_purpose_table(purpose_results)}
 
   {failed_note}
-
-  {_chart_grid(charts_b64, index_tickers, "Index")}
-  {_chart_grid(charts_b64, purpose_tickers, "Purpose Yield Shares")}
 
 </div>
 </body></html>
