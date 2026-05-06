@@ -40,7 +40,7 @@ plt.rcParams.update({
     "ytick.labelsize": 9,
 })
 
-st.set_page_config(page_title="GEX Dashboard", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="GEX Dashboard", page_icon="γ", layout="wide", initial_sidebar_state="expanded")
 
 
 def _check_password() -> bool:
