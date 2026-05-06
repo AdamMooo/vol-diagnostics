@@ -18,6 +18,21 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
+# Base chart style — clean, print-friendly, works on white backgrounds (email).
+# streamlit_app.py overrides with dark/transparent theme after this loads.
+plt.rcParams.update({
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "grid.linewidth": 0.5,
+    "grid.color": "#d1d5db",
+    "font.family": "sans-serif",
+    "font.size": 11,
+    "axes.titlesize": 12,
+    "axes.labelsize": 10,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+})
 
 NEUTRAL_BAND_PCT = 0.005  # net GEX within ±0.5% of |max| treated as neutral
 # Absolute floor: |net GEX| below this → NEUTRAL regardless of relative magnitude.
@@ -111,9 +126,10 @@ def plot_strike_gex(gex_df: pd.DataFrame, spot: float, ticker: str,
 
 
 def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
-                       summary: dict, ax: plt.Axes | None = None) -> plt.Figure:
+                       summary: dict, ax: plt.Axes | None = None,
+                       figsize: tuple[float, float] = (10, 4)) -> plt.Figure:
     """Line chart of net GEX across spot levels."""
-    fig, ax = (plt.subplots(figsize=(10, 4)) if ax is None else (ax.figure, ax))
+    fig, ax = (plt.subplots(figsize=figsize) if ax is None else (ax.figure, ax))
 
     ax.plot(profile_df["spot_level"], profile_df["net_gex"] / 1e9,
             color="navy", lw=2)
@@ -154,7 +170,6 @@ def plot_overview(results: list[dict]) -> plt.Figure:
 
     fig, ax = plt.subplots(figsize=(9, max(2.5, len(valid) * 0.45)))
     bars = ax.barh(labels, values, color=colors, height=0.55)
-    ax.axvline(0, color="#2c3e50", lw=1)
     ax.set_xlabel("Net GEX ($B)")
     ax.set_title("Cross-Asset Gamma Exposure", fontsize=13, fontweight="bold", pad=10)
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:+.1f}B"))
@@ -166,11 +181,10 @@ def plot_overview(results: list[dict]) -> plt.Figure:
             bar.get_y() + bar.get_height() / 2,
             f"{val:+.2f}B",
             va="center", ha="left" if val >= 0 else "right",
-            fontsize=9, color="#2c3e50",
+            fontsize=9,
         )
 
-    fig.patch.set_facecolor("#f8f9fa")
-    ax.set_facecolor("#f8f9fa")
+    ax.axvline(0, color="#4b5563", lw=1)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     fig.tight_layout()

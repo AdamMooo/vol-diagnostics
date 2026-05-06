@@ -21,12 +21,19 @@ class ChainSnapshot:
     chains: pd.DataFrame  # columns: expiry, strike, type, oi, iv, bid, ask
 
 
-def load_chain(ticker: str = "SPY", min_oi: int = 10) -> ChainSnapshot:
+def load_chain(
+    ticker: str = "SPY",
+    min_oi: int = 100,
+    min_dte: int = 7,
+    max_iv: float = 3.0,
+) -> ChainSnapshot:
     """
     Fetch all listed expiries for ticker and return a ChainSnapshot.
 
     min_oi: drop options with fewer than this many contracts open interest.
-    Keeps only expiries with T > 0 (today's expiry excluded).
+    min_dte: skip expiries closer than this many calendar days (excludes 0DTE/weeklies
+             that cause gamma blowup when swept spot crosses ATM with tiny T).
+    max_iv: drop options with IV above this threshold (stale/garbage quotes).
     """
     tk = yf.Ticker(ticker)
     spot = tk.fast_info["lastPrice"]
@@ -35,7 +42,8 @@ def load_chain(ticker: str = "SPY", min_oi: int = 10) -> ChainSnapshot:
     rows: list[dict] = []
     for expiry_str in tk.options:
         expiry = datetime.date.fromisoformat(expiry_str)
-        if expiry <= today:
+        dte = (expiry - today).days
+        if dte < min_dte:
             continue
 
         chain = tk.option_chain(expiry_str)
@@ -44,7 +52,7 @@ def load_chain(ticker: str = "SPY", min_oi: int = 10) -> ChainSnapshot:
                 iv = row.get("impliedVolatility", float("nan"))
                 oi_raw = row.get("openInterest")
                 oi = int(oi_raw) if pd.notna(oi_raw) and oi_raw else 0
-                if oi < min_oi or iv != iv or iv <= 0:
+                if oi < min_oi or iv != iv or iv <= 0 or iv > max_iv:
                     continue
                 rows.append(
                     {
