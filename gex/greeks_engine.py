@@ -1,10 +1,14 @@
 """
-Black-Scholes gamma calculation.
+Greeks computation for US equity options (American-style).
 
-Gamma = N'(d1) / (S * sigma * sqrt(T))
-where d1 = (ln(S/K) + (r + sigma^2/2)*T) / (sigma*sqrt(T))
+Gamma, delta, vega, theta: taken directly from CBOE's delayed quotes.
+CBOE computes these using their own American option model (accounts for
+early exercise and dividend yield) — more accurate than Black-Scholes
+European approximation, especially for single-name equity options.
 
-N'(d1) is the standard normal PDF.
+Vanna, charm: still computed here via Black-Scholes (European approximation).
+CBOE does not publish these. They are reasonable directional estimates but
+do not account for the early exercise boundary. Treat as approximate.
 """
 from __future__ import annotations
 

@@ -3,6 +3,11 @@ Pull options chain and spot price via CBOE delayed quotes (15-min lag).
 Endpoint: cdn.cboe.com/api/global/delayed_quotes/options/{ticker}.json
 No auth, no API key, no rate limits.
 
+These are American-style options (US equity and ETF listed options).
+Greeks (gamma, delta, vega, theta) are taken directly from CBOE — they use
+their own American option pricing model accounting for early exercise and
+dividend yield. Do not recompute these via Black-Scholes (European only).
+
 Returns a standardized DataFrame suitable for greeks_engine and exposure_engine.
 Caller is responsible for caching — this module always fetches live.
 """

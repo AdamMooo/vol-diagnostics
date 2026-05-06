@@ -166,6 +166,11 @@ def _derive_observations(summary: dict, spot: float, streak: int | None) -> list
         direction = "+" if pct_chg >= 0 else ""
         obs.append(f"Underlying {direction}{pct_chg:.2f}% today")
 
+    ee_strikes = summary.get("early_exercise_strikes", 0)
+    ee_oi = summary.get("early_exercise_oi", 0)
+    if ee_strikes > 0:
+        obs.append(f"Early assignment: {ee_strikes} deep ITM call strikes ({ee_oi:,} OI) extrinsic <2%")
+
     return obs
 
 

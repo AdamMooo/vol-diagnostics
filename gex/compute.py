@@ -57,6 +57,21 @@ def compute_ticker(ticker: str) -> dict:
     summary["iv30"] = snapshot.iv30
     summary["price_change_pct"] = snapshot.price_change_pct
 
+    # Early exercise risk (American options only): deep ITM calls with thin extrinsic.
+    # Relevant for covered call writers who may face early assignment.
+    calls = df[df["type"] == "call"].copy()
+    if not calls.empty and "bid" in calls.columns and "delta" in calls.columns:
+        calls["mid"] = (calls["bid"] + calls["ask"]) / 2
+        calls["intrinsic"] = (snapshot.spot - calls["strike"]).clip(lower=0)
+        calls["extrinsic"] = (calls["mid"] - calls["intrinsic"]).clip(lower=0)
+        calls["extrinsic_pct"] = calls["extrinsic"] / calls["mid"].clip(lower=0.01)
+        at_risk = calls[(calls["delta"] > 0.85) & (calls["extrinsic_pct"] < 0.02)]
+        summary["early_exercise_strikes"] = len(at_risk)
+        summary["early_exercise_oi"] = int(at_risk["oi"].sum())
+    else:
+        summary["early_exercise_strikes"] = 0
+        summary["early_exercise_oi"] = 0
+
     prior = load_yesterday(ticker)
     summary["vs_yesterday"] = (
         _classify_vs_yesterday(summary["net_gex"], summary["gamma_regime"], prior)
