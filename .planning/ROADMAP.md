@@ -74,7 +74,11 @@ Plans:
   2. The regime persistence table shows % positive / negative / neutral over the last 20 trading sessions per selected ticker
   3. Each regime card displays a "Days in current regime" streak counter sourced from the parquet history
   4. Selecting a ticker with fewer than 20 sessions of history in the event study section shows an informational message rather than an error or empty chart
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Add load_history() to gex/validation.py; pytest suite in gex/tests/test_validation_history.py
+- [ ] 04-02-PLAN.md — Wrap streamlit_app.py in st.tabs; add streak counter; build Historical tab content
 
 ## Progress
 
@@ -85,4 +89,4 @@ Plans:
 | 1. Greeks Engine | 2/2 | Complete | 2026-05-05 |
 | 2. Exposure + PM Flow | 0/4 | Not started | - |
 | 3. Streamlit Dashboard | 0/2 | Not started | - |
-| 4. Historical Tab | 0/TBD | Not started | - |
+| 4. Historical Tab | 0/2 | Not started | - |
