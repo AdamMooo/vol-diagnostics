@@ -2,7 +2,7 @@
 gsd_state_version: "1.0"
 milestone: "v3.0 — GEX Interactive Dashboard"
 status: active
-last_updated: 2026-05-05 (Phase 1 complete — 2/2 plans, verified 9/9, pytest 31/31)
+last_updated: 2026-05-06 (Phase 4 context gathered — ready to plan)
 context_gathered: true
 plans_ready: true
 ---
@@ -13,18 +13,18 @@ plans_ready: true
 
 See: .planning/PROJECT.md (updated 2026-05-05)
 
-**Core value:** Given today's dealer positioning across 10 liquid ETFs — what regime are we in, how much dealer hedging flow will a 1% move generate, and where are the structural levels that matter?
+**Core value:** Given today's dealer positioning across 3 liquid ETFs — what regime are we in, how much dealer hedging flow will a 1% move generate, and where are the structural levels that matter?
 **Current focus:** Phase 2 — Exposure + PM Flow
 
 ## Current Position
 
 Milestone: v3.0 — GEX Interactive Dashboard
-Phase: 2 of 4 (Exposure + PM Flow)
+Phase: 4 of 4 (Historical Tab)
 Plan: 0 of TBD in current phase
-Status: Phase 1 complete — ready to plan Phase 2
-Last activity: 2026-05-05 — Phase 1 executed and verified (31/31 tests, 9/9 must-haves)
+Status: Phase 4 context gathered — ready to plan
+Last activity: 2026-05-06 — Phase 4 context discussion complete; Phases 1–3 executed and verified
 
-Progress: [██░░░░░░░░] 25%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -56,7 +56,7 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 2: Verify `zero_gamma_level` exists in parquet schema before Phase 4 transition; if absent, Phase 2 must add it
+- Phase 2: ~~Verify `zero_gamma_level` exists in parquet schema~~ — confirmed present in live parquet, no action needed
 - Phase 3: yfinance 429 on cold load — use per-ticker `@st.cache_data(ttl=300)` + serial fetch with sleep(0.3)
 - Phase 4: Event study requires 60+ sessions meaningful signal; HIST-04 gates UI at 20 sessions minimum
 
@@ -72,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-05
-Stopped at: Phase 1 plans written and verified — ready to execute
-Resume file: None
+Last session: 2026-05-06
+Stopped at: Phase 4 context gathered — ready to plan
+Resume file: .planning/phases/04-historical-tab/04-CONTEXT.md
