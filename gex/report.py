@@ -237,13 +237,6 @@ def build_email(
 <html><body style="font-family:Arial,sans-serif;background:#f0f2f5;padding:20px;margin:0;">
 <div style="max-width:820px;margin:0 auto;">
 
-  <h2 style="color:#2c3e50;margin-bottom:2px;font-size:20px;">GEX Daily Report</h2>
-  <p style="color:#95a5a6;margin-top:0;margin-bottom:16px;font-size:12px;">
-    {date.strftime("%A, %B %d, %Y").replace(" 0", " ")}
-    &nbsp;&middot;&nbsp; CBOE delayed chains &nbsp;&middot;&nbsp; American-style options
-    &nbsp;&middot;&nbsp; Dealer gamma exposure
-  </p>
-
   {_section_header("Index")}
   {_index_table(index_results)}
 
