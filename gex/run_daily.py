@@ -20,7 +20,7 @@ import pandas_market_calendars as mcal
 import pytz
 
 from gex.compute import compute_ticker
-from gex.analytics import plot_gamma_profile, plot_overview, fig_to_b64
+from gex.analytics import plot_email_composite, plot_overview, fig_to_b64
 from gex.validation import save_snapshot
 from gex import report as rpt
 from gex import emailer
@@ -85,7 +85,7 @@ def run(dry_run: bool = False) -> None:
     charts_b64: dict[str, str] = {}
     for d in good:
         ticker = d["summary"]["ticker"]
-        fig = plot_gamma_profile(d["p_df"], d["spot"], ticker, d["summary"], figsize=(6, 2.8))
+        fig = plot_email_composite(d["s_df"], d["p_df"], d["spot"], ticker, d["summary"])
         charts_b64[ticker] = fig_to_b64(fig)
         plt.close(fig)
 

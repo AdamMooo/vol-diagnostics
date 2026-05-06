@@ -311,26 +311,19 @@ def _chart_grid(charts_b64: dict[str, str], section_tickers: list[str], title: s
     tickers = [t for t in section_tickers if t in charts_b64]
     if not tickers:
         return ""
-    cells = ""
-    for i in range(0, len(tickers), 2):
-        pair = tickers[i:i+2]
-        cells += "<tr>"
-        for t in pair:
-            cells += (
-                f'<td style="padding:5px;width:50%;vertical-align:top;">'
-                f'<p style="margin:0 0 3px;font-size:11px;font-weight:bold;color:#34495e;">'
-                f'{TICKER_LABEL.get(t, t)}</p>'
-                f'<img src="data:image/png;base64,{charts_b64[t]}" '
-                f'style="width:100%;border:1px solid #eee;border-radius:3px;"></td>'
-            )
-        if len(pair) == 1:
-            cells += '<td style="width:50%;"></td>'
-        cells += "</tr>"
-
+    rows = ""
+    for t in tickers:
+        rows += (
+            f'<div style="margin-bottom:18px;">'
+            f'<img src="data:image/png;base64,{charts_b64[t]}" '
+            f'style="width:100%;border:1px solid #e2e8f0;border-radius:6px;display:block;">'
+            f'</div>'
+        )
     return f"""
-<h3 style="color:#2c3e50;margin:20px 0 6px;font-size:13px;font-weight:700;
-           letter-spacing:0.8px;text-transform:uppercase;">{title} — Gamma Profiles</h3>
-<table width="100%" cellpadding="0" cellspacing="0">{cells}</table>"""
+<div style="font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;
+            color:#64748b;border-bottom:1px solid #e2e8f0;padding-bottom:5px;
+            margin:24px 0 14px;">{title} — Charts</div>
+{rows}"""
 
 
 # ── Section header ────────────────────────────────────────────────────

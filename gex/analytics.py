@@ -152,6 +152,64 @@ def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
     return fig
 
 
+def plot_email_composite(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
+                         spot: float, ticker: str, summary: dict) -> plt.Figure:
+    """
+    Full-width email chart: strike GEX bar chart (top) + gamma profile (bottom).
+    Sized for crisp rendering at email widths — do not use in Streamlit.
+    """
+    fig, (ax_top, ax_bot) = plt.subplots(
+        2, 1, figsize=(11, 7),
+        gridspec_kw={"height_ratios": [3, 2]},
+        facecolor="white",
+    )
+    for ax in (ax_top, ax_bot):
+        ax.set_facecolor("white")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.grid(True, color="#e5e7eb", linewidth=0.5)
+
+    # ── Strike GEX ───────────────────────────────────────────────────
+    colors = ["steelblue" if v >= 0 else "firebrick" for v in gex_df["gex"]]
+    ax_top.bar(gex_df["strike"], gex_df["gex"] / 1e9, color=colors, width=_bar_width(gex_df))
+    ax_top.axvline(spot, color="#111", lw=1.5, linestyle="--", label=f"Spot {spot:.2f}")
+    if summary.get("call_wall"):
+        ax_top.axvline(summary["call_wall"], color="steelblue", lw=1.2, linestyle=":",
+                       label=f"Call wall {summary['call_wall']:.0f}")
+    if summary.get("put_wall"):
+        ax_top.axvline(summary["put_wall"], color="firebrick", lw=1.2, linestyle=":",
+                       label=f"Put wall {summary['put_wall']:.0f}")
+    if summary.get("zero_gamma_level"):
+        ax_top.axvline(summary["zero_gamma_level"], color="goldenrod", lw=1.5,
+                       label=f"Zero-γ {summary['zero_gamma_level']:.1f}")
+    regime = summary.get("gamma_regime", "neutral").upper()
+    net_b = summary.get("net_gex", 0) / 1e9
+    ax_top.set_title(f"{ticker}  —  GEX by Strike  |  Net GEX {net_b:+.2f}B  [{regime}]",
+                     fontsize=12, fontweight="bold", color="#1e293b", pad=8)
+    ax_top.set_ylabel("GEX ($B)", color="#475569")
+    ax_top.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.1f}B"))
+    ax_top.legend(fontsize=8, framealpha=0.8)
+
+    # ── Gamma profile ─────────────────────────────────────────────────
+    ax_bot.plot(profile_df["spot_level"], profile_df["net_gex"] / 1e9, color="navy", lw=2)
+    ax_bot.axhline(0, color="#111", lw=0.8)
+    ax_bot.fill_between(profile_df["spot_level"], profile_df["net_gex"] / 1e9, 0,
+                        where=(profile_df["net_gex"] >= 0), alpha=0.15, color="steelblue")
+    ax_bot.fill_between(profile_df["spot_level"], profile_df["net_gex"] / 1e9, 0,
+                        where=(profile_df["net_gex"] < 0), alpha=0.15, color="firebrick")
+    ax_bot.axvline(spot, color="#111", lw=1.5, linestyle="--", label=f"Spot {spot:.2f}")
+    if summary.get("zero_gamma_level"):
+        ax_bot.axvline(summary["zero_gamma_level"], color="goldenrod", lw=1.5,
+                       label=f"Zero-γ {summary['zero_gamma_level']:.1f}")
+    ax_bot.set_title(f"{ticker}  —  Gamma Profile", fontsize=10, color="#475569", pad=4)
+    ax_bot.set_xlabel("Underlying Price", color="#475569")
+    ax_bot.set_ylabel("Net GEX ($B)", color="#475569")
+    ax_bot.legend(fontsize=8, framealpha=0.8)
+
+    fig.tight_layout(h_pad=2.5)
+    return fig
+
+
 def fig_to_b64(fig: plt.Figure) -> str:
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=110, bbox_inches="tight")
