@@ -10,7 +10,7 @@ Four phases build the GEX Interactive Dashboard in strict dependency order. Phas
 - Integer phases (1, 2, 3, 4): Planned milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions if needed
 
-- [ ] **Phase 1: Greeks Engine** - Add Vanna and Charm to the Black-Scholes engine with 0DTE safety guard
+- [x] **Phase 1: Greeks Engine** - Add Vanna and Charm to the Black-Scholes engine with 0DTE safety guard (complete 2026-05-05)
 - [ ] **Phase 2: Exposure + PM Flow** - Aggregate VEX/CHEX by strike; add delta-hedge flow and vs-yesterday metrics to email pipeline
 - [ ] **Phase 3: Streamlit Dashboard** - Launch interactive dashboard with regime cards, cross-asset chart, and per-ticker expanders
 - [ ] **Phase 4: Historical Tab** - Extend dashboard with ZGL trend chart, regime persistence table, streak counter, and event study
@@ -73,7 +73,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Greeks Engine | 0/2 | Not started | - |
+| 1. Greeks Engine | 2/2 | Complete | 2026-05-05 |
 | 2. Exposure + PM Flow | 0/TBD | Not started | - |
 | 3. Streamlit Dashboard | 0/TBD | Not started | - |
 | 4. Historical Tab | 0/TBD | Not started | - |
