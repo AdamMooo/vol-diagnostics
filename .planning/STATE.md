@@ -1,8 +1,8 @@
 ---
 gsd_state_version: "1.0"
 milestone: "v3.0 — GEX Interactive Dashboard"
-status: active
-last_updated: 2026-05-06 (Phase 4 complete — v3.0 milestone done)
+status: archived
+last_updated: 2026-05-06 (v3.0 milestone archived)
 context_gathered: true
 plans_ready: true
 ---
@@ -11,10 +11,10 @@ plans_ready: true
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-05)
+See: .planning/PROJECT.md (updated 2026-05-06)
 
-**Core value:** Given today's dealer positioning across 3 liquid ETFs — what regime are we in, how much dealer hedging flow will a 1% move generate, and where are the structural levels that matter?
-**Current focus:** Phase 2 — Exposure + PM Flow
+**Core value:** Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, how much dealer hedging flow will a 1% move generate, and where are the structural levels that matter?
+**Current focus:** Planning next milestone
 
 ## Current Position
 
@@ -69,6 +69,13 @@ None.
 | v3.1 | Live intraday refresh | yfinance rate limits risky at launch | 2026-05-05 |
 | Post-v3.0 | Task Scheduler / Streamlit autostart | After PM desk validates dashboard | 2026-05-05 |
 | v2.x | NDX skew identity bug | Sleeve framework track | 2026-05-04 |
+
+Items acknowledged and deferred at milestone close on 2026-05-06:
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat | Phase 03: 03-HUMAN-UAT.md | partial — 4 pending scenarios |
+| verification | Phase 03: 03-VERIFICATION.md | human_needed |
 
 ## Session Continuity
 
