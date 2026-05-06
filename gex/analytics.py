@@ -23,7 +23,10 @@ NEUTRAL_BAND_PCT = 0.005  # net GEX within ±0.5% of |max| treated as neutral
 
 
 def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
-              spot: float) -> dict:
+              spot: float,
+              net_vex: float | None = None,
+              net_chex: float | None = None,
+              delta_hedge_flow: float | None = None) -> dict:
     """
     gex_df: strike-level GEX DataFrame (columns: strike, gex)
     profile_df: gamma profile DataFrame (columns: spot_level, net_gex)
@@ -58,6 +61,9 @@ def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
         "put_wall": put_wall,
         "gamma_regime": regime,
         "spot": spot,
+        "net_vex": net_vex,
+        "net_chex": net_chex,
+        "delta_hedge_flow": delta_hedge_flow,
     }
 
 
