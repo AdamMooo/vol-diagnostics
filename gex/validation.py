@@ -71,6 +71,18 @@ def load_yesterday(ticker: str, today: datetime.date | None = None) -> "pd.Serie
         return None
 
 
+def load_history(ticker: str, days: int = 30) -> pd.DataFrame:
+    if not STORE.exists():
+        return pd.DataFrame()
+    try:
+        hist = pd.read_parquet(STORE)
+        hist["date"] = pd.to_datetime(hist["date"]).dt.date
+        hist = hist[hist["ticker"] == ticker].sort_values("date", ascending=False)
+        return hist.head(days).reset_index(drop=True)
+    except Exception:
+        return pd.DataFrame()
+
+
 def _classify_vs_yesterday(net_gex_today: float, regime_today: str,
                             prior: "pd.Series") -> str:
     def _sign(r: str) -> int:
