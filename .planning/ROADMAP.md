@@ -1,95 +1,79 @@
-# Roadmap: Options Quant — v2.1 POC Delivery & Validation
-
-> **Active milestone v2.1 (started 2026-05-04).** v2.0 engine build is closed and archived under `.planning/phases-archive/v2.0-engine/`. v1.0 HMM is closed and archived under `.planning/phases-archive/v1.0-hmm/`. Phase numbering restarts at 1.
+# Roadmap: GEX Interactive Dashboard (v3.0)
 
 ## Overview
 
-v2.1 takes the v2.0 engine (signals, sleeve backtest, decision dashboard, statistical rigor) and prepares it for evaluation by the quant team. Deliverable is a self-contained HTML report (`build_report.py`) on free CBOE+FRED data. Phase 1 is complete; future phases are driven by team feedback.
+Four phases build the GEX Interactive Dashboard in strict dependency order. Phase 1 extends the Black-Scholes engine with second-order Greeks. Phase 2 threads those Greeks into the exposure layer and adds PM flow analytics. Phase 3 surfaces everything in a Streamlit dashboard. Phase 4 adds historical context via a dedicated tab.
 
 ## Phases
 
-- [x] **Phase 1: POC Delivery & Calibration** — HTML report, WALKTHROUGH.md, cleanup of forecasting drift. **COMPLETE.**
-- [x] **Post-phase: Bayesian Reframe** — Conditional summary leads report; equity chart removed; Section E unconditional caveat. **COMPLETE.**
-- [x] **Phase 2: Short-Vol Environment Historical Distributions** — `section_short_vol_environment()` in `dashboard.py`: percentile distributions (10/25/50/75/90) of three market-level metrics by signal quartile. No sleeve labels, no strategy ranking. PM reads raw environmental outcomes and draws their own conclusion about book risk. **COMPLETE.**
-- [ ] **Phase 3+:** Open — data quality fixes (NDX skew identity), Tier 2 features (GEX/OI), or productionizing based on team feedback.
+**Phase Numbering:**
+- Integer phases (1, 2, 3, 4): Planned milestone work
+- Decimal phases (e.g., 2.1): Urgent insertions if needed
 
----
+- [ ] **Phase 1: Greeks Engine** - Add Vanna and Charm to the Black-Scholes engine with 0DTE safety guard
+- [ ] **Phase 2: Exposure + PM Flow** - Aggregate VEX/CHEX by strike; add delta-hedge flow and vs-yesterday metrics to email pipeline
+- [ ] **Phase 3: Streamlit Dashboard** - Launch interactive dashboard with regime cards, cross-asset chart, and per-ticker expanders
+- [ ] **Phase 4: Historical Tab** - Extend dashboard with ZGL trend chart, regime persistence table, streak counter, and event study
 
 ## Phase Details
 
-### Phase 1: POC Delivery & Calibration — COMPLETE
-**Goal:** Deliver a quant-readable POC to the quant team for async review followed by a meeting.
+### Phase 1: Greeks Engine
+**Goal**: The Black-Scholes engine computes Vanna and Charm per contract with correct numerical guards
+**Depends on**: Nothing (first phase)
+**Requirements**: GRKS-01, GRKS-02, GRKS-03, GRKS-04
+**Success Criteria** (what must be TRUE):
+  1. `add_greeks()` returns a DataFrame with `vanna` and `charm` columns alongside the existing `gamma` column
+  2. A 0DTE row (T = 0.0001) returns `charm = 0.0` — no divide-by-zero or inf
+  3. Vanna values have the correct sign: calls produce positive vanna, puts produce negative vanna for standard moneyness
+  4. Running `python -m pytest gex/` passes with tests covering bs_vanna and bs_charm
+**Plans**: 2 plans
 
-**Shipped:**
-- `build_report.py` — HTML report generator producing `out/sleeve_report_YYYYMMDD.html`; sections A–H; charts as base64 data URIs
-- Section D reframed — forward-realized environment (signals) after analog match; K-NN logic untouched
-- `validate.py` deleted (forecasting drift)
-- `WALKTHROUGH.md` — per-section quant guide; Holm framing; two team questions
-- Chart styling — CHART_STYLE dict, regime shading, consistent palette
+Plans:
+- [ ] 01-01-PLAN.md — Add bs_vanna(), bs_charm(), T_MIN to greeks_engine.py; extend add_greeks()
+- [ ] 01-02-PLAN.md — Create gex/tests/ pytest suite covering vanna, charm, 0DTE guard, and add_greeks()
 
-**Note on scope:** Deliverable is the HTML report, not a Jupyter notebook. Bloomberg calibration deferred; free-data POC ships as-is.
+### Phase 2: Exposure + PM Flow
+**Goal**: Exposure aggregates include VEX and CHEX by strike; delta-hedge flow and vs-yesterday labels appear in the email summary table
+**Depends on**: Phase 1
+**Requirements**: EXP-01, EXP-02, EXP-03, EXP-04, FLOW-01, FLOW-02, FLOW-03, FLOW-04
+**Success Criteria** (what must be TRUE):
+  1. `summarise()` output dict contains `net_vex`, `net_chex`, and `delta_hedge_flow` keys with non-null float values
+  2. Running `python -m gex.run_daily` completes without error and the saved parquet row contains a `vanna_exposure` column (old rows tolerate NaN without error)
+  3. The email summary table includes a delta-flow column and a vs-yesterday label (UNCHANGED / FLIPPED / INTENSIFIED / EASED) for each ticker
+  4. Loading the parquet snapshot for a prior session via `load_yesterday(ticker)` returns the previous trading session row — not calendar day minus one
+**Plans**: TBD
 
-**Plans:** 01-02, 01-03, 01-04, 01-05, 01-06 (01-01 BloombergCon dropped as not needed for free-data delivery)
+### Phase 3: Streamlit Dashboard
+**Goal**: A developer can launch the Streamlit app and interact with regime cards, charts, and per-ticker expanders for all 10 tickers
+**Depends on**: Phase 2
+**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06
+**Success Criteria** (what must be TRUE):
+  1. `streamlit run streamlit_app.py` starts without import errors from project root
+  2. Selecting a subset of tickers in the sidebar and clicking refresh re-fetches only those tickers (cache cleared)
+  3. Each regime card displays regime color, net GEX, VEX, delta-flow, and vs-yesterday label
+  4. The cross-asset overview bar chart renders (reusing `analytics.plot_overview()`) and each selected ticker has an expandable section with strike GEX chart, gamma profile, and summary table
+  5. `import streamlit_app` does not transitively import `gex.emailer` or `gex.run_daily` (verifiable via `python -c "import streamlit_app"` in a env without win32com)
+**Plans**: TBD
+**UI hint**: yes
 
-### Post-phase: Bayesian Reframe — COMPLETE (2026-05-04)
-**Goal:** Remove the misleading unconditional narrative; add explicit conditional bridge from today's signals to historical sleeve returns.
-
-**Shipped:**
-- `section_today_conditional()` in `dashboard.py` — for each bucketed signal, today's quartile + mean monthly return per sleeve in that quartile; no new math (same bucket computation as Section C)
-- `_equity_chart()` deleted from `build_report.py` — growth-of-$1 chart was loudest unconditional strategy-ranking signal
-- Section order: conditional summary → A → signal chart → B → C → D → E → G → H
-- Section E: "Unconditional reference class over 2010–2026 (a sustained equity bull market)" caveat
-- `build_dashboard()` updated — `run.py` parity
-- WALKTHROUGH.md updated — conditional summary section entry, updated sections table, Section E description
-
----
+### Phase 4: Historical Tab
+**Goal**: The dashboard Historical tab shows ZGL trend, regime persistence, streak counters, and event study output drawn from the parquet snapshot store
+**Depends on**: Phase 3
+**Requirements**: HIST-01, HIST-02, HIST-03, HIST-04
+**Success Criteria** (what must be TRUE):
+  1. The Historical tab renders a ZGL trend chart for any selected ticker showing 30 days of zero-gamma level with spot price overlaid on the same axes
+  2. The regime persistence table shows % positive / negative / neutral over the last 20 trading sessions per selected ticker
+  3. Each regime card displays a "Days in current regime" streak counter sourced from the parquet history
+  4. Selecting a ticker with fewer than 20 sessions of history in the event study section shows an informational message rather than an error or empty chart
+**Plans**: TBD
 
 ## Progress
 
-| Phase | Plans | Status | Completed |
-|-------|-------|--------|-----------|
-| 1. POC Delivery & Calibration | 5 plans (01-01 dropped) | COMPLETE | 2026-05-04 |
-| Post-phase: Bayesian Reframe | inline (no GSD phase) | COMPLETE | 2026-05-04 |
-| 2. Short-Vol Environment Historical Distributions | 2 plans | COMPLETE | 2026-05-05 |
-| 3+. Post-feedback | TBD | OPEN | — |
+**Execution Order:** 1 → 2 → 3 → 4
 
-### Phase 2: Short-Vol Environment Historical Distributions — COMPLETE (2026-05-05)
-**Goal:** Add a signal-conditioned historical distribution section that shows what the short-vol environment actually did when each signal was in each quartile. PM uses this to calibrate whether current conditions are permissive or hostile to their existing short-convexity book — not to pick a strategy.
-
-**Deliverables:**
-- `dashboard.py` — `section_short_vol_environment(sigs, panels)`: percentile table (10/25/50/75/90 + n) for three metrics × four signals × four quartiles
-- `build_report.py` — new section in HTML output; `section_market_outcomes` removed
-
-**Three metrics (market-level, no strategy labels):**
-1. Realized vol / implied vol at period open — did the vol-selling premise hold?
-2. Absolute monthly SPX return — how violent were the moves? (gamma exposure proxy)
-3. IV change over the period — did vol spike further? (vega risk proxy)
-
-**Constraints:** Single-signal quartile slices only. Always show n. No "best sleeve" language. No Holm discussion. Frame as "historical calibration only, not a forecast."
-
-**Depends on:** Phase 1 (complete)
-
-**Plans:**
-- [ ] 02-01-PLAN.md — implement section_short_vol_environment in dashboard.py
-- [ ] 02-02-PLAN.md — wire into build_report.py; remove section_market_outcomes from HTML
-
----
-
-## Known Open Items (pre-Phase 2)
-
-| Item | Description | Priority |
-|------|-------------|----------|
-| NDX skew identity | NDX/SPX share the same CBOE SKEW signal — readings always identical | Fix before team meeting |
-| NDX iv90_atm synthesis | Uses SPX term-structure ratio — same data accuracy category | Fix before team meeting |
-| Bloomberg calibration | Replace synthesized 90mny IV with `30DAY_IMPVOL_90.0%MNY_DF` | Pending team greenlight |
-| UAT | Open `out/sleeve_report_YYYYMMDD.html` in browser; verify conditional summary | Now |
-
----
-
-## Closed milestones
-
-### v2.0 — Sleeve Allocation Framework: Engine Build
-Closed 2026-05-04. Engine functionally complete on free CBOE+FRED data with statistical rigor (Holm correction, block bootstrap, 74 tests). Phases archived under `.planning/phases-archive/v2.0-engine/`.
-
-### v1.0 — Regime-Aware Fund Intelligence Notebook (HMM)
-Closed 2026-04-30 without ship. Pivoted to v2.0. `hmm.ipynb` preserved as legacy single-fund diagnostic. Phases archived under `.planning/phases-archive/v1.0-hmm/`.
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Greeks Engine | 0/2 | Not started | - |
+| 2. Exposure + PM Flow | 0/TBD | Not started | - |
+| 3. Streamlit Dashboard | 0/TBD | Not started | - |
+| 4. Historical Tab | 0/TBD | Not started | - |
