@@ -190,77 +190,150 @@ with st.sidebar:
 st.markdown("## GEX Dashboard")
 st.caption("Dealer gamma, vanna, and charm exposure")
 
-if not selected:
-    st.info("Select at least one ticker in the sidebar.")
-    st.stop()
+tabs = st.tabs(["Live", "Historical"])
 
-# ── Fetch ─────────────────────────────────────────────────────────────────────
-all_data: list[dict] = []
-errors: list[str] = []
-for i, ticker in enumerate(selected):
-    if i > 0:
-        time.sleep(0.3)
-    with st.spinner(f"Loading {ticker}…"):
-        try:
-            all_data.append(fetch_ticker(ticker))
-        except Exception as exc:
-            errors.append(f"{ticker}: {exc}")
+with tabs[0]:
+    if not selected:
+        st.info("Select at least one ticker in the sidebar.")
+        st.stop()
 
-for err in errors:
-    st.error(err)
+    # ── Fetch ─────────────────────────────────────────────────────────────────
+    all_data: list[dict] = []
+    errors: list[str] = []
+    for i, ticker in enumerate(selected):
+        if i > 0:
+            time.sleep(0.3)
+        with st.spinner(f"Loading {ticker}…"):
+            try:
+                all_data.append(fetch_ticker(ticker))
+            except Exception as exc:
+                errors.append(f"{ticker}: {exc}")
 
-if not all_data:
-    st.warning("No data loaded. Check your connection or click Refresh.")
-    st.stop()
+    for err in errors:
+        st.error(err)
 
-# ── Regime cards ──────────────────────────────────────────────────────────────
-st.markdown('<div class="sec">Regime Summary</div>', unsafe_allow_html=True)
-cols = st.columns(len(all_data))
-for col, data in zip(cols, all_data):
-    s = data["summary"]
-    if s.get("error"):
-        col.error(f"{s['ticker']}: {s['error']}")
-    else:
-        render_regime_card(col, s, spot=data.get("spot"))
+    if not all_data:
+        st.warning("No data loaded. Check your connection or click Refresh.")
+        st.stop()
 
-st.divider()
+    # ── Regime cards ──────────────────────────────────────────────────────────
+    st.markdown('<div class="sec">Regime Summary</div>', unsafe_allow_html=True)
+    cols = st.columns(len(all_data))
+    for col, data in zip(cols, all_data):
+        s = data["summary"]
+        if s.get("error"):
+            col.error(f"{s['ticker']}: {s['error']}")
+        else:
+            hist_streak = _load_history_cached(s["ticker"], days=30)
+            streak = _compute_streak(hist_streak, s.get("gamma_regime", "neutral"))
+            render_regime_card(col, s, spot=data.get("spot"), streak=streak)
 
-# ── Cross-asset overview ──────────────────────────────────────────────────────
-clean = [d["summary"] for d in all_data if not d["summary"].get("error")]
-if clean:
-    st.markdown('<div class="sec">Cross-Asset Overview</div>', unsafe_allow_html=True)
-    fig = plot_overview(clean)
-    st.pyplot(fig)
-    plt.close(fig)
     st.divider()
 
-# ── Per-ticker detail — full width charts, stacked ────────────────────────────
-st.markdown('<div class="sec">Per-Ticker Detail</div>', unsafe_allow_html=True)
-for data in all_data:
-    s = data["summary"]
-    ticker = s["ticker"]
-    if s.get("error"):
-        continue
-    regime = s.get("gamma_regime", "neutral")
-    with st.expander(f"{ticker}  ·  {regime.upper()}", expanded=True):
-        zgl = s.get("zero_gamma_level")
-        cw = s.get("call_wall")
-        pw = s.get("put_wall")
-        summary_df = pd.DataFrame([{
-            "Spot": f"{data['spot']:,.2f}" if data.get("spot") else "—",
-            "Net GEX": f"{(s.get('net_gex') or 0) / _B:+.2f}B",
-            "VEX": f"{(s.get('net_vex') or 0) / _B:+.2f}B",
-            "CHEX": f"{(s.get('net_chex') or 0) / _B:+.2f}B",
-            "Zero-γ": f"{zgl:.2f}" if zgl is not None else "—",
-            "Call Wall": f"{cw:.0f}" if cw is not None else "—",
-            "Put Wall": f"{pw:.0f}" if pw is not None else "—",
-        }])
-        st.dataframe(summary_df, hide_index=True, use_container_width=True)
-
-        fig = plot_strike_gex(data["s_df"], data["spot"], ticker, s)
+    # ── Cross-asset overview ──────────────────────────────────────────────────
+    clean = [d["summary"] for d in all_data if not d["summary"].get("error")]
+    if clean:
+        st.markdown('<div class="sec">Cross-Asset Overview</div>', unsafe_allow_html=True)
+        fig = plot_overview(clean)
         st.pyplot(fig)
         plt.close(fig)
+        st.divider()
 
-        fig = plot_gamma_profile(data["p_df"], data["spot"], ticker, s)
-        st.pyplot(fig)
-        plt.close(fig)
+    # ── Per-ticker detail — full width charts, stacked ────────────────────────
+    st.markdown('<div class="sec">Per-Ticker Detail</div>', unsafe_allow_html=True)
+    for data in all_data:
+        s = data["summary"]
+        ticker = s["ticker"]
+        if s.get("error"):
+            continue
+        regime = s.get("gamma_regime", "neutral")
+        with st.expander(f"{ticker}  ·  {regime.upper()}", expanded=True):
+            zgl = s.get("zero_gamma_level")
+            cw = s.get("call_wall")
+            pw = s.get("put_wall")
+            summary_df = pd.DataFrame([{
+                "Spot": f"{data['spot']:,.2f}" if data.get("spot") else "—",
+                "Net GEX": f"{(s.get('net_gex') or 0) / _B:+.2f}B",
+                "VEX": f"{(s.get('net_vex') or 0) / _B:+.2f}B",
+                "CHEX": f"{(s.get('net_chex') or 0) / _B:+.2f}B",
+                "Zero-γ": f"{zgl:.2f}" if zgl is not None else "—",
+                "Call Wall": f"{cw:.0f}" if cw is not None else "—",
+                "Put Wall": f"{pw:.0f}" if pw is not None else "—",
+            }])
+            st.dataframe(summary_df, hide_index=True, use_container_width=True)
+
+            fig = plot_strike_gex(data["s_df"], data["spot"], ticker, s)
+            st.pyplot(fig)
+            plt.close(fig)
+
+            fig = plot_gamma_profile(data["p_df"], data["spot"], ticker, s)
+            st.pyplot(fig)
+            plt.close(fig)
+
+with tabs[1]:
+    st.markdown('<div class="sec">Historical Analysis</div>', unsafe_allow_html=True)
+
+    if not selected:
+        st.info("Select at least one ticker in the sidebar.")
+    else:
+        # ── ZGL Trend + Regime Persistence (per selected ticker) ──────────────
+        st.markdown('<div class="sec">ZGL Trend & Regime Persistence</div>', unsafe_allow_html=True)
+        for ticker in selected:
+            hist30 = _load_history_cached(ticker, days=30)
+            hist20 = _load_history_cached(ticker, days=20)
+
+            st.markdown(f"**{ticker}**")
+
+            if hist30.empty:
+                st.info(f"No history available for {ticker}.")
+            else:
+                # ZGL trend chart — single axis, both lines are price levels (D-06)
+                fig, ax = plt.subplots()
+                ax.plot(hist30["date"], hist30["zero_gamma_level"], label="Zero-γ", linewidth=1.5)
+                ax.plot(hist30["date"], hist30["spot"], label="Spot", linewidth=1.2, linestyle="--")
+                ax.set_title(f"{ticker} — ZGL vs Spot (30 sessions)")
+                ax.legend()
+                fig.autofmt_xdate()
+                st.pyplot(fig)
+                plt.close(fig)
+
+            if hist20.empty:
+                st.info(f"No regime history available for {ticker}.")
+            else:
+                # Regime persistence table — 20 sessions (D-07)
+                counts = hist20["gamma_regime"].value_counts().reset_index()
+                counts.columns = ["Regime", "Sessions"]
+                counts["% Days"] = (
+                    (counts["Sessions"] / counts["Sessions"].sum() * 100)
+                    .round(1)
+                    .astype(str) + "%"
+                )
+                st.dataframe(counts, hide_index=True, use_container_width=True)
+
+            st.divider()
+
+        # ── Event Study (single ticker selectbox, D-10) ──────────────────────
+        st.markdown('<div class="sec">Event Study</div>', unsafe_allow_html=True)
+        study_ticker = st.selectbox("Ticker", TICKERS, key="event_study_ticker")
+        hist_es = _load_history_cached(study_ticker, days=30)
+
+        if len(hist_es) < 20:
+            st.info("Insufficient history — need ≥20 sessions.")
+        else:
+            # Parquet-only regime split stats (D-08) — no live yfinance fetch
+            study = (
+                hist_es.groupby("gamma_regime")
+                .agg(Sessions=("net_gex", "count"), Avg_Net_GEX=("net_gex", "mean"))
+                .reset_index()
+            )
+            study["% Days"] = (
+                (study["Sessions"] / study["Sessions"].sum() * 100)
+                .round(1)
+                .astype(str) + "%"
+            )
+            study["Avg Net GEX"] = (study["Avg_Net_GEX"] / 1e9).map("{:+.2f}B".format)
+            st.dataframe(
+                study[["gamma_regime", "Sessions", "% Days", "Avg Net GEX"]],
+                hide_index=True,
+                use_container_width=True,
+            )
