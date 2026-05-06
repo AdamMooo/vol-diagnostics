@@ -27,7 +27,7 @@ from gex.validation import save_snapshot
 from gex import report as rpt
 from gex import emailer
 
-TICKERS = ["SPY", "QQQ", "IWM", "XLF", "EEM", "EFA", "EWJ", "TLT", "HYG", "GLD"]
+TICKERS = ["SPY", "QQQ", "IWM"]
 
 OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out"
 ET = pytz.timezone("America/New_York")
