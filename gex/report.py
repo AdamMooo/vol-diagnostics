@@ -62,6 +62,25 @@ def _fmt_distance(spot: float, zero_gamma: float | None) -> tuple[str, str]:
     return f"{'+'if pct>=0 else ''}{pct:.1f}%", color
 
 
+def _fmt_delta_flow(val: float | None) -> str:
+    if val is None:
+        return "—"
+    b = abs(val) / 1e9
+    return f"${b:.1f}B/1%"
+
+
+_VS_YESTERDAY_COLOR = {
+    "FLIPPED":     "#c0392b",
+    "INTENSIFIED": "#e67e22",
+    "EASED":       "#27ae60",
+    "UNCHANGED":   "#7f8c8d",
+}
+
+
+def _vs_yesterday_color(label: str | None) -> str:
+    return _VS_YESTERDAY_COLOR.get(label or "", "#aaa")
+
+
 def _badge(regime: str) -> str:
     c  = REGIME_COLOR.get(regime, "#999")
     bg = REGIME_BG.get(regime, "#eee")
@@ -222,9 +241,10 @@ def _result_row(r: dict, idx: int = 0) -> str:
         f'<td align="right" style="padding:9px 10px;font-size:13px;'
         f'color:{dist_color};font-weight:600;">{dist}</td>'
         f'<td align="right" style="padding:9px 10px;font-size:13px;color:#555;">'
-        f'{_fmt_price(r.get("call_wall"))}</td>'
-        f'<td align="right" style="padding:9px 10px;font-size:13px;color:#555;">'
-        f'{_fmt_price(r.get("put_wall"))}</td>'
+        f'{_fmt_delta_flow(r.get("delta_hedge_flow"))}</td>'
+        f'<td align="center" style="padding:9px 10px;font-size:13px;'
+        f'color:{_vs_yesterday_color(r.get("vs_yesterday"))};">'
+        f'{r.get("vs_yesterday") or "—"}</td>'
         f'</tr>'
     )
 
@@ -325,9 +345,9 @@ def build_email(results: list[dict],
         <th align="right"  style="padding:11px 8px;font-weight:600;">Spot</th>
         <th align="right"  style="padding:11px 8px;font-weight:600;">Net GEX</th>
         <th align="center" style="padding:11px 8px;font-weight:600;">Regime</th>
-        <th align="right"  style="padding:11px 8px;font-weight:600;">vs Flip</th>
-        <th align="right"  style="padding:11px 8px;font-weight:600;">Call Wall</th>
-        <th align="right"  style="padding:11px 8px;font-weight:600;">Put Wall</th>
+        <th align="right"  style="padding:11px 8px;font-weight:600;">ZGL</th>
+        <th align="right"  style="padding:11px 8px;font-weight:600;">&#916;-flow</th>
+        <th align="center" style="padding:11px 8px;font-weight:600;">vs-Yesterday</th>
       </tr>
     </thead>
     <tbody>{table_rows}</tbody>

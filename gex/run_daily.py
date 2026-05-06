@@ -21,9 +21,9 @@ import pytz
 
 from gex.data_loader import load_chain
 from gex.greeks_engine import add_greeks
-from gex.exposure_engine import compute_gex, strike_gex, gamma_profile
+from gex.exposure_engine import compute_gex, strike_gex, gamma_profile, compute_vex, compute_chex, strike_vex, strike_chex
 from gex.analytics import summarise, plot_gamma_profile, plot_overview, fig_to_b64
-from gex.validation import save_snapshot
+from gex.validation import save_snapshot, load_yesterday, _classify_vs_yesterday
 from gex import report as rpt
 from gex import emailer
 
@@ -46,10 +46,31 @@ def process_ticker(ticker: str) -> dict:
         snapshot = load_chain(ticker)
         df = add_greeks(snapshot.chains, spot=snapshot.spot, today=snapshot.as_of)
         df = compute_gex(df, spot=snapshot.spot)
+        df = compute_vex(df, spot=snapshot.spot)
+        df = compute_chex(df, spot=snapshot.spot)
         s_df = strike_gex(df)
+        v_df = strike_vex(df)
+        c_df = strike_chex(df)
         p_df = gamma_profile(df, spot=snapshot.spot)
-        summary = summarise(s_df, p_df, spot=snapshot.spot)
+
+        net_vex = float(v_df["vex"].sum())
+        net_chex = float(c_df["chex"].sum())
+        net_gex_scalar = float(s_df["gex"].sum())
+        delta_hedge_flow = net_gex_scalar / (snapshot.spot * 0.01)
+
+        summary = summarise(s_df, p_df, spot=snapshot.spot,
+                            net_vex=net_vex, net_chex=net_chex,
+                            delta_hedge_flow=delta_hedge_flow)
         summary["ticker"] = ticker
+
+        prior = load_yesterday(ticker)
+        if prior is not None:
+            summary["vs_yesterday"] = _classify_vs_yesterday(
+                summary["net_gex"], summary["gamma_regime"], prior
+            )
+        else:
+            summary["vs_yesterday"] = None
+
         return {"summary": summary, "s_df": s_df, "p_df": p_df, "spot": snapshot.spot}
     except Exception as exc:
         print(f"  [WARN] {ticker}: {exc}")
