@@ -13,7 +13,7 @@ Four phases build the GEX Interactive Dashboard in strict dependency order. Phas
 - [x] **Phase 1: Greeks Engine** - Add Vanna and Charm to the Black-Scholes engine with 0DTE safety guard (complete 2026-05-05)
 - [ ] **Phase 2: Exposure + PM Flow** - Aggregate VEX/CHEX by strike; add delta-hedge flow and vs-yesterday metrics to email pipeline
 - [ ] **Phase 3: Streamlit Dashboard** - Launch interactive dashboard with regime cards, cross-asset chart, and per-ticker expanders
-- [ ] **Phase 4: Historical Tab** - Extend dashboard with ZGL trend chart, regime persistence table, streak counter, and event study
+- [x] **Phase 4: Historical Tab** - Extend dashboard with ZGL trend chart, regime persistence table, streak counter, and event study (complete 2026-05-06)
 
 ## Phase Details
 
@@ -77,8 +77,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Add load_history() to gex/validation.py; pytest suite in gex/tests/test_validation_history.py
-- [ ] 04-02-PLAN.md — Wrap streamlit_app.py in st.tabs; add streak counter; build Historical tab content
+- [x] 04-01-PLAN.md — Add load_history() to gex/validation.py; pytest suite in gex/tests/test_validation_history.py
+- [x] 04-02-PLAN.md — Wrap streamlit_app.py in st.tabs; add streak counter; build Historical tab content
 
 ## Progress
 
@@ -87,6 +87,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Greeks Engine | 2/2 | Complete | 2026-05-05 |
-| 2. Exposure + PM Flow | 0/4 | Not started | - |
-| 3. Streamlit Dashboard | 0/2 | Not started | - |
-| 4. Historical Tab | 0/2 | Not started | - |
+| 2. Exposure + PM Flow | 4/4 | Complete | 2026-05-06 |
+| 3. Streamlit Dashboard | 2/2 | Complete | 2026-05-06 |
+| 4. Historical Tab | 2/2 | Complete | 2026-05-06 |
