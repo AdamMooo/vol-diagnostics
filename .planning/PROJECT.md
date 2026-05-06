@@ -1,6 +1,6 @@
 # Options Quant — GEX Interactive Dashboard
 
-*Last updated: 2026-05-05 — v3.0 milestone started*
+*Last updated: 2026-05-06 — v3.0 milestone complete*
 
 ## What This Is
 
@@ -44,7 +44,8 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 | `gex/validation.py` | Parquet snapshot store, event study |
 | `gex/report.py` | HTML email body builder |
 | `gex/run_daily.py` | Daily orchestrator — 10 tickers, save + send |
-| `streamlit_app.py` | Interactive dashboard (Phase 3 — new) |
+| `streamlit_app.py` | Interactive dashboard — Live + Historical tabs (Phase 3/4) |
+| `gex/tests/test_validation_history.py` | pytest suite for load_history (Phase 4) |
 | `out/gex_snapshots.parquet` | Historical GEX/VEX snapshot store |
 
 ## Strategic Decisions
