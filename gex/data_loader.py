@@ -16,7 +16,7 @@ import yfinance as yf
 # Liquid index ETFs: keep min_oi=10, no moneyness filter (market is deep enough).
 # All others: enforce min_oi=100 and ±10% moneyness — eliminates phantom IV on
 # wide-spread illiquid strikes that would otherwise inflate GEX via BS gamma.
-_LIQUID_TICKERS = {"SPY", "QQQ"}
+_LIQUID_TICKERS = {"SPY", "QQQ", "IWM"}
 _ILLIQUID_MIN_OI = 100
 _MONEYNESS_BAND = 0.10
 
