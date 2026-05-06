@@ -288,9 +288,11 @@ with tabs[1]:
                 st.info(f"No history available for {ticker}.")
             else:
                 # ZGL trend chart — single axis, both lines are price levels (D-06)
+                # sort ascending so x-axis is oldest→newest (hist30 is descending from load_history)
+                chart_df = hist30.sort_values("date")
                 fig, ax = plt.subplots()
-                ax.plot(hist30["date"], hist30["zero_gamma_level"], label="Zero-γ", linewidth=1.5)
-                ax.plot(hist30["date"], hist30["spot"], label="Spot", linewidth=1.2, linestyle="--")
+                ax.plot(chart_df["date"], chart_df["zero_gamma_level"], label="Zero-γ", linewidth=1.5)
+                ax.plot(chart_df["date"], chart_df["spot"], label="Spot", linewidth=1.2, linestyle="--")
                 ax.set_title(f"{ticker} — ZGL vs Spot (30 sessions)")
                 ax.legend()
                 fig.autofmt_xdate()
