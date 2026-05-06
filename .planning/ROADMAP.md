@@ -41,7 +41,13 @@ Plans:
   2. Running `python -m gex.run_daily` completes without error and the saved parquet row contains a `vanna_exposure` column (old rows tolerate NaN without error)
   3. The email summary table includes a delta-flow column and a vs-yesterday label (UNCHANGED / FLIPPED / INTENSIFIED / EASED) for each ticker
   4. Loading the parquet snapshot for a prior session via `load_yesterday(ticker)` returns the previous trading session row — not calendar day minus one
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Add compute_vex, compute_chex, strike_vex, strike_chex to exposure_engine.py; extend summarise() with optional flow kwargs
+- [ ] 02-02-PLAN.md — Extend save_snapshot() with vanna_exposure; add load_yesterday() and _classify_vs_yesterday() to validation.py
+- [ ] 02-03-PLAN.md — Wire VEX/CHEX/flow/vs-yesterday into process_ticker() in run_daily.py; update email table columns in report.py
+- [ ] 02-04-PLAN.md — pytest suite for all Phase 2 new functions (parallel with 02-03)
 
 ### Phase 3: Streamlit Dashboard
 **Goal**: A developer can launch the Streamlit app and interact with regime cards, charts, and per-ticker expanders for all 10 tickers
@@ -74,6 +80,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Greeks Engine | 2/2 | Complete | 2026-05-05 |
-| 2. Exposure + PM Flow | 0/TBD | Not started | - |
+| 2. Exposure + PM Flow | 0/4 | Not started | - |
 | 3. Streamlit Dashboard | 0/TBD | Not started | - |
 | 4. Historical Tab | 0/TBD | Not started | - |
