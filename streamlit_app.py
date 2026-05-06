@@ -42,6 +42,22 @@ plt.rcParams.update({
 
 st.set_page_config(page_title="GEX Dashboard", layout="wide", initial_sidebar_state="expanded")
 
+
+def _check_password() -> bool:
+    if st.session_state.get("authenticated"):
+        return True
+    st.markdown("## GEX Dashboard")
+    pwd = st.text_input("Password", type="password", placeholder="Enter password")
+    if pwd == st.secrets.get("PASSWORD", ""):
+        st.session_state.authenticated = True
+        st.rerun()
+    elif pwd:
+        st.error("Incorrect password")
+    return False
+
+if not _check_password():
+    st.stop()
+
 # Semi-transparent regime backgrounds — work on both light and dark themes
 _REGIME_RGBA = {
     "positive": "rgba(26, 122, 74, 0.18)",
