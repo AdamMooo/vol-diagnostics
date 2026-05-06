@@ -1,5 +1,5 @@
 # CLAUDE — Options Quant — Sleeve Allocation Framework
-Last updated: 2026-05-04 | Status: active milestone v2.1 — HTML report ready, Bayesian reframe shipped
+Last updated: 2026-05-05 | Status: active milestone v3.0 — GEX Interactive Dashboard
 
 ## Repo Card
 
@@ -38,21 +38,32 @@ python build_report.py # generates out/sleeve_report_YYYYMMDD.html
 - **Windows paths:** use pathlib or `os.path.join` throughout.
 - **No PDIV / HMM this phase:** locked per scope cap.
 
-## GEX POC (new direction — dealer gamma exposure)
+## GEX Module (active — v3.0)
+
+**Tickers: SPY, QQQ, IWM only.** Full chain pulled per ticker — no moneyness filter, no OI cutoff.
+
+| Ticker | Index | Role |
+|--------|-------|------|
+| SPY | S&P 500 | Primary benchmark; highest OI → cleanest gamma signal |
+| QQQ | Nasdaq-100 | Tech/high-beta; often leads regime flips before SPY |
+| IWM | Russell 2000 | Small-cap risk proxy; divergence from SPY = domestic stress signal |
 
 ```
 python -m gex.run_gex                # SPY, saves charts to out/
-python -m gex.run_gex --ticker QQQ   # different underlying
+python -m gex.run_gex --ticker QQQ   # QQQ or IWM
+python -m gex.run_daily              # all 3 tickers → HTML email
 ```
 
 | Module | Purpose |
 |--------|---------|
 | `gex/data_loader.py` | yfinance chain pull → `ChainSnapshot` |
-| `gex/greeks_engine.py` | Black-Scholes gamma vectorised; `add_greeks()` enriches chain df |
-| `gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; strike/expiry aggregation; gamma profile curve |
-| `gex/analytics.py` | Net GEX, zero-gamma level, call/put walls, regime classification, matplotlib charts |
-| `gex/run_gex.py` | Entry point — fetch → compute → print summary → save PNGs to `out/` |
-| `gex/validation.py` | Parquet snapshot store + event-study (positive vs negative gamma days vs next-day range) |
+| `gex/greeks_engine.py` | Black-Scholes gamma, vanna, charm vectorised; `add_greeks()` enriches chain df |
+| `gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; VEX/CHEX analogues; strike/expiry aggregation |
+| `gex/analytics.py` | Net GEX/VEX/CHEX, zero-gamma level, call/put walls, regime classification, charts |
+| `gex/run_gex.py` | Single-ticker entry point — fetch → compute → print summary → save PNGs to `out/` |
+| `gex/run_daily.py` | Daily orchestrator — all 3 tickers, save parquet snapshot, send HTML email |
+| `gex/validation.py` | Parquet snapshot store, load_yesterday(), vs-yesterday classification, event-study |
+| `gex/report.py` | HTML email builder — scorecard pills, GEX table, rule-based narrative |
 
 Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change.
 

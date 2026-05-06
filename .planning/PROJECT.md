@@ -1,94 +1,108 @@
-# Options Quant — Sleeve Allocation Framework
+# Options Quant — GEX Interactive Dashboard
 
-*Last updated: 2026-05-04 — v2.1 Bayesian reframe shipped*
+*Last updated: 2026-05-05 — v3.0 milestone started*
 
 ## What This Is
 
-A decision dashboard that describes the current options environment (VRP, skew, term structure, trend, drawdown, fragility) and shows the historical base rates for each sleeve (covered call, cash-covered put, collar, short strangle) conditional on today's signal quartiles. Ships as a self-contained HTML report on free CBOE+FRED data.
+A dealer gamma exposure (GEX) analysis platform. The GEX module computes dealer positioning across 10 liquid ETFs from live options chains (yfinance), identifies gamma regime (positive/negative/neutral), locates structural levels (zero-gamma, call wall, put wall), and delivers daily context for the PM desk.
 
-**Market-general** — no fund specialization. Phase β (PDIV) dropped 2026-05-04.
+**v3.0 direction:** Extend the GEX module from a daily HTML email into a live Streamlit dashboard with second-order Greeks (Vanna, Charm) and PM-facing flow analytics (delta-hedge $/1%, vs-yesterday regime comparison).
 
 ## Core Value
 
-Given today's vol/skew/trend/drawdown readings, what have options sleeves historically returned in similar environments — and what is the honest statistical confidence in that pattern (0 of 30 tests survive Holm correction)?
+Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, how much dealer hedging flow will a 1% move generate, and where are the structural levels that matter? One-sentence answer per ticker, full analytics on demand.
 
-The conditional summary is the primary output. Section C is the analytical core. Section E (unconditional full-period stats) is context, not evidence of sleeve superiority.
+## Current Milestone: v3.0 — GEX Interactive Dashboard
 
-## Current Milestone: v2.1 — POC Delivery & Validation
+**Goal:** Add second-order Greeks and PM flow metrics to the GEX engine, then surface them in an interactive Streamlit dashboard with historical context.
 
-**Phase 1 COMPLETE.** Post-phase Bayesian reframe COMPLETE. Report ready to send.
+**Target features:**
+- Vanna + Charm via existing Black-Scholes engine; VEX (Vanna Exposure) aggregated like GEX
+- PM flow metrics: delta-hedge $/1% move + vs-yesterday regime comparison
+- Streamlit app: colored regime cards, cross-asset chart, per-ticker expanders
+- Historical tab: zero-gamma level trend, regime persistence table, event study output
 
-**Deliverable:** `out/sleeve_report_YYYYMMDD.html` — run `python build_report.py`.
-
-**Audience:** Quant team first. Async handoff (HTML + WALKTHROUGH.md) followed by meeting.
-
-**Hard scope cap (locked):** No PDIV / fund specialization. No Markov-switching/HMM. No new signals beyond the six + fragility composite already in v2.0.
+**Key constraints:**
+- Email pipeline (run_daily.py → Outlook COM) stays intact — Streamlit is additive
+- No new data sources — yfinance + existing parquet snapshots only
+- Phase 1→2→3→4 strict ordering (each builds on prior)
 
 ## Runtime & Stack
 
-- **Runtime:** local Python venv. `python build_report.py` → HTML. No Jupyter required.
-- **Data:** CBOE CDN + FRED (free, no auth). Bloomberg is a one-class swap in `local_data.py` pending team greenlight.
-- **Stack:** pandas, numpy, scipy, statsmodels, matplotlib. `requirements.txt` is authoritative.
-- **Tests:** 74 (math correctness + pipeline invariants + property-based). Run with `pytest`.
+- **Runtime:** local Python venv. `python -m gex.run_daily` → email. `streamlit run streamlit_app.py` → dashboard.
+- **Data:** yfinance options chains (live). Snapshots: `out/gex_snapshots.parquet`.
+- **Stack:** pandas, numpy, scipy, matplotlib, yfinance, pyarrow, streamlit (Phase 3).
+- **Tests:** pytest (gex unit tests, math correctness).
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `run.py` | Text dashboard to stdout |
-| `build_report.py` | HTML report generator |
-| `local_data.py` | `FreeCon` — CBOE+FRED data dispatch |
-| `data_layer.py` | `build_panels()` → `Panels` |
-| `signals.py` | `build_signals()` → `Signals` |
-| `backtest.py` | `run_backtest()` → `BacktestResults` |
-| `dashboard.py` | All section functions including `section_today_conditional` |
-| `stats_rigor.py` | Holm-Bonferroni, block bootstrap |
-| `sensitivity.py` | TC sensitivity, tail risk |
-| `WALKTHROUGH.md` | Per-section quant team guide |
-| `hmm.ipynb` | v1.0 legacy — DO NOT MODIFY |
-
-## Constraints
-
-- No predictive claims — descriptive and historical only
-- No new signals — six + fragility locked until team validates
-- No PDIV, no HMM
-- Windows paths (pathlib / os.path.join)
-- Strategy menu: CC, CSP, Collar, Short Strangle. Dispersion out of scope.
+| `gex/greeks_engine.py` | BS gamma (+ vanna/charm in v3.0) |
+| `gex/exposure_engine.py` | GEX computation and aggregation (+ VEX in v3.0) |
+| `gex/analytics.py` | Summary dict, matplotlib charts |
+| `gex/validation.py` | Parquet snapshot store, event study |
+| `gex/report.py` | HTML email body builder |
+| `gex/run_daily.py` | Daily orchestrator — 10 tickers, save + send |
+| `streamlit_app.py` | Interactive dashboard (Phase 3 — new) |
+| `out/gex_snapshots.parquet` | Historical GEX/VEX snapshot store |
 
 ## Strategic Decisions
 
 | Date | Decision | Why |
 |------|----------|-----|
-| 2026-05-04 | Bayesian reframe — conditional summary leads; equity chart removed; Section E has unconditional caveat | Equity curve chart was a strategy-ranking signal (16yr bull market), not decision support. Conditional base rates are the point. |
-| 2026-05-04 | Deliverable is HTML report (`build_report.py`), not Jupyter notebook | Simpler; no Jupyter dependency; same analytical content |
-| 2026-05-04 | Bloomberg calibration deferred — ship on free data | POC value is the framing and conditional analysis; Bloomberg is a one-class swap when team greenlights |
-| 2026-05-04 | Drop Phase β (PDIV specialization) | Market-general scorecard more useful to quant team than fund-tuned overlay rule |
-| 2026-05-04 | Local POC dev track (CBOE + FRED) | Free official sources; identifier set matches Bloomberg so math is portable |
-| 2026-05-04 | yfinance rejected — all-official sources only | yfinance is unofficial Yahoo scraper; CBOE/FRED are clean provenance |
-| 2026-05-04 | Universe = SPX + NDX index level | Matches what VIX/VXN measure (index options) |
-| 2026-04-30 | Pivot v1.0 HMM → v2.0 Sleeve Framework | HMM alone cannot inform sleeve allocation without options-pricing data |
-| 2026-04-30 | Scorecard primary, HMM optional fragility flag | PM-auditable, governance-friendly, robust to data limits |
-| 2026-04-30 | Strategy menu = CC + CSP + Collar + ShortStrangle; drop dispersion | Dispersion is dealer/HF turf, capacity-limited, governance-unfriendly for retail AM |
-| 2026-04-30 | Use `statsmodels.MarkovRegression` if Markov-switching ever needed | `hmmlearn` unavailable; statsmodels gives proper sticky Markov-switching |
+| 2026-05-05 | New milestone v3.0 — GEX Interactive Dashboard | GEX POC is production-grade; direction is now depth (Greeks, flow analytics, dashboard) not more signals |
+| 2026-05-05 | Streamlit additive — email pipeline preserved | Email is already scheduled and working; dashboard adds interactivity without breaking the existing workflow |
+| 2026-05-05 | Vanna over Vomma as second-order Greek | Vanna (∂delta/∂vol) directly translates to dealer rehedging flow when vol spikes — PM-readable. Vomma is harder to explain. |
+| 2026-05-05 | No new data sources in v3.0 | All four phases use only yfinance + parquet history. Bloomberg swap is a one-class change deferred to v4.x. |
+| 2026-05-04 | GEX sign convention: calls +, puts − | SpotGamma/retail standard. Positive net GEX = dealers net long gamma = stabilising. |
+| 2026-05-04 | Parquet store keyed on (date, ticker), idempotent | Prevents duplicate rows on reruns |
 
-## Out of Scope
+## Out of Scope (v3.0)
 
 | Feature | Reason |
 |---------|--------|
-| Dispersion / implied-correlation sleeve | Dealer/HF turf, capacity-limited, governance-unfriendly |
-| PDIV fund specialization | Phase β dropped — market-general scope only |
-| New signals beyond current six + fragility | Locked until team validates current set |
-| HMM / Markov-switching as spine | Demoted to optional fragility flag extension |
-| Automated weekly schedule | Manual run for POC; revisit if team adopts |
+| Bloomberg data swap | One-class change deferred to v4.x — yfinance works for the POC |
+| Vomma / second-order vol Greeks | Harder to explain to PMs than vanna; vanna story is cleaner |
+| New GEX signals or predictive scoring | Holm-Bonferroni bar is high; flow-mechanics angle is more defensible |
+| Sleeve allocation framework (v2.x) | Separate track; HTML report in `out/sleeve_report_*.html` preserved |
+| Automated Task Scheduler activation | Manual run for POC; revisit after PM desk validates dashboard |
+| Dispersion / implied-correlation | Out of scope for this project |
 | Live execution / order routing | Research / decision-support only |
-| Jupyter notebook deliverable | Replaced by HTML report |
-| Cron2 production run | Deferred; Bloomberg swap is a one-class change |
 
 ## Known Open Items
 
 | Item | Description | Status |
 |------|-------------|--------|
-| NDX skew identity | NDX/SPX share same CBOE SKEW signal — readings always identical | Fix before team meeting |
-| NDX iv90_atm synthesis | Uses SPX term-structure ratio | Fix in same pass as skew |
-| Bloomberg 90mny IV | Synthesized with slope=0.2; absolute level uncalibrated | Pending team greenlight |
-| UAT | Browser check of `out/sleeve_report_YYYYMMDD.html` | Now |
+| NDX skew identity | NDX/SPX share same CBOE SKEW signal in sleeve framework | v2.x track — not blocking v3.0 |
+| Bloomberg 90mny IV calibration | Sleeve framework only | v2.x track — not blocking v3.0 |
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
+---
+
+## Previous Milestones
+
+### v2.1 — POC Delivery & Validation (closed 2026-05-05)
+Delivered sleeve allocation HTML report (`build_report.py`) to quant team. Bayesian reframe: conditional summary leads, equity chart removed, Section E caveat added. GEX POC shipped as parallel track (commit 972dc99).
+
+### v2.0 — Sleeve Allocation Framework: Engine Build (closed 2026-05-04)
+Seven modules, 74 tests, Holm-Bonferroni rigor. 0 of 30 bucket-mean tests survived correction — honest finding, not failure.
+
+### v1.0 — Regime-Aware Fund Intelligence Notebook (pivoted 2026-04-30)
+HMM GMM diagnostic on SPX. Pivoted because it never touched options-pricing data.
