@@ -48,7 +48,11 @@ def _check_password() -> bool:
         return True
     st.markdown("## GEX Dashboard")
     pwd = st.text_input("Password", type="password", placeholder="Enter password")
-    if pwd == st.secrets.get("PASSWORD", ""):
+    try:
+        expected = st.secrets.get("PASSWORD", "")
+    except Exception:
+        expected = None
+    if expected and pwd == expected:
         st.session_state.authenticated = True
         st.rerun()
     elif pwd:
