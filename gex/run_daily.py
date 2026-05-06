@@ -25,7 +25,10 @@ from gex.validation import save_snapshot
 from gex import report as rpt
 from gex import emailer
 
-TICKERS = ["SPY", "QQQ", "IWM"]
+INDEX_TICKERS   = ["SPY", "QQQ", "IWM", "XLF", "GLD", "TLT"]
+PURPOSE_TICKERS = ["NVDA", "TSLA", "AAPL", "AMD", "META", "AMZN",
+                   "GOOGL", "MSFT", "AVGO", "COIN", "COST", "NFLX", "PLTR", "UNH"]
+ALL_TICKERS = INDEX_TICKERS + PURPOSE_TICKERS
 
 OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out"
 ET = pytz.timezone("America/New_York")
@@ -54,26 +57,28 @@ def run(dry_run: bool = False) -> None:
         print(f"[gex-daily] {today} is not a NYSE trading day — skipping.")
         return
 
-    print(f"[gex-daily] {today}  tickers: {', '.join(TICKERS)}")
+    print(f"[gex-daily] {today}  tickers: {', '.join(ALL_TICKERS)}")
     OUT_DIR.mkdir(exist_ok=True)
 
     all_data: list[dict] = []
-    for ticker in TICKERS:
+    for ticker in ALL_TICKERS:
         print(f"  {ticker}...", end=" ", flush=True)
         data = process_ticker(ticker)
         all_data.append(data)
         s = data["summary"]
         if not s.get("error"):
             save_snapshot(s, ticker)
-            print(f"spot={s['spot']:.2f}  gex=${s['net_gex']/1e9:.2f}B  regime={s['gamma_regime']}")
+            iv30_str = f"  iv30={s['iv30']:.1f}%" if s.get("iv30") else ""
+            print(f"spot={s['spot']:.2f}  gex=${s['net_gex']/1e9:.2f}B  regime={s['gamma_regime']}{iv30_str}")
         else:
             print(f"ERROR: {s['error']}")
 
-    results = [d["summary"] for d in all_data]
-    good    = [d for d in all_data if not d["summary"].get("error")]
+    index_results   = [d["summary"] for d in all_data if d["summary"]["ticker"] in INDEX_TICKERS]
+    purpose_results = [d["summary"] for d in all_data if d["summary"]["ticker"] in PURPOSE_TICKERS]
+    all_results     = [d["summary"] for d in all_data]
+    good            = [d for d in all_data if not d["summary"].get("error")]
 
-    # Build charts and HTML regardless of dry_run
-    overview_fig = plot_overview(results)
+    overview_fig = plot_overview(all_results)
     overview_b64 = fig_to_b64(overview_fig)
     plt.close(overview_fig)
 
@@ -85,7 +90,12 @@ def run(dry_run: bool = False) -> None:
         plt.close(fig)
 
     subject = f"GEX Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
-    html = rpt.build_email(results, date=today, overview_b64=overview_b64, charts_b64=charts_b64)
+    html = rpt.build_email(
+        index_results=index_results,
+        purpose_results=purpose_results,
+        date=today,
+        charts_b64=charts_b64,
+    )
 
     if dry_run:
         out_path = OUT_DIR / f"gex_{today.strftime('%Y%m%d')}.html"
