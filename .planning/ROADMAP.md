@@ -50,7 +50,7 @@ Plans:
 - [ ] 02-04-PLAN.md — pytest suite for all Phase 2 new functions (parallel with 02-03)
 
 ### Phase 3: Streamlit Dashboard
-**Goal**: A developer can launch the Streamlit app and interact with regime cards, charts, and per-ticker expanders for all 10 tickers
+**Goal**: A developer can launch the Streamlit app and interact with regime cards, charts, and per-ticker expanders for all 3 tickers (SPY, QQQ, IWM)
 **Depends on**: Phase 2
 **Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06
 **Success Criteria** (what must be TRUE):
@@ -59,8 +59,11 @@ Plans:
   3. Each regime card displays regime color, net GEX, VEX, delta-flow, and vs-yesterday label
   4. The cross-asset overview bar chart renders (reusing `analytics.plot_overview()`) and each selected ticker has an expandable section with strike GEX chart, gamma profile, and summary table
   5. `import streamlit_app` does not transitively import `gex.emailer` or `gex.run_daily` (verifiable via `python -c "import streamlit_app"` in a env without win32com)
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Install streamlit; create full streamlit_app.py with sidebar, fetch layer, regime cards, overview chart, per-ticker expanders
+- [ ] 03-02-PLAN.md — Create gex/tests/test_streamlit_app.py: import smoke, cache clear, plot_overview smoke tests
 
 ### Phase 4: Historical Tab
 **Goal**: The dashboard Historical tab shows ZGL trend, regime persistence, streak counters, and event study output drawn from the parquet snapshot store
@@ -81,5 +84,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Greeks Engine | 2/2 | Complete | 2026-05-05 |
 | 2. Exposure + PM Flow | 0/4 | Not started | - |
-| 3. Streamlit Dashboard | 0/TBD | Not started | - |
+| 3. Streamlit Dashboard | 0/2 | Not started | - |
 | 4. Historical Tab | 0/TBD | Not started | - |

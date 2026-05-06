@@ -13,3 +13,4 @@ ipykernel>=6.29
 pytest>=8.0
 pywin32>=306
 python-dotenv>=1.0
+streamlit>=1.57,<2.0
