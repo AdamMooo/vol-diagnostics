@@ -20,6 +20,10 @@ import matplotlib.ticker as mticker
 
 
 NEUTRAL_BAND_PCT = 0.005  # net GEX within ±0.5% of |max| treated as neutral
+# Absolute floor: |net GEX| below this → NEUTRAL regardless of relative magnitude.
+# Calibrated 2026-05-05 against post-filter noise tickers (EWJ/EFA/TLT/XLF);
+# 75th percentile of that distribution ≈ $94M, rounded to $100M.
+NEUTRAL_ABS_FLOOR = 0.2e9  # $200M — calibrated to suppress XLF/EFA/EWJ/TLT noise tier
 
 
 def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
@@ -45,7 +49,7 @@ def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
     put_wall = float(puts.loc[puts["gex"].idxmin(), "strike"]) if not puts.empty else None
 
     abs_max = gex_df["gex"].abs().max()
-    if abs_max == 0:
+    if abs_max == 0 or abs(net_gex) < NEUTRAL_ABS_FLOOR:
         regime = "neutral"
     elif abs(net_gex) / abs_max < NEUTRAL_BAND_PCT:
         regime = "neutral"
