@@ -1,5 +1,5 @@
 """
-Derive analytics from GEX and produce matplotlib charts.
+Derive analytics from GEX and produce Plotly charts.
 
 Key outputs:
     - net_gex: scalar total GEX at current spot
@@ -10,29 +10,9 @@ Key outputs:
 """
 from __future__ import annotations
 
-import base64
-import io
-
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
-
-# Base chart style — clean, print-friendly, works on white backgrounds (email).
-# streamlit_app.py overrides with dark/transparent theme after this loads.
-plt.rcParams.update({
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "axes.grid": True,
-    "grid.linewidth": 0.5,
-    "grid.color": "#d1d5db",
-    "font.family": "sans-serif",
-    "font.size": 11,
-    "axes.titlesize": 12,
-    "axes.labelsize": 10,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-})
+import plotly.graph_objects as go
 
 NEUTRAL_BAND_PCT = 0.005  # net GEX within ±0.5% of |max| treated as neutral
 # Absolute floor: |net GEX| below this → NEUTRAL regardless of relative magnitude.
@@ -98,127 +78,101 @@ def _find_zero_crossing(profile_df: pd.DataFrame) -> float | None:
 
 
 def plot_strike_gex(gex_df: pd.DataFrame, spot: float, ticker: str,
-                    summary: dict, ax: plt.Axes | None = None) -> plt.Figure:
-    """Bar chart of GEX by strike."""
-    fig, ax = (plt.subplots(figsize=(12, 5)) if ax is None else (ax.figure, ax))
+                    summary: dict) -> go.Figure:
+    """Interactive bar chart of GEX by strike."""
+    colors = ["#3b82f6" if v >= 0 else "#ef4444" for v in gex_df["gex"]]
+    width = _bar_width(gex_df)
+    net_b = summary.get("net_gex", 0) / 1e9
+    regime = summary.get("gamma_regime", "neutral").upper()
 
-    colors = ["steelblue" if v >= 0 else "firebrick" for v in gex_df["gex"]]
-    ax.bar(gex_df["strike"], gex_df["gex"] / 1e9, color=colors, width=_bar_width(gex_df))
-    ax.axvline(spot, color="black", lw=1.5, linestyle="--", label=f"Spot {spot:.2f}")
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=gex_df["strike"],
+        y=gex_df["gex"] / 1e9,
+        marker_color=colors,
+        marker_line_width=0,
+        width=width,
+        hovertemplate="Strike: %{x:.0f}<br>GEX: %{y:.3f}B<extra></extra>",
+    ))
+
+    fig.add_vline(x=spot, line_dash="dash", line_color="white", line_width=1.5,
+                  annotation_text=f"Spot {spot:.0f}", annotation_position="top right",
+                  annotation_font_size=11)
     if summary.get("call_wall"):
-        ax.axvline(summary["call_wall"], color="steelblue", lw=1, linestyle=":",
-                   label=f"Call wall {summary['call_wall']:.0f}")
+        fig.add_vline(x=summary["call_wall"], line_dash="dot", line_color="#3b82f6",
+                      line_width=1, annotation_text=f"CW {summary['call_wall']:.0f}",
+                      annotation_font_size=10)
     if summary.get("put_wall"):
-        ax.axvline(summary["put_wall"], color="firebrick", lw=1, linestyle=":",
-                   label=f"Put wall {summary['put_wall']:.0f}")
+        fig.add_vline(x=summary["put_wall"], line_dash="dot", line_color="#ef4444",
+                      line_width=1, annotation_text=f"PW {summary['put_wall']:.0f}",
+                      annotation_font_size=10)
     if summary.get("zero_gamma_level"):
-        ax.axvline(summary["zero_gamma_level"], color="goldenrod", lw=1.5,
-                   label=f"Zero-gamma {summary['zero_gamma_level']:.2f}")
+        fig.add_vline(x=summary["zero_gamma_level"], line_color="#f59e0b", line_width=1.5,
+                      annotation_text=f"ZGL {summary['zero_gamma_level']:.0f}",
+                      annotation_font_size=10)
 
-    ax.set_xlabel("Strike")
-    ax.set_ylabel("GEX ($B)")
-    ax.set_title(f"{ticker} — GEX by Strike  |  Net GEX: ${summary['net_gex']/1e9:.2f}B  "
-                 f"[{summary['gamma_regime'].upper()} GAMMA]")
-    ax.legend(fontsize=8)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.1f}B"))
-    fig.tight_layout()
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(text=f"{ticker}  ·  GEX by Strike  ·  Net {net_b:+.2f}B  [{regime}]",
+                   font_size=13),
+        xaxis_title="Strike",
+        yaxis_title="GEX ($B)",
+        yaxis_ticksuffix="B",
+        showlegend=False,
+        height=380,
+        margin=dict(t=50, b=45, l=65, r=20),
+        bargap=0.05,
+    )
     return fig
 
 
 def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
-                       summary: dict, ax: plt.Axes | None = None,
-                       figsize: tuple[float, float] = (10, 4)) -> plt.Figure:
-    """Line chart of net GEX across spot levels."""
-    fig, ax = (plt.subplots(figsize=figsize) if ax is None else (ax.figure, ax))
+                       summary: dict) -> go.Figure:
+    """Interactive line chart of net GEX across spot levels."""
+    x = profile_df["spot_level"]
+    y = profile_df["net_gex"] / 1e9
 
-    ax.plot(profile_df["spot_level"], profile_df["net_gex"] / 1e9,
-            color="navy", lw=2)
-    ax.axhline(0, color="black", lw=0.8, linestyle="-")
-    ax.fill_between(profile_df["spot_level"], profile_df["net_gex"] / 1e9, 0,
-                    where=(profile_df["net_gex"] >= 0), alpha=0.15, color="steelblue")
-    ax.fill_between(profile_df["spot_level"], profile_df["net_gex"] / 1e9, 0,
-                    where=(profile_df["net_gex"] < 0), alpha=0.15, color="firebrick")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=x, y=y.clip(lower=0), fill="tozeroy",
+        fillcolor="rgba(59,130,246,0.15)", line_color="rgba(0,0,0,0)",
+        showlegend=False, hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scatter(
+        x=x, y=y.clip(upper=0), fill="tozeroy",
+        fillcolor="rgba(239,68,68,0.15)", line_color="rgba(0,0,0,0)",
+        showlegend=False, hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scatter(
+        x=x, y=y, line=dict(color="#60a5fa", width=2),
+        hovertemplate="Price: %{x:.1f}<br>GEX: %{y:.3f}B<extra></extra>",
+        showlegend=False,
+    ))
 
-    ax.axvline(spot, color="black", lw=1.5, linestyle="--", label=f"Spot {spot:.2f}")
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.3)", line_width=0.8)
+    fig.add_vline(x=spot, line_dash="dash", line_color="white", line_width=1.5,
+                  annotation_text=f"Spot {spot:.0f}", annotation_position="top right",
+                  annotation_font_size=11)
     if summary.get("zero_gamma_level"):
-        ax.axvline(summary["zero_gamma_level"], color="goldenrod", lw=1.5,
-                   label=f"Zero-gamma {summary['zero_gamma_level']:.2f}")
+        fig.add_vline(x=summary["zero_gamma_level"], line_color="#f59e0b", line_width=1.5,
+                      annotation_text=f"ZGL {summary['zero_gamma_level']:.0f}",
+                      annotation_font_size=10)
 
-    ax.set_xlabel("Underlying Price")
-    ax.set_ylabel("Net GEX ($B)")
-    ax.set_title(f"{ticker} — Gamma Profile")
-    ax.legend(fontsize=8)
-    fig.tight_layout()
-    return fig
-
-
-def plot_email_composite(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
-                         spot: float, ticker: str, summary: dict) -> plt.Figure:
-    """
-    Full-width email chart: strike GEX bar chart (top) + gamma profile (bottom).
-    Sized for crisp rendering at email widths — do not use in Streamlit.
-    """
-    fig, (ax_top, ax_bot) = plt.subplots(
-        2, 1, figsize=(11, 7),
-        gridspec_kw={"height_ratios": [3, 2]},
-        facecolor="white",
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(text=f"{ticker}  ·  Gamma Profile", font_size=13),
+        xaxis_title="Underlying Price",
+        yaxis_title="Net GEX ($B)",
+        yaxis_ticksuffix="B",
+        showlegend=False,
+        height=300,
+        margin=dict(t=50, b=45, l=65, r=20),
     )
-    for ax in (ax_top, ax_bot):
-        ax.set_facecolor("white")
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.grid(True, color="#e5e7eb", linewidth=0.5)
-
-    # ── Strike GEX ───────────────────────────────────────────────────
-    colors = ["steelblue" if v >= 0 else "firebrick" for v in gex_df["gex"]]
-    ax_top.bar(gex_df["strike"], gex_df["gex"] / 1e9, color=colors, width=_bar_width(gex_df))
-    ax_top.axvline(spot, color="#111", lw=1.5, linestyle="--", label=f"Spot {spot:.2f}")
-    if summary.get("call_wall"):
-        ax_top.axvline(summary["call_wall"], color="steelblue", lw=1.2, linestyle=":",
-                       label=f"Call wall {summary['call_wall']:.0f}")
-    if summary.get("put_wall"):
-        ax_top.axvline(summary["put_wall"], color="firebrick", lw=1.2, linestyle=":",
-                       label=f"Put wall {summary['put_wall']:.0f}")
-    if summary.get("zero_gamma_level"):
-        ax_top.axvline(summary["zero_gamma_level"], color="goldenrod", lw=1.5,
-                       label=f"Zero-γ {summary['zero_gamma_level']:.1f}")
-    regime = summary.get("gamma_regime", "neutral").upper()
-    net_b = summary.get("net_gex", 0) / 1e9
-    ax_top.set_title(f"{ticker}  —  GEX by Strike  |  Net GEX {net_b:+.2f}B  [{regime}]",
-                     fontsize=12, fontweight="bold", color="#1e293b", pad=8)
-    ax_top.set_ylabel("GEX ($B)", color="#475569")
-    ax_top.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.1f}B"))
-    ax_top.legend(fontsize=8, framealpha=0.8)
-
-    # ── Gamma profile ─────────────────────────────────────────────────
-    ax_bot.plot(profile_df["spot_level"], profile_df["net_gex"] / 1e9, color="navy", lw=2)
-    ax_bot.axhline(0, color="#111", lw=0.8)
-    ax_bot.fill_between(profile_df["spot_level"], profile_df["net_gex"] / 1e9, 0,
-                        where=(profile_df["net_gex"] >= 0), alpha=0.15, color="steelblue")
-    ax_bot.fill_between(profile_df["spot_level"], profile_df["net_gex"] / 1e9, 0,
-                        where=(profile_df["net_gex"] < 0), alpha=0.15, color="firebrick")
-    ax_bot.axvline(spot, color="#111", lw=1.5, linestyle="--", label=f"Spot {spot:.2f}")
-    if summary.get("zero_gamma_level"):
-        ax_bot.axvline(summary["zero_gamma_level"], color="goldenrod", lw=1.5,
-                       label=f"Zero-γ {summary['zero_gamma_level']:.1f}")
-    ax_bot.set_title(f"{ticker}  —  Gamma Profile", fontsize=10, color="#475569", pad=4)
-    ax_bot.set_xlabel("Underlying Price", color="#475569")
-    ax_bot.set_ylabel("Net GEX ($B)", color="#475569")
-    ax_bot.legend(fontsize=8, framealpha=0.8)
-
-    fig.tight_layout(h_pad=2.5)
     return fig
 
 
-def fig_to_b64(fig: plt.Figure) -> str:
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=110, bbox_inches="tight")
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode("ascii")
-
-
-def plot_overview(results: list[dict]) -> plt.Figure:
-    """Horizontal bar chart — net GEX for all tickers. For email header."""
+def plot_overview(results: list[dict]) -> go.Figure:
+    """Horizontal bar chart — net GEX for all tickers."""
     from gex.report import TICKER_LABEL, REGIME_COLOR
 
     valid = [r for r in results if not r.get("error")]
@@ -226,26 +180,31 @@ def plot_overview(results: list[dict]) -> plt.Figure:
     values = [r["net_gex"] / 1e9 for r in valid]
     colors = [REGIME_COLOR.get(r["gamma_regime"], "#7f8c8d") for r in valid]
 
-    fig, ax = plt.subplots(figsize=(9, max(2.5, len(valid) * 0.45)))
-    bars = ax.barh(labels, values, color=colors, height=0.55)
-    ax.set_xlabel("Net GEX ($B)")
-    ax.set_title("Cross-Asset Gamma Exposure", fontsize=13, fontweight="bold", pad=10)
-    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:+.1f}B"))
-    ax.invert_yaxis()
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=values,
+        y=labels,
+        orientation="h",
+        marker_color=colors,
+        marker_line_width=0,
+        hovertemplate="%{y}: %{x:+.2f}B<extra></extra>",
+        text=[f"{v:+.2f}B" for v in values],
+        textposition="outside",
+        textfont_size=10,
+    ))
 
-    for bar, val in zip(bars, values):
-        ax.text(
-            val + (0.04 if val >= 0 else -0.04),
-            bar.get_y() + bar.get_height() / 2,
-            f"{val:+.2f}B",
-            va="center", ha="left" if val >= 0 else "right",
-            fontsize=9,
-        )
+    fig.add_vline(x=0, line_color="rgba(255,255,255,0.25)", line_width=1)
 
-    ax.axvline(0, color="#4b5563", lw=1)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    fig.tight_layout()
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(text="Cross-Asset Gamma Exposure", font_size=13),
+        xaxis_title="Net GEX ($B)",
+        xaxis_ticksuffix="B",
+        yaxis=dict(autorange="reversed"),
+        showlegend=False,
+        height=max(220, len(valid) * 34 + 80),
+        margin=dict(t=50, b=45, l=130, r=70),
+    )
     return fig
 
 

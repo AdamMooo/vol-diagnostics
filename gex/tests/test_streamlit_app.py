@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import matplotlib.pyplot as plt
 import pytest
 
 
@@ -22,9 +21,9 @@ def test_fetch_ticker_has_clear():
 
 
 def test_plot_overview_renders():
-    """DASH-04: plot_overview() returns a non-None Figure for a minimal result list."""
+    """DASH-04: plot_overview() returns a Plotly Figure for a minimal result list."""
+    import plotly.graph_objects as go
     from gex.analytics import plot_overview
     results = [{"ticker": "SPY", "net_gex": 1e9, "gamma_regime": "positive", "error": None}]
     fig = plot_overview(results)
-    assert fig is not None
-    plt.close(fig)
+    assert isinstance(fig, go.Figure)

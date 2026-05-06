@@ -3,10 +3,8 @@ from __future__ import annotations
 import time
 from datetime import datetime
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from gex.compute import compute_ticker
@@ -21,29 +19,6 @@ PURPOSE_TICKERS = ["NVDA", "TSLA", "AAPL", "AMD", "META", "AMZN",
 ALL_TICKERS = INDEX_TICKERS + PURPOSE_TICKERS
 
 _B = 1e9
-
-plt.rcParams.update({
-    "figure.figsize": (13, 5),
-    "figure.dpi": 100,
-    "figure.facecolor": "none",
-    "axes.facecolor": "none",
-    "axes.edgecolor": "#4b5563",
-    "axes.grid": True,
-    "grid.color": "#374151",
-    "grid.linewidth": 0.6,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "text.color": "#e5e7eb",
-    "axes.labelcolor": "#9ca3af",
-    "xtick.color": "#9ca3af",
-    "ytick.color": "#9ca3af",
-    "font.family": "sans-serif",
-    "font.size": 11,
-    "axes.titlesize": 12,
-    "axes.labelsize": 10,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-})
 
 st.set_page_config(
     page_title="GEX Dashboard",
@@ -141,35 +116,32 @@ def _derive_observations(summary: dict, spot: float, streak: int | None) -> list
     obs = []
     zgl = summary.get("zero_gamma_level")
     if zgl and spot:
-        diff = spot - zgl
-        pct = diff / zgl * 100
-        direction = "above" if diff > 0 else "below"
-        obs.append(f"Spot {abs(diff):.1f} pts {direction} zero-gamma ({abs(pct):.1f}%)")
+        pct = (spot - zgl) / zgl * 100
+        obs.append(f"{pct:+.1f}% vs ZGL")
 
     cw = summary.get("call_wall")
     pw = summary.get("put_wall")
     if cw and pw:
-        obs.append(f"GEX range {pw:.0f} – {cw:.0f} ({cw - pw:.0f} pts)")
+        obs.append(f"Range {pw:.0f}–{cw:.0f}")
 
     if streak and streak > 1:
-        obs.append(f"{summary.get('gamma_regime','').capitalize()} gamma — {streak} sessions")
+        obs.append(f"{streak}d streak")
 
     net_vex = summary.get("net_vex")
     net_gex = summary.get("net_gex")
     if net_vex and net_gex and abs(net_gex) > 0:
         ratio = net_vex / net_gex
         if abs(ratio) > 0.5:
-            obs.append(f"VEX/GEX {ratio:.2f} — vanna flow elevated vs gamma")
+            obs.append(f"VEX/GEX {ratio:.2f}")
 
     pct_chg = summary.get("price_change_pct")
     if pct_chg:
-        direction = "+" if pct_chg >= 0 else ""
-        obs.append(f"Underlying {direction}{pct_chg:.2f}% today")
+        obs.append(f"{pct_chg:+.2f}% today")
 
     ee_strikes = summary.get("early_exercise_strikes", 0)
     ee_oi = summary.get("early_exercise_oi", 0)
     if ee_strikes > 0:
-        obs.append(f"Early assignment: {ee_strikes} deep ITM call strikes ({ee_oi:,} OI) extrinsic <2%")
+        obs.append(f"EE: {ee_strikes} strikes ({ee_oi:,} OI)")
 
     return obs
 
@@ -228,7 +200,7 @@ def render_regime_card(col, summary: dict, spot: float | None = None,
     <span class="rc-k">Zero-&gamma;</span>  <span class="rc-v">{zgl_str}</span>
   </div>
   <div class="rc-obs">{obs_html}</div>
-  {_iv_pill(iv30 * 100, show=show_iv30)}
+  {_iv_pill(iv30, show=show_iv30)}
   {_vs_badge(vs)}
 </div>
 """, unsafe_allow_html=True)
@@ -255,8 +227,7 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
     if show_overview and len(data_list) > 1:
         summaries = [d["summary"] for d in data_list]
         fig = plot_overview(summaries)
-        st.pyplot(fig)
-        plt.close(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
     st.markdown('<div class="sec">Detail</div>', unsafe_allow_html=True)
     for data in data_list:
@@ -289,26 +260,32 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
 
             c1, c2 = st.columns([3, 2])
             with c1:
-                fig = plot_strike_gex(data["s_df"], spot, ticker, s)
-                st.pyplot(fig)
-                plt.close(fig)
+                st.plotly_chart(plot_strike_gex(data["s_df"], spot, ticker, s),
+                                use_container_width=True)
             with c2:
-                fig = plot_gamma_profile(data["p_df"], spot, ticker, s)
-                st.pyplot(fig)
-                plt.close(fig)
+                st.plotly_chart(plot_gamma_profile(data["p_df"], spot, ticker, s),
+                                use_container_width=True)
 
             hist30 = _load_history_cached(ticker, days=30)
             if not hist30.empty:
-                st.markdown("**ZGL vs Spot — 30 sessions**")
                 chart_df = hist30.sort_values("date")
-                fig, ax = plt.subplots(figsize=(12, 3))
-                ax.plot(chart_df["date"], chart_df["zero_gamma_level"], label="Zero-γ", linewidth=1.5)
-                ax.plot(chart_df["date"], chart_df["spot"], label="Spot", linewidth=1.2, linestyle="--")
-                ax.legend(fontsize=8)
-                fig.autofmt_xdate()
-                fig.tight_layout()
-                st.pyplot(fig)
-                plt.close(fig)
+                zgl_fig = go.Figure()
+                zgl_fig.add_trace(go.Scatter(
+                    x=chart_df["date"], y=chart_df["zero_gamma_level"],
+                    name="Zero-γ", line=dict(color="#f59e0b", width=1.5),
+                ))
+                zgl_fig.add_trace(go.Scatter(
+                    x=chart_df["date"], y=chart_df["spot"],
+                    name="Spot", line=dict(color="white", width=1.2, dash="dash"),
+                ))
+                zgl_fig.update_layout(
+                    template="plotly_dark",
+                    title="ZGL vs Spot — 30 sessions",
+                    height=220,
+                    margin=dict(t=40, b=30, l=60, r=20),
+                    legend=dict(orientation="h", y=1.15),
+                )
+                st.plotly_chart(zgl_fig, use_container_width=True)
 
                 counts = hist30["gamma_regime"].value_counts().reset_index()
                 counts.columns = ["Regime", "Sessions"]
@@ -364,7 +341,7 @@ if not all_data:
 # ── Index section ──────────────────────────────────────────────────────────────
 if sel_index:
     st.markdown('<div class="sec">Index</div>', unsafe_allow_html=True)
-    render_section(sel_index, all_data, n_cols=min(len(sel_index), 6), show_iv30=False, show_overview=True)
+    render_section(sel_index, all_data, n_cols=min(len(sel_index), 6), show_iv30=True, show_overview=True)
 
 # ── Purpose Yield Shares section ───────────────────────────────────────────────
 if sel_purpose:
