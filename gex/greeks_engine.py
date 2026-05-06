@@ -50,8 +50,8 @@ def bs_vanna(spot: float | np.ndarray, strike: float | np.ndarray,
     # Unsigned — sign convention (calls positive, puts negative) applied in Phase 2 compute_vex()
     # Returns 0 where T <= 0 or iv <= 0.
     strike = np.asarray(strike, dtype=float)
-    iv = np.asarray(iv, dtype=float)
-    T = np.asarray(T, dtype=float)
+    iv = np.broadcast_to(np.asarray(iv, dtype=float), strike.shape).copy()
+    T = np.broadcast_to(np.asarray(T, dtype=float), strike.shape).copy()
     spot = np.broadcast_to(np.asarray(spot, dtype=float), strike.shape).copy()
 
     valid = (T > 0) & (iv > 0) & (strike > 0) & (spot > 0)
@@ -73,8 +73,8 @@ def bs_charm(spot: float | np.ndarray, strike: float | np.ndarray,
     # T_MIN guard: rows where original T < 1/365 return 0.0 (delta locked at expiration).
     # Returns 0 where T <= 0 or iv <= 0.
     strike = np.asarray(strike, dtype=float)
-    iv = np.asarray(iv, dtype=float)
-    T = np.asarray(T, dtype=float)
+    iv = np.broadcast_to(np.asarray(iv, dtype=float), strike.shape).copy()
+    T = np.broadcast_to(np.asarray(T, dtype=float), strike.shape).copy()
     spot = np.broadcast_to(np.asarray(spot, dtype=float), strike.shape).copy()
 
     valid = (T > 0) & (iv > 0) & (strike > 0) & (spot > 0)
