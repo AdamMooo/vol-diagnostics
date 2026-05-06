@@ -119,7 +119,26 @@ def fetch_ticker(ticker: str) -> dict:
     return compute_ticker(ticker)
 
 
-def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
+@st.cache_data(ttl=1800, show_spinner=False)
+def _load_history_cached(ticker: str, days: int = 30) -> pd.DataFrame:
+    from gex.validation import load_history
+    return load_history(ticker, days)
+
+
+def _compute_streak(hist_df: pd.DataFrame, current_regime: str) -> int | None:
+    """Count consecutive trailing sessions (index 0 = most recent) matching current_regime."""
+    if hist_df.empty:
+        return None
+    count = 0
+    for regime in hist_df["gamma_regime"]:
+        if regime == current_regime:
+            count += 1
+        else:
+            break
+    return count if count > 0 else None
+
+
+def render_regime_card(col, summary: dict, spot: float | None = None, streak: int | None = None) -> None:
     ticker = summary["ticker"]
     regime = summary.get("gamma_regime", "neutral")
     color = REGIME_COLOR.get(regime, "#999")
@@ -132,6 +151,10 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
     zgl_str = f"{zgl:.1f}" if zgl is not None else "—"
     spot_str = f"{spot:,.2f}" if spot else "—"
     vs = summary.get("vs_yesterday")
+    streak_row = (
+        f'<span class="rc-k">Streak</span><span class="rc-v">{streak} sessions</span>'
+        if streak is not None else ""
+    )
 
     col.markdown(f"""
 <div class="rc" style="background:{bg};border-left-color:{color};">
@@ -143,6 +166,7 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
     <span class="rc-k">VEX</span>        <span class="rc-v">{net_vex_b:+.2f}B</span>
     <span class="rc-k">&Delta;-flow</span><span class="rc-v">{df_str}</span>
     <span class="rc-k">Zero-&gamma;</span><span class="rc-v">{zgl_str}</span>
+    {streak_row}
   </div>
   {_vs_badge(vs)}
 </div>
