@@ -33,6 +33,7 @@ def save_snapshot(summary: dict, ticker: str) -> None:
         "zero_gamma_level": summary.get("zero_gamma_level"),
         "call_wall": summary.get("call_wall"),
         "put_wall": summary.get("put_wall"),
+        "vanna_exposure": summary.get("net_vex"),
     }
 
     if STORE.exists():
@@ -46,6 +47,49 @@ def save_snapshot(summary: dict, ticker: str) -> None:
 
     hist.to_parquet(STORE, index=False)
     print(f"[gex] Snapshot saved ({len(hist)} rows total): {STORE}")
+
+
+def load_yesterday(ticker: str, today: datetime.date | None = None) -> "pd.Series | None":
+    if not STORE.exists():
+        return None
+    try:
+        import pandas_market_calendars as mcal
+        target = today or datetime.date.today()
+        nyse = mcal.get_calendar("NYSE")
+        sched = nyse.schedule(
+            start_date=(target - datetime.timedelta(days=10)).strftime("%Y-%m-%d"),
+            end_date=(target - datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+        )
+        if sched.empty:
+            return None
+        prior_date = sched.index[-1].date()
+        hist = pd.read_parquet(STORE)
+        hist["date"] = pd.to_datetime(hist["date"]).dt.date
+        row = hist[(hist["date"] == prior_date) & (hist["ticker"] == ticker)]
+        return row.iloc[0] if not row.empty else None
+    except Exception:
+        return None
+
+
+def _classify_vs_yesterday(net_gex_today: float, regime_today: str,
+                            prior: "pd.Series") -> str:
+    def _sign(r: str) -> int:
+        return 1 if r == "positive" else (-1 if r == "negative" else 0)
+
+    regime_prior = prior["gamma_regime"]
+    net_gex_prior = float(prior["net_gex"])
+
+    if _sign(regime_today) != _sign(regime_prior):
+        return "FLIPPED"
+    if abs(net_gex_prior) == 0:
+        return "UNCHANGED"
+    ratio = abs(net_gex_today) / abs(net_gex_prior)
+    if ratio > 1.05:
+        return "INTENSIFIED"
+    elif ratio < 0.95:
+        return "EASED"
+    else:
+        return "UNCHANGED"
 
 
 def event_study(ticker: str = "SPY", lookahead: int = 1) -> pd.DataFrame:
