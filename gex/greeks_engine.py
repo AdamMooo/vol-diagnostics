@@ -111,13 +111,7 @@ def add_greeks(df: pd.DataFrame, spot: float, today=None,
 
     df = df.copy()
     df["T_years"] = (pd.to_datetime(df["expiry"]) - pd.Timestamp(today)).dt.days / 365.0
-    df["gamma"] = bs_gamma(
-        spot=spot,
-        strike=df["strike"].to_numpy(),
-        iv=df["iv"].to_numpy(),
-        T=df["T_years"].to_numpy(),
-        r=r,
-    )
+
     df["vanna"] = bs_vanna(
         spot=spot,
         strike=df["strike"].to_numpy(),

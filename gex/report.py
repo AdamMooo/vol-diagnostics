@@ -32,13 +32,16 @@ TICKER_LABEL = {
     "SPY": "SPY  S&P 500",
     "QQQ": "QQQ  Nasdaq 100",
     "IWM": "IWM  Russell 2000",
+    "NVDA": "NVDA  Nvidia",
+    "TSLA": "TSLA  Tesla",
+    "AAPL": "AAPL  Apple",
     "XLF": "XLF  Financials",
+    "GLD": "GLD  Gold",
+    "TLT": "TLT  20yr Treasury",
     "EEM": "EEM  MSCI EM",
     "EFA": "EFA  MSCI EAFE",
     "EWJ": "EWJ  Japan",
-    "TLT": "TLT  20yr Treasury",
     "HYG": "HYG  High Yield",
-    "GLD": "GLD  Gold",
 }
 
 
@@ -330,7 +333,7 @@ def build_email(results: list[dict],
   <h2 style="color:#2c3e50;margin-bottom:2px;font-size:20px;">GEX Daily Report</h2>
   <p style="color:#95a5a6;margin-top:0;margin-bottom:16px;font-size:12px;">
     {date.strftime("%A, %B %d, %Y").replace(" 0", " ")}
-    &nbsp;&middot;&nbsp; yfinance chains &nbsp;&middot;&nbsp; Dealer gamma exposure proxy
+    &nbsp;&middot;&nbsp; CBOE delayed chains &nbsp;&middot;&nbsp; Dealer gamma exposure proxy
   </p>
 
   {narrative}
