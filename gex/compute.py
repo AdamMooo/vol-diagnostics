@@ -54,6 +54,8 @@ def compute_ticker(ticker: str) -> dict:
         delta_hedge_flow=delta_hedge_flow,
     )
     summary["ticker"] = ticker
+    summary["iv30"] = snapshot.iv30
+    summary["price_change_pct"] = snapshot.price_change_pct
 
     prior = load_yesterday(ticker)
     summary["vs_yesterday"] = (

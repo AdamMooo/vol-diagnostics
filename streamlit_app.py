@@ -13,7 +13,12 @@ from gex.compute import compute_ticker
 from gex.analytics import plot_overview, plot_strike_gex, plot_gamma_profile
 from gex.report import REGIME_COLOR
 
-TICKERS = ["SPY", "QQQ", "IWM", "NVDA", "TSLA", "AAPL", "XLF", "GLD", "TLT"]
+INDEX_TICKERS = ["SPY", "QQQ", "IWM", "XLF", "GLD", "TLT"]
+
+PURPOSE_TICKERS = ["NVDA", "TSLA", "AAPL", "AMD", "META", "AMZN",
+                   "GOOGL", "MSFT", "AVGO", "COIN", "COST", "NFLX", "PLTR", "UNH"]
+
+ALL_TICKERS = INDEX_TICKERS + PURPOSE_TICKERS
 
 _B = 1e9
 
@@ -81,7 +86,7 @@ _CSS = """
     font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em;
     text-transform: uppercase; color: #64748b;
     border-bottom: 1px solid rgba(148,163,184,0.25);
-    padding-bottom: 5px; margin-bottom: 8px; margin-top: 18px;
+    padding-bottom: 5px; margin-bottom: 10px; margin-top: 22px;
 }
 
 .rc {
@@ -94,24 +99,29 @@ _CSS = """
 .rc-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 0.80rem; }
 .rc-k { opacity: 0.55; }
 .rc-v { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
-.rc-obs { font-size: 0.72rem; opacity: 0.70; margin-top: 10px; line-height: 1.5; }
+.rc-obs { font-size: 0.72rem; opacity: 0.70; margin-top: 10px; line-height: 1.6; }
 
+.iv-pill {
+    display: inline-block; font-size: 0.65rem; font-weight: 700;
+    letter-spacing: 0.06em; padding: 3px 10px; border-radius: 12px;
+    margin-top: 10px; background: rgba(148,163,184,0.12);
+}
 .badge {
     display: inline-block; font-size: 0.58rem; font-weight: 700;
     letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 2px 8px; border-radius: 3px; margin-top: 8px;
+    padding: 2px 8px; border-radius: 3px; margin-top: 6px;
     background: rgba(148,163,184,0.15); opacity: 0.8;
 }
 .badge-flip { background: rgba(220,38,38,0.18); color: #f87171; opacity: 1; }
-.badge-int  { background: rgba(217,119,6,0.18); color: #fbbf24; opacity: 1; }
-.badge-ease { background: rgba(37,99,235,0.18); color: #60a5fa; opacity: 1; }
+.badge-int  { background: rgba(217,119,6,0.18);  color: #fbbf24; opacity: 1; }
+.badge-ease { background: rgba(37,99,235,0.18);  color: #60a5fa; opacity: 1; }
 </style>
 """
 
 _VS_CLASS = {
-    "FLIPPED": "badge badge-flip",
+    "FLIPPED":     "badge badge-flip",
     "INTENSIFIED": "badge badge-int",
-    "EASED": "badge badge-ease",
+    "EASED":       "badge badge-ease",
 }
 
 
@@ -121,8 +131,13 @@ def _vs_badge(vs: str | None) -> str:
     return f'<span class="{_VS_CLASS.get(vs, "badge")}">{vs}</span>'
 
 
+def _iv_pill(iv30: float, show: bool = True) -> str:
+    if not show or not iv30:
+        return ""
+    return f'<span class="iv-pill">IV30 &nbsp; {iv30:.1f}%</span>'
+
+
 def _derive_observations(summary: dict, spot: float, streak: int | None) -> list[str]:
-    """Compute factual observations from the data — no opinions, no action items."""
     obs = []
     zgl = summary.get("zero_gamma_level")
     if zgl and spot:
@@ -134,19 +149,22 @@ def _derive_observations(summary: dict, spot: float, streak: int | None) -> list
     cw = summary.get("call_wall")
     pw = summary.get("put_wall")
     if cw and pw:
-        spread = cw - pw
-        obs.append(f"GEX range {pw:.0f}–{cw:.0f} ({spread:.0f} pts wide)")
+        obs.append(f"GEX range {pw:.0f} – {cw:.0f} ({cw - pw:.0f} pts)")
 
     if streak and streak > 1:
-        regime = summary.get("gamma_regime", "")
-        obs.append(f"{regime.capitalize()} gamma for {streak} consecutive sessions")
+        obs.append(f"{summary.get('gamma_regime','').capitalize()} gamma — {streak} sessions")
 
     net_vex = summary.get("net_vex")
     net_gex = summary.get("net_gex")
-    if net_vex is not None and net_gex and abs(net_gex) > 0:
+    if net_vex and net_gex and abs(net_gex) > 0:
         ratio = net_vex / net_gex
-        if abs(ratio) > 0.3:
-            obs.append(f"VEX/GEX ratio {ratio:.2f} — vanna flow material relative to gamma")
+        if abs(ratio) > 0.5:
+            obs.append(f"VEX/GEX {ratio:.2f} — vanna flow elevated vs gamma")
+
+    pct_chg = summary.get("price_change_pct")
+    if pct_chg:
+        direction = "+" if pct_chg >= 0 else ""
+        obs.append(f"Underlying {direction}{pct_chg:.2f}% today")
 
     return obs
 
@@ -174,7 +192,8 @@ def _compute_streak(hist_df: pd.DataFrame, current_regime: str) -> int | None:
     return count if count > 0 else None
 
 
-def render_regime_card(col, summary: dict, spot: float | None = None, streak: int | None = None) -> None:
+def render_regime_card(col, summary: dict, spot: float | None = None,
+                       streak: int | None = None, show_iv30: bool = False) -> None:
     ticker = summary["ticker"]
     regime = summary.get("gamma_regime", "neutral")
     color = REGIME_COLOR.get(regime, "#999")
@@ -187,6 +206,7 @@ def render_regime_card(col, summary: dict, spot: float | None = None, streak: in
     zgl_str = f"{zgl:.1f}" if zgl is not None else "—"
     spot_str = f"{spot:,.2f}" if spot else "—"
     vs = summary.get("vs_yesterday")
+    iv30 = summary.get("iv30", 0.0)
 
     obs = _derive_observations(summary, spot or 0, streak)
     obs_html = "".join(f"<div>{o}</div>" for o in obs)
@@ -196,16 +216,99 @@ def render_regime_card(col, summary: dict, spot: float | None = None, streak: in
   <div class="rc-ticker" style="color:{color};">{ticker}</div>
   <div class="rc-regime" style="color:{color};">{regime}</div>
   <div class="rc-grid">
-    <span class="rc-k">Spot</span>        <span class="rc-v">{spot_str}</span>
-    <span class="rc-k">Net GEX</span>     <span class="rc-v">{net_gex_b:+.2f}B</span>
-    <span class="rc-k">VEX</span>         <span class="rc-v">{net_vex_b:+.2f}B</span>
-    <span class="rc-k">&Delta;-flow</span> <span class="rc-v">{df_str}</span>
-    <span class="rc-k">Zero-&gamma;</span> <span class="rc-v">{zgl_str}</span>
+    <span class="rc-k">Spot</span>         <span class="rc-v">{spot_str}</span>
+    <span class="rc-k">Net GEX</span>      <span class="rc-v">{net_gex_b:+.2f}B</span>
+    <span class="rc-k">VEX</span>          <span class="rc-v">{net_vex_b:+.2f}B</span>
+    <span class="rc-k">&Delta;-flow</span>  <span class="rc-v">{df_str}</span>
+    <span class="rc-k">Zero-&gamma;</span>  <span class="rc-v">{zgl_str}</span>
   </div>
   <div class="rc-obs">{obs_html}</div>
+  {_iv_pill(iv30 * 100, show=show_iv30)}
   {_vs_badge(vs)}
 </div>
 """, unsafe_allow_html=True)
+
+
+def render_section(tickers: list[str], all_data: dict[str, dict],
+                   n_cols: int = 5, show_iv30: bool = False,
+                   show_overview: bool = True) -> None:
+    data_list = [all_data[t] for t in tickers if t in all_data and not all_data[t]["summary"].get("error")]
+
+    if not data_list:
+        st.info("No data loaded for this section.")
+        return
+
+    rows = [data_list[i:i + n_cols] for i in range(0, len(data_list), n_cols)]
+    for row in rows:
+        cols = st.columns(n_cols)
+        for col, data in zip(cols, row):
+            s = data["summary"]
+            hist = _load_history_cached(s["ticker"], days=30)
+            streak = _compute_streak(hist, s.get("gamma_regime", "neutral"))
+            render_regime_card(col, s, spot=data.get("spot"), streak=streak, show_iv30=show_iv30)
+
+    if show_overview and len(data_list) > 1:
+        summaries = [d["summary"] for d in data_list]
+        fig = plot_overview(summaries)
+        st.pyplot(fig)
+        plt.close(fig)
+
+    st.markdown('<div class="sec">Detail</div>', unsafe_allow_html=True)
+    for data in data_list:
+        s = data["summary"]
+        ticker = s["ticker"]
+        regime = s.get("gamma_regime", "neutral")
+        spot = data.get("spot")
+        zgl = s.get("zero_gamma_level")
+        cw = s.get("call_wall")
+        pw = s.get("put_wall")
+        iv30 = s.get("iv30", 0.0)
+
+        label = f"{ticker}  ·  {regime.upper()}"
+        if show_iv30 and iv30:
+            label += f"  ·  IV30 {iv30:.1f}%"
+
+        with st.expander(label, expanded=False):
+            row = {
+                "Spot": f"{spot:,.2f}" if spot else "—",
+                "Net GEX": f"{(s.get('net_gex') or 0) / _B:+.2f}B",
+                "VEX": f"{(s.get('net_vex') or 0) / _B:+.2f}B",
+                "CHEX": f"{(s.get('net_chex') or 0) / _B:+.2f}B",
+                "Zero-γ": f"{zgl:.2f}" if zgl is not None else "—",
+                "Call Wall": f"{cw:.0f}" if cw is not None else "—",
+                "Put Wall": f"{pw:.0f}" if pw is not None else "—",
+            }
+            if show_iv30 and iv30:
+                row["IV30"] = f"{iv30:.1f}%"
+            st.dataframe(pd.DataFrame([row]), hide_index=True, use_container_width=True)
+
+            c1, c2 = st.columns([3, 2])
+            with c1:
+                fig = plot_strike_gex(data["s_df"], spot, ticker, s)
+                st.pyplot(fig)
+                plt.close(fig)
+            with c2:
+                fig = plot_gamma_profile(data["p_df"], spot, ticker, s)
+                st.pyplot(fig)
+                plt.close(fig)
+
+            hist30 = _load_history_cached(ticker, days=30)
+            if not hist30.empty:
+                st.markdown("**ZGL vs Spot — 30 sessions**")
+                chart_df = hist30.sort_values("date")
+                fig, ax = plt.subplots(figsize=(12, 3))
+                ax.plot(chart_df["date"], chart_df["zero_gamma_level"], label="Zero-γ", linewidth=1.5)
+                ax.plot(chart_df["date"], chart_df["spot"], label="Spot", linewidth=1.2, linestyle="--")
+                ax.legend(fontsize=8)
+                fig.autofmt_xdate()
+                fig.tight_layout()
+                st.pyplot(fig)
+                plt.close(fig)
+
+                counts = hist30["gamma_regime"].value_counts().reset_index()
+                counts.columns = ["Regime", "Sessions"]
+                counts["% Days"] = (counts["Sessions"] / counts["Sessions"].sum() * 100).round(1).astype(str) + "%"
+                st.dataframe(counts, hide_index=True, use_container_width=True)
 
 
 # ── Boot ──────────────────────────────────────────────────────────────────────
@@ -214,7 +317,10 @@ st.markdown(_CSS, unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("### GEX Monitor")
-    selected = st.multiselect("Tickers", TICKERS, default=TICKERS)
+    st.markdown("**Index**")
+    sel_index = st.multiselect("", INDEX_TICKERS, default=INDEX_TICKERS, key="sel_index", label_visibility="collapsed")
+    st.markdown("**Purpose Yield Shares**")
+    sel_purpose = st.multiselect("", PURPOSE_TICKERS, default=PURPOSE_TICKERS, key="sel_purpose", label_visibility="collapsed")
     st.caption(f"Cache: 5 min · {datetime.now().strftime('%H:%M')} local")
     st.divider()
     if st.button("Refresh data", use_container_width=True):
@@ -225,24 +331,23 @@ with st.sidebar:
 st.markdown("## GEX Dashboard")
 st.caption(f"Dealer gamma exposure · CBOE chains · {datetime.now().strftime('%A %B %d, %Y').replace(' 0', ' ')}")
 
-if not selected:
+selected_all = sel_index + sel_purpose
+if not selected_all:
     st.info("Select at least one ticker in the sidebar.")
     st.stop()
 
 # ── Fetch all tickers ──────────────────────────────────────────────────────────
-all_data: list[dict] = []
+all_data: dict[str, dict] = {}
 errors: list[str] = []
 
-fetch_cols = st.columns(len(selected))
-for i, ticker in enumerate(selected):
-    with fetch_cols[i]:
-        with st.spinner(ticker):
-            if i > 0:
-                time.sleep(0.2)
-            try:
-                all_data.append(fetch_ticker(ticker))
-            except Exception as exc:
-                errors.append(f"{ticker}: {exc}")
+with st.spinner("Loading chains from CBOE..."):
+    for i, ticker in enumerate(selected_all):
+        if i > 0:
+            time.sleep(0.15)
+        try:
+            all_data[ticker] = fetch_ticker(ticker)
+        except Exception as exc:
+            errors.append(f"{ticker}: {exc}")
 
 for err in errors:
     st.error(err)
@@ -251,85 +356,13 @@ if not all_data:
     st.warning("No data loaded.")
     st.stop()
 
-# ── Regime grid ───────────────────────────────────────────────────────────────
-st.markdown('<div class="sec">Regime Summary</div>', unsafe_allow_html=True)
+# ── Index section ──────────────────────────────────────────────────────────────
+if sel_index:
+    st.markdown('<div class="sec">Index</div>', unsafe_allow_html=True)
+    render_section(sel_index, all_data, n_cols=min(len(sel_index), 6), show_iv30=False, show_overview=True)
 
-n_cols = min(len(all_data), 5)
-rows = [all_data[i:i+n_cols] for i in range(0, len(all_data), n_cols)]
-for row in rows:
-    cols = st.columns(n_cols)
-    for col, data in zip(cols, row):
-        s = data["summary"]
-        if s.get("error"):
-            col.error(f"{s['ticker']}: {s['error']}")
-        else:
-            hist = _load_history_cached(s["ticker"], days=30)
-            streak = _compute_streak(hist, s.get("gamma_regime", "neutral"))
-            render_regime_card(col, s, spot=data.get("spot"), streak=streak)
-
-# ── Cross-asset overview ───────────────────────────────────────────────────────
-clean_summaries = [d["summary"] for d in all_data if not d["summary"].get("error")]
-if len(clean_summaries) > 1:
-    st.markdown('<div class="sec">Cross-Asset GEX</div>', unsafe_allow_html=True)
-    fig = plot_overview(clean_summaries)
-    st.pyplot(fig)
-    plt.close(fig)
-
-# ── Per-ticker detail ──────────────────────────────────────────────────────────
-st.markdown('<div class="sec">Detail</div>', unsafe_allow_html=True)
-
-for data in all_data:
-    s = data["summary"]
-    ticker = s["ticker"]
-    if s.get("error"):
-        continue
-
-    regime = s.get("gamma_regime", "neutral")
-    zgl = s.get("zero_gamma_level")
-    cw = s.get("call_wall")
-    pw = s.get("put_wall")
-    spot = data.get("spot")
-
-    with st.expander(f"{ticker}  ·  {regime.upper()}", expanded=False):
-        # Key metrics row
-        metrics = {
-            "Spot": f"{spot:,.2f}" if spot else "—",
-            "Net GEX": f"{(s.get('net_gex') or 0)/_B:+.2f}B",
-            "VEX": f"{(s.get('net_vex') or 0)/_B:+.2f}B",
-            "CHEX": f"{(s.get('net_chex') or 0)/_B:+.2f}B",
-            "Zero-γ": f"{zgl:.2f}" if zgl is not None else "—",
-            "Call Wall": f"{cw:.0f}" if cw is not None else "—",
-            "Put Wall": f"{pw:.0f}" if pw is not None else "—",
-        }
-        st.dataframe(pd.DataFrame([metrics]), hide_index=True, use_container_width=True)
-
-        # Charts side by side
-        c1, c2 = st.columns([3, 2])
-        with c1:
-            fig = plot_strike_gex(data["s_df"], spot, ticker, s)
-            st.pyplot(fig)
-            plt.close(fig)
-        with c2:
-            fig = plot_gamma_profile(data["p_df"], spot, ticker, s)
-            st.pyplot(fig)
-            plt.close(fig)
-
-        # Historical context — ZGL vs spot trend
-        hist30 = _load_history_cached(ticker, days=30)
-        if not hist30.empty:
-            st.markdown("**ZGL vs Spot — 30 sessions**")
-            chart_df = hist30.sort_values("date")
-            fig, ax = plt.subplots(figsize=(12, 3))
-            ax.plot(chart_df["date"], chart_df["zero_gamma_level"], label="Zero-γ", linewidth=1.5)
-            ax.plot(chart_df["date"], chart_df["spot"], label="Spot", linewidth=1.2, linestyle="--")
-            ax.legend(fontsize=8)
-            fig.autofmt_xdate()
-            fig.tight_layout()
-            st.pyplot(fig)
-            plt.close(fig)
-
-            # Regime persistence table
-            counts = hist30["gamma_regime"].value_counts().reset_index()
-            counts.columns = ["Regime", "Sessions"]
-            counts["% Days"] = (counts["Sessions"] / counts["Sessions"].sum() * 100).round(1).astype(str) + "%"
-            st.dataframe(counts, hide_index=True, use_container_width=True)
+# ── Purpose Yield Shares section ───────────────────────────────────────────────
+if sel_purpose:
+    st.markdown('<div class="sec">Purpose Yield Shares</div>', unsafe_allow_html=True)
+    st.caption("Underlyings for weekly options writing. IV30 = CBOE 30-day implied vol.")
+    render_section(sel_purpose, all_data, n_cols=5, show_iv30=True, show_overview=True)

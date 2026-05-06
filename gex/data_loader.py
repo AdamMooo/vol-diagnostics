@@ -24,6 +24,8 @@ class ChainSnapshot:
     spot: float
     as_of: datetime.date
     chains: pd.DataFrame  # columns: expiry, strike, type, oi, iv, bid, ask
+    iv30: float = 0.0            # CBOE 30-day implied vol for the underlying
+    price_change_pct: float = 0.0  # underlying day % change
 
 
 def _parse_symbol(sym: str, ticker: str) -> tuple[datetime.date, str, float] | None:
@@ -61,6 +63,8 @@ def load_chain(
 
     data = payload["data"]
     spot = float(data.get("current_price") or 0.0)
+    iv30 = float(data.get("iv30") or 0.0)
+    price_change_pct = float(data.get("price_change_percent") or 0.0)
     today = datetime.date.today()
 
     rows: list[dict] = []
@@ -97,4 +101,5 @@ def load_chain(
         )
 
     chains = pd.DataFrame(rows)
-    return ChainSnapshot(ticker=ticker, spot=spot, as_of=today, chains=chains)
+    return ChainSnapshot(ticker=ticker, spot=spot, as_of=today, chains=chains,
+                         iv30=iv30, price_change_pct=price_change_pct)
