@@ -233,6 +233,23 @@ def build_email(
         f'Failed to load: {", ".join(failed)}</p>' if failed else ""
     )
 
+    purpose_block = (
+        f'{_section_header("Purpose Yield Shares")}\n  {_purpose_table(purpose_results)}'
+        if purpose_results else ""
+    )
+
+    methodology_footer = (
+        '<div style="font-size:10px;color:#64748b;line-height:1.6;margin-top:20px;'
+        'padding-top:14px;border-top:1px solid #e2e8f0;">'
+        '<b>Methodology</b> &middot; Full-chain &ge;1 DTE &middot; OI as of prior session close. '
+        'Net GEX absolute magnitude is methodology-dependent across commercial sources '
+        '(Barchart 4 nearby expiries; InsiderFinance full chain incl. 0DTE; this tool &ge;1 DTE) '
+        '&mdash; use sign and order of magnitude. ZGL, put wall, and call wall are robust and load-bearing. '
+        '<br><b>Universe</b> &middot; SPY / QQQ / IWM only &mdash; tickers where the standard dealer positioning '
+        'convention (long calls, short puts) is empirically defensible.'
+        '</div>'
+    )
+
     return f"""
 <html><body style="font-family:Arial,sans-serif;background:#f0f2f5;margin:0;padding:0;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;">
@@ -240,13 +257,14 @@ def build_email(
     <table width="820" cellpadding="0" cellspacing="0" style="width:820px;max-width:820px;">
       <tr><td>
 
-  {_section_header("Index")}
+  {_section_header("Equity Index Dealer Flow")}
   {_index_table(index_results)}
 
-  {_section_header("Purpose Yield Shares")}
-  {_purpose_table(purpose_results)}
+  {purpose_block}
 
   {failed_note}
+
+  {methodology_footer}
 
       </td></tr>
     </table>

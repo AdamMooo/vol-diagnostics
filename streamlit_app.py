@@ -11,12 +11,7 @@ from gex.compute import compute_ticker
 from gex.analytics import plot_overview, plot_strike_gex, plot_gamma_profile
 from gex.report import REGIME_COLOR
 
-INDEX_TICKERS = ["SPY", "QQQ", "IWM", "XLF", "GLD", "TLT"]
-
-PURPOSE_TICKERS = ["NVDA", "TSLA", "AAPL", "AMD", "META", "AMZN",
-                   "GOOGL", "MSFT", "AVGO", "COIN", "COST", "NFLX", "PLTR", "UNH"]
-
-ALL_TICKERS = INDEX_TICKERS + PURPOSE_TICKERS
+INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 
 _B = 1e9
 
@@ -299,21 +294,21 @@ st.markdown(_CSS, unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("### GEX Monitor")
-    st.markdown("**Index**")
+    st.markdown("**Equity Index Dealer Flow**")
     sel_index = st.multiselect("", INDEX_TICKERS, default=INDEX_TICKERS, key="sel_index", label_visibility="collapsed")
-    st.markdown("**Purpose Yield Shares**")
-    sel_purpose = st.multiselect("", PURPOSE_TICKERS, default=PURPOSE_TICKERS, key="sel_purpose", label_visibility="collapsed")
     st.caption(f"Cache: 5 min · {datetime.now().strftime('%H:%M')} local")
     st.divider()
     if st.button("Refresh data", use_container_width=True):
         fetch_ticker.clear()
         st.rerun()
     st.caption("CBOE delayed · 15-min lag")
+    st.caption("OI as of: prior session close")
+    st.caption("Full-chain (≥1 DTE) · 0DTE excluded for math consistency across GEX/VEX/CHEX")
 
 st.markdown("## GEX Dashboard")
-st.caption(f"Dealer gamma exposure · CBOE chains · {datetime.now().strftime('%A %B %d, %Y').replace(' 0', ' ')}")
+st.caption(f"Equity Index Dealer Flow: SPY · QQQ · IWM  ·  {datetime.now().strftime('%A %B %d, %Y').replace(' 0', ' ')}")
 
-selected_all = sel_index + sel_purpose
+selected_all = sel_index
 if not selected_all:
     st.info("Select at least one ticker in the sidebar.")
     st.stop()
@@ -340,11 +335,18 @@ if not all_data:
 
 # ── Index section ──────────────────────────────────────────────────────────────
 if sel_index:
-    st.markdown('<div class="sec">Index</div>', unsafe_allow_html=True)
-    render_section(sel_index, all_data, n_cols=min(len(sel_index), 6), show_iv30=True, show_overview=True)
+    render_section(sel_index, all_data, n_cols=min(len(sel_index), 3), show_iv30=True, show_overview=True)
 
-# ── Purpose Yield Shares section ───────────────────────────────────────────────
-if sel_purpose:
-    st.markdown('<div class="sec">Purpose Yield Shares</div>', unsafe_allow_html=True)
-    st.caption("Underlyings for weekly options writing. IV30 = CBOE 30-day implied vol.")
-    render_section(sel_purpose, all_data, n_cols=5, show_iv30=True, show_overview=True)
+# ── Methodology footer ────────────────────────────────────────────────────────
+st.divider()
+st.caption(
+    "**Methodology** · Full-chain ≥1 DTE · OI as of prior session close · "
+    "Net GEX absolute magnitude is methodology-dependent across commercial sources "
+    "(Barchart 4 nearby expiries; InsiderFinance full chain incl. 0DTE; this tool ≥1 DTE) — "
+    "use sign and order of magnitude. ZGL, put wall, and call wall are robust and load-bearing."
+)
+st.caption(
+    "**Universe** · SPY / QQQ / IWM only. Tickers limited to those where the standard "
+    "dealer positioning convention (long calls, short puts) is empirically defensible. "
+    "Not applied to single names or covered-call writers."
+)

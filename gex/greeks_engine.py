@@ -17,6 +17,9 @@ import pandas as pd
 from scipy.stats import norm
 
 
+T_MIN = 1.0 / 365.0
+
+
 def bs_gamma(spot: float | np.ndarray, strike: float | np.ndarray,
              iv: float | np.ndarray, T: float | np.ndarray,
              r: float = 0.05) -> float | np.ndarray:
@@ -27,7 +30,9 @@ def bs_gamma(spot: float | np.ndarray, strike: float | np.ndarray,
     r:  continuously compounded risk-free rate
     iv: annualized implied volatility (0.20 = 20%)
 
-    Returns 0 where T <= 0 or iv <= 0.
+    Returns 0 where T <= 0 or iv <= 0. Applies T_MIN floor (1/365) to prevent
+    singularity at ATM as T → 0 — used by gamma_profile() when sweeping spot
+    across an option grid that may contain very-near-expiry options.
     """
     strike = np.asarray(strike, dtype=float)
     iv = np.asarray(iv, dtype=float)
@@ -38,13 +43,11 @@ def bs_gamma(spot: float | np.ndarray, strike: float | np.ndarray,
     gamma = np.zeros(strike.shape, dtype=float)
 
     s, k, v, t = spot[valid], strike[valid], iv[valid], T[valid]
-    d1 = (np.log(s / k) + (r + 0.5 * v**2) * t) / (v * np.sqrt(t))
-    gamma[valid] = norm.pdf(d1) / (s * v * np.sqrt(t))
+    t_guarded = np.maximum(t, T_MIN)
+    d1 = (np.log(s / k) + (r + 0.5 * v**2) * t_guarded) / (v * np.sqrt(t_guarded))
+    gamma[valid] = norm.pdf(d1) / (s * v * np.sqrt(t_guarded))
 
     return gamma if gamma.ndim > 0 else float(gamma)
-
-
-T_MIN = 1.0 / 365.0
 
 
 def bs_vanna(spot: float | np.ndarray, strike: float | np.ndarray,

@@ -50,15 +50,18 @@ def _parse_symbol(sym: str, ticker: str) -> tuple[datetime.date, str, float] | N
 def load_chain(
     ticker: str = "SPY",
     min_oi: int = 100,
-    min_dte: int = 7,
+    min_dte: int = 1,
     max_iv: float = 3.0,
 ) -> ChainSnapshot:
     """
     Fetch all listed expiries for ticker from CBOE delayed quotes and return a ChainSnapshot.
 
     min_oi: drop options with fewer than this many contracts open interest.
-    min_dte: skip expiries closer than this many calendar days (excludes 0DTE/weeklies
-             that cause gamma blowup when swept spot crosses ATM with tiny T).
+    min_dte: skip expiries closer than this many calendar days. Locked at 1 — excludes
+             0DTE only. At T→0 ATM, BS gamma and charm are mathematically singular while
+             vanna approaches zero cleanly; including 0DTE would require invented T_min
+             floors for two of three Greek columns and not the third, producing
+             inconsistent treatment across GEX/VEX/CHEX. See .planning/milestones/v3.1-SCOPE.md.
     max_iv: drop options with IV above this threshold (stale/garbage quotes).
     """
     url = _CBOE_URL.format(ticker=ticker)

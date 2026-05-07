@@ -21,10 +21,8 @@ from gex.validation import save_snapshot
 from gex import report as rpt
 from gex import emailer
 
-INDEX_TICKERS   = ["SPY", "QQQ", "IWM", "XLF", "GLD", "TLT"]
-PURPOSE_TICKERS = ["NVDA", "TSLA", "AAPL", "AMD", "META", "AMZN",
-                   "GOOGL", "MSFT", "AVGO", "COIN", "COST", "NFLX", "PLTR", "UNH"]
-ALL_TICKERS = INDEX_TICKERS + PURPOSE_TICKERS
+INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
+ALL_TICKERS = INDEX_TICKERS
 
 OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out"
 ET = pytz.timezone("America/New_York")
@@ -69,15 +67,13 @@ def run(dry_run: bool = False) -> None:
         else:
             print(f"ERROR: {s['error']}")
 
-    index_results   = [d["summary"] for d in all_data if d["summary"]["ticker"] in INDEX_TICKERS]
-    purpose_results = [d["summary"] for d in all_data if d["summary"]["ticker"] in PURPOSE_TICKERS]
-    all_results     = [d["summary"] for d in all_data]
-    good            = [d for d in all_data if not d["summary"].get("error")]
+    index_results = [d["summary"] for d in all_data if d["summary"]["ticker"] in INDEX_TICKERS]
+    good          = [d for d in all_data if not d["summary"].get("error")]
 
     subject = f"GEX Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
     html = rpt.build_email(
         index_results=index_results,
-        purpose_results=purpose_results,
+        purpose_results=[],
         date=today,
     )
 
