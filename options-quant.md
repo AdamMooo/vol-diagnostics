@@ -19,7 +19,7 @@ Opens at `http://localhost:8501`.
 - **Cross-asset overview** — bar chart comparing net GEX across selected tickers
 - **Per-ticker expanders** — click a ticker to see strike GEX chart, gamma profile, and a summary table (Net GEX, VEX, CHEX, zero-gamma level, call wall, put wall)
 
-Data is pulled live from yfinance on first load and cached for 5 minutes per ticker.
+Live chains fetched from CBOE delayed quotes JSON on first load (CBOE CDN, no auth required). yfinance retained for event study historical price data in `validation.py`. Results cached 5 minutes per ticker.
 
 ## Email Pipeline (unchanged)
 
@@ -29,6 +29,5 @@ python -m gex.run_daily   # all 3 tickers → HTML email via Outlook COM
 
 ## Status
 
-Last updated: 2026-05-05 | v3.0 Phase 3 complete — dashboard live, UI polished for dark mode
-Next: Phase 4 — Historical Tab (ZGL trend, regime persistence, streak counter, event study)
+Last updated: 2026-05-06 | v3.1 Phase 5 complete (UAT signed off)
 Hub: [[options-quant/options-quant]]

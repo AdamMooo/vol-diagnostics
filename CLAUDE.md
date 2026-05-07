@@ -1,5 +1,5 @@
 # CLAUDE — Options Quant — Sleeve Allocation Framework
-Last updated: 2026-05-05 | Status: active milestone v3.0 — GEX Interactive Dashboard
+Last updated: 2026-05-06 | Status: active milestone v3.1 — UAT signed off
 
 ## Repo Card
 
@@ -56,7 +56,7 @@ python -m gex.run_daily              # all 3 tickers → HTML email
 
 | Module | Purpose |
 |--------|---------|
-| `gex/data_loader.py` | yfinance chain pull → `ChainSnapshot` |
+| `gex/data_loader.py` | CBOE delayed quotes JSON → `ChainSnapshot` |
 | `gex/greeks_engine.py` | Black-Scholes gamma, vanna, charm vectorised; `add_greeks()` enriches chain df |
 | `gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; VEX/CHEX analogues; strike/expiry aggregation |
 | `gex/analytics.py` | Net GEX/VEX/CHEX, zero-gamma level, call/put walls, regime classification, charts |
