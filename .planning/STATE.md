@@ -1,10 +1,10 @@
 ---
 gsd_state_version: "1.0"
-milestone: "v3.0 — GEX Interactive Dashboard"
-status: archived
-last_updated: 2026-05-06 (v3.0 milestone archived)
+milestone: "v3.1 — Hardening & Charm"
+status: active
+last_updated: 2026-05-06 (v3.1 milestone started)
 context_gathered: true
-plans_ready: true
+plans_ready: false
 ---
 
 # Project State
@@ -14,15 +14,14 @@ plans_ready: true
 See: .planning/PROJECT.md (updated 2026-05-06)
 
 **Core value:** Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, how much dealer hedging flow will a 1% move generate, and where are the structural levels that matter?
-**Current focus:** Planning next milestone
+**Current focus:** v3.1 — Hardening & Charm
 
 ## Current Position
 
-Milestone: v3.0 — GEX Interactive Dashboard
-Phase: 4 of 4 (Historical Tab)
-Plan: 2 of 2 in current phase
-Status: Phase 4 complete — milestone v3.0 done
-Last activity: 2026-05-06 — Phase 4 executed (2 plans, 2 waves); verification passed 10/10
+Phase: Not started (defining roadmap)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-06 — Milestone v3.1 started
 
 Progress: [██████████] 100%
 

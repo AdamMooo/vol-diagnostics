@@ -1,10 +1,20 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-05-06 after v3.0 milestone*
+*Last updated: 2026-05-06 — v3.1 milestone started*
+
+## Current Milestone: v3.1 — Hardening & Charm
+
+**Goal:** Sign off deferred UAT, add Charm chart, and fill critical test coverage gaps before handing the platform to PMs.
+
+**Target features:**
+- Phase 3 UAT sign-off (4 pending Streamlit scenarios)
+- Docs/notes cleanup + commit outstanding changes (emailer, report, validation)
+- Charm by DTE bucket chart in analytics + dashboard
+- Critical-path test coverage for data_loader, report, emailer, run_daily, analytics
 
 ## What This Is
 
-A dealer gamma exposure (GEX) analysis platform. Computes dealer positioning across SPY/QQQ/IWM from live options chains (yfinance), identifies gamma regime (positive/negative/neutral), locates structural levels (zero-gamma, call wall, put wall), and delivers daily context via both a scheduled HTML email and an interactive Streamlit dashboard.
+A dealer gamma exposure (GEX) analysis platform. Computes dealer positioning across SPY/QQQ/IWM from live options chains (CBOE delayed quotes JSON — no API key), identifies gamma regime (positive/negative/neutral), locates structural levels (zero-gamma, call wall, put wall), and delivers daily context via both a scheduled HTML email and an interactive Streamlit dashboard.
 
 ## Core Value
 
@@ -13,8 +23,8 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 ## Runtime & Stack
 
 - **Runtime:** local Python venv. `python -m gex.run_daily` → email. `streamlit run streamlit_app.py` → dashboard.
-- **Data:** yfinance options chains (live). Snapshots: `out/gex_snapshots.parquet`.
-- **Stack:** pandas, numpy, scipy, matplotlib, yfinance, pyarrow, streamlit, plotly.
+- **Data:** CBOE delayed quotes JSON (`cdn.cboe.com` — free, no auth). Snapshots: `out/gex_snapshots.parquet`.
+- **Stack:** pandas, numpy, scipy, matplotlib, requests, pyarrow, streamlit, plotly.
 - **Tests:** pytest, 77 tests green.
 
 ## Key Files
@@ -40,10 +50,15 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 - ✓ DASH-01/02/03/04/05/06 — Streamlit app: regime cards, chart, expanders, COM isolation — v3.0
 - ✓ HIST-01/02/03/04 — Historical tab: ZGL trend, regime persistence, streak counter, event study — v3.0
 
-### Active
+### Active (v3.1)
 
-- [ ] Phase 3 UAT sign-off — 4 pending human test scenarios from 03-HUMAN-UAT.md
-- [ ] Phase 3 verification human items — 03-VERIFICATION.md human_needed items
+- [ ] UAT-01 — Streamlit app launch (no import/COM/matplotlib errors)
+- [ ] UAT-02 — Regime cards render with correct colors and all fields
+- [ ] UAT-03 — Per-ticker expander shows charts + summary table
+- [ ] UAT-04 — Refresh button clears cache and re-fetches
+- [ ] CHARM-01 — Charm by DTE bucket chart in analytics
+- [ ] CHARM-02 — Charm chart surfaced in Streamlit dashboard
+- [ ] COV-01/02/03/04/05 — Critical-path tests: data_loader, report, emailer, run_daily, analytics
 
 ### Out of Scope
 
@@ -54,8 +69,7 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 | New GEX signals / predictive scoring | Holm-Bonferroni bar is high |
 | Sleeve allocation framework (v2.x) | Separate track |
 | Automated Task Scheduler / Streamlit autostart | After PM desk validates dashboard |
-| Charm by DTE bucket chart | Differentiator, v3.1 candidate |
-| Live intraday refresh | yfinance rate limits risky at launch |
+| Live intraday refresh | CBOE CDN is delayed — real-time needs paid feed |
 | Dispersion / implied-correlation | Out of scope |
 | Live execution / order routing | Research tool only |
 
@@ -66,7 +80,7 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 | 2026-05-06 | GSD sign convention: calls +, puts − | SpotGamma/retail standard. Positive net GEX = dealers net long gamma = stabilising |
 | 2026-05-05 | Vanna over Vomma | Vanna (∂delta/∂vol) translates to dealer rehedging flow — PM-readable. Vomma is not. |
 | 2026-05-05 | Streamlit additive — email pipeline preserved | Email is scheduled and working; dashboard adds interactivity without breaking existing workflow |
-| 2026-05-05 | No new data sources in v3.0 | yfinance + parquet snapshots only. Bloomberg is a one-class swap when team greenlights. |
+| 2026-05-06 | Replaced yfinance with CBOE delayed quotes JSON | Free, no auth, CBOE-native Greeks (American-style). data_loader.py rewritten. |
 | 2026-05-05 | New milestone v3.0 — GEX Interactive Dashboard | GEX POC is production-grade; direction is depth (Greeks, flow, dashboard) not more signals |
 
 ## Known Open Items
@@ -75,7 +89,7 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 |------|-------------|--------|
 | Phase 3 UAT | 03-HUMAN-UAT.md: 4 pending scenarios | Deferred to v3.1 |
 | Phase 3 verification | 03-VERIFICATION.md: human_needed | Deferred to v3.1 |
-| Coverage gaps | data_loader, report, emailer, run_daily, analytics charts — zero test coverage | Tech debt, v3.1 |
+| Coverage gaps | data_loader, report, emailer, run_daily, analytics charts — zero test coverage | Tracked in v3.1 |
 | American-style BS | IWM uses European model — acknowledged with early exercise risk signal | Acceptable for POC |
 | NDX skew identity | NDX/SPX share same CBOE SKEW signal in sleeve framework | v2.x track — not blocking |
 
