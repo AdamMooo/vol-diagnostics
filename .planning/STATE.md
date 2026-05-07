@@ -2,7 +2,7 @@
 gsd_state_version: "1.0"
 milestone: "v3.1 — Hardening & Charm"
 status: active
-last_updated: 2026-05-06 (Phase 5 P1 complete)
+last_updated: 2026-05-06 (Phase 5 complete)
 context_gathered: true
 plans_ready: true
 ---
@@ -18,12 +18,12 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 
 ## Current Position
 
-Phase: 5 — UAT Sign-Off & Cleanup
-Plan: P2 (Wave 1 — human interactive)
-Status: P1 complete; awaiting P2 UAT walkthrough
-Last activity: 2026-05-06 — P1 committed (76521e5): emailer Dispatch fix, report nested-table layout, validation dtype guard
+Phase: 5 — UAT Sign-Off & Cleanup (complete)
+Plan: P3 (Wave 3 — docs sweep)
+Status: Phase 5 complete — UAT signed off, docs cleaned, ready for Phase 6
+Last activity: 2026-05-06 — P3 committed (d273d1f): CBOE correction, VERIFICATION.md complete, options-quant.md updated
 
-Progress: [█░░░░░░░░░] 10% (v3.1 phases — 1/3 phase-5 plans complete)
+Progress: [███░░░░░░░] 30% (v3.1 phases — Phase 5 complete, 3/3 plans done)
 
 ## Performance Metrics
 
@@ -36,7 +36,7 @@ Progress: [█░░░░░░░░░] 10% (v3.1 phases — 1/3 phase-5 plan
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 5. UAT Sign-Off & Cleanup | 1 | 5 min | 5 min |
+| 5. UAT Sign-Off & Cleanup | 3 | ~20 min | ~7 min |
 
 **Recent Trend:** P1 clean execution, pre-verified diffs, 77 tests green
 
@@ -51,7 +51,7 @@ Progress: [█░░░░░░░░░] 10% (v3.1 phases — 1/3 phase-5 plan
 
 ### Pending Todos
 
-- Phase 5: P1 done; execute P2 (live UAT), then P3 (docs sweep)
+- Phase 6: Charm chart — next phase to execute
 
 ### Blockers/Concerns
 
@@ -69,5 +69,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-05-06
-Stopped at: Completed 05-P1-PLAN.md (commit 76521e5)
-Resume file: .planning/phases/05-uat-sign-off-cleanup/05-P2-PLAN.md
+Stopped at: Completed 05-P3-PLAN.md (commit d273d1f)
+Resume file: .planning/phases/06-charm-chart/06-P1-PLAN.md
