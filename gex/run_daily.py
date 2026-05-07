@@ -20,6 +20,7 @@ from gex.compute import compute_ticker
 from gex.validation import save_snapshot
 from gex import report as rpt
 from gex import emailer
+from gex import observation
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ALL_TICKERS = INDEX_TICKERS
@@ -88,6 +89,14 @@ def run(dry_run: bool = False) -> None:
         print("[gex-daily] Email sent.")
     except Exception as exc:
         print(f"[gex-daily] Email failed: {exc}")
+
+    # Auto-prefill observation block in today's daily note (60-day observation log)
+    try:
+        note_path = observation.append_to_daily_note(index_results, today)
+        if note_path:
+            print(f"[gex-daily] Observation block appended: {note_path}")
+    except Exception as exc:
+        print(f"[gex-daily] Observation log failed (non-blocking): {exc}")
 
 
 if __name__ == "__main__":
