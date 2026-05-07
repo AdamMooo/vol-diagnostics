@@ -29,7 +29,7 @@ def send(subject: str, html_body: str, attachments: list[Path] | None = None,
         outlook = win32com.client.GetActiveObject("Outlook.Application")
     except Exception:
         try:
-            outlook = win32com.client.DispatchEx("Outlook.Application")
+            outlook = win32com.client.Dispatch("Outlook.Application")
             time.sleep(3)
         except Exception as exc:
             raise RuntimeError(

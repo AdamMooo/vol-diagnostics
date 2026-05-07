@@ -38,6 +38,9 @@ def save_snapshot(summary: dict, ticker: str) -> None:
 
     if STORE.exists():
         hist = pd.read_parquet(STORE)
+        for col in ("zero_gamma_level", "call_wall", "put_wall", "vanna_exposure"):
+            if col in hist.columns:
+                hist[col] = hist[col].astype("float64")
         mask = (hist["date"] == row["date"]) & (hist["ticker"] == ticker)
         hist = hist[~mask]
         hist = pd.concat([hist, pd.DataFrame([row])], ignore_index=True)

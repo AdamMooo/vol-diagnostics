@@ -2,9 +2,9 @@
 gsd_state_version: "1.0"
 milestone: "v3.1 — Hardening & Charm"
 status: active
-last_updated: 2026-05-06 (roadmap created)
+last_updated: 2026-05-06 (Phase 5 plans created)
 context_gathered: true
-plans_ready: false
+plans_ready: true
 ---
 
 # Project State
@@ -18,12 +18,12 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 
 ## Current Position
 
-Phase: 5 — UAT Sign-Off & Cleanup (not started)
-Plan: —
-Status: Roadmap ready — begin planning Phase 5
-Last activity: 2026-05-06 — Roadmap created for v3.1
+Phase: 5 — UAT Sign-Off & Cleanup (planned — ready to execute)
+Plan: P1 (Wave 1)
+Status: Plans created — execute with /gsd-execute-phase
+Last activity: 2026-05-06 — Phase 5 plans created (3 plans, 2 waves automated + 1 human-interactive)
 
-Progress: [░░░░░░░░░░] 0% (v3.1 phases)
+Progress: [░░░░░░░░░░] 0% (v3.1 phases — execution not yet started)
 
 ## Performance Metrics
 
@@ -51,12 +51,11 @@ Progress: [░░░░░░░░░░] 0% (v3.1 phases)
 
 ### Pending Todos
 
-- Phase 5: Commit uncommitted changes in gex/emailer.py, gex/report.py, gex/validation.py
-- Phase 5: Update CLAUDE.md to remove yfinance references
+- Phase 5: Execute P1 (commit 3 fixes), then P2 (live UAT), then P3 (docs sweep)
 
 ### Blockers/Concerns
 
-None at roadmap start.
+None.
 
 ## Deferred Items
 
@@ -70,5 +69,5 @@ None at roadmap start.
 ## Session Continuity
 
 Last session: 2026-05-06
-Stopped at: Roadmap created — v3.1 Phases 5–7 defined
-Resume file: .planning/ROADMAP.md — plan Phase 5 next
+Stopped at: Phase 5 plans created
+Resume file: .planning/phases/05-uat-sign-off-cleanup/05-P1-PLAN.md

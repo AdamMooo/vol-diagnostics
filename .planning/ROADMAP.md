@@ -41,7 +41,11 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
   3. Clicking a ticker expander reveals two charts and a summary table with all 6 expected columns
   4. Clicking Refresh in the sidebar triggers a visible re-fetch and loads new data successfully
   5. Outstanding changes in emailer.py, report.py, and validation.py are committed; CLAUDE.md no longer references yfinance
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 05-P1-PLAN.md — Commit 3 outstanding code fixes (emailer, report, validation)
+- [ ] 05-P2-PLAN.md — Live UAT walkthrough — 4 Streamlit scenarios (human interactive)
+- [ ] 05-P3-PLAN.md — Post-UAT docs sweep and sign-off commit
 **UI hint**: yes
 
 ### Phase 6: Charm by DTE Chart
@@ -75,6 +79,6 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
 | 2. Exposure + PM Flow | v3.0 | 4/4 | Complete | 2026-05-06 |
 | 3. Streamlit Dashboard | v3.0 | 2/2 | Complete | 2026-05-06 |
 | 4. Historical Tab | v3.0 | 2/2 | Complete | 2026-05-06 |
-| 5. UAT Sign-Off & Cleanup | v3.1 | 0/TBD | Not started | - |
+| 5. UAT Sign-Off & Cleanup | v3.1 | 0/3 | Planned | - |
 | 6. Charm by DTE Chart | v3.1 | 0/TBD | Not started | - |
 | 7. Critical-Path Test Coverage | v3.1 | 0/TBD | Not started | - |

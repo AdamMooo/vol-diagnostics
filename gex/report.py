@@ -234,8 +234,11 @@ def build_email(
     )
 
     return f"""
-<html><body style="font-family:Arial,sans-serif;background:#f0f2f5;padding:20px;margin:0;">
-<div style="max-width:820px;margin:0 auto;">
+<html><body style="font-family:Arial,sans-serif;background:#f0f2f5;margin:0;padding:0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;">
+  <tr><td align="center" style="padding:20px;">
+    <table width="820" cellpadding="0" cellspacing="0" style="width:820px;max-width:820px;">
+      <tr><td>
 
   {_section_header("Index")}
   {_index_table(index_results)}
@@ -245,6 +248,9 @@ def build_email(
 
   {failed_note}
 
-</div>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
 </body></html>
 """
