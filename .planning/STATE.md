@@ -2,7 +2,7 @@
 gsd_state_version: "1.0"
 milestone: "v3.1 — Hardening & Charm"
 status: active
-last_updated: 2026-05-06 (Phase 5 plans created)
+last_updated: 2026-05-06 (Phase 5 P1 complete)
 context_gathered: true
 plans_ready: true
 ---
@@ -18,27 +18,27 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 
 ## Current Position
 
-Phase: 5 — UAT Sign-Off & Cleanup (planned — ready to execute)
-Plan: P1 (Wave 1)
-Status: Plans created — execute with /gsd-execute-phase
-Last activity: 2026-05-06 — Phase 5 plans created (3 plans, 2 waves automated + 1 human-interactive)
+Phase: 5 — UAT Sign-Off & Cleanup
+Plan: P2 (Wave 1 — human interactive)
+Status: P1 complete; awaiting P2 UAT walkthrough
+Last activity: 2026-05-06 — P1 committed (76521e5): emailer Dispatch fix, report nested-table layout, validation dtype guard
 
-Progress: [░░░░░░░░░░] 0% (v3.1 phases — execution not yet started)
+Progress: [█░░░░░░░░░] 10% (v3.1 phases — 1/3 phase-5 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 5 min
+- Total execution time: 0.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 5. UAT Sign-Off & Cleanup | 1 | 5 min | 5 min |
 
-**Recent Trend:** -
+**Recent Trend:** P1 clean execution, pre-verified diffs, 77 tests green
 
 ## Accumulated Context
 
@@ -51,7 +51,7 @@ Progress: [░░░░░░░░░░] 0% (v3.1 phases — execution not yet
 
 ### Pending Todos
 
-- Phase 5: Execute P1 (commit 3 fixes), then P2 (live UAT), then P3 (docs sweep)
+- Phase 5: P1 done; execute P2 (live UAT), then P3 (docs sweep)
 
 ### Blockers/Concerns
 
@@ -69,5 +69,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-05-06
-Stopped at: Phase 5 plans created
-Resume file: .planning/phases/05-uat-sign-off-cleanup/05-P1-PLAN.md
+Stopped at: Completed 05-P1-PLAN.md (commit 76521e5)
+Resume file: .planning/phases/05-uat-sign-off-cleanup/05-P2-PLAN.md
