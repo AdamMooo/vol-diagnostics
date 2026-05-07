@@ -25,7 +25,7 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
 
 #### Phase Summary
 
-- [ ] **Phase 5: UAT Sign-Off & Cleanup** — Complete 4 deferred Streamlit UAT scenarios, commit outstanding code changes, and update stale docs
+- [x] **Phase 5: UAT Sign-Off & Cleanup** — Complete 4 deferred Streamlit UAT scenarios, commit outstanding code changes, and update stale docs
 - [ ] **Phase 6: Charm by DTE Chart** — Add Charm-by-DTE-bucket bar chart to analytics and surface it in the Streamlit Live tab expander
 - [ ] **Phase 7: Critical-Path Test Coverage** — Add critical-path tests for the 5 previously uncovered modules
 
@@ -44,8 +44,8 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
 **Plans**: 3 plans
 Plans:
 - [x] 05-P1-PLAN.md — Commit 3 outstanding code fixes (emailer, report, validation)
-- [ ] 05-P2-PLAN.md — Live UAT walkthrough — 4 Streamlit scenarios (human interactive)
-- [ ] 05-P3-PLAN.md — Post-UAT docs sweep and sign-off commit
+- [x] 05-P2-PLAN.md — Live UAT walkthrough — 4 Streamlit scenarios (human interactive)
+- [x] 05-P3-PLAN.md — Post-UAT docs sweep and sign-off commit
 **UI hint**: yes
 
 ### Phase 6: Charm by DTE Chart
@@ -79,6 +79,6 @@ Plans:
 | 2. Exposure + PM Flow | v3.0 | 4/4 | Complete | 2026-05-06 |
 | 3. Streamlit Dashboard | v3.0 | 2/2 | Complete | 2026-05-06 |
 | 4. Historical Tab | v3.0 | 2/2 | Complete | 2026-05-06 |
-| 5. UAT Sign-Off & Cleanup | v3.1 | 1/3 | In Progress | - |
+| 5. UAT Sign-Off & Cleanup | v3.1 | 3/3 | Complete | 2026-05-06 |
 | 6. Charm by DTE Chart | v3.1 | 0/TBD | Not started | - |
 | 7. Critical-Path Test Coverage | v3.1 | 0/TBD | Not started | - |
