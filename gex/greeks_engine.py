@@ -64,7 +64,7 @@ def bs_vanna(spot: float | np.ndarray, strike: float | np.ndarray,
     s, k, v, t = spot[valid], strike[valid], iv[valid], T[valid]
     d1 = (np.log(s / k) + (r + 0.5 * v**2) * t) / (v * np.sqrt(t))
     d2 = d1 - v * np.sqrt(t)
-    vanna[valid] = norm.pdf(d1) * (d2 / v)
+    vanna[valid] = -norm.pdf(d1) * (d2 / v)
 
     return vanna if vanna.ndim > 0 else float(vanna)
 

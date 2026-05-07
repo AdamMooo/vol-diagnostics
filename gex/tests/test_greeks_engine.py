@@ -19,11 +19,12 @@ def test_t_min_value():
 # bs_vanna — scalar inputs
 # ---------------------------------------------------------------------------
 
-def test_bs_vanna_atm_positive():
-    # ATM option with normal inputs should produce a finite positive vanna
+def test_bs_vanna_atm_negative():
+    # ATM vanna is negative when r > 0.5*sigma^2 (d2 > 0).
+    # With r=0.05, sigma=0.2: 0.5*sigma^2=0.02 < r, so d2>0 and vanna=-N'(d1)*d2/sigma < 0.
     v = bs_vanna(100.0, 100.0, 0.20, 0.25)
     assert np.isfinite(v)
-    assert v > 0.0
+    assert v < 0.0
 
 
 def test_bs_vanna_otm():
