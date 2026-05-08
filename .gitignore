@@ -32,11 +32,11 @@ out/
 .claude/
 
 # Personal orientation & planning docs (not for version control)
+.planning/
 CLAUDE.md
 MEMORY.md
 NEXT.md
 PROJECT.md
 STATUS.md
 DECISIONS.md
-.planning/
 INDEX.md
