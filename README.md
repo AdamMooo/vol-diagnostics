@@ -45,7 +45,7 @@ Sidebar lets you filter tickers and refresh the cache (5-min TTL per ticker).
 | Module | Purpose |
 |--------|---------|
 | `streamlit_app.py` | Interactive dashboard |
-| `gex/data_loader.py` | yfinance chain pull |
+| `gex/data_loader.py` | CBOE chain pull |
 | `gex/greeks_engine.py` | Black-Scholes gamma, vanna, charm |
 | `gex/exposure_engine.py` | GEX / VEX / CHEX aggregation |
 | `gex/analytics.py` | Regime classification, charts |
