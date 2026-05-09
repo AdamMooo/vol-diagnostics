@@ -1,6 +1,6 @@
 # Options Quant — GEX Dashboard
 
-Dealer gamma exposure monitor for SPY, QQQ, and IWM. Pulls live options chains via yfinance, computes GEX / VEX / CHEX with Black-Scholes Greeks, and surfaces regime signals in an interactive Streamlit dashboard.
+Dealer gamma exposure monitor for SPY, QQQ, and IWM. Pulls live options chains via CBOE, computes GEX / VEX / CHEX with Black-Scholes Greeks, and surfaces regime signals in an interactive Streamlit dashboard.
 
 ## Setup
 
