@@ -1,11 +1,11 @@
-# Options Quant — Market Intelligence Dashboard
+# Gamma OMM — Market Intelligence Dashboard
 
 GEX monitor for SPY, QQQ, IWM — dealer gamma exposure, vanna, charm, and PM flow analytics.
 
 ## Running the Dashboard
 
 ```powershell
-cd C:\dev\options-quant
+cd C:\dev\gamma-omm
 .venv\Scripts\activate
 streamlit run streamlit_app.py
 ```
@@ -30,7 +30,7 @@ python -m gex.run_daily   # all 3 tickers → HTML email via Outlook COM
 ## Status
 
 Last updated: 2026-05-07 | v3.1 Phase 5 complete (UAT signed off) | **Parked: pre-demo hardening (v3.2) pending — see audit**
-Hub: [[options-quant/options-quant]]
+Hub: [[gamma-omm/gamma-omm]]
 
 ## Active workstream — pre-demo hardening (parked, resume in a few days)
 

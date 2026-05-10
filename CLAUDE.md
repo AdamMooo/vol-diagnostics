@@ -1,4 +1,4 @@
-# CLAUDE — Options Quant — Sleeve Allocation Framework
+# CLAUDE — Gamma OMM — Sleeve Allocation Framework
 Last updated: 2026-05-06 | Status: active milestone v3.1 — UAT signed off
 
 ## Repo Card
@@ -101,4 +101,4 @@ Use GSD commands for all phase work:
 
 ---
 
-**Hub:** [[options-quant/options-quant|Options Quant]] · **Planning:** [[.planning/planning|.planning/]]
+**Hub:** [[gamma-omm/gamma-omm|Gamma OMM]] · **Planning:** [[.planning/planning|.planning/]]
