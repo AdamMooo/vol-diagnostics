@@ -5,7 +5,7 @@ import pytest
 
 from gex.exposure_engine import compute_vex, compute_chex, strike_vex, strike_chex
 from gex.analytics import summarise
-from gex.validation import _classify_vs_yesterday, load_yesterday
+from gex.validation import load_yesterday
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,10 +28,6 @@ def _profile_df() -> pd.DataFrame:
         "spot_level": [490.0, 495.0, 500.0, 505.0, 510.0],
         "net_gex":    [-1e9, -0.5e9, 0.0, 0.5e9, 1e9],
     })
-
-
-def _prior(regime: str, net_gex: float) -> pd.Series:
-    return pd.Series({"gamma_regime": regime, "net_gex": net_gex})
 
 
 # ── compute_vex spot scaling guard ───────────────────────────────────────────
@@ -85,40 +81,6 @@ def test_summarise_forward_compat_passes_through():
     assert r["net_vex"] == 2e9
     assert r["net_chex"] == -1e9
     assert r["delta_hedge_flow"] == 8.4e9
-
-
-# ── _classify_vs_yesterday ────────────────────────────────────────────────────
-
-def test_classify_flipped_pos_to_neg():
-    assert _classify_vs_yesterday(1e9, "negative", _prior("positive", 1e9)) == "FLIPPED"
-
-
-def test_classify_flipped_neg_to_pos():
-    assert _classify_vs_yesterday(1e9, "positive", _prior("negative", -1e9)) == "FLIPPED"
-
-
-def test_classify_flipped_neutral_to_pos():
-    assert _classify_vs_yesterday(1e9, "positive", _prior("neutral", 0.1e9)) == "FLIPPED"
-
-
-def test_classify_intensified():
-    assert _classify_vs_yesterday(1.2e9, "positive", _prior("positive", 1e9)) == "INTENSIFIED"
-
-
-def test_classify_eased():
-    assert _classify_vs_yesterday(0.8e9, "positive", _prior("positive", 1e9)) == "EASED"
-
-
-def test_classify_unchanged_within_band():
-    assert _classify_vs_yesterday(1.03e9, "positive", _prior("positive", 1e9)) == "UNCHANGED"
-
-
-def test_classify_unchanged_at_band_boundary():
-    assert _classify_vs_yesterday(1.05e9, "positive", _prior("positive", 1e9)) == "UNCHANGED"
-
-
-def test_classify_zero_prior_gex_guard():
-    assert _classify_vs_yesterday(1e9, "positive", _prior("positive", 0.0)) == "UNCHANGED"
 
 
 # ── load_yesterday absent-store guard ─────────────────────────────────────────

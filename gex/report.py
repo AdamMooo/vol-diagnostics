@@ -1,220 +1,265 @@
 """
-Build the HTML email body from GEX summaries and embedded charts.
+Build the HTML email body from GEX summaries.
+
+Design principles:
+    - No body/card backgrounds — inherit the client's light/dark theme.
+    - Regime cue = left accent bar (4px) + solid badge (works in both modes).
+    - Text colors stay vivid (green/red) so signs read in dark mode.
+    - Labels use a mid-gray that reads acceptably on both white and near-black.
+    - Numbers use a monospace family so columns line up; everything else sans.
 """
 from __future__ import annotations
 
 import datetime
 
+# Regime colors — kept vivid enough to read on dark backgrounds.
 REGIME_COLOR = {
-    "positive": "#1a7a4a",
-    "negative": "#c0392b",
-    "neutral":  "#7f8c8d",
-}
-REGIME_BG = {
-    "positive": "#d5f5e3",
-    "negative": "#fadbd8",
-    "neutral":  "#ecf0f1",
-}
-GEX_CELL_BG = {
-    "positive": "#eafaf1",
-    "negative": "#fdf2f0",
-    "neutral":  "#f8f9fa",
+    "positive": "#16a34a",  # green-600
+    "negative": "#dc2626",  # red-600
+    "neutral":  "#64748b",  # slate-500
 }
 
+# Badge backgrounds (solid color with white text — survive theme inversion).
 TICKER_LABEL = {
-    "SPY":   "SPY  S&P 500",
-    "QQQ":   "QQQ  Nasdaq 100",
-    "IWM":   "IWM  Russell 2000",
-    "XLF":   "XLF  Financials",
-    "GLD":   "GLD  Gold",
-    "TLT":   "TLT  20yr Treasury",
-    "NVDA":  "NVDA  Nvidia",
-    "TSLA":  "TSLA  Tesla",
-    "AAPL":  "AAPL  Apple",
-    "AMD":   "AMD  AMD",
-    "META":  "META  Meta",
-    "AMZN":  "AMZN  Amazon",
-    "GOOGL": "GOOGL  Alphabet",
-    "MSFT":  "MSFT  Microsoft",
-    "AVGO":  "AVGO  Broadcom",
-    "COIN":  "COIN  Coinbase",
-    "COST":  "COST  Costco",
-    "NFLX":  "NFLX  Netflix",
-    "PLTR":  "PLTR  Palantir",
-    "UNH":   "UNH  UnitedHealth",
-    "EEM":   "EEM  MSCI EM",
-    "EFA":   "EFA  MSCI EAFE",
-    "HYG":   "HYG  High Yield",
+    "SPY": "SPY  S&P 500",
+    "QQQ": "QQQ  Nasdaq 100",
+    "IWM": "IWM  Russell 2000",
 }
 
+# Muted gray for labels & secondary text — reads on both #ffffff and #1f2937 backgrounds.
+LABEL_GRAY  = "#94a3b8"
+RULE_COLOR  = "#cbd5e1"  # thin divider rule — barely visible in dark mode (fine)
+POS_GREEN   = "#16a34a"
+NEG_RED     = "#dc2626"
 
-# ── Formatting ────────────────────────────────────────────────────────
+_SANS = "font-family:Arial,Helvetica,sans-serif;"
+_MONO = "font-family:Consolas,'SF Mono',Menlo,monospace;"
 
-def _fmt_gex(val: float) -> str:
+
+# ── Formatting helpers ────────────────────────────────────────────────
+
+def _fmt_b(val: float | None) -> str:
+    if val is None:
+        return "—"
     b = val / 1e9
-    return f"{'+'if b>=0 else ''}{b:.2f}B"
+    return f"{'+' if b >= 0 else ''}{b:.2f}B"
 
 
-def _fmt_price(val: float | None) -> str:
-    return f"{val:.2f}" if val is not None else "—"
+def _fmt_price(val: float | None, dp: int = 2) -> str:
+    return f"{val:,.{dp}f}" if val is not None else "—"
 
 
-def _fmt_distance(spot: float, zero_gamma: float | None) -> tuple[str, str]:
-    if zero_gamma is None:
-        return "—", "#aaa"
-    pct = (spot - zero_gamma) / spot * 100
-    color = "#1a7a4a" if pct >= 0 else "#c0392b"
-    return f"{'+'if pct>=0 else ''}{pct:.1f}%", color
+def _fmt_pct(val: float | None, signed: bool = True, dp: int = 1) -> str:
+    if val is None:
+        return "—"
+    sign = "+" if signed and val >= 0 else ""
+    return f"{sign}{val:.{dp}f}%"
 
 
 def _fmt_delta_flow(val: float | None) -> str:
     if val is None:
         return "—"
-    return f"${abs(val)/1e9:.1f}B/1%"
+    return f"${abs(val) / 1e9:.2f}B/1%"
 
 
-_VS_YESTERDAY_COLOR = {
-    "FLIPPED":     "#c0392b",
-    "INTENSIFIED": "#e67e22",
-    "EASED":       "#27ae60",
-    "UNCHANGED":   "#7f8c8d",
-}
+def _pct_from_spot(spot: float | None, level: float | None) -> float | None:
+    if not spot or level is None:
+        return None
+    return (level - spot) / spot * 100
 
 
-def _vs_color(label: str | None) -> str:
-    return _VS_YESTERDAY_COLOR.get(label or "", "#aaa")
+def _signed_color(val: float | None) -> str:
+    if val is None or val == 0:
+        return LABEL_GRAY
+    return POS_GREEN if val >= 0 else NEG_RED
 
+
+# ── Badges ────────────────────────────────────────────────────────────
 
 def _badge(regime: str) -> str:
-    c  = REGIME_COLOR.get(regime, "#999")
-    bg = REGIME_BG.get(regime, "#eee")
+    c = REGIME_COLOR.get(regime, "#64748b")
     return (
-        f'<span style="background:{bg};color:{c};padding:3px 9px;'
-        f'border-radius:4px;font-weight:bold;font-size:11px;white-space:nowrap;">'
-        f'{regime.upper()}</span>'
+        f'<span style="background:{c};color:#ffffff;padding:3px 10px;'
+        f'border-radius:4px;font-weight:700;font-size:11px;{_SANS}'
+        f'letter-spacing:0.5px;white-space:nowrap;">{regime.upper()}</span>'
     )
 
 
-# ── Index table ───────────────────────────────────────────────────────
+# ── Key/value rows ────────────────────────────────────────────────────
 
-def _index_row(r: dict, idx: int = 0) -> str:
-    if r.get("error"):
-        return (
-            f'<tr><td style="padding:8px 10px;font-weight:bold;color:#aaa;">'
-            f'{TICKER_LABEL.get(r["ticker"], r["ticker"])}</td>'
-            f'<td colspan="6" style="color:#e74c3c;padding:8px 10px;font-size:12px;">Load failed</td></tr>'
-        )
-    bg = "#fff" if idx % 2 == 0 else "#fafafa"
-    regime = r.get("gamma_regime", "neutral")
-    gex_bg = GEX_CELL_BG.get(regime, "#f8f9fa")
-    dist, dist_color = _fmt_distance(r.get("spot", 0), r.get("zero_gamma_level"))
-
-    iv30 = r.get("iv30", 0.0)
-    iv30_str = f"{iv30:.1f}%" if iv30 else "—"
-
+def _kv_cell(label: str, value: str, value_color: str | None = None,
+             mono: bool = True) -> str:
+    """One label/value row. value_color arg retained for signature compat but
+    intentionally ignored — values inherit the client theme color so light/dark
+    modes both stay legible. Sign is already obvious from the +/- prefix."""
+    value_family = _MONO if mono else _SANS
     return (
-        f'<tr style="background:{bg};">'
-        f'<td style="padding:9px 10px;font-weight:600;font-size:13px;">{TICKER_LABEL.get(r["ticker"], r["ticker"])}</td>'
-        f'<td align="right" style="padding:9px 10px;font-size:13px;">{_fmt_price(r.get("spot"))}</td>'
-        f'<td align="right" style="padding:9px 10px;font-family:monospace;font-size:13px;background:{gex_bg};font-weight:bold;">{_fmt_gex(r.get("net_gex", 0))}</td>'
-        f'<td align="center" style="padding:9px 10px;">{_badge(regime)}</td>'
-        f'<td align="right" style="padding:9px 10px;font-size:13px;color:#555;">{iv30_str}</td>'
-        f'<td align="right" style="padding:9px 10px;font-size:13px;color:{dist_color};font-weight:600;">{dist}</td>'
-        f'<td align="right" style="padding:9px 10px;font-size:13px;color:#555;">{_fmt_delta_flow(r.get("delta_hedge_flow"))}</td>'
-        f'<td align="center" style="padding:9px 10px;font-size:13px;color:{_vs_color(r.get("vs_yesterday"))};">{r.get("vs_yesterday") or "—"}</td>'
+        f'<tr>'
+        f'<td style="{_SANS}padding:7px 12px 7px 0;font-size:12px;color:{LABEL_GRAY};'
+        f'letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap;">'
+        f'{label}</td>'
+        f'<td align="right" style="{value_family}padding:7px 0;font-size:15px;'
+        f'font-weight:600;white-space:nowrap;">{value}</td>'
         f'</tr>'
     )
 
 
-def _index_table(results: list[dict]) -> str:
-    rows = "".join(_index_row(r, i) for i, r in enumerate(results))
-    return f"""
-<table width="100%" cellpadding="0" cellspacing="0"
-       style="border-collapse:collapse;background:#fff;border-radius:8px;
-              box-shadow:0 1px 6px rgba(0,0,0,.08);font-size:13px;margin-bottom:6px;overflow:hidden;">
-  <thead>
-    <tr style="background:#34495e;color:#ecf0f1;font-size:12px;">
-      <th align="left"   style="padding:11px 10px;font-weight:600;">Instrument</th>
-      <th align="right"  style="padding:11px 8px;font-weight:600;">Spot</th>
-      <th align="right"  style="padding:11px 8px;font-weight:600;">Net GEX</th>
-      <th align="center" style="padding:11px 8px;font-weight:600;">Regime</th>
-      <th align="right"  style="padding:11px 8px;font-weight:600;">IV30</th>
-      <th align="right"  style="padding:11px 8px;font-weight:600;">vs ZGL</th>
-      <th align="right"  style="padding:11px 8px;font-weight:600;">&#916;-flow</th>
-      <th align="center" style="padding:11px 8px;font-weight:600;">vs Yesterday</th>
-    </tr>
-  </thead>
-  <tbody>{rows}</tbody>
-</table>"""
-
-
-# ── Purpose table ─────────────────────────────────────────────────────
-
-def _purpose_row(r: dict, idx: int = 0) -> str:
-    if r.get("error"):
-        return (
-            f'<tr><td style="padding:8px 10px;font-weight:bold;color:#aaa;">'
-            f'{TICKER_LABEL.get(r["ticker"], r["ticker"])}</td>'
-            f'<td colspan="7" style="color:#e74c3c;padding:8px 10px;font-size:12px;">Load failed</td></tr>'
-        )
-    bg = "#fff" if idx % 2 == 0 else "#fafafa"
-    regime = r.get("gamma_regime", "neutral")
-    gex_bg = GEX_CELL_BG.get(regime, "#f8f9fa")
-    dist, dist_color = _fmt_distance(r.get("spot", 0), r.get("zero_gamma_level"))
-    iv30 = r.get("iv30", 0.0)
-    iv30_str = f"{iv30:.1f}%" if iv30 else "—"
-    ee_s = r.get("early_exercise_strikes", 0)
-    ee_str = f"{ee_s} strikes" if ee_s > 0 else "—"
-    ee_color = "#c0392b" if ee_s > 20 else ("#e67e22" if ee_s > 5 else "#27ae60")
-    pct_chg = r.get("price_change_pct", 0.0)
-    pct_str = f"{'+'if pct_chg>=0 else ''}{pct_chg:.2f}%" if pct_chg else "—"
-    pct_color = "#1a7a4a" if pct_chg >= 0 else "#c0392b"
-
+def _kv_table(rows_html: str) -> str:
     return (
-        f'<tr style="background:{bg};">'
-        f'<td style="padding:8px 10px;font-weight:600;font-size:12px;">{TICKER_LABEL.get(r["ticker"], r["ticker"])}</td>'
-        f'<td align="right" style="padding:8px 8px;font-size:12px;">{_fmt_price(r.get("spot"))}</td>'
-        f'<td align="right" style="padding:8px 8px;font-size:12px;color:{pct_color};font-weight:600;">{pct_str}</td>'
-        f'<td align="right" style="padding:8px 8px;font-family:monospace;font-size:12px;background:{gex_bg};font-weight:bold;">{_fmt_gex(r.get("net_gex", 0))}</td>'
-        f'<td align="center" style="padding:8px 8px;">{_badge(regime)}</td>'
-        f'<td align="right" style="padding:8px 8px;font-size:12px;color:#555;">{iv30_str}</td>'
-        f'<td align="right" style="padding:8px 8px;font-size:12px;color:{dist_color};font-weight:600;">{dist}</td>'
-        f'<td align="center" style="padding:8px 8px;font-size:12px;color:{ee_color};font-weight:600;">{ee_str}</td>'
-        f'<td align="center" style="padding:8px 8px;font-size:12px;color:{_vs_color(r.get("vs_yesterday"))};">{r.get("vs_yesterday") or "—"}</td>'
-        f'</tr>'
+        f'<table cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;width:100%;">{rows_html}</table>'
     )
 
 
-def _purpose_table(results: list[dict]) -> str:
-    rows = "".join(_purpose_row(r, i) for i, r in enumerate(results))
-    return f"""
-<table width="100%" cellpadding="0" cellspacing="0"
-       style="border-collapse:collapse;background:#fff;border-radius:8px;
-              box-shadow:0 1px 6px rgba(0,0,0,.08);font-size:12px;margin-bottom:6px;overflow:hidden;">
-  <thead>
-    <tr style="background:#2c3e50;color:#ecf0f1;font-size:11px;">
-      <th align="left"   style="padding:10px 10px;font-weight:600;">Name</th>
-      <th align="right"  style="padding:10px 8px;font-weight:600;">Spot</th>
-      <th align="right"  style="padding:10px 8px;font-weight:600;">Day %</th>
-      <th align="right"  style="padding:10px 8px;font-weight:600;">Net GEX</th>
-      <th align="center" style="padding:10px 8px;font-weight:600;">Regime</th>
-      <th align="right"  style="padding:10px 8px;font-weight:600;">IV30</th>
-      <th align="right"  style="padding:10px 8px;font-weight:600;">vs ZGL</th>
-      <th align="center" style="padding:10px 8px;font-weight:600;">Early Exercise</th>
-      <th align="center" style="padding:10px 8px;font-weight:600;">vs Yesterday</th>
-    </tr>
-  </thead>
-  <tbody>{rows}</tbody>
-</table>"""
+# ── Wall insight ──────────────────────────────────────────────────────
+
+def _wall_value(level: float | None, pct_from_spot: float | None) -> str:
+    """Format a wall as: '740  +0.3%' (anchor strike, distance from spot).
+
+    Concentration % was removed intentionally — it changes daily with OI rotation
+    and measures noise, not structural support. The strike itself is the signal.
+    """
+    if level is None:
+        return "—"
+    parts = [f"{level:,.0f}"]
+    if pct_from_spot is not None:
+        parts.append(
+            f'<span style="font-weight:600;margin-left:10px;font-size:13px;">'
+            f'{_fmt_pct(pct_from_spot)}</span>'
+        )
+    return "".join(parts)
+
+
+def _expected_1d_range_pct(iv30: float | None) -> float | None:
+    """1-sigma 1-day expected move in % of spot, from IV30 (annualized vol in %)."""
+    if not iv30:
+        return None
+    return iv30 / (252 ** 0.5)
+
+
+def _pin_location(spot: float | None, pw: float | None, cw: float | None) -> str:
+    """How close is spot to call wall vs put wall, as a percentage of the range."""
+    if spot is None or pw is None or cw is None or cw <= pw:
+        return "—"
+    pct = (spot - pw) / (cw - pw) * 100
+    pct = max(0.0, min(100.0, pct))
+    direction = "→ CW" if pct >= 50 else "← PW"
+    return f"{pct:.0f}% {direction}"
+
+
+# ── Per-ticker card ───────────────────────────────────────────────────
+
+def _ticker_card(r: dict) -> str:
+    label = TICKER_LABEL.get(r["ticker"], r["ticker"])
+
+    if r.get("error"):
+        return (
+            f'<table width="100%" cellpadding="0" cellspacing="0" '
+            f'style="border-collapse:collapse;margin-bottom:18px;'
+            f'border-bottom:1px solid {RULE_COLOR};">'
+            f'<tr><td style="padding:12px 0 18px;">'
+            f'<div style="{_SANS}font-size:14px;font-weight:700;color:{LABEL_GRAY};">{label}</div>'
+            f'<div style="{_SANS}color:{NEG_RED};font-size:12px;margin-top:4px;">'
+            f'Load failed: {r.get("error", "unknown")}</div>'
+            f'</td></tr></table>'
+        )
+
+    regime = r.get("gamma_regime", "neutral")
+    accent = REGIME_COLOR.get(regime, "#64748b")
+
+    spot = r.get("spot")
+    pct_chg = r.get("price_change_pct") or 0.0
+    net_gex = r.get("net_gex")
+
+    iv30 = r.get("iv30") or 0.0
+    iv30_str = f"{iv30:.1f}%" if iv30 else "—"
+
+    zgl = r.get("zero_gamma_level")
+    vs_zgl = _pct_from_spot(spot, zgl)
+    # vs_zgl is (zgl - spot)/spot; we want spot-vs-ZGL i.e. (spot-zgl)/spot.
+    vs_zgl_spot = (-vs_zgl) if vs_zgl is not None else None
+
+    # Wall cluster (GEX-weighted center) — fall back to single-strike if cluster missing
+    cw = r.get("call_wall_cluster") or r.get("call_wall")
+    pw = r.get("put_wall_cluster")  or r.get("put_wall")
+    cw_pct = _pct_from_spot(spot, cw)
+    pw_pct = _pct_from_spot(spot, pw)
+    range_width_pct = (
+        (cw - pw) / spot * 100 if (cw is not None and pw is not None and spot) else None
+    )
+
+    expected_1d = _expected_1d_range_pct(iv30)
+    expected_str = f"±{expected_1d:.2f}%" if expected_1d else "—"
+
+    zgl_flow = r.get("zgl_flow_magnitude")
+    zgl_flow_str = f"${zgl_flow / 1e9:.2f}B/1%" if zgl_flow else "—"
+
+    # Left column: spot/price-action + structural levels (the "where am I" lens)
+    left_rows = (
+        _kv_cell("Spot",   _fmt_price(spot))
+        + _kv_cell("Day %", _fmt_pct(pct_chg) if pct_chg else "—",
+                   value_color=_signed_color(pct_chg) if pct_chg else None)
+        + _kv_cell("IV30 / 1d σ", f"{iv30_str} &middot; {expected_str}", mono=False)
+        + _kv_cell("Zero-γ", _fmt_price(zgl, dp=1) if zgl is not None else "—")
+        + _kv_cell("vs ZGL",
+                   _fmt_pct(vs_zgl_spot) if vs_zgl_spot is not None else "—",
+                   value_color=_signed_color(vs_zgl_spot))
+        + _kv_cell("ZGL flow", zgl_flow_str)
+    )
+
+    # Right column: dealer positioning + wall context (the "what's holding it" lens)
+    right_rows = (
+        _kv_cell("Net GEX", _fmt_b(net_gex), value_color=_signed_color(net_gex))
+        + _kv_cell("Δ-flow",   _fmt_delta_flow(r.get("delta_hedge_flow")))
+        + _kv_cell("Call Wall", _wall_value(cw, cw_pct))
+        + _kv_cell("Put Wall",  _wall_value(pw, pw_pct))
+        + _kv_cell("Range",
+                   f"{range_width_pct:.1f}% &middot; {_pin_location(spot, pw, cw)}"
+                   if range_width_pct is not None else "—")
+    )
+
+    header = (
+        f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;">'
+        f'<tr>'
+        f'<td style="{_SANS}font-size:18px;font-weight:700;'
+        f'letter-spacing:0.3px;padding-bottom:2px;">{label}</td>'
+        f'<td align="right" style="white-space:nowrap;">'
+        f'{_badge(regime)}'
+        f'</td>'
+        f'</tr></table>'
+    )
+
+    body = (
+        f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;margin-top:6px;">'
+        f'<tr>'
+        f'<td valign="top" width="50%" style="padding-right:18px;">'
+        f'{_kv_table(left_rows)}</td>'
+        f'<td valign="top" width="50%" style="padding-left:18px;">'
+        f'{_kv_table(right_rows)}</td>'
+        f'</tr></table>'
+    )
+
+    # No card background — accent bar on the left is the only visual cue.
+    return (
+        f'<table width="100%" cellpadding="0" cellspacing="0" '
+        f'style="border-collapse:collapse;margin-bottom:14px;'
+        f'border-bottom:1px solid {RULE_COLOR};">'
+        f'<tr>'
+        f'<td width="4" style="background:{accent};width:4px;"></td>'
+        f'<td style="padding:8px 0 18px 16px;">{header}{body}</td>'
+        f'</tr></table>'
+    )
 
 
 # ── Section header ────────────────────────────────────────────────────
 
 def _section_header(label: str) -> str:
     return (
-        f'<div style="font-size:10px;font-weight:700;letter-spacing:1.6px;'
-        f'text-transform:uppercase;color:#64748b;border-bottom:1px solid #e2e8f0;'
-        f'padding-bottom:5px;margin:20px 0 10px;">{label}</div>'
+        f'<div style="{_SANS}font-size:13px;font-weight:700;letter-spacing:1.6px;'
+        f'text-transform:uppercase;color:{LABEL_GRAY};border-bottom:1px solid {RULE_COLOR};'
+        f'padding-bottom:7px;margin:8px 0 18px;">{label}</div>'
     )
 
 
@@ -222,48 +267,69 @@ def _section_header(label: str) -> str:
 
 def build_email(
     index_results: list[dict],
-    purpose_results: list[dict],
+    purpose_results: list[dict] | None = None,
     date: datetime.date | None = None,
 ) -> str:
+    """purpose_results retained for signature compat; ignored (3-ticker focus)."""
     date = date or datetime.date.today()
 
-    failed = [r["ticker"] for r in (index_results + purpose_results) if r.get("error")]
+    cards = "\n".join(_ticker_card(r) for r in index_results)
+
+    failed = [r["ticker"] for r in index_results if r.get("error")]
     failed_note = (
-        f'<p style="color:#e74c3c;font-size:12px;margin-top:8px;">'
+        f'<p style="{_SANS}color:{NEG_RED};font-size:12px;margin-top:8px;">'
         f'Failed to load: {", ".join(failed)}</p>' if failed else ""
     )
 
-    purpose_block = (
-        f'{_section_header("Purpose Yield Shares")}\n  {_purpose_table(purpose_results)}'
-        if purpose_results else ""
-    )
-
     methodology_footer = (
-        '<div style="font-size:10px;color:#64748b;line-height:1.6;margin-top:20px;'
-        'padding-top:14px;border-top:1px solid #e2e8f0;">'
-        '<b>Methodology</b> &middot; Full-chain &ge;1 DTE &middot; OI as of prior session close. '
-        'Net GEX absolute magnitude is methodology-dependent across commercial sources '
-        '(Barchart 4 nearby expiries; InsiderFinance full chain incl. 0DTE; this tool &ge;1 DTE) '
-        '&mdash; use sign and order of magnitude. ZGL, put wall, and call wall are robust and load-bearing. '
-        '<br><b>Universe</b> &middot; SPY / QQQ / IWM only &mdash; tickers where the standard dealer positioning '
-        'convention (long calls, short puts) is empirically defensible.'
+        f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.7;'
+        f'margin-top:24px;padding-top:14px;border-top:1px solid {RULE_COLOR};">'
+        '<b>Glossary</b> (terms used above, in order)<br>'
+        '<b>Spot</b>: current underlying price (CBOE, ~15-min delayed).<br>'
+        '<b>Day %</b>: change vs prior session close.<br>'
+        '<b>IV30 / 1d σ</b>: 30-day implied vol, then 1-sigma 1-day expected move (≈ IV30 / √252).<br>'
+        '<b>Zero-γ (ZGL)</b>: spot level at which cumulative net GEX crosses zero. Linear interpolation of the profile sign change.<br>'
+        '<b>vs ZGL</b>: % distance from spot to ZGL. Positive = spot above the flip (positive-gamma side, stabilising).<br>'
+        '<b>ZGL flow</b>: dealer hedge flow per 1% spot move at ZGL — same units as Δ-flow. '
+        'Large vs current Δ-flow → crossing ZGL triggers heavy hedging. Small → cosmetic crossing, thin OI near the level.<br>'
+        '<b>Net GEX</b>: sum of strike-level gamma exposure. Sign convention: calls +, puts −. '
+        'Positive = dealers long gamma (absorb moves, stabilising). Negative = dealers short gamma (amplify moves).<br>'
+        '<b>Δ-flow</b>: dealer hedge flow at current spot per 1% move (= |Net GEX| / spot ÷ 0.01).<br>'
+        '<b>Call Wall / Put Wall</b>: anchor strike with the largest one-sided GEX, with distance from spot. '
+        'Use the <i>strike</i> as a hard level; magnitude is methodology-dependent.<br>'
+        '<b>Range</b>: width between walls as % of spot &middot; pin location of spot inside the range.'
+        '<br><br>'
+        '<b>Method &middot; Data limitations (read before trading off this)</b><br>'
+        '&bull; <b>OI is T-1.</b> Open interest reflects the prior session close — ZGL and walls describe '
+        '<i>yesterday\'s</i> positioning. Intraday OI drift is not captured by free CBOE data.<br>'
+        '&bull; <b>Quotes are ~15-min delayed.</b> Spot, IV, and chain mids are not live.<br>'
+        '&bull; <b>Regime classification is hand-calibrated.</b> The neutral floor (|Net GEX| &lt; $200M) was '
+        'tuned May 2026 to the current noise environment; it will drift as vol regime shifts and needs '
+        'periodic rebasing. Use the sign, not the label, as the primary signal.<br>'
+        '&bull; <b>Full-chain ≥ 1 DTE.</b> 0DTE is excluded for math consistency. Absolute GEX magnitude is '
+        'methodology-dependent; treat as order of magnitude only. The robust outputs are <b>Net GEX sign</b>, '
+        '<b>ZGL location</b>, and <b>wall strikes</b>.<br>'
+        '&bull; <b>No realized-vol attribution.</b> This is a positioning monitor, not a forecaster. '
+        'No event study, base rate, or backtest is shown — the sample we have is too short for inference.<br>'
+        '<b>Universe</b>: SPY / QQQ / IWM. IWM divergence from SPY/QQQ is the cleanest small-cap stress tell.'
         '</div>'
     )
 
     return f"""
-<html><body style="font-family:Arial,sans-serif;background:#f0f2f5;margin:0;padding:0;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;">
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body style="{_SANS}margin:0;padding:0;">
+<table width="100%" cellpadding="0" cellspacing="0">
   <tr><td align="center" style="padding:20px;">
-    <table width="820" cellpadding="0" cellspacing="0" style="width:820px;max-width:820px;">
+    <table width="720" cellpadding="0" cellspacing="0" style="width:720px;max-width:720px;{_SANS}">
       <tr><td>
 
-  {_section_header("Equity Index Dealer Flow")}
-  {_index_table(index_results)}
-
-  {purpose_block}
-
+  {_section_header("Equity Index Dealer Flow &middot; " + date.strftime("%b %d, %Y").replace(" 0", " "))}
+  {cards}
   {failed_note}
-
   {methodology_footer}
 
       </td></tr>

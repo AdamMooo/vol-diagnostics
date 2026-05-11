@@ -15,7 +15,6 @@ from gex.exposure_engine import (
     gamma_profile,
 )
 from gex.analytics import summarise
-from gex.validation import load_yesterday, _classify_vs_yesterday
 
 
 def compute_ticker(ticker: str) -> dict:
@@ -24,7 +23,7 @@ def compute_ticker(ticker: str) -> dict:
 
     Returns:
         {
-          "summary": dict  — analytics + regime + vs_yesterday
+          "summary": dict  — analytics + regime
           "s_df":   DataFrame — strike-level GEX
           "p_df":   DataFrame — gamma profile
           "spot":   float
@@ -71,11 +70,5 @@ def compute_ticker(ticker: str) -> dict:
     else:
         summary["early_exercise_strikes"] = 0
         summary["early_exercise_oi"] = 0
-
-    prior = load_yesterday(ticker)
-    summary["vs_yesterday"] = (
-        _classify_vs_yesterday(summary["net_gex"], summary["gamma_regime"], prior)
-        if prior is not None else None
-    )
 
     return {"summary": summary, "s_df": s_df, "p_df": p_df, "spot": snapshot.spot}
