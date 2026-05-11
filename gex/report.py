@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import datetime
 
-# Regime colors — kept vivid enough to read on dark backgrounds.
+# Regime colors — used only as a sign-of-net-gex visual cue (accent bar).
+# Kept under the same keys for backward compat with analytics.plot_overview.
 REGIME_COLOR = {
     "positive": "#16a34a",  # green-600
     "negative": "#dc2626",  # red-600
-    "neutral":  "#64748b",  # slate-500
+    "neutral":  "#64748b",  # slate-500 — retained for backward compat; not surfaced in report
 }
 
 # Badge backgrounds (solid color with white text — survive theme inversion).
@@ -75,15 +76,6 @@ def _signed_color(val: float | None) -> str:
 
 
 # ── Badges ────────────────────────────────────────────────────────────
-
-def _badge(regime: str) -> str:
-    c = REGIME_COLOR.get(regime, "#64748b")
-    return (
-        f'<span style="background:{c};color:#ffffff;padding:3px 10px;'
-        f'border-radius:4px;font-weight:700;font-size:11px;{_SANS}'
-        f'letter-spacing:0.5px;white-space:nowrap;">{regime.upper()}</span>'
-    )
-
 
 # ── Key/value rows ────────────────────────────────────────────────────
 
@@ -164,8 +156,15 @@ def _ticker_card(r: dict) -> str:
             f'</td></tr></table>'
         )
 
-    regime = r.get("gamma_regime", "neutral")
-    accent = REGIME_COLOR.get(regime, "#64748b")
+    # Accent bar color is driven purely by the *sign* of net gex — no hand-tuned
+    # neutral-floor label, since the value below already shows sign and magnitude.
+    net_gex_for_color = r.get("net_gex") or 0
+    if net_gex_for_color > 0:
+        accent = REGIME_COLOR["positive"]
+    elif net_gex_for_color < 0:
+        accent = REGIME_COLOR["negative"]
+    else:
+        accent = "#64748b"
 
     spot = r.get("spot")
     pct_chg = r.get("price_change_pct") or 0.0
@@ -179,9 +178,11 @@ def _ticker_card(r: dict) -> str:
     # vs_zgl is (zgl - spot)/spot; we want spot-vs-ZGL i.e. (spot-zgl)/spot.
     vs_zgl_spot = (-vs_zgl) if vs_zgl is not None else None
 
-    # Wall cluster (GEX-weighted center) — fall back to single-strike if cluster missing
-    cw = r.get("call_wall_cluster") or r.get("call_wall")
-    pw = r.get("put_wall_cluster")  or r.get("put_wall")
+    # Walls — single max one-sided GEX strike. Empirically observable, no smoothing.
+    # We deliberately do NOT show the GEX-weighted cluster center: the ±2% / top-3
+    # band parameters are arbitrary and add estimation noise the reader cannot audit.
+    cw = r.get("call_wall")
+    pw = r.get("put_wall")
     cw_pct = _pct_from_spot(spot, cw)
     pw_pct = _pct_from_spot(spot, pw)
     range_width_pct = (
@@ -190,9 +191,6 @@ def _ticker_card(r: dict) -> str:
 
     expected_1d = _expected_1d_range_pct(iv30)
     expected_str = f"±{expected_1d:.2f}%" if expected_1d else "—"
-
-    zgl_flow = r.get("zgl_flow_magnitude")
-    zgl_flow_str = f"${zgl_flow / 1e9:.2f}B/1%" if zgl_flow else "—"
 
     # Left column: spot/price-action + structural levels (the "where am I" lens)
     left_rows = (
@@ -204,7 +202,6 @@ def _ticker_card(r: dict) -> str:
         + _kv_cell("vs ZGL",
                    _fmt_pct(vs_zgl_spot) if vs_zgl_spot is not None else "—",
                    value_color=_signed_color(vs_zgl_spot))
-        + _kv_cell("ZGL flow", zgl_flow_str)
     )
 
     # Right column: dealer positioning + wall context (the "what's holding it" lens)
@@ -224,9 +221,6 @@ def _ticker_card(r: dict) -> str:
         f'<tr>'
         f'<td style="{_SANS}font-size:18px;font-weight:700;'
         f'letter-spacing:0.3px;padding-bottom:2px;">{label}</td>'
-        f'<td align="right" style="white-space:nowrap;">'
-        f'{_badge(regime)}'
-        f'</td>'
         f'</tr></table>'
     )
 
@@ -284,34 +278,39 @@ def build_email(
     methodology_footer = (
         f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.7;'
         f'margin-top:24px;padding-top:14px;border-top:1px solid {RULE_COLOR};">'
-        '<b>Glossary</b> (terms used above, in order)<br>'
+        '<b>Glossary</b><br>'
         '<b>Spot</b>: current underlying price (CBOE, ~15-min delayed).<br>'
         '<b>Day %</b>: change vs prior session close.<br>'
-        '<b>IV30 / 1d σ</b>: 30-day implied vol, then 1-sigma 1-day expected move (≈ IV30 / √252).<br>'
-        '<b>Zero-γ (ZGL)</b>: spot level at which cumulative net GEX crosses zero. Linear interpolation of the profile sign change.<br>'
-        '<b>vs ZGL</b>: % distance from spot to ZGL. Positive = spot above the flip (positive-gamma side, stabilising).<br>'
-        '<b>ZGL flow</b>: dealer hedge flow per 1% spot move at ZGL — same units as Δ-flow. '
-        'Large vs current Δ-flow → crossing ZGL triggers heavy hedging. Small → cosmetic crossing, thin OI near the level.<br>'
-        '<b>Net GEX</b>: sum of strike-level gamma exposure. Sign convention: calls +, puts −. '
-        'Positive = dealers long gamma (absorb moves, stabilising). Negative = dealers short gamma (amplify moves).<br>'
+        '<b>IV30 / 1d σ</b>: 30-day implied vol, then 1-sigma 1-day move under a lognormal '
+        'assumption (≈ IV30 / √252). Textbook stdev — not a forecast.<br>'
+        '<b>Zero-γ (ZGL)</b>: spot level at which cumulative net GEX crosses zero. '
+        'Linear interpolation of the profile sign change.<br>'
+        '<b>vs ZGL</b>: % distance from spot to ZGL. Positive = spot above the flip.<br>'
+        '<b>Net GEX</b>: sum of strike-level gamma exposure. Calls +, puts −. '
+        'Positive = dealers long gamma. Negative = dealers short gamma. '
+        'The accent bar on the left of each card reflects the sign of this number; '
+        'no categorical "positive/negative/neutral" regime label is shown because the '
+        '$200M neutral cutoff would be hand-tuned and non-stationary.<br>'
         '<b>Δ-flow</b>: dealer hedge flow at current spot per 1% move (= |Net GEX| / spot ÷ 0.01).<br>'
-        '<b>Call Wall / Put Wall</b>: anchor strike with the largest one-sided GEX, with distance from spot. '
-        'Use the <i>strike</i> as a hard level; magnitude is methodology-dependent.<br>'
+        '<b>Call Wall / Put Wall</b>: the single strike with the largest one-sided GEX, with '
+        'distance from spot. Use the <i>strike</i> as a hard level; one-sided magnitude is '
+        'methodology-dependent and not shown.<br>'
         '<b>Range</b>: width between walls as % of spot &middot; pin location of spot inside the range.'
         '<br><br>'
-        '<b>Method &middot; Data limitations (read before trading off this)</b><br>'
-        '&bull; <b>OI is T-1.</b> Open interest reflects the prior session close — ZGL and walls describe '
-        '<i>yesterday\'s</i> positioning. Intraday OI drift is not captured by free CBOE data.<br>'
+        '<b>Data limitations — read before trading off this</b><br>'
+        '&bull; <b>OI is T-1.</b> Open interest reflects the prior session close. ZGL and walls '
+        'describe <i>yesterday\'s</i> positioning. Intraday OI drift is not captured.<br>'
         '&bull; <b>Quotes are ~15-min delayed.</b> Spot, IV, and chain mids are not live.<br>'
-        '&bull; <b>Regime classification is hand-calibrated.</b> The neutral floor (|Net GEX| &lt; $200M) was '
-        'tuned May 2026 to the current noise environment; it will drift as vol regime shifts and needs '
-        'periodic rebasing. Use the sign, not the label, as the primary signal.<br>'
-        '&bull; <b>Full-chain ≥ 1 DTE.</b> 0DTE is excluded for math consistency. Absolute GEX magnitude is '
-        'methodology-dependent; treat as order of magnitude only. The robust outputs are <b>Net GEX sign</b>, '
-        '<b>ZGL location</b>, and <b>wall strikes</b>.<br>'
+        '&bull; <b>Full-chain ≥ 1 DTE.</b> 0DTE is excluded for math consistency. Absolute GEX '
+        'magnitude is methodology-dependent (other commercial sources publish very different '
+        'numbers on the same chain). Treat the <i>sign</i> and <i>order of magnitude</i> as '
+        'load-bearing; treat absolute levels as conventions.<br>'
         '&bull; <b>No realized-vol attribution.</b> This is a positioning monitor, not a forecaster. '
-        'No event study, base rate, or backtest is shown — the sample we have is too short for inference.<br>'
-        '<b>Universe</b>: SPY / QQQ / IWM. IWM divergence from SPY/QQQ is the cleanest small-cap stress tell.'
+        'No event study, base rate, or backtest is shown — the sample is too short for inference.<br>'
+        '&bull; <b>What is genuinely defensible:</b> Net GEX sign, ZGL location, wall strikes, '
+        '&Delta;-flow, IV30. Everything else has been removed.<br>'
+        '<b>Universe</b>: SPY / QQQ / IWM only — the standard dealer positioning convention '
+        '(long calls, short puts) is empirically defensible for these names.'
         '</div>'
     )
 

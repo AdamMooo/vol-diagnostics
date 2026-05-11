@@ -42,10 +42,10 @@ def _check_password() -> bool:
 if not _check_password():
     st.stop()
 
-_REGIME_RGBA = {
+_SIGN_RGBA = {
     "positive": "rgba(26, 122, 74, 0.18)",
     "negative": "rgba(192, 57, 43, 0.18)",
-    "neutral":  "rgba(127, 140, 141, 0.12)",
+    "zero":     "rgba(127, 140, 141, 0.12)",
 }
 
 _CSS = """
@@ -63,9 +63,7 @@ _CSS = """
     border-radius: 8px; padding: 14px 16px; margin-bottom: 4px;
     border-left: 5px solid;
 }
-.rc-ticker { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.03em; }
-.rc-regime  { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em;
-              text-transform: uppercase; margin: 3px 0 10px; opacity: 0.85; }
+.rc-ticker { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 10px; }
 .rc-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 0.80rem; }
 .rc-k { opacity: 0.55; }
 .rc-v { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
@@ -76,29 +74,8 @@ _CSS = """
     letter-spacing: 0.06em; padding: 3px 10px; border-radius: 12px;
     margin-top: 10px; background: rgba(148,163,184,0.12);
 }
-.badge {
-    display: inline-block; font-size: 0.58rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 2px 8px; border-radius: 3px; margin-top: 6px;
-    background: rgba(148,163,184,0.15); opacity: 0.8;
-}
-.badge-flip { background: rgba(220,38,38,0.18); color: #f87171; opacity: 1; }
-.badge-int  { background: rgba(217,119,6,0.18);  color: #fbbf24; opacity: 1; }
-.badge-ease { background: rgba(37,99,235,0.18);  color: #60a5fa; opacity: 1; }
 </style>
 """
-
-_VS_CLASS = {
-    "FLIPPED":     "badge badge-flip",
-    "INTENSIFIED": "badge badge-int",
-    "EASED":       "badge badge-ease",
-}
-
-
-def _vs_badge(vs: str | None) -> str:
-    if not vs:
-        return ""
-    return f'<span class="{_VS_CLASS.get(vs, "badge")}">{vs}</span>'
 
 
 def _iv_pill(iv30: float, show: bool = True) -> str:
@@ -107,7 +84,10 @@ def _iv_pill(iv30: float, show: bool = True) -> str:
     return f'<span class="iv-pill">IV30 &nbsp; {iv30:.1f}%</span>'
 
 
-def _derive_observations(summary: dict, spot: float, streak: int | None) -> list[str]:
+def _derive_observations(summary: dict, spot: float) -> list[str]:
+    """Only observations we can defend rigorously: pure arithmetic over net gex,
+    spot, zgl, and wall strikes — no derived ratios, streaks, or vanna-based
+    flags, all of which depend on inputs we don't fully trust."""
     obs = []
     zgl = summary.get("zero_gamma_level")
     if zgl and spot:
@@ -119,24 +99,9 @@ def _derive_observations(summary: dict, spot: float, streak: int | None) -> list
     if cw and pw:
         obs.append(f"Range {pw:.0f}–{cw:.0f}")
 
-    if streak and streak > 1:
-        obs.append(f"{streak}d streak")
-
-    net_vex = summary.get("net_vex")
-    net_gex = summary.get("net_gex")
-    if net_vex and net_gex and abs(net_gex) > 0:
-        ratio = net_vex / net_gex
-        if abs(ratio) > 0.5:
-            obs.append(f"VEX/GEX {ratio:.2f}")
-
     pct_chg = summary.get("price_change_pct")
     if pct_chg:
         obs.append(f"{pct_chg:+.2f}% today")
-
-    ee_strikes = summary.get("early_exercise_strikes", 0)
-    ee_oi = summary.get("early_exercise_oi", 0)
-    if ee_strikes > 0:
-        obs.append(f"EE: {ee_strikes} strikes ({ee_oi:,} OI)")
 
     return obs
 
@@ -152,51 +117,44 @@ def _load_history_cached(ticker: str, days: int = 30) -> pd.DataFrame:
     return load_history(ticker, days)
 
 
-def _compute_streak(hist_df: pd.DataFrame, current_regime: str) -> int | None:
-    if hist_df.empty:
-        return None
-    count = 0
-    for regime in hist_df["gamma_regime"]:
-        if regime == current_regime:
-            count += 1
-        else:
-            break
-    return count if count > 0 else None
+def _sign_key(net_gex: float | None) -> str:
+    if net_gex is None or net_gex == 0:
+        return "zero"
+    return "positive" if net_gex > 0 else "negative"
 
 
 def render_regime_card(col, summary: dict, spot: float | None = None,
-                       streak: int | None = None, show_iv30: bool = False) -> None:
+                       show_iv30: bool = False) -> None:
+    """Card content — only outputs we can defend with our lives:
+    spot, net gex value, δ-flow, zero-γ level, iv30. The accent bar / background
+    reflect the *sign* of net gex; no categorical regime label is shown (the
+    $200M neutral floor is hand-tuned and non-stationary)."""
     ticker = summary["ticker"]
-    regime = summary.get("gamma_regime", "neutral")
-    color = REGIME_COLOR.get(regime, "#999")
-    bg = _REGIME_RGBA.get(regime, "rgba(127,140,141,0.12)")
+    sign = _sign_key(summary.get("net_gex"))
+    color = REGIME_COLOR.get(sign, "#999")
+    bg = _SIGN_RGBA.get(sign, "rgba(127,140,141,0.12)")
     net_gex_b = (summary.get("net_gex") or 0) / _B
-    net_vex_b = (summary.get("net_vex") or 0) / _B
     df_val = summary.get("delta_hedge_flow")
     df_str = f"${abs(df_val) / _B:.1f}B/1%" if df_val is not None else "—"
     zgl = summary.get("zero_gamma_level")
     zgl_str = f"{zgl:.1f}" if zgl is not None else "—"
     spot_str = f"{spot:,.2f}" if spot else "—"
-    vs = summary.get("vs_yesterday")
     iv30 = summary.get("iv30", 0.0)
 
-    obs = _derive_observations(summary, spot or 0, streak)
+    obs = _derive_observations(summary, spot or 0)
     obs_html = "".join(f"<div>{o}</div>" for o in obs)
 
     col.markdown(f"""
 <div class="rc" style="background:{bg};border-left-color:{color};">
   <div class="rc-ticker" style="color:{color};">{ticker}</div>
-  <div class="rc-regime" style="color:{color};">{regime}</div>
   <div class="rc-grid">
     <span class="rc-k">Spot</span>         <span class="rc-v">{spot_str}</span>
     <span class="rc-k">Net GEX</span>      <span class="rc-v">{net_gex_b:+.2f}B</span>
-    <span class="rc-k">VEX</span>          <span class="rc-v">{net_vex_b:+.2f}B</span>
     <span class="rc-k">&Delta;-flow</span>  <span class="rc-v">{df_str}</span>
     <span class="rc-k">Zero-&gamma;</span>  <span class="rc-v">{zgl_str}</span>
   </div>
   <div class="rc-obs">{obs_html}</div>
   {_iv_pill(iv30, show=show_iv30)}
-  {_vs_badge(vs)}
 </div>
 """, unsafe_allow_html=True)
 
@@ -214,10 +172,8 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
     for row in rows:
         cols = st.columns(n_cols)
         for col, data in zip(cols, row):
-            s = data["summary"]
-            hist = _load_history_cached(s["ticker"], days=30)
-            streak = _compute_streak(hist, s.get("gamma_regime", "neutral"))
-            render_regime_card(col, s, spot=data.get("spot"), streak=streak, show_iv30=show_iv30)
+            render_regime_card(col, data["summary"], spot=data.get("spot"),
+                               show_iv30=show_iv30)
 
     if show_overview and len(data_list) > 1:
         summaries = [d["summary"] for d in data_list]
@@ -228,14 +184,13 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
     for data in data_list:
         s = data["summary"]
         ticker = s["ticker"]
-        regime = s.get("gamma_regime", "neutral")
         spot = data.get("spot")
         zgl = s.get("zero_gamma_level")
         cw = s.get("call_wall")
         pw = s.get("put_wall")
         iv30 = s.get("iv30", 0.0)
 
-        label = f"{ticker}  ·  {regime.upper()}"
+        label = ticker
         if show_iv30 and iv30:
             label += f"  ·  IV30 {iv30:.1f}%"
 
@@ -243,8 +198,6 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
             row = {
                 "Spot": f"{spot:,.2f}" if spot else "—",
                 "Net GEX": f"{(s.get('net_gex') or 0) / _B:+.2f}B",
-                "VEX": f"{(s.get('net_vex') or 0) / _B:+.2f}B",
-                "CHEX": f"{(s.get('net_chex') or 0) / _B:+.2f}B",
                 "Zero-γ": f"{zgl:.2f}" if zgl is not None else "—",
                 "Call Wall": f"{cw:.0f}" if cw is not None else "—",
                 "Put Wall": f"{pw:.0f}" if pw is not None else "—",
@@ -261,6 +214,8 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                 st.plotly_chart(plot_gamma_profile(data["p_df"], spot, ticker, s),
                                 use_container_width=True)
 
+            # 30-session ZGL-vs-spot history — defensible because both series
+            # are observable each day, no derived label or category overlaid.
             hist30 = _load_history_cached(ticker, days=30)
             if not hist30.empty:
                 chart_df = hist30.sort_values("date")
@@ -281,11 +236,6 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                     legend=dict(orientation="h", y=1.15),
                 )
                 st.plotly_chart(zgl_fig, use_container_width=True)
-
-                counts = hist30["gamma_regime"].value_counts().reset_index()
-                counts.columns = ["Regime", "Sessions"]
-                counts["% Days"] = (counts["Sessions"] / counts["Sessions"].sum() * 100).round(1).astype(str) + "%"
-                st.dataframe(counts, hide_index=True, use_container_width=True)
 
 
 # ── Boot ──────────────────────────────────────────────────────────────────────
@@ -340,13 +290,22 @@ if sel_index:
 # ── Methodology footer ────────────────────────────────────────────────────────
 st.divider()
 st.caption(
-    "**Methodology** · Full-chain ≥1 DTE · OI as of prior session close · "
-    "Net GEX absolute magnitude is methodology-dependent across commercial sources "
-    "(Barchart 4 nearby expiries; InsiderFinance full chain incl. 0DTE; this tool ≥1 DTE) — "
-    "use sign and order of magnitude. ZGL, put wall, and call wall are robust and load-bearing."
+    "**Defensible outputs only** — this dashboard intentionally shows only what survives "
+    "a rigorous methodology audit: **Net GEX sign + magnitude**, **Zero-γ level**, "
+    "**Call/Put wall strikes** (single max one-sided GEX strike, no cluster smoothing), "
+    "**Δ-flow**, **IV30**. Vanna/charm exposures, hand-tuned regime labels, vs-yesterday "
+    "classifiers, streaks, and event-study means have been removed — they could not be "
+    "defended at a quant PM's level of scrutiny."
 )
 st.caption(
-    "**Universe** · SPY / QQQ / IWM only. Tickers limited to those where the standard "
-    "dealer positioning convention (long calls, short puts) is empirically defensible. "
-    "Not applied to single names or covered-call writers."
+    "**Data limitations** · OI is T-1 (prior session close) — ZGL and walls describe "
+    "yesterday's positioning. Spot/IV/chain quotes are ~15-min delayed. Full-chain ≥1 DTE "
+    "(0DTE excluded for math consistency). Absolute Net GEX magnitude is methodology-dependent "
+    "across commercial sources — treat sign and order of magnitude as load-bearing, absolute "
+    "levels as conventions. **No realized-vol attribution.** This is a positioning monitor, "
+    "not a forecaster."
+)
+st.caption(
+    "**Universe** · SPY / QQQ / IWM only — the standard dealer positioning convention "
+    "(long calls, short puts) is empirically defensible for these names."
 )
