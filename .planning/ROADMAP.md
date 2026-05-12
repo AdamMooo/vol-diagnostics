@@ -4,6 +4,7 @@
 
 - ✅ **v3.0 GEX Interactive Dashboard** — Phases 1–4 (shipped 2026-05-06)
 - 🚧 **v3.1 Hardening & Charm** — Phases 5–7 (in progress)
+- **v3.2 Pre-Distribution Hardening** — Phase 8 (scoped, not started) — see [[_audits/methodology-review-2026-05-11|2026-05-11 audit]]
 
 ## Phases
 
@@ -71,6 +72,25 @@ Plans:
   5. `tests/test_analytics_charts.py` passes: chart functions return a matplotlib Figure for known-good input; zero-exposure edge case does not crash
 **Plans**: TBD
 
+---
+
+### Phase 8: Pre-Distribution Hardening (v3.2)
+**Goal**: Close the two remaining ship-blockers + two highest-value presentation gaps before sharing the GEX email externally. Source: [[_audits/methodology-review-2026-05-11|2026-05-11 methodology audit]].
+**Depends on**: Phase 5 (Phases 6–7 not required)
+**Requirements**: DIST-01, DIST-02, DIST-03, DIST-04
+**Success Criteria** (what must be TRUE):
+  1. Email header surfaces snapshot timestamp (e.g. `Snapshot 2026-05-11 16:15 ET · OI T-1 · Greeks 15-min delayed`) — `data_loader.ChainSnapshot.as_of` threaded through to `report.build_email()`
+  2. Methodology caveat banner appears as plain-text line *above* the per-ticker cards (not only in 10px footer): "Sign and ZGL are robust; absolute GEX magnitude is methodology-specific — do not compare $-for-$ to other vendors"
+  3. Gamma profile slope steepness quantified and surfaced (max |∂netGEX/∂spot| around current spot, or peak-to-30%-width); reader can answer "how sharp is this regime?" without eyeballing the chart
+  4. Filter-drop transparency: email/dashboard footer notes "Filters removed X% of raw chain OI" so recipient knows the effective universe
+**Plans**: TBD
+
+**Deferred to future milestones (footnotes acceptable for now):**
+- FRED-sourced risk-free rate replacing hardcoded `r=0.05` (carryover P0 from May-7)
+- Per-ticker dividend yield `q` (carryover P1 from May-7)
+- GEX percentile vs own history (blocked on ≥30 days of snapshots — earliest ~late June 2026)
+- event_study() empirical results (same blocker)
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -82,3 +102,10 @@ Plans:
 | 5. UAT Sign-Off & Cleanup | v3.1 | 3/3 | Complete | 2026-05-06 |
 | 6. Charm by DTE Chart | v3.1 | 0/TBD | Not started | - |
 | 7. Critical-Path Test Coverage | v3.1 | 0/TBD | Not started | - |
+| 8. Pre-Distribution Hardening | v3.2 | 0/TBD | Scoped | - |
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+<!-- LINKS:END -->

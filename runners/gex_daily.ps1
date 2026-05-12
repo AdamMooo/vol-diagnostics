@@ -6,13 +6,13 @@
 param([Parameter(Position=0)][string]$cmd = "activate")
 
 $TaskName   = "GEX Daily Report"
-$ProjectDir = "C:\dev\options-quant"
+$ProjectDir = "C:\dev\gamma-omm"
 $Python     = "$ProjectDir\.venv\Scripts\python.exe"
-$Script     = "-m gex.run_daily"
+$Script     = "-m gex.run_daily --send"
 
 if ($cmd -eq "activate") {
     $action   = New-ScheduledTaskAction -Execute $Python -Argument $Script -WorkingDirectory $ProjectDir
-    $trigger  = New-ScheduledTaskTrigger -Daily -At "16:30"
+    $trigger  = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At "16:30"
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -WakeToRun
     Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Force
     Write-Host "Activated: $TaskName - runs daily at 4:30 PM"

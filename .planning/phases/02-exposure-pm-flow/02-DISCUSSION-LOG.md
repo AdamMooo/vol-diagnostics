@@ -74,3 +74,22 @@
 ## Deferred Ideas
 
 None.
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Phase siblings:**
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-01-PLAN|02-01-PLAN]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-01-SUMMARY|02-01-SUMMARY]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-02-PLAN|02-02-PLAN]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-02-SUMMARY|02-02-SUMMARY]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-03-PLAN|02-03-PLAN]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-03-SUMMARY|02-03-SUMMARY]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-04-PLAN|02-04-PLAN]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-04-SUMMARY|02-04-SUMMARY]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-CONTEXT|02-CONTEXT]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-PATTERNS|02-PATTERNS]]
+- [[_planning/gamma-omm/phases/02-exposure-pm-flow/02-RESEARCH|02-RESEARCH]]
+
+<!-- LINKS:END -->

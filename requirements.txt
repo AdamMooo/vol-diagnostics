@@ -12,3 +12,4 @@ pyarrow>=15.0
 python-dotenv>=1.0
 streamlit>=1.57,<2.0
 plotly>=5.0,<7.0
+pywin32>=306; sys_platform == "win32"

@@ -146,3 +146,19 @@ The 4 human verification items cover the live interactive UI behaviors that cann
 
 _Verified: 2026-05-05_
 _Verifier: Claude (gsd-verifier)_
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Phase siblings:**
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-01-PLAN|03-01-PLAN]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-01-SUMMARY|03-01-SUMMARY]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-02-PLAN|03-02-PLAN]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-02-SUMMARY|03-02-SUMMARY]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-HUMAN-UAT|03-HUMAN-UAT]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-PATTERNS|03-PATTERNS]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-RESEARCH|03-RESEARCH]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-REVIEW|03-REVIEW]]
+
+<!-- LINKS:END -->

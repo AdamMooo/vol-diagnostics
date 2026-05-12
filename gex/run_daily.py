@@ -64,7 +64,7 @@ def run(dry_run: bool = False) -> None:
         if not s.get("error"):
             save_snapshot(s, ticker)
             iv30_str = f"  iv30={s['iv30']:.1f}%" if s.get("iv30") else ""
-            print(f"spot={s['spot']:.2f}  gex=${s['net_gex']/1e9:.2f}B  regime={s['gamma_regime']}{iv30_str}")
+            print(f"spot={s['spot']:.2f}  gex=${s['net_gex']/1e9:.2f}B{iv30_str}")
         else:
             print(f"ERROR: {s['error']}")
 
@@ -101,6 +101,20 @@ def run(dry_run: bool = False) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Write HTML preview to out/, do not send email.")
+    parser.add_argument("--send", action="store_true",
+                        help="Required to actually send the email. Without this flag, "
+                             "the script behaves as --dry-run. Set by the scheduled task.")
     args = parser.parse_args()
+
+    # Safety guard: require an explicit --send (or GEX_SEND=1) to send mail.
+    # Prevents accidental fires from terminal up-arrow recall.
+    import os as _os
+    authorized = args.send or _os.getenv("GEX_SEND") == "1"
+    if not authorized and not args.dry_run:
+        print("[gex-daily] No --send flag (and GEX_SEND != 1). Falling back to --dry-run.")
+        print("[gex-daily] The scheduled task is the only authorized sender.")
+        args.dry_run = True
+
     run(dry_run=args.dry_run)

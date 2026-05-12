@@ -1,12 +1,16 @@
 """
 Derive analytics from GEX and produce Plotly charts.
 
-Key outputs:
+Key outputs (only the rigorously defensible ones survive):
     - net_gex: scalar total GEX at current spot
     - zero_gamma_level: spot where cumulative GEX changes sign
-    - call_wall: strike with largest positive GEX (dominant call cluster)
-    - put_wall: strike with largest negative GEX (dominant put cluster)
-    - gamma_regime: "positive" | "negative" | "neutral"
+    - call_wall: strike with largest positive GEX (single max one-sided)
+    - put_wall:  strike with largest negative GEX
+    - delta_hedge_flow: |Net GEX| / spot / 0.01
+
+No categorical regime label is produced — the $200M neutral floor was
+hand-tuned and non-stationary. Sign of net_gex is the only label used
+downstream (drives accent bar color in the report card).
 """
 from __future__ import annotations
 
@@ -14,28 +18,16 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-NEUTRAL_BAND_PCT = 0.005  # net GEX within ±0.5% of |max| treated as neutral
-# Absolute floor: |net GEX| below this → NEUTRAL regardless of relative magnitude.
-# Calibrated 2026-05-05 against post-filter noise tickers (EWJ/EFA/TLT/XLF);
-# 75th percentile of that distribution ≈ $94M, rounded to $100M.
-NEUTRAL_ABS_FLOOR = 0.2e9  # $200M — calibrated to suppress XLF/EFA/EWJ/TLT noise tier
-
 
 def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
               spot: float,
-              net_vex: float | None = None,
-              net_chex: float | None = None,
               delta_hedge_flow: float | None = None) -> dict:
     """
     gex_df: strike-level GEX DataFrame (columns: strike, gex)
     profile_df: gamma profile DataFrame (columns: spot_level, net_gex)
     spot: current underlying price
-
-    Returns a dict of key analytics.
     """
     net_gex = float(gex_df["gex"].sum())
-
-    # zero-gamma level: first sign change in profile
     zero_gamma = _find_zero_crossing(profile_df)
 
     calls = gex_df[gex_df["gex"] > 0]
@@ -43,25 +35,12 @@ def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
     call_wall = float(calls.loc[calls["gex"].idxmax(), "strike"]) if not calls.empty else None
     put_wall = float(puts.loc[puts["gex"].idxmin(), "strike"]) if not puts.empty else None
 
-    abs_max = gex_df["gex"].abs().max()
-    if abs_max == 0 or abs(net_gex) < NEUTRAL_ABS_FLOOR:
-        regime = "neutral"
-    elif abs(net_gex) / abs_max < NEUTRAL_BAND_PCT:
-        regime = "neutral"
-    elif net_gex > 0:
-        regime = "positive"
-    else:
-        regime = "negative"
-
     return {
         "net_gex": net_gex,
         "zero_gamma_level": zero_gamma,
         "call_wall": call_wall,
         "put_wall": put_wall,
-        "gamma_regime": regime,
         "spot": spot,
-        "net_vex": net_vex,
-        "net_chex": net_chex,
         "delta_hedge_flow": delta_hedge_flow,
     }
 
@@ -70,11 +49,16 @@ def _find_zero_crossing(profile_df: pd.DataFrame) -> float | None:
     signs = np.sign(profile_df["net_gex"].to_numpy())
     for i in range(len(signs) - 1):
         if signs[i] != signs[i + 1]:
-            # linear interpolation between the two points
             x0, y0 = profile_df["spot_level"].iloc[i], profile_df["net_gex"].iloc[i]
             x1, y1 = profile_df["spot_level"].iloc[i + 1], profile_df["net_gex"].iloc[i + 1]
             return float(x0 - y0 * (x1 - x0) / (y1 - y0))
     return None
+
+
+def _sign_color(net_gex: float | None) -> str:
+    if net_gex is None or net_gex == 0:
+        return "#64748b"
+    return "#16a34a" if net_gex > 0 else "#dc2626"
 
 
 def plot_strike_gex(gex_df: pd.DataFrame, spot: float, ticker: str,
@@ -83,7 +67,6 @@ def plot_strike_gex(gex_df: pd.DataFrame, spot: float, ticker: str,
     colors = ["#3b82f6" if v >= 0 else "#ef4444" for v in gex_df["gex"]]
     width = _bar_width(gex_df)
     net_b = summary.get("net_gex", 0) / 1e9
-    regime = summary.get("gamma_regime", "neutral").upper()
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -113,7 +96,7 @@ def plot_strike_gex(gex_df: pd.DataFrame, spot: float, ticker: str,
 
     fig.update_layout(
         template="plotly_dark",
-        title=dict(text=f"{ticker}  ·  GEX by Strike  ·  Net {net_b:+.2f}B  [{regime}]",
+        title=dict(text=f"{ticker}  ·  GEX by Strike  ·  Net {net_b:+.2f}B",
                    font_size=13),
         xaxis_title="Strike",
         yaxis_title="GEX ($B)",
@@ -172,13 +155,13 @@ def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
 
 
 def plot_overview(results: list[dict]) -> go.Figure:
-    """Horizontal bar chart — net GEX for all tickers."""
-    from gex.report import TICKER_LABEL, REGIME_COLOR
+    """Horizontal bar chart — net GEX for all tickers. Color = sign."""
+    from gex.report import TICKER_LABEL
 
     valid = [r for r in results if not r.get("error")]
     labels = [TICKER_LABEL.get(r["ticker"], r["ticker"]) for r in valid]
     values = [r["net_gex"] / 1e9 for r in valid]
-    colors = [REGIME_COLOR.get(r["gamma_regime"], "#7f8c8d") for r in valid]
+    colors = [_sign_color(r.get("net_gex")) for r in valid]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(

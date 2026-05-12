@@ -91,3 +91,19 @@ Phase 5 fully signed off. All docs accurate. 77 tests green. Ready to execute Ph
 ---
 *Phase: 05-uat-sign-off-cleanup*
 *Completed: 2026-05-06*
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Phase siblings:**
+- [[_planning/gamma-omm/phases/05-uat-sign-off-cleanup/05-CONTEXT|05-CONTEXT]]
+- [[_planning/gamma-omm/phases/05-uat-sign-off-cleanup/05-DISCUSSION-LOG|05-DISCUSSION-LOG]]
+- [[_planning/gamma-omm/phases/05-uat-sign-off-cleanup/05-P1-PLAN|05-P1-PLAN]]
+- [[_planning/gamma-omm/phases/05-uat-sign-off-cleanup/05-P1-SUMMARY|05-P1-SUMMARY]]
+- [[_planning/gamma-omm/phases/05-uat-sign-off-cleanup/05-P2-PLAN|05-P2-PLAN]]
+- [[_planning/gamma-omm/phases/05-uat-sign-off-cleanup/05-P2-SUMMARY|05-P2-SUMMARY]]
+- [[_planning/gamma-omm/phases/05-uat-sign-off-cleanup/05-P3-PLAN|05-P3-PLAN]]
+- [[_planning/gamma-omm/phases/05-uat-sign-off-cleanup/05-RESEARCH|05-RESEARCH]]
+
+<!-- LINKS:END -->

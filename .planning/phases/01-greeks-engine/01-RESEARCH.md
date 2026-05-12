@@ -482,3 +482,16 @@ python -m pytest --version  # Verify pytest is runnable
 
 **Next phase context:** Phase 2 will extend `exposure_engine.py` with `compute_vex()` and `compute_chex()` functions, which will apply sign conventions and aggregation. This research assumes those are separate from the BS engine.
 
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Phase siblings:**
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-01-PLAN|01-01-PLAN]]
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-01-SUMMARY|01-01-SUMMARY]]
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-02-PLAN|01-02-PLAN]]
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-02-SUMMARY|01-02-SUMMARY]]
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-VERIFICATION|01-VERIFICATION]]
+
+<!-- LINKS:END -->

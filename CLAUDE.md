@@ -56,16 +56,20 @@ python -m gex.run_daily              # all 3 tickers → HTML email
 
 | Module | Purpose |
 |--------|---------|
-| `gex/data_loader.py` | CBOE delayed quotes JSON → `ChainSnapshot` |
-| `gex/greeks_engine.py` | Black-Scholes gamma, vanna, charm vectorised; `add_greeks()` enriches chain df |
-| `gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; VEX/CHEX analogues; strike/expiry aggregation |
-| `gex/analytics.py` | Net GEX/VEX/CHEX, zero-gamma level, call/put walls, regime classification, charts |
-| `gex/run_gex.py` | Single-ticker entry point — fetch → compute → print summary → save PNGs to `out/` |
-| `gex/run_daily.py` | Daily orchestrator — all 3 tickers, save parquet snapshot, send HTML email |
-| `gex/validation.py` | Parquet snapshot store, load_yesterday(), vs-yesterday classification, event-study |
-| `gex/report.py` | HTML email builder — scorecard pills, GEX table, rule-based narrative |
+| `gex/data_loader.py` | CBOE delayed quotes JSON → `ChainSnapshot` (gamma from CBOE) |
+| `gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` to sweep spot |
+| `gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; `strike_gex`, `expiry_gex`, `gamma_profile` |
+| `gex/analytics.py` | `summarise()` → net GEX, zero-γ level, call/put walls, δ-flow; plotly charts |
+| `gex/compute.py` | Shared pipeline `compute_ticker(ticker)` — single source of truth for daily + streamlit |
+| `gex/run_gex.py` | Single-ticker CLI — fetch → compute → print summary → save PNGs |
+| `gex/run_daily.py` | Daily orchestrator — 3 tickers, parquet snapshot, HTML email, append observation block |
+| `gex/validation.py` | Parquet snapshot store: `save_snapshot()` + `load_history()` (drives 30-day ZGL chart) |
+| `gex/report.py` | HTML email builder — sign-accent cards, glossary, data-limitations footer |
+| `streamlit_app.py` | Browser dashboard — same pipeline, plotly bar/profile charts + 30-day ZGL history |
 
-Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change.
+Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color.
+
+**Removed for rigor** (do not reintroduce without methodology audit): VEX/CHEX (vanna/charm exposures), wall cluster + concentration, ZGL flow magnitude, vs-yesterday classifier, event study, early-exercise risk flags, categorical "positive/negative/neutral" regime label, vanna/charm BS computations.
 
 Bloomberg upgrade path: swap `gex/data_loader.py` only — everything else is data-source-agnostic.
 

@@ -83,3 +83,19 @@ None — test inputs are fully synthetic (no external data, no network calls). T
 - `C:/dev/options-quant/gex/tests/test_streamlit_app.py` — FOUND
 - Commit `10f94cd` — FOUND
 - All 3 test functions present — VERIFIED (grep confirmed `test_import_no_emailer_bleed`, `test_fetch_ticker_has_clear`, `test_plot_overview_renders`)
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Phase siblings:**
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-01-PLAN|03-01-PLAN]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-01-SUMMARY|03-01-SUMMARY]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-02-PLAN|03-02-PLAN]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-HUMAN-UAT|03-HUMAN-UAT]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-PATTERNS|03-PATTERNS]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-RESEARCH|03-RESEARCH]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-REVIEW|03-REVIEW]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-VERIFICATION|03-VERIFICATION]]
+
+<!-- LINKS:END -->

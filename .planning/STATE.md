@@ -2,7 +2,7 @@
 gsd_state_version: "1.0"
 milestone: "v3.1 — Hardening & Charm"
 status: active
-last_updated: 2026-05-06 (Phase 5 complete)
+last_updated: 2026-05-11 (v3.2 scoped via methodology audit)
 context_gathered: true
 plans_ready: true
 ---
@@ -21,7 +21,7 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 Phase: 5 — UAT Sign-Off & Cleanup (complete)
 Plan: P3 (Wave 3 — docs sweep)
 Status: Phase 5 complete — UAT signed off, docs cleaned, ready for Phase 6
-Last activity: 2026-05-06 — P3 committed (d273d1f): CBOE correction, VERIFICATION.md complete, options-quant.md updated
+Last activity: 2026-05-11 — Out-of-phase work: email rebuild (stacked cards, 720px, theme-adaptive), scheduled task hardening (path fix, weekday trigger, --send guard, Outlook auto-launch), wall cluster + concentration + distance-to-flip + expected-1d-sigma rolled into analytics/report. Audit completed: [[_audits/methodology-review-2026-05-11]]. v3.2 Phase 8 scoped in ROADMAP.
 
 Progress: [███░░░░░░░] 30% (v3.1 phases — Phase 5 complete, 3/3 plans done)
 
@@ -71,3 +71,9 @@ None.
 Last session: 2026-05-06
 Stopped at: Completed 05-P3-PLAN.md (commit d273d1f)
 Resume file: .planning/phases/06-charm-chart/06-P1-PLAN.md
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
+<!-- LINKS:END -->

@@ -76,7 +76,6 @@ def _print_summary(s: dict, ticker: str) -> None:
     print(f"{'='*50}")
     print(f"  Spot:             {s['spot']:.2f}")
     print(f"  Net GEX:          ${s['net_gex']/1e9:.2f}B")
-    print(f"  Gamma regime:     {s['gamma_regime'].upper()}")
     zg = s.get("zero_gamma_level")
     print(f"  Zero-gamma level: {f'{zg:.2f}' if zg else 'not found in ±15% range'}")
     cw = s.get("call_wall")

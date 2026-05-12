@@ -91,3 +91,16 @@ No gaps. All phase must-haves verified, all four requirement IDs satisfied, 31 t
 
 _Verified: 2026-05-05_
 _Verifier: Claude (gsd-verifier)_
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Phase siblings:**
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-01-PLAN|01-01-PLAN]]
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-01-SUMMARY|01-01-SUMMARY]]
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-02-PLAN|01-02-PLAN]]
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-02-SUMMARY|01-02-SUMMARY]]
+- [[_planning/gamma-omm/phases/01-greeks-engine/01-RESEARCH|01-RESEARCH]]
+
+<!-- LINKS:END -->

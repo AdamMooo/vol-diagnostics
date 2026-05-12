@@ -99,3 +99,19 @@ No gaps. The single gap from the initial verification (Phase 3 test regression c
 
 _Verified: 2026-05-06T14:45:00Z_
 _Verifier: Claude (gsd-verifier)_
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Phase siblings:**
+- [[_planning/gamma-omm/phases/04-historical-tab/04-01-PLAN|04-01-PLAN]]
+- [[_planning/gamma-omm/phases/04-historical-tab/04-01-SUMMARY|04-01-SUMMARY]]
+- [[_planning/gamma-omm/phases/04-historical-tab/04-02-PLAN|04-02-PLAN]]
+- [[_planning/gamma-omm/phases/04-historical-tab/04-02-SUMMARY|04-02-SUMMARY]]
+- [[_planning/gamma-omm/phases/04-historical-tab/04-CONTEXT|04-CONTEXT]]
+- [[_planning/gamma-omm/phases/04-historical-tab/04-DISCUSSION-LOG|04-DISCUSSION-LOG]]
+- [[_planning/gamma-omm/phases/04-historical-tab/04-PATTERNS|04-PATTERNS]]
+- [[_planning/gamma-omm/phases/04-historical-tab/04-REVIEW|04-REVIEW]]
+
+<!-- LINKS:END -->

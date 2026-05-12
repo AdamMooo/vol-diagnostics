@@ -107,3 +107,19 @@ None beyond what the plan's threat model covers:
 - `C:/dev/options-quant/requirements.txt` contains `streamlit>=1.57,<2.0` — FOUND
 - Commit `c7da1d0` — FOUND
 - Commit `b4e4760` — FOUND
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Phase siblings:**
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-01-PLAN|03-01-PLAN]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-02-PLAN|03-02-PLAN]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-02-SUMMARY|03-02-SUMMARY]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-HUMAN-UAT|03-HUMAN-UAT]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-PATTERNS|03-PATTERNS]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-RESEARCH|03-RESEARCH]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-REVIEW|03-REVIEW]]
+- [[_planning/gamma-omm/phases/03-streamlit-dashboard/03-VERIFICATION|03-VERIFICATION]]
+
+<!-- LINKS:END -->

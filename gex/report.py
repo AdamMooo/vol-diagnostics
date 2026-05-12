@@ -12,12 +12,10 @@ from __future__ import annotations
 
 import datetime
 
-# Regime colors — used only as a sign-of-net-gex visual cue (accent bar).
-# Kept under the same keys for backward compat with analytics.plot_overview.
+# Sign-of-net-gex visual cue for the accent bar.
 REGIME_COLOR = {
     "positive": "#16a34a",  # green-600
     "negative": "#dc2626",  # red-600
-    "neutral":  "#64748b",  # slate-500 — retained for backward compat; not surfaced in report
 }
 
 # Badge backgrounds (solid color with white text — survive theme inversion).

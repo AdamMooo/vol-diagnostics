@@ -116,3 +116,9 @@ Seven modules, 74 tests, Holm-Bonferroni rigor. 0 of 30 bucket-mean tests surviv
 
 ### v1.0 — Regime-Aware Fund Intelligence Notebook (pivoted 2026-04-30)
 HMM GMM diagnostic on SPX. Pivoted because it never touched options-pricing data.
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+<!-- LINKS:END -->

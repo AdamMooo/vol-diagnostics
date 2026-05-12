@@ -61,3 +61,9 @@ Sign off deferred UAT, add Charm chart, and fill critical test coverage gaps bef
 | CHARM-01 | Phase 6 |
 | CHARM-02 | Phase 6 |
 | COV-01/02/03/04/05 | Phase 7 |
+
+---
+<!-- LINKS:AUTO -->
+## Related
+**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+<!-- LINKS:END -->

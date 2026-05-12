@@ -5,8 +5,8 @@ Called by gex.run_daily at end-of-session (4:30 PM ET). Idempotent — if the
 observation block is already present in today's note, no-op.
 
 The intent is to remove the "remembering" overhead from the observation period.
-The regime data auto-prefills; the qualitative note ("did the call match what
-realized today?") is the only manual step.
+Defensible fields auto-prefill; the qualitative note ("did anything realize today
+that the positioning snapshot suggested?") is the only manual step.
 """
 from __future__ import annotations
 
@@ -19,11 +19,10 @@ HEADER = "## GEX Observation"
 
 def _fmt_row(s: dict) -> str:
     if s.get("error"):
-        return f"| {s.get('ticker','?')} | ERROR — {s['error']} |  |  |  |  |"
+        return f"| {s.get('ticker','?')} | ERROR — {s['error']} |  |  |  |"
     spot = s.get("spot", 0.0)
     zgl = s.get("zero_gamma_level")
     net_gex_b = (s.get("net_gex") or 0) / 1e9
-    regime = (s.get("gamma_regime") or "neutral").upper()
 
     if zgl is not None:
         zgl_str = f"{zgl:.1f}"
@@ -33,7 +32,7 @@ def _fmt_row(s: dict) -> str:
         zgl_pct = "—"
 
     return (
-        f"| {s['ticker']} | {regime} | {net_gex_b:+.2f}B | "
+        f"| {s['ticker']} | {net_gex_b:+.2f}B | "
         f"{zgl_str} | {spot:.2f} | {zgl_pct} |"
     )
 
@@ -43,15 +42,15 @@ def _build_block(summaries: list[dict], date: datetime.date) -> str:
     return f"""
 {HEADER} — {date.isoformat()}
 
-Auto-prefilled by `gex.run_daily`. Add a one-line note about what realized behavior matched or diverged from the regime call.
+Auto-prefilled by `gex.run_daily`. Add a one-line note about what realized today and whether the positioning snapshot looked aligned.
 
-| Ticker | Regime | Net GEX | ZGL | Spot | vs ZGL |
-|--------|--------|---------|-----|------|--------|
+| Ticker | Net GEX | ZGL | Spot | vs ZGL |
+|--------|---------|-----|------|--------|
 {rows}
 
 **Realized note:**
 
-_(add observation: what did the regime call get right or wrong today? gap, vol expansion, pin, range-bound, anything notable)_
+_(add observation: gap, vol expansion, pin, range-bound, anything notable)_
 """
 
 
