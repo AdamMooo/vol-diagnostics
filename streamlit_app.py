@@ -9,7 +9,7 @@ import streamlit as st
 
 from gex.compute import compute_ticker
 from gex.analytics import (
-    plot_overview, plot_strike_gex, plot_gamma_profile,
+    plot_strike_gex, plot_gamma_profile,
     plot_oi_vol_surface, plot_skew_term_structure,
 )
 from gex.report import REGIME_COLOR
@@ -72,19 +72,9 @@ _CSS = """
 .rc-v { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 .rc-obs { font-size: 0.72rem; opacity: 0.70; margin-top: 10px; line-height: 1.6; }
 
-.iv-pill {
-    display: inline-block; font-size: 0.65rem; font-weight: 700;
-    letter-spacing: 0.06em; padding: 3px 10px; border-radius: 12px;
-    margin-top: 10px; background: rgba(148,163,184,0.12);
-}
+.sub-bar { font-size: 0.72rem; opacity: 0.55; margin-bottom: 14px; }
 </style>
 """
-
-
-def _iv_pill(iv30: float, show: bool = True) -> str:
-    if not show or not iv30:
-        return ""
-    return f'<span class="iv-pill">IV30 &nbsp; {iv30:.1f}%</span>'
 
 
 def _derive_observations(summary: dict, spot: float) -> list[str]:
@@ -126,12 +116,9 @@ def _sign_key(net_gex: float | None) -> str:
     return "positive" if net_gex > 0 else "negative"
 
 
-def render_regime_card(col, summary: dict, spot: float | None = None,
-                       show_iv30: bool = False) -> None:
-    """Card content — only outputs we can defend with our lives:
-    spot, net gex value, δ-flow, zero-γ level, iv30. The accent bar / background
-    reflect the *sign* of net gex; no categorical regime label is shown (the
-    $200M neutral floor is hand-tuned and non-stationary)."""
+def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
+    """Card content — only outputs we can defend with our lives. Accent bar /
+    background reflect the sign of net gex; no categorical regime label."""
     ticker = summary["ticker"]
     sign = _sign_key(summary.get("net_gex"))
     color = REGIME_COLOR.get(sign, "#999")
@@ -157,21 +144,20 @@ def render_regime_card(col, summary: dict, spot: float | None = None,
 <div class="rc" style="background:{bg};border-left-color:{color};">
   <div class="rc-ticker" style="color:{color};">{ticker}</div>
   <div class="rc-grid">
-    <span class="rc-k">Spot</span>         <span class="rc-v">{spot_str}</span>
-    <span class="rc-k">Net GEX</span>      <span class="rc-v">{net_gex_b:+.2f}B</span>
-    <span class="rc-k">Hedge Shares/$1</span>  <span class="rc-v">{df_str}</span>
-    <span class="rc-k">Zero-&gamma;</span>  <span class="rc-v">{zgl_str}</span>
-    <span class="rc-k">Skew (25&Delta;)</span>  <span class="rc-v">{skew_str}</span>
+    <span class="rc-k">Spot</span>           <span class="rc-v">{spot_str}</span>
+    <span class="rc-k">Net GEX</span>        <span class="rc-v">{net_gex_b:+.2f}B</span>
+    <span class="rc-k">Hedge Sh / $1</span> <span class="rc-v">{df_str}</span>
+    <span class="rc-k">&gamma;-flip</span>  <span class="rc-v">{zgl_str}</span>
+    <span class="rc-k">Skew 25&Delta;</span>  <span class="rc-v">{skew_str}</span>
+    <span class="rc-k">IV30</span>           <span class="rc-v">{iv30:.1f}%</span>
   </div>
   <div class="rc-obs">{obs_html}</div>
-  {_iv_pill(iv30, show=show_iv30)}
 </div>
 """, unsafe_allow_html=True)
 
 
 def render_section(tickers: list[str], all_data: dict[str, dict],
-                   n_cols: int = 5, show_iv30: bool = False,
-                   show_overview: bool = True) -> None:
+                   n_cols: int = 5) -> None:
     data_list = [all_data[t] for t in tickers if t in all_data and not all_data[t]["summary"].get("error")]
 
     if not data_list:
@@ -182,84 +168,67 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
     for row in rows:
         cols = st.columns(n_cols)
         for col, data in zip(cols, row):
-            render_regime_card(col, data["summary"], spot=data.get("spot"),
-                               show_iv30=show_iv30)
+            render_regime_card(col, data["summary"], spot=data.get("spot"))
 
-    if show_overview and len(data_list) > 1:
-        summaries = [d["summary"] for d in data_list]
-        fig = plot_overview(summaries)
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown('<div class="sec">Detail</div>', unsafe_allow_html=True)
     for data in data_list:
         s = data["summary"]
         ticker = s["ticker"]
         spot = data.get("spot")
-        zgl = s.get("zero_gamma_level")
-        cw = s.get("call_wall")
-        pw = s.get("put_wall")
         iv30 = s.get("iv30", 0.0)
 
-        label = ticker
-        if show_iv30 and iv30:
-            label += f"  ·  IV30 {iv30:.1f}%"
+        net_b = (s.get("net_gex") or 0) / _B
+        spot_str = f"${spot:,.2f}" if spot else "—"
+        label = f"{ticker}   ·   {spot_str}   ·   Net {net_b:+.2f}B"
 
         with st.expander(label, expanded=False):
-            row = {
-                "Spot": f"{spot:,.2f}" if spot else "—",
-                "Net GEX": f"{(s.get('net_gex') or 0) / _B:+.2f}B",
-                "Zero-γ": f"{zgl:.2f}" if zgl is not None else "—",
-                "Call Wall": f"{cw:.0f}" if cw is not None else "—",
-                "Put Wall": f"{pw:.0f}" if pw is not None else "—",
-            }
-            if show_iv30 and iv30:
-                row["IV30"] = f"{iv30:.1f}%"
-            st.dataframe(pd.DataFrame([row]), hide_index=True, use_container_width=True)
+            tab_strikes, tab_vol, tab_history = st.tabs(["Strikes", "Vol", "History"])
 
-            c1, c2 = st.columns([3, 2])
-            with c1:
-                st.plotly_chart(plot_strike_gex(data["s_df"], spot, ticker, s),
-                                use_container_width=True)
-            with c2:
-                st.plotly_chart(plot_gamma_profile(data["p_df"], spot, ticker, s),
-                                use_container_width=True)
+            with tab_strikes:
+                c1, c2 = st.columns([3, 2])
+                with c1:
+                    st.plotly_chart(plot_strike_gex(data["s_df"], spot, ticker, s),
+                                    use_container_width=True)
+                with c2:
+                    st.plotly_chart(plot_gamma_profile(data["p_df"], spot, ticker, s),
+                                    use_container_width=True)
 
-            # 30-session ZGL-vs-spot history — defensible because both series
-            # are observable each day, no derived label or category overlaid.
-            hist30 = _load_history_cached(ticker, days=30)
-            if not hist30.empty:
-                chart_df = hist30.sort_values("date")
-                zgl_fig = go.Figure()
-                zgl_fig.add_trace(go.Scatter(
-                    x=chart_df["date"], y=chart_df["zero_gamma_level"],
-                    name="Zero-γ", line=dict(color="#f59e0b", width=1.5),
-                ))
-                zgl_fig.add_trace(go.Scatter(
-                    x=chart_df["date"], y=chart_df["spot"],
-                    name="Spot", line=dict(color="white", width=1.2, dash="dash"),
-                ))
-                zgl_fig.update_layout(
-                    template="plotly_dark",
-                    title="ZGL vs Spot — 30 sessions",
-                    height=220,
-                    margin=dict(t=40, b=30, l=60, r=20),
-                    legend=dict(orientation="h", y=1.15),
-                )
-                st.plotly_chart(zgl_fig, use_container_width=True)
+            with tab_vol:
+                surface_df = data.get("surface_df")
+                if surface_df is not None and not surface_df.empty:
+                    st.plotly_chart(
+                        plot_oi_vol_surface(surface_df, ticker, spot=spot, iv30=iv30),
+                        use_container_width=True,
+                    )
+                skew_df = data.get("skew_df")
+                if skew_df is not None and not skew_df.empty:
+                    st.plotly_chart(
+                        plot_skew_term_structure(skew_df, ticker),
+                        use_container_width=True,
+                    )
 
-            surface_df = data.get("surface_df")
-            if surface_df is not None and not surface_df.empty:
-                st.plotly_chart(
-                    plot_oi_vol_surface(surface_df, ticker, spot=spot, iv30=iv30),
-                    use_container_width=True,
-                )
-
-            skew_df = data.get("skew_df")
-            if skew_df is not None and not skew_df.empty:
-                st.plotly_chart(
-                    plot_skew_term_structure(skew_df, ticker),
-                    use_container_width=True,
-                )
+            with tab_history:
+                hist30 = _load_history_cached(ticker, days=30)
+                if hist30.empty:
+                    st.caption("No history yet — daily snapshots accumulate from `gex.run_daily`.")
+                else:
+                    chart_df = hist30.sort_values("date")
+                    zgl_fig = go.Figure()
+                    zgl_fig.add_trace(go.Scatter(
+                        x=chart_df["date"], y=chart_df["zero_gamma_level"],
+                        name="γ-flip", line=dict(color="#f59e0b", width=1.5),
+                    ))
+                    zgl_fig.add_trace(go.Scatter(
+                        x=chart_df["date"], y=chart_df["spot"],
+                        name="Spot", line=dict(color="white", width=1.2, dash="dash"),
+                    ))
+                    zgl_fig.update_layout(
+                        template="plotly_dark",
+                        title="γ-flip vs Spot — 30 sessions",
+                        height=260,
+                        margin=dict(t=40, b=30, l=60, r=20),
+                        legend=dict(orientation="h", y=1.15),
+                    )
+                    st.plotly_chart(zgl_fig, use_container_width=True)
 
 
 # ── Boot ──────────────────────────────────────────────────────────────────────
@@ -267,20 +236,13 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
 st.markdown(_CSS, unsafe_allow_html=True)
 
 with st.sidebar:
-    st.markdown("### GEX Monitor")
-    st.markdown("**Equity Index Dealer Flow**")
-    sel_index = st.multiselect("", INDEX_TICKERS, default=INDEX_TICKERS, key="sel_index", label_visibility="collapsed")
-    st.caption(f"Cache: 5 min · {datetime.now().strftime('%H:%M')} local")
-    st.divider()
-    if st.button("Refresh data", use_container_width=True):
+    sel_index = st.multiselect(
+        "Tickers", INDEX_TICKERS, default=INDEX_TICKERS, key="sel_index",
+    )
+    if st.button("Refresh", use_container_width=True):
         fetch_ticker.clear()
         st.rerun()
-    st.caption("CBOE delayed · 15-min lag")
-    st.caption("OI as of: prior session close")
-    st.caption("Full-chain (≥1 DTE) · 0DTE excluded for math consistency across GEX/VEX/CHEX")
-
-st.markdown("## GEX Dashboard")
-st.caption(f"Equity Index Dealer Flow: SPY · QQQ · IWM  ·  {datetime.now().strftime('%A %B %d, %Y').replace(' 0', ' ')}")
+    st.caption(f"{datetime.now().strftime('%a %b %d, %Y')} · CBOE delayed, 15-min lag")
 
 selected_all = sel_index
 if not selected_all:
@@ -307,34 +269,68 @@ if not all_data:
     st.warning("No data loaded.")
     st.stop()
 
-# ── Index section ──────────────────────────────────────────────────────────────
 if sel_index:
-    render_section(sel_index, all_data, n_cols=min(len(sel_index), 3), show_iv30=True, show_overview=True)
+    render_section(sel_index, all_data, n_cols=min(len(sel_index), 3))
 
-# ── Methodology footer ────────────────────────────────────────────────────────
-st.divider()
-st.caption(
-    "**Defensible outputs only** — this dashboard intentionally shows only what survives "
-    "a rigorous methodology audit: **Net GEX sign + magnitude**, **Zero-γ level**, "
-    "**Call/Put wall strikes** (single max one-sided GEX strike, no cluster smoothing), "
-    "**Hedge Shares/$1** (shares dealers trade per $1 spot move = Γ_net × OI × 100), **IV30**. "
-    "Vanna/charm exposures, hand-tuned regime labels, vs-yesterday classifiers, streaks, and "
-    "event-study means have been removed — they could not be defended at a quant PM's level of scrutiny."
-)
-st.caption(
-    "**Dealer positioning assumption** · GEX assumes dealers are net short all options "
-    "(retail buys, dealers sell). Holds empirically in aggregate for SPY/QQQ/IWM; "
-    "may be wrong at individual strikes with covered-call, vol-selling, or institutional flow dominant."
-)
-st.caption(
-    "**Data limitations** · OI is T-1 (prior session close) — ZGL and walls describe "
-    "yesterday's positioning. Spot/IV/chain quotes are ~15-min delayed. Full-chain ≥1 DTE "
-    "(0DTE excluded for math consistency). Absolute Net GEX magnitude is methodology-dependent "
-    "across commercial sources — treat sign and order of magnitude as load-bearing, absolute "
-    "levels as conventions. **No realized-vol attribution.** This is a positioning monitor, "
-    "not a forecaster."
-)
-st.caption(
-    "**Universe** · SPY / QQQ / IWM only — the standard dealer positioning convention "
-    "(long calls, short puts) is empirically defensible for these names."
-)
+# ── Methodology & assumptions (consolidated) ──────────────────────────────────
+with st.expander("Methodology & Assumptions  ·  read before trading off this", expanded=False):
+    st.markdown(
+        """
+**Data source.** Free CBOE delayed quotes JSON (no auth, no OPRA tick feed).
+Spot, IV, and chain mids are ~15-min delayed. **OI is T-1** — settled at prior
+session close, does not update intraday. Greeks (γ, Δ, vega, θ) come from
+**CBOE's American option pricing model** (accounts for early exercise + dividends);
+we do not recompute them locally.
+
+**Risk-free rate.** Live 3-month T-bill (`^IRX` via yfinance) at session start;
+falls back to 0.05 if the fetch fails. Used only in the γ-flip BS gamma sweep.
+
+**Filters.** Min OI = 100. IV ≤ 300% (drops obvious bad quotes). 0DTE excluded
+(`DTE ≥ 1`) — same-day options expire at zero gamma at close, would distort the
+overnight book picture. Vol surface additionally filtered to ±18% of spot, ≤180 DTE
+for liquid-region focus.
+
+**Defensible metrics** (academic backing in `research/methodology-deep-review.md`):
+
+- **Net GEX** — `Γ × OI × 100 × S² × 0.01`, calls positive, puts negative.
+  SpotGamma/perfiliev/GEXboard convention; derivable from Gatheral/Bergomi
+  dollar-gamma. Sign and order of magnitude are load-bearing; absolute levels are
+  methodology-dependent across vendors.
+- **Hedge Sh / $1** — `Γ_net × OI × 100` = aggregate shares dealers must trade per
+  $1 spot move to stay delta-neutral. Mechanism well-supported in Egebjerg &
+  Kokholm (2024).
+- **Skew (25Δ)** — IV(25Δ put) − IV(50Δ call) for nearest expiry ≥7 DTE, in pp.
+  **Xing, Zhang & Zhao (2010, JFQA)**: steeper skew predicts subsequent
+  underperformance — 10.9% annual alpha. Only metric here with direct
+  peer-reviewed predictive backing.
+- **Vol surface** — OI×vega-weighted IV, 3D interpolation (scipy cubic griddata,
+  linear fallback at boundaries). OI×vega weighting per Avellaneda et al. (2020,
+  arXiv 2002.00085).
+- **IV30** — CBOE-computed 30-day constant-maturity vol, taken directly from
+  the delayed payload.
+
+**Model constructs (interpret carefully).**
+
+- **γ-flip (formerly "Zero-γ Level")** — spot at which cumulative net GEX would
+  cross zero, computed by BS gamma sweep ±15% in 200 steps. **Zero peer-reviewed
+  papers test this as a price level.** Defensible only as a property of the
+  current model output, not as a price target or support/resistance.
+- **Call Wall / Put Wall** — strikes with max one-sided GEX. Trader lore as
+  support/resistance; **no peer-reviewed backtest**. Defensible only as
+  "where the largest gamma-weighted OI concentration sits today."
+
+**Dealer positioning assumption.** GEX assumes dealers are net short all options
+(retail buys, dealers sell). **Garleanu, Pedersen & Poteshman (2009, RFS)**
+confirms empirically for index options in aggregate. Can be wrong at individual
+strikes with covered-call programs, vol sellers, or institutional flow dominant.
+Hu, Kirilova, Muravyev & Ryu (2023) further note only ~10% of OMMs continuously
+delta-hedge — the assumed continuous rebalancing is itself a simplification.
+
+**Universe.** SPY / QQQ / IWM only. Single-name extension would require
+revisiting the dealer positioning assumption per ticker.
+
+**No realized-vol attribution.** This is a positioning monitor, not a forecaster.
+No event study, base rate, or backtest is shown — the live history is too short
+for inference.
+        """
+    )
