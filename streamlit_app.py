@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from gex.compute import compute_ticker
-from gex.analytics import plot_overview, plot_strike_gex, plot_gamma_profile
+from gex.analytics import plot_overview, plot_strike_gex, plot_gamma_profile, plot_oi_vol_surface
 from gex.report import REGIME_COLOR
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
@@ -240,6 +240,13 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                     legend=dict(orientation="h", y=1.15),
                 )
                 st.plotly_chart(zgl_fig, use_container_width=True)
+
+            surface_df = data.get("surface_df")
+            if surface_df is not None and not surface_df.empty:
+                st.plotly_chart(
+                    plot_oi_vol_surface(surface_df, ticker, spot=spot, iv30=iv30),
+                    use_container_width=True,
+                )
 
 
 # ── Boot ──────────────────────────────────────────────────────────────────────

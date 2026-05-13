@@ -53,6 +53,53 @@ def expiry_gex(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def oi_vol_surface_data(df: pd.DataFrame, spot: float,
+                        dte_max: int = 180,
+                        moneyness_band: float = 0.18) -> pd.DataFrame:
+    """
+    Extract (dte, strike, iv_pct) points for vol surface interpolation.
+
+    Weighting: OI × vega at each (expiry, strike) pair — combines calls and puts.
+    Avellaneda et al. (2020, arXiv 2002.00085) shows OI×vega weighting is the
+    empirically-supported choice for vol surface aggregation.
+
+    Filtered to the liquid near-money region (±18% of spot, ≤180 DTE).
+    Returns DataFrame: dte (days), strike, iv_pct (IV as %).
+    """
+    lo = spot * (1 - moneyness_band)
+    hi = spot * (1 + moneyness_band)
+    valid = df[
+        (df["T_years"] > 0) &
+        (df["iv"] > 0) &
+        (df["vega"] > 0) &
+        (df["oi"] > 0) &
+        (df["strike"] >= lo) &
+        (df["strike"] <= hi)
+    ].copy()
+    valid["dte"] = valid["T_years"] * 365
+    valid = valid[valid["dte"] <= dte_max].copy()
+    valid["weight"] = valid["oi"] * valid["vega"]
+    valid["wiv"] = valid["weight"] * valid["iv"]
+
+    agg = (
+        valid.groupby(["expiry", "strike"])
+        .agg(
+            dte=pd.NamedAgg(column="dte", aggfunc="first"),
+            weight_sum=pd.NamedAgg(column="weight", aggfunc="sum"),
+            wiv_sum=pd.NamedAgg(column="wiv", aggfunc="sum"),
+        )
+        .reset_index()
+    )
+    agg = agg[agg["weight_sum"] > 0].copy()
+    agg["iv_pct"] = agg["wiv_sum"] / agg["weight_sum"] * 100
+    return (
+        agg[["dte", "strike", "iv_pct"]]
+        .dropna()
+        .sort_values("dte")
+        .reset_index(drop=True)
+    )
+
+
 def gamma_profile(df: pd.DataFrame, spot: float,
                   n_points: int = 200, width_pct: float = 0.15,
                   r: float = 0.05) -> pd.DataFrame:

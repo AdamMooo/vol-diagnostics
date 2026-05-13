@@ -191,6 +191,73 @@ def plot_overview(results: list[dict]) -> go.Figure:
     return fig
 
 
+def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
+                        spot: float, iv30: float | None = None) -> go.Figure:
+    """
+    3D implied vol surface interpolated onto a DTE × strike grid.
+    Source points are OI×vega-weighted per (expiry, strike) — see exposure_engine.oi_vol_surface_data.
+    Sparse CBOE chain → cubic griddata; linear fallback for boundary NaNs.
+    """
+    import numpy as np
+    from scipy.interpolate import griddata
+
+    if surface_df.empty or len(surface_df) < 6:
+        fig = go.Figure()
+        fig.update_layout(
+            template="plotly_dark",
+            title=f"IV Surface — {ticker}: insufficient data",
+            height=480,
+            margin=dict(t=50, b=10, l=10, r=10),
+        )
+        return fig
+
+    pts = surface_df[["dte", "strike"]].to_numpy()
+    vals = surface_df["iv_pct"].to_numpy()
+
+    dte_min = max(float(surface_df["dte"].min()), 1.0)
+    dte_max = min(float(surface_df["dte"].max()), 180.0)
+    s_min = float(surface_df["strike"].min())
+    s_max = float(surface_df["strike"].max())
+
+    dte_grid = np.linspace(dte_min, dte_max, 40)
+    strike_grid = np.linspace(s_min, s_max, 50)
+    DTE, STRIKE = np.meshgrid(dte_grid, strike_grid)
+
+    IV = griddata(pts, vals, (DTE, STRIKE), method="cubic")
+    IV_lin = griddata(pts, vals, (DTE, STRIKE), method="linear")
+    mask = np.isnan(IV)
+    IV[mask] = IV_lin[mask]
+
+    iv30_label = f" · IV30 {iv30:.1f}%" if iv30 else ""
+    fig = go.Figure(data=[go.Surface(
+        x=dte_grid,
+        y=strike_grid,
+        z=IV,
+        colorscale="Plasma",
+        colorbar=dict(title="IV %", thickness=14, len=0.7, ticksuffix="%"),
+        hovertemplate="DTE: %{x:.0f}<br>Strike: %{y:.0f}<br>IV: %{z:.1f}%<extra></extra>",
+    )])
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(
+            text=f"OI×Vega-Weighted IV Surface — {ticker} (prior-session OI){iv30_label}",
+            font_size=13,
+        ),
+        scene=dict(
+            xaxis_title="DTE",
+            yaxis_title="Strike",
+            zaxis_title="IV (%)",
+            camera=dict(eye=dict(x=1.6, y=-1.6, z=0.9)),
+            xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
+            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
+            zaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)", ticksuffix="%"),
+        ),
+        height=480,
+        margin=dict(t=50, b=10, l=10, r=10),
+    )
+    return fig
+
+
 def _bar_width(gex_df: pd.DataFrame) -> float:
     strikes = sorted(gex_df["strike"].unique())
     if len(strikes) < 2:
