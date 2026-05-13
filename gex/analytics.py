@@ -228,14 +228,24 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
     mask = np.isnan(IV)
     IV[mask] = IV_lin[mask]
 
+    # Cap z to prevent the deep-OTM near-term IV spike from crushing the rest
+    # of the surface. 97th percentile keeps the smile/wing visible while
+    # clipping just the outlier corner.
+    iv_floor = float(np.nanmin(IV))
+    iv_cap = float(np.nanpercentile(IV, 97))
+
     iv30_label = f" · IV30 {iv30:.1f}%" if iv30 else ""
     fig = go.Figure(data=[go.Surface(
         x=dte_grid,
         y=strike_grid,
         z=IV,
+        cmin=iv_floor,
+        cmax=iv_cap,
         colorscale="Plasma",
         colorbar=dict(title="IV %", thickness=14, len=0.7, ticksuffix="%"),
         hovertemplate="DTE: %{x:.0f}<br>Strike: %{y:.0f}<br>IV: %{z:.1f}%<extra></extra>",
+        contours=dict(z=dict(show=True, usecolormap=True, project_z=True,
+                             highlight=False, width=2)),
     )])
     fig.update_layout(
         template="plotly_dark",
@@ -247,12 +257,19 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
             xaxis_title="DTE",
             yaxis_title="Strike",
             zaxis_title="IV (%)",
-            camera=dict(eye=dict(x=1.6, y=-1.6, z=0.9)),
+            camera=dict(eye=dict(x=-1.7, y=-1.7, z=1.1)),
+            aspectmode="manual",
+            aspectratio=dict(x=1.4, y=1.4, z=0.7),
             xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
             yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
-            zaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)", ticksuffix="%"),
+            zaxis=dict(
+                showgrid=True,
+                gridcolor="rgba(255,255,255,0.08)",
+                ticksuffix="%",
+                range=[max(0, iv_floor - 2), iv_cap],
+            ),
         ),
-        height=480,
+        height=520,
         margin=dict(t=50, b=10, l=10, r=10),
     )
     return fig
