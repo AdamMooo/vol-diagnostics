@@ -1,10 +1,10 @@
 ---
 gsd_state_version: "1.0"
-milestone: "v3.1 — Hardening & Charm"
-status: active
-last_updated: 2026-05-11 (v3.2 scoped via methodology audit)
+milestone: "v3.1 — SHIPPED"
+status: shipped
+last_updated: 2026-05-13 (methodology audit + formula fixes)
 context_gathered: true
-plans_ready: true
+plans_ready: false
 ---
 
 # Project State
@@ -18,27 +18,28 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 
 ## Current Position
 
-Phase: 5 — UAT Sign-Off & Cleanup (complete)
-Plan: P3 (Wave 3 — docs sweep)
-Status: Phase 5 complete — UAT signed off, docs cleaned, ready for Phase 6
-Last activity: 2026-05-11 — Out-of-phase work: email rebuild (stacked cards, 720px, theme-adaptive), scheduled task hardening (path fix, weekday trigger, --send guard, Outlook auto-launch), wall cluster + concentration + distance-to-flip + expected-1d-sigma rolled into analytics/report. Audit completed: [[_audits/methodology-review-2026-05-11]]. v3.2 Phase 8 scoped in ROADMAP.
+Phase: 5 — UAT Sign-Off & Cleanup (complete) + Out-of-Phase Refactor + Methodology Validation (complete)
+Status: ✅ v3.1 SHIPPED + methodology validated + 2 new defensible metrics added
+Next: Reframe ZGL + wall labels (10-min UI change); store skew in daily snapshots; formalize email
+Last activity: 2026-05-13 — Two research passes (practitioner audit + peer-reviewed deep review). Three commits: d193b1b (delta-flow fix + live ^IRX rate + caveats), c173c1b (OI×vega 3D vol surface), 83a9ff5 (IV skew 25Δp−50Δc, Xing 2010 JFQA). Charm-by-DTE (Phase 6) intentionally cancelled — adds model assumptions on top of dealer-positioning assumption.
 
-Progress: [███░░░░░░░] 30% (v3.1 phases — Phase 5 complete, 3/3 plans done)
+Progress: [██████████] v3.1 shipped + methodology layer complete
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 5 min
-- Total execution time: 0.1 hours
+- Total plans completed: 3
+- Average duration: ~7 min per plan
+- Total execution time: ~21 min (Phase 5 only)
+- Current test count: 24 (down from 77 post-v3.0 due to out-of-phase cuts)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 5. UAT Sign-Off & Cleanup | 3 | ~20 min | ~7 min |
+| 5. UAT Sign-Off & Cleanup | 3 | ~21 min | ~7 min |
 
-**Recent Trend:** P1 clean execution, pre-verified diffs, 77 tests green
+**Recent Trend:** Phase 5 clean execution. Out-of-phase refactoring (2026-05-11) removed statistically indefensible outputs but preserved core analytics.
 
 ## Accumulated Context
 
@@ -51,7 +52,12 @@ Progress: [███░░░░░░░] 30% (v3.1 phases — Phase 5 complete
 
 ### Pending Todos
 
-- Phase 6: Charm chart — next phase to execute
+**v3.1 Complete** ✅ 
+
+**Next:** Research phase (TBD):
+- Validate charm calculation methodology for American options
+- Propose defensible Greeks/flow metrics with historical backing
+- Define new milestone scope based on validated approach
 
 ### Blockers/Concerns
 
@@ -61,16 +67,18 @@ None.
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
+| v3.1 → v3.2 | Phase 8 (Pre-Distribution Hardening) | Scoped; out-of-phase refactor work in flight | 2026-05-11 |
+| Phase 6 | Charm by DTE chart | Blocked; awaiting out-of-phase refactor sign-off | 2026-05-12 |
 | v4.x | Bloomberg data swap | One-class change in data_loader.py | 2026-05-05 |
 | post-v3.1 | Live intraday refresh | CBOE CDN is delayed; real-time needs paid feed | 2026-05-05 |
-| post-v3.1 | Task Scheduler / Streamlit autostart | After PM desk validates dashboard | 2026-05-05 |
-| v2.x | NDX skew identity bug | Sleeve framework track | 2026-05-04 |
 
 ## Session Continuity
 
-Last session: 2026-05-06
-Stopped at: Completed 05-P3-PLAN.md (commit d273d1f)
-Resume file: .planning/phases/06-charm-chart/06-P1-PLAN.md
+Last session: 2026-05-12
+Stopped at: Out-of-phase refactor (2026-05-11) merged main. Planning docs out of sync — update before executing Phase 6.
+Resume file: .planning/phases/06-charm-chart/ (awaiting context update from this audit)
+
+**Action required:** Confirm out-of-phase refactor scope before proceeding to Phase 6 planning.
 
 ---
 <!-- LINKS:AUTO -->

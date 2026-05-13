@@ -1,6 +1,6 @@
 # Gamma OMM — Market Intelligence Dashboard
 
-GEX monitor for SPY, QQQ, IWM — dealer gamma exposure. Defensible outputs only: net GEX (sign + magnitude), zero-gamma level, single-strike call/put walls, δ-flow, IV30.
+GEX monitor for SPY, QQQ, IWM — dealer gamma exposure. Defensible outputs: net GEX (sign + magnitude), zero-gamma level, single-strike call/put walls, Hedge Shares/$1, IV30, IV skew (25Δ put − 50Δ call), OI×vega-weighted 3D implied vol surface.
 
 ## Running the Dashboard
 
@@ -15,9 +15,9 @@ Opens at `http://localhost:8501`.
 ## Using It
 
 - **Sidebar** — select one or more of SPY / QQQ / IWM; hit **Refresh** to re-fetch (clears the 5-min cache)
-- **Cards** — spot, net GEX, δ-flow, zero-γ level, call/put walls, IV30. Accent bar reflects sign of net GEX (no categorical regime label)
+- **Cards** — spot, net GEX, Hedge Shares/$1, zero-γ level, skew (25Δ), IV30. Accent bar reflects sign of net GEX (no categorical regime label)
 - **Cross-asset overview** — bar chart comparing net GEX across selected tickers (color = sign)
-- **Per-ticker expanders** — strike GEX bar chart, gamma profile, 30-day ZGL-vs-spot history
+- **Per-ticker expanders** — strike GEX bar chart, gamma profile, 30-day ZGL-vs-spot history, OI×vega-weighted 3D vol surface, IV skew term structure
 
 Live chains fetched from CBOE delayed quotes JSON on first load (CBOE CDN, no auth required). Results cached 5 minutes per ticker. Parquet snapshot written daily by `run_daily` feeds the 30-day history chart.
 
@@ -45,39 +45,83 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-11 22:09 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-13 20:49 UTC
 
-**Milestone:** v3.1 — Hardening & Charm · **Status:** active · **STATE last_updated:** 2026-05-11 (v3.2 scoped via methodology audit)
+**Milestone:** v3.1 — SHIPPED · **Status:** shipped · **STATE last_updated:** 2026-05-13 (methodology audit + formula fixes)
 
 ### Current Position
-- **Phase:** 5 — UAT Sign-Off & Cleanup (complete)
-- **Plan:** P3 (Wave 3 — docs sweep)
-- **Status:** Phase 5 complete — UAT signed off, docs cleaned, ready for Phase 6
-- **Last activity:** 2026-05-11 — Out-of-phase work: email rebuild (stacked cards, 720px, theme-adaptive), scheduled task hardening (path fix, weekday trigger, --send guard, Outlook auto-launch), wall cluster + concentration + distance-to-flip + expected-1d-sigma rolled into analytics/report. Audit completed: [[_audits/methodology-review-2026-05-11]]. v3.2 Phase 8 scoped in ROADMAP.
+- **Phase:** 5 — UAT Sign-Off & Cleanup (complete) + Out-of-Phase Refactor + Methodology Validation (complete)
+- **Status:** ✅ v3.1 SHIPPED + methodology validated + 2 new defensible metrics added
+- **Last activity:** 2026-05-13 — Two research passes (practitioner audit + peer-reviewed deep review). Three commits: d193b1b (delta-flow fix + live ^IRX rate + caveats), c173c1b (OI×vega 3D vol surface), 83a9ff5 (IV skew 25Δp−50Δc, Xing 2010 JFQA). Charm-by-DTE (Phase 6) intentionally cancelled — adds model assumptions on top of dealer-positioning assumption.
 
 ### Pending Todos
-- Phase 6: Charm chart — next phase to execute
+- Validate charm calculation methodology for American options
+- Propose defensible Greeks/flow metrics with historical backing
+- Define new milestone scope based on validated approach
 
 ### Roadmap (current milestone)
-- ✅ **Phase 5: UAT Sign-Off & Cleanup** — Complete 4 deferred Streamlit UAT scenarios, commit outstanding code changes, and update stale docs
-- ⬜ **Phase 6: Charm by DTE Chart** — Add Charm-by-DTE-bucket bar chart to analytics and surface it in the Streamlit Live tab expander
-- ⬜ **Phase 7: Critical-Path Test Coverage** — Add critical-path tests for the 5 previously uncovered modules
+- ✅ Phase 5: UAT Sign-Off & Cleanup (all 4 scenarios pass, docs updated)
+- ✅ Out-of-Phase Refactor (2026-05-11): VEX/CHEX/regime labels removed; expected-1d-sigma added; methodology footer rewritten
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
 
 ### Operator notes (handwritten — survives hub-sync)
 
-Last hand-updated: 2026-05-10 | **Parked: pre-demo hardening (v3.2) pending — see audit**
+Last hand-updated: 2026-05-13 | **Methodology fully validated + 2 new metrics shipped**
 
-**Recent changes (2026-05-10):** Email rebuilt — stacked per-ticker cards in `gex/report.py` (560px width, all dashboard numbers exposed). Scheduled task fixed (path was stale `options-quant` → `gamma-omm`, trigger now Mon–Fri only). Outlook auto-launch shortcut added to Startup. First real fire: Mon 2026-05-11 16:30. Live IWM regime flipped negative on 2026-05-07 — at-ZGL pin.
+**Recent changes (2026-05-13):** Two research passes followed by three out-of-phase commits.
+
+Research artifacts (in `research/`):
+- `methodology-audit.md` — practitioner-source audit (SpotGamma, perfiliev, GEXboard)
+- `methodology-deep-review.md` — academic literature review with SSRN/DOI citations
+
+Commits today:
+- **`d193b1b`** — Fix Delta-Flow formula bug (was `|GEX|/S/0.01`, algebraically redundant with GEX). Now `Γ_net × OI × 100` = "Hedge Shares/$1" (shares dealers trade per $1 spot move). Live `^IRX` for ZGL risk-free rate (was hardcoded 5%). Methodology caveat added to dashboard + email.
+- **`c173c1b`** — 3D OI×vega-weighted implied vol surface (Plotly Surface + scipy cubic griddata; Avellaneda et al. 2020 backs OI×vega over OI-only). Per-ticker expander chart.
+- **`83a9ff5`** — IV Skew (25Δ put − 50Δ call). First metric with **direct peer-reviewed predictive validity** — Xing, Zhang & Zhao (2010, JFQA): 10.9% annual alpha. Card row + term-structure chart + email + glossary.
+
+**Defensibility status:**
+- ✅ GEX formula (Gatheral/Bergomi derivable; SpotGamma/perfiliev/GEXboard match)
+- ✅ Dealer positioning (Garleanu, Pedersen & Poteshman 2009, RFS — empirically confirmed)
+- ✅ Hedge Shares/$1 (mechanism well-supported in Egebjerg & Kokholm 2024)
+- ✅ OI×vega vol surface (Avellaneda 2020, arXiv)
+- ✅ IV Skew (Xing, Zhang & Zhao 2010, JFQA)
+- ⚠️ ZGL — zero peer-reviewed papers as a price level; defensible only as a model construct
+- ⚠️ Walls — trader lore; defensible only as OI concentration, not support/resistance
+
+**Phases 6–8 status:** Charm-by-DTE (Phase 6) intentionally NOT built — academic literature (DeLorenzo 2023, Flynn 2024) shows charm is real but stacks more model assumptions on top of already-baked-in dealer assumption. Adam's call: don't compound assumption layers. Vega used as a *weight* (vol surface) not as a new exposure metric.
+
+Next:
+- Reframe ZGL + wall labels in dashboard ("Gamma Flip Level (model construct)", "Max Call/Put GEX Strike") — 10 min change
+- Store `front_skew`, `put_25d_iv`, `call_50d_iv` in daily parquet snapshots → enable 30-day skew history chart
+- Email image attachments (full-size JPGs) — defer until charts are visually final
+
 Hub: [[gamma-omm/gamma-omm]]
 
-## Active workstream — pre-demo hardening (parked, resume in a few days)
+## Active workstream — methodology layer complete (2026-05-13)
 
-Goal: harden GEX POC before showing head of capital markets. Audit completed 2026-05-07.
+**Status:** Two research passes done, three commits shipped. Dashboard is now mathematically defensible against academic literature. Charm-by-DTE intentionally cancelled (no more stacked assumptions).
 
-- **Audit doc:** [[_audits/gex-prep-audit-2026-05-07|GEX POC pre-demo audit]] — section-by-section claims/formulas/risks, Q&A prep, prioritized hardening queue
-- **Next action:** `/gsd-plan-phase` for v3.2 with the P0 list (FRED rate, snapshot timestamp + history N display, clustered walls, metadata strip, concession block, NEUTRAL_ABS_FLOOR decision, Task Scheduler daily run)
-- **Top 3 things to defend in the meeting:** (1) sign convention for SPY/QQQ/IWM dealer positioning, (2) gamma sourced directly from CBOE (American-model), (3) absolute GEX magnitude is methodology-dependent (sign, ZGL, and wall strikes are the load-bearing outputs)
-- **Concede upfront:** 15-min delay, OI is T-1, sample too short for event-study inference. Vanna/charm/VEX/CHEX, vs-yesterday classifier, wall clusters, and the categorical regime label were stripped after the 2026-05-11 methodology audit.
+**Completed today (out-of-phase, 2026-05-13):**
+- Practitioner audit → `research/methodology-audit.md`
+- Academic literature deep review → `research/methodology-deep-review.md`
+- Commit `d193b1b`: Delta-Flow formula fix → Hedge Shares/$1; live `^IRX` risk-free rate; dealer-positioning caveat
+- Commit `c173c1b`: OI×vega-weighted 3D implied vol surface (Avellaneda 2020)
+- Commit `83a9ff5`: IV Skew (25Δp − 50Δc), Xing-Zhang-Zhao (2010, JFQA) — first peer-reviewed predictive metric
+
+**Previously completed (out-of-phase, 2026-05-11):**
+- VEX/CHEX/regime labels removed; expected-1d-sigma added; methodology footer rewritten
+- Task Scheduler hardened (Mon–Fri 16:30 ET, min_dte=1 filter, --send guard, Outlook auto-launch)
+
+**Next immediate actions:**
+- Reframe ZGL + wall labels in dashboard ("Gamma Flip Level (model construct)", "Max Call/Put GEX Strike") — 10 min change to make the dashboard honest about what those numbers are
+- Store `front_skew`, `put_25d_iv`, `call_50d_iv` in daily parquet snapshots → 30-day skew history chart
+- Email image attachments (full-size JPGs via Outlook `Attachments.Add()`) — defer until charts are visually final
+
+**Deferred to v3.2 (Pre-Distribution Hardening):**
+- DIST-01: Snapshot timestamp threading (ChainSnapshot.as_of → report.build_email())
+- DIST-04: Filter-drop transparency ("Filters removed X% of raw chain OI")
+
+**Cancelled:**
+- Phase 6 (Charm-by-DTE chart) — academic backing exists (DeLorenzo 2023, Flynn 2024) but stacks model assumptions on top of dealer-positioning assumption. Vega used as a weight in the vol surface instead.
