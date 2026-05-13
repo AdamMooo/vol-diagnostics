@@ -13,13 +13,25 @@ from gex.exposure_engine import compute_gex, strike_gex, gamma_profile
 from gex.analytics import summarise
 
 
+def _get_risk_free_rate() -> float:
+    """3-month T-bill rate from ^IRX; falls back to 0.05 on failure."""
+    try:
+        import yfinance as yf
+        rate = yf.Ticker("^IRX").fast_info.get("lastPrice")
+        if rate and rate > 0:
+            return float(rate) / 100
+    except Exception:
+        pass
+    return 0.05
+
+
 def compute_ticker(ticker: str) -> dict:
     """
     Full pipeline for one ticker.
 
     Returns:
         {
-          "summary": dict — net_gex, zero_gamma_level, call/put_wall, δ-flow, iv30, day %
+          "summary": dict — net_gex, zero_gamma_level, call/put_wall, hedge_shares, iv30, day %
           "s_df":   DataFrame — strike-level GEX
           "p_df":   DataFrame — gamma profile
           "spot":   float
@@ -30,10 +42,14 @@ def compute_ticker(ticker: str) -> dict:
     df = compute_gex(df, spot=snapshot.spot)
 
     s_df = strike_gex(df)
-    p_df = gamma_profile(df, spot=snapshot.spot)
+
+    r = _get_risk_free_rate()
+    p_df = gamma_profile(df, spot=snapshot.spot, r=r)
 
     net_gex_scalar = float(s_df["gex"].sum())
-    delta_hedge_flow = net_gex_scalar / (snapshot.spot * 0.01)
+    # Shares dealers must trade per $1 spot move to stay delta-neutral.
+    # Derived by cancelling the S²×0.01 normalization from GEX: Γ_net × OI × 100.
+    delta_hedge_flow = net_gex_scalar / (snapshot.spot ** 2 * 0.01)
 
     summary = summarise(
         s_df, p_df,

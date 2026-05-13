@@ -55,10 +55,15 @@ def _fmt_pct(val: float | None, signed: bool = True, dp: int = 1) -> str:
     return f"{sign}{val:.{dp}f}%"
 
 
-def _fmt_delta_flow(val: float | None) -> str:
+def _fmt_hedge_shares(val: float | None) -> str:
     if val is None:
         return "—"
-    return f"${abs(val) / 1e9:.2f}B/1%"
+    v = abs(val)
+    if v >= 1e6:
+        return f"{v / 1e6:.1f}M sh/$1"
+    elif v >= 1e3:
+        return f"{v / 1e3:.0f}K sh/$1"
+    return f"{v:.0f} sh/$1"
 
 
 def _pct_from_spot(spot: float | None, level: float | None) -> float | None:
@@ -205,7 +210,7 @@ def _ticker_card(r: dict) -> str:
     # Right column: dealer positioning + wall context (the "what's holding it" lens)
     right_rows = (
         _kv_cell("Net GEX", _fmt_b(net_gex), value_color=_signed_color(net_gex))
-        + _kv_cell("Δ-flow",   _fmt_delta_flow(r.get("delta_hedge_flow")))
+        + _kv_cell("Hedge Shares/$1", _fmt_hedge_shares(r.get("delta_hedge_flow")))
         + _kv_cell("Call Wall", _wall_value(cw, cw_pct))
         + _kv_cell("Put Wall",  _wall_value(pw, pw_pct))
         + _kv_cell("Range",
@@ -289,7 +294,9 @@ def build_email(
         'The accent bar on the left of each card reflects the sign of this number; '
         'no categorical "positive/negative/neutral" regime label is shown because the '
         '$200M neutral cutoff would be hand-tuned and non-stationary.<br>'
-        '<b>Δ-flow</b>: dealer hedge flow at current spot per 1% move (= |Net GEX| / spot ÷ 0.01).<br>'
+        '<b>Hedge Shares/$1</b>: shares dealers must trade per $1 spot move to stay delta-neutral '
+        '(= Net GEX ÷ (spot² × 0.01) = Γ_net × OI × 100). Positive = buy demand on up-moves; '
+        'negative = sell pressure on up-moves. Prior label "Δ-flow" used an incorrect formula.<br>'
         '<b>Call Wall / Put Wall</b>: the single strike with the largest one-sided GEX, with '
         'distance from spot. Use the <i>strike</i> as a hard level; one-sided magnitude is '
         'methodology-dependent and not shown.<br>'
@@ -305,8 +312,11 @@ def build_email(
         'load-bearing; treat absolute levels as conventions.<br>'
         '&bull; <b>No realized-vol attribution.</b> This is a positioning monitor, not a forecaster. '
         'No event study, base rate, or backtest is shown — the sample is too short for inference.<br>'
+        '&bull; <b>Dealer positioning assumption.</b> GEX assumes dealers are net short all options '
+        '(retail buys, dealers sell). Holds empirically in aggregate for SPY/QQQ/IWM; can be wrong '
+        'at individual strikes with covered-call, vol-selling, or institutional flow dominant.<br>'
         '&bull; <b>What is genuinely defensible:</b> Net GEX sign, ZGL location, wall strikes, '
-        '&Delta;-flow, IV30. Everything else has been removed.<br>'
+        'Hedge Shares/$1, IV30. Everything else has been removed.<br>'
         '<b>Universe</b>: SPY / QQQ / IWM only — the standard dealer positioning convention '
         '(long calls, short puts) is empirically defensible for these names.'
         '</div>'

@@ -135,7 +135,11 @@ def render_regime_card(col, summary: dict, spot: float | None = None,
     bg = _SIGN_RGBA.get(sign, "rgba(127,140,141,0.12)")
     net_gex_b = (summary.get("net_gex") or 0) / _B
     df_val = summary.get("delta_hedge_flow")
-    df_str = f"${abs(df_val) / _B:.1f}B/1%" if df_val is not None else "—"
+    if df_val is not None:
+        v = abs(df_val)
+        df_str = f"{v / 1e6:.1f}M sh/$1" if v >= 1e6 else f"{v / 1e3:.0f}K sh/$1"
+    else:
+        df_str = "—"
     zgl = summary.get("zero_gamma_level")
     zgl_str = f"{zgl:.1f}" if zgl is not None else "—"
     spot_str = f"{spot:,.2f}" if spot else "—"
@@ -150,7 +154,7 @@ def render_regime_card(col, summary: dict, spot: float | None = None,
   <div class="rc-grid">
     <span class="rc-k">Spot</span>         <span class="rc-v">{spot_str}</span>
     <span class="rc-k">Net GEX</span>      <span class="rc-v">{net_gex_b:+.2f}B</span>
-    <span class="rc-k">&Delta;-flow</span>  <span class="rc-v">{df_str}</span>
+    <span class="rc-k">Hedge Shares/$1</span>  <span class="rc-v">{df_str}</span>
     <span class="rc-k">Zero-&gamma;</span>  <span class="rc-v">{zgl_str}</span>
   </div>
   <div class="rc-obs">{obs_html}</div>
@@ -293,9 +297,14 @@ st.caption(
     "**Defensible outputs only** — this dashboard intentionally shows only what survives "
     "a rigorous methodology audit: **Net GEX sign + magnitude**, **Zero-γ level**, "
     "**Call/Put wall strikes** (single max one-sided GEX strike, no cluster smoothing), "
-    "**Δ-flow**, **IV30**. Vanna/charm exposures, hand-tuned regime labels, vs-yesterday "
-    "classifiers, streaks, and event-study means have been removed — they could not be "
-    "defended at a quant PM's level of scrutiny."
+    "**Hedge Shares/$1** (shares dealers trade per $1 spot move = Γ_net × OI × 100), **IV30**. "
+    "Vanna/charm exposures, hand-tuned regime labels, vs-yesterday classifiers, streaks, and "
+    "event-study means have been removed — they could not be defended at a quant PM's level of scrutiny."
+)
+st.caption(
+    "**Dealer positioning assumption** · GEX assumes dealers are net short all options "
+    "(retail buys, dealers sell). Holds empirically in aggregate for SPY/QQQ/IWM; "
+    "may be wrong at individual strikes with covered-call, vol-selling, or institutional flow dominant."
 )
 st.caption(
     "**Data limitations** · OI is T-1 (prior session close) — ZGL and walls describe "

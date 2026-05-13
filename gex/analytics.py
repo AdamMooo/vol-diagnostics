@@ -6,7 +6,7 @@ Key outputs (only the rigorously defensible ones survive):
     - zero_gamma_level: spot where cumulative GEX changes sign
     - call_wall: strike with largest positive GEX (single max one-sided)
     - put_wall:  strike with largest negative GEX
-    - delta_hedge_flow: |Net GEX| / spot / 0.01
+    - delta_hedge_flow: shares dealers must trade per $1 spot move (Γ_net × OI × 100)
 
 No categorical regime label is produced — the $200M neutral floor was
 hand-tuned and non-stationary. Sign of net_gex is the only label used
