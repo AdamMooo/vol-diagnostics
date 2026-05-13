@@ -258,6 +258,31 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
     return fig
 
 
+def plot_skew_term_structure(skew_df: pd.DataFrame, ticker: str) -> go.Figure:
+    """Term structure of IV skew (25Δ put − 50Δ call) across expirations."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=skew_df["dte"], y=skew_df["skew_pp"],
+        mode="lines+markers",
+        line=dict(color="#f59e0b", width=2),
+        marker=dict(size=6),
+        hovertemplate="DTE: %{x:.0f}<br>Skew: %{y:.1f}pp<extra></extra>",
+        name="Skew (25Δ put − 50Δ call)",
+    ))
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.2)", line_width=0.8)
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(text=f"IV Skew Term Structure — {ticker}  ·  25Δ put − 50Δ call", font_size=13),
+        xaxis_title="DTE",
+        yaxis_title="Skew (pp)",
+        yaxis_ticksuffix="pp",
+        showlegend=False,
+        height=240,
+        margin=dict(t=50, b=40, l=65, r=20),
+    )
+    return fig
+
+
 def _bar_width(gex_df: pd.DataFrame) -> float:
     strikes = sorted(gex_df["strike"].unique())
     if len(strikes) < 2:

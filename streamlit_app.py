@@ -8,7 +8,10 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from gex.compute import compute_ticker
-from gex.analytics import plot_overview, plot_strike_gex, plot_gamma_profile, plot_oi_vol_surface
+from gex.analytics import (
+    plot_overview, plot_strike_gex, plot_gamma_profile,
+    plot_oi_vol_surface, plot_skew_term_structure,
+)
 from gex.report import REGIME_COLOR
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
@@ -144,6 +147,8 @@ def render_regime_card(col, summary: dict, spot: float | None = None,
     zgl_str = f"{zgl:.1f}" if zgl is not None else "—"
     spot_str = f"{spot:,.2f}" if spot else "—"
     iv30 = summary.get("iv30", 0.0)
+    skew = summary.get("front_skew")
+    skew_str = f"{skew:+.1f}pp" if skew is not None else "—"
 
     obs = _derive_observations(summary, spot or 0)
     obs_html = "".join(f"<div>{o}</div>" for o in obs)
@@ -156,6 +161,7 @@ def render_regime_card(col, summary: dict, spot: float | None = None,
     <span class="rc-k">Net GEX</span>      <span class="rc-v">{net_gex_b:+.2f}B</span>
     <span class="rc-k">Hedge Shares/$1</span>  <span class="rc-v">{df_str}</span>
     <span class="rc-k">Zero-&gamma;</span>  <span class="rc-v">{zgl_str}</span>
+    <span class="rc-k">Skew (25&Delta;)</span>  <span class="rc-v">{skew_str}</span>
   </div>
   <div class="rc-obs">{obs_html}</div>
   {_iv_pill(iv30, show=show_iv30)}
@@ -245,6 +251,13 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
             if surface_df is not None and not surface_df.empty:
                 st.plotly_chart(
                     plot_oi_vol_surface(surface_df, ticker, spot=spot, iv30=iv30),
+                    use_container_width=True,
+                )
+
+            skew_df = data.get("skew_df")
+            if skew_df is not None and not skew_df.empty:
+                st.plotly_chart(
+                    plot_skew_term_structure(skew_df, ticker),
                     use_container_width=True,
                 )
 

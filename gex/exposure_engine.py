@@ -100,6 +100,45 @@ def oi_vol_surface_data(df: pd.DataFrame, spot: float,
     )
 
 
+def compute_skew(df: pd.DataFrame, min_dte: int = 7) -> pd.DataFrame:
+    """
+    Per-expiry IV skew: IV(25Δ put) − IV(50Δ call), in percentage points.
+
+    Uses delta-based selection (CBOE-supplied). Front-month defined as nearest
+    expiry with DTE >= min_dte to avoid expiry-day gamma noise.
+
+    Methodology: Xing, Zhang & Zhao (2010, JFQA) — steeper skew predicts
+    subsequent underperformance (10.9% annual alpha).
+
+    Returns DataFrame: expiry, dte, put_25d_iv, call_50d_iv, skew_pp.
+    """
+    valid = df[(df["T_years"] > 0) & (df["iv"] > 0) & (df["oi"] > 0)].copy()
+    valid["dte"] = valid["T_years"] * 365
+
+    rows = []
+    for expiry, grp in valid.groupby("expiry"):
+        dte = grp["dte"].iloc[0]
+        if dte < min_dte:
+            continue
+        puts = grp[grp["type"] == "put"]
+        calls = grp[grp["type"] == "call"]
+        if puts.empty or calls.empty:
+            continue
+        put_idx = (puts["delta"] - (-0.25)).abs().idxmin()
+        call_idx = (calls["delta"] - 0.50).abs().idxmin()
+        put_iv = puts.loc[put_idx, "iv"] * 100
+        call_iv = calls.loc[call_idx, "iv"] * 100
+        rows.append({
+            "expiry": expiry,
+            "dte": dte,
+            "put_25d_iv": put_iv,
+            "call_50d_iv": call_iv,
+            "skew_pp": put_iv - call_iv,
+        })
+
+    return pd.DataFrame(rows).sort_values("dte").reset_index(drop=True)
+
+
 def gamma_profile(df: pd.DataFrame, spot: float,
                   n_points: int = 200, width_pct: float = 0.15,
                   r: float = 0.05) -> pd.DataFrame:

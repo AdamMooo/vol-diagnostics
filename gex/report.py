@@ -55,6 +55,12 @@ def _fmt_pct(val: float | None, signed: bool = True, dp: int = 1) -> str:
     return f"{sign}{val:.{dp}f}%"
 
 
+def _fmt_skew(val: float | None) -> str:
+    if val is None:
+        return "—"
+    return f"{val:+.1f}pp"
+
+
 def _fmt_hedge_shares(val: float | None) -> str:
     if val is None:
         return "—"
@@ -211,6 +217,7 @@ def _ticker_card(r: dict) -> str:
     right_rows = (
         _kv_cell("Net GEX", _fmt_b(net_gex), value_color=_signed_color(net_gex))
         + _kv_cell("Hedge Shares/$1", _fmt_hedge_shares(r.get("delta_hedge_flow")))
+        + _kv_cell("Skew (25Δ)", _fmt_skew(r.get("front_skew")))
         + _kv_cell("Call Wall", _wall_value(cw, cw_pct))
         + _kv_cell("Put Wall",  _wall_value(pw, pw_pct))
         + _kv_cell("Range",
@@ -297,6 +304,10 @@ def build_email(
         '<b>Hedge Shares/$1</b>: shares dealers must trade per $1 spot move to stay delta-neutral '
         '(= Net GEX ÷ (spot² × 0.01) = Γ_net × OI × 100). Positive = buy demand on up-moves; '
         'negative = sell pressure on up-moves. Prior label "Δ-flow" used an incorrect formula.<br>'
+        '<b>Skew (25Δ)</b>: IV(25Δ put) − IV(50Δ call) for the nearest expiry ≥7 DTE, '
+        'in percentage points. Relative cost of downside protection vs upside exposure. '
+        'Xing, Zhang & Zhao (2010, JFQA) found steeper skew predicts subsequent '
+        'underperformance (10.9% annual alpha). Higher = puts more expensive = elevated fear.<br>'
         '<b>Call Wall / Put Wall</b>: the single strike with the largest one-sided GEX, with '
         'distance from spot. Use the <i>strike</i> as a hard level; one-sided magnitude is '
         'methodology-dependent and not shown.<br>'
