@@ -10,7 +10,11 @@ sample is too short for inference, and vs-yesterday mostly reflected daily
 OI roll noise rather than signal.
 
 Store path: out/gex_snapshots.parquet
-Columns:    date, ticker, spot, net_gex, zero_gamma_level, call_wall, put_wall
+Columns:    date, ticker, spot, net_gex, zero_gamma_level, call_wall, put_wall,
+            front_skew, put_25d_iv, call_50d_iv, iv30
+
+Schema is forward-compatible: older snapshots missing newer columns load as
+NaN on read. Don't reorder or rename columns.
 """
 from __future__ import annotations
 
@@ -22,8 +26,23 @@ import pandas as pd
 STORE = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex_snapshots.parquet"
 
 
-def save_snapshot(summary: dict, ticker: str) -> None:
-    """Append today's summary dict to the parquet store (idempotent on date+ticker)."""
+_FLOAT_COLS = (
+    "zero_gamma_level", "call_wall", "put_wall",
+    "front_skew", "put_25d_iv", "call_50d_iv", "iv30",
+)
+
+
+def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = None) -> None:
+    """Append today's summary dict to the parquet store (idempotent on date+ticker).
+
+    skew_df: optional output of compute_skew() — front-row put_25d_iv and
+    call_50d_iv are captured for skew history. If omitted, those columns are NaN.
+    """
+    put_25d = call_50d = None
+    if skew_df is not None and not skew_df.empty:
+        put_25d = float(skew_df["put_25d_iv"].iloc[0])
+        call_50d = float(skew_df["call_50d_iv"].iloc[0])
+
     row = {
         "date": datetime.date.today(),
         "ticker": ticker,
@@ -32,11 +51,15 @@ def save_snapshot(summary: dict, ticker: str) -> None:
         "zero_gamma_level": summary.get("zero_gamma_level"),
         "call_wall": summary.get("call_wall"),
         "put_wall": summary.get("put_wall"),
+        "front_skew": summary.get("front_skew"),
+        "put_25d_iv": put_25d,
+        "call_50d_iv": call_50d,
+        "iv30": summary.get("iv30"),
     }
 
     if STORE.exists():
         hist = pd.read_parquet(STORE)
-        for col in ("zero_gamma_level", "call_wall", "put_wall"):
+        for col in _FLOAT_COLS:
             if col in hist.columns:
                 hist[col] = hist[col].astype("float64")
         mask = (hist["date"] == row["date"]) & (hist["ticker"] == ticker)

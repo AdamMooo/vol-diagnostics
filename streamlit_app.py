@@ -230,6 +230,34 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                     )
                     st.plotly_chart(zgl_fig, use_container_width=True)
 
+                    if "front_skew" in chart_df.columns and chart_df["front_skew"].notna().any():
+                        skew_hist = chart_df.dropna(subset=["front_skew"])
+                        skew_fig = go.Figure()
+                        skew_fig.add_trace(go.Scatter(
+                            x=skew_hist["date"], y=skew_hist["front_skew"],
+                            name="Skew (25Δ)",
+                            mode="lines+markers",
+                            line=dict(color="#f59e0b", width=1.5),
+                            marker=dict(size=5),
+                            hovertemplate="%{x|%b %d}<br>Skew: %{y:+.2f}pp<extra></extra>",
+                        ))
+                        skew_fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
+                        skew_fig.update_layout(
+                            template="plotly_dark",
+                            title="Skew (25Δ put − 50Δ call) — 30 sessions",
+                            height=240,
+                            yaxis_title="Skew (pp)",
+                            yaxis_ticksuffix="pp",
+                            margin=dict(t=40, b=30, l=60, r=20),
+                            showlegend=False,
+                        )
+                        st.plotly_chart(skew_fig, use_container_width=True)
+                    else:
+                        st.caption(
+                            "Skew history empty — accumulates from today's `gex.run_daily` run forward. "
+                            "Existing snapshots predate the skew metric and will show NaN."
+                        )
+
 
 # ── Boot ──────────────────────────────────────────────────────────────────────
 
