@@ -211,22 +211,25 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
         )
         return fig
 
-    pts = surface_df[["dte", "strike"]].to_numpy()
+    pts = surface_df[["dte", "log_moneyness"]].to_numpy()
     vals = surface_df["iv_pct"].to_numpy()
 
     dte_min = max(float(surface_df["dte"].min()), 1.0)
     dte_max = min(float(surface_df["dte"].max()), 180.0)
-    s_min = float(surface_df["strike"].min())
-    s_max = float(surface_df["strike"].max())
+    lm_min = float(surface_df["log_moneyness"].min())
+    lm_max = float(surface_df["log_moneyness"].max())
 
     dte_grid = np.linspace(dte_min, dte_max, 40)
-    strike_grid = np.linspace(s_min, s_max, 50)
-    DTE, STRIKE = np.meshgrid(dte_grid, strike_grid)
+    lm_grid = np.linspace(lm_min, lm_max, 50)
+    DTE, LM = np.meshgrid(dte_grid, lm_grid)
 
-    IV = griddata(pts, vals, (DTE, STRIKE), method="cubic")
-    IV_lin = griddata(pts, vals, (DTE, STRIKE), method="linear")
+    IV = griddata(pts, vals, (DTE, LM), method="cubic")
+    IV_lin = griddata(pts, vals, (DTE, LM), method="linear")
     mask = np.isnan(IV)
     IV[mask] = IV_lin[mask]
+    # Cubic griddata can overshoot at sparse boundary points (negative IV is
+    # impossible). Clip to non-negative to keep the colorscale honest.
+    IV = np.clip(IV, 0.0, None)
 
     # Cap z to prevent the deep-OTM near-term IV spike from crushing the rest
     # of the surface. 97th percentile keeps the smile/wing visible while
@@ -234,34 +237,58 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
     iv_floor = float(np.nanmin(IV))
     iv_cap = float(np.nanpercentile(IV, 97))
 
+    # Build hover customdata: K/S ratio + actual strike for each grid cell
+    KS = np.exp(LM)
+    STRIKE_GRID = KS * spot
+    customdata = np.dstack([KS, STRIKE_GRID])
+
+    # Tick marks at meaningful log-moneyness values (e.g. -15%, -10%, ATM, +10%, +15%)
+    lm_ticks = [round(np.log(k), 4) for k in (0.85, 0.90, 0.95, 1.0, 1.05, 1.10, 1.15)
+                if lm_min <= np.log(k) <= lm_max]
+    lm_tick_labels = [f"{k:.2f}" for k in (0.85, 0.90, 0.95, 1.0, 1.05, 1.10, 1.15)
+                      if lm_min <= np.log(k) <= lm_max]
+
     iv30_label = f" · IV30 {iv30:.1f}%" if iv30 else ""
     fig = go.Figure(data=[go.Surface(
         x=dte_grid,
-        y=strike_grid,
+        y=lm_grid,
         z=IV,
         cmin=iv_floor,
         cmax=iv_cap,
         colorscale="Plasma",
         colorbar=dict(title="IV %", thickness=14, len=0.7, ticksuffix="%"),
-        hovertemplate="DTE: %{x:.0f}<br>Strike: %{y:.0f}<br>IV: %{z:.1f}%<extra></extra>",
+        customdata=customdata,
+        hovertemplate=(
+            "DTE: %{x:.0f}<br>"
+            "K/S: %{customdata[0]:.3f} (strike %{customdata[1]:.0f})<br>"
+            "log(K/S): %{y:.3f}<br>"
+            "IV: %{z:.1f}%<extra></extra>"
+        ),
         contours=dict(z=dict(show=True, usecolormap=True, project_z=True,
                              highlight=False, width=2)),
     )])
     fig.update_layout(
         template="plotly_dark",
         title=dict(
-            text=f"OI×Vega-Weighted IV Surface — {ticker} (prior-session OI){iv30_label}",
+            text=(f"OI×Vega-Weighted IV Surface — {ticker} "
+                  f"(log-moneyness, prior-session OI){iv30_label}"),
             font_size=13,
         ),
         scene=dict(
             xaxis_title="DTE",
-            yaxis_title="Strike",
+            yaxis_title="K/S  (log scale)",
             zaxis_title="IV (%)",
             camera=dict(eye=dict(x=-1.7, y=-1.7, z=1.1)),
             aspectmode="manual",
             aspectratio=dict(x=1.4, y=1.4, z=0.7),
             xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
-            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor="rgba(255,255,255,0.08)",
+                tickmode="array",
+                tickvals=lm_ticks,
+                ticktext=lm_tick_labels,
+            ),
             zaxis=dict(
                 showgrid=True,
                 gridcolor="rgba(255,255,255,0.08)",

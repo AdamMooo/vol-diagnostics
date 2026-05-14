@@ -57,14 +57,18 @@ def oi_vol_surface_data(df: pd.DataFrame, spot: float,
                         dte_max: int = 180,
                         moneyness_band: float = 0.18) -> pd.DataFrame:
     """
-    Extract (dte, strike, iv_pct) points for vol surface interpolation.
+    Extract (dte, log_moneyness, iv_pct) points for vol surface interpolation.
 
     Weighting: OI × vega at each (expiry, strike) pair — combines calls and puts.
     Avellaneda et al. (2020, arXiv 2002.00085) shows OI×vega weighting is the
     empirically-supported choice for vol surface aggregation.
 
+    Axes follow academic convention (Cont & da Fonseca 2002, Gatheral):
+        - log-moneyness = log(strike/spot), centred at 0 = ATM
+        - DTE in days
+
     Filtered to the liquid near-money region (±18% of spot, ≤180 DTE).
-    Returns DataFrame: dte (days), strike, iv_pct (IV as %).
+    Returns DataFrame: dte (days), strike, log_moneyness, moneyness, iv_pct.
     """
     lo = spot * (1 - moneyness_band)
     hi = spot * (1 + moneyness_band)
@@ -92,8 +96,10 @@ def oi_vol_surface_data(df: pd.DataFrame, spot: float,
     )
     agg = agg[agg["weight_sum"] > 0].copy()
     agg["iv_pct"] = agg["wiv_sum"] / agg["weight_sum"] * 100
+    agg["moneyness"] = agg["strike"] / spot
+    agg["log_moneyness"] = np.log(agg["moneyness"])
     return (
-        agg[["dte", "strike", "iv_pct"]]
+        agg[["dte", "strike", "moneyness", "log_moneyness", "iv_pct"]]
         .dropna()
         .sort_values("dte")
         .reset_index(drop=True)

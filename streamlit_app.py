@@ -303,9 +303,11 @@ for liquid-region focus.
   **Xing, Zhang & Zhao (2010, JFQA)**: steeper skew predicts subsequent
   underperformance — 10.9% annual alpha. Only metric here with direct
   peer-reviewed predictive backing.
-- **Vol surface** — OI×vega-weighted IV, 3D interpolation (scipy cubic griddata,
-  linear fallback at boundaries). OI×vega weighting per Avellaneda et al. (2020,
-  arXiv 2002.00085).
+- **Vol surface** — OI×vega-weighted IV plotted in **log-moneyness** `log(K/S)`
+  (academic convention per Cont & da Fonseca 2002, Gatheral, Avellaneda 2020):
+  ATM is pinned at 0; smile is visually symmetric; cross-ticker comparable.
+  3D interpolation via scipy cubic griddata (linear fallback at boundaries);
+  cubic overshoot clipped to non-negative. K/S ratio shown in hover.
 - **IV30** — CBOE-computed 30-day constant-maturity vol, taken directly from
   the delayed payload.
 
