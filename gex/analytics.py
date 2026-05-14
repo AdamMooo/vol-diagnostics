@@ -230,13 +230,15 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
     lm_grid = np.linspace(lm_min, lm_max, 50)
     DTE, LM = np.meshgrid(dte_grid, lm_grid)
 
-    IV = griddata(pts, vals, (DTE, LM), method="cubic")
-    IV_lin = griddata(pts, vals, (DTE, LM), method="linear")
+    # Linear interpolation: cannot overshoot or undershoot the convex hull of
+    # nearby data values, so no risk of negative IV or artificial wells. Cubic
+    # produced smoother shading but oscillated to negative at sparse boundaries
+    # (deep-OTM short-DTE wings), creating visible holes when clipped.
+    IV = griddata(pts, vals, (DTE, LM), method="linear")
+    # Nearest-neighbour fill for cells outside the data's convex hull (corners).
+    IV_nn = griddata(pts, vals, (DTE, LM), method="nearest")
     mask = np.isnan(IV)
-    IV[mask] = IV_lin[mask]
-    # Cubic griddata can overshoot at sparse boundary points (negative IV is
-    # impossible). Clip to non-negative to keep the colorscale honest.
-    IV = np.clip(IV, 0.0, None)
+    IV[mask] = IV_nn[mask]
 
     # Cap z to prevent the deep-OTM near-term IV spike from crushing the rest
     # of the surface. 97th percentile keeps the smile/wing visible while
