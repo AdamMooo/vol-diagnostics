@@ -214,26 +214,41 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                 strike_slope = s.get("strike_slope")
                 term_slope = s.get("term_slope")
                 if strike_slope is not None or term_slope is not None:
+                    slope_hist = _load_history_cached(ticker, days=90)
+                    _ss_hist = (slope_hist["strike_slope"].dropna()
+                                if "strike_slope" in slope_hist.columns else pd.Series(dtype=float))
+                    _ts_hist = (slope_hist["term_slope"].dropna()
+                                if "term_slope" in slope_hist.columns else pd.Series(dtype=float))
+
+                    def _pctile_label(val: float, hist: pd.Series, name: str) -> str:
+                        n = len(hist)
+                        if n >= 10:
+                            pct = int((hist < val).mean() * 100)
+                            return f"{val:+.1f}  ({pct}th pctile, {n}d)"
+                        return f"{val:+.1f}  ({n}d, building context)"
+
                     sm1, sm2, _ = st.columns([1, 1, 2])
                     with sm1:
                         if strike_slope is not None:
                             st.metric(
-                                "Strike Slope",
-                                f"{strike_slope:+.1f} pp/10%",
+                                "Strike Slope (pp / 10% K/S)",
+                                _pctile_label(strike_slope, _ss_hist, "strike_slope"),
                                 help=(
                                     "∂IV/∂(log K) at front expiry (≤45 DTE), scaled to pp per 10% K/S move. "
-                                    "Negative = put skew dominant (normal). More negative = steeper skew. "
+                                    "Negative = put skew dominant (normal). More negative = steeper. "
+                                    "Percentile rank vs trailing 90 sessions once N≥10. "
                                     "Model construct — no peer-reviewed predictive backing."
                                 ),
                             )
                     with sm2:
                         if term_slope is not None:
                             st.metric(
-                                "Term Slope",
-                                f"{term_slope:+.1f} pp/30d",
+                                "Term Slope (pp / 30 DTE)",
+                                _pctile_label(term_slope, _ts_hist, "term_slope"),
                                 help=(
                                     "∂IV/∂(DTE) at ATM (|log K/S| < 5%), scaled to pp per 30 DTE. "
-                                    "Positive = contango (normal). Negative = backwardation (short-end stress). "
+                                    "Positive = contango (normal). Negative = backwardation (short-end stress/event premium). "
+                                    "Percentile rank vs trailing 90 sessions once N≥10. "
                                     "Model construct — no peer-reviewed predictive backing."
                                 ),
                             )
