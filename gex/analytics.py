@@ -211,6 +211,13 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
         )
         return fig
 
+    # Backward-compat: compute log_moneyness on the fly if missing (handles
+    # stale Streamlit caches that were populated before the schema change).
+    if "log_moneyness" not in surface_df.columns:
+        surface_df = surface_df.copy()
+        surface_df["log_moneyness"] = np.log(surface_df["strike"] / spot)
+        surface_df["moneyness"] = surface_df["strike"] / spot
+
     pts = surface_df[["dte", "log_moneyness"]].to_numpy()
     vals = surface_df["iv_pct"].to_numpy()
 

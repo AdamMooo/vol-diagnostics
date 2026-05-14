@@ -53,7 +53,7 @@ _SIGN_RGBA = {
 
 _CSS = """
 <style>
-.block-container { padding-top: 1.25rem; padding-bottom: 2rem; max-width: 1500px; }
+.block-container { padding-top: 2.5rem; padding-bottom: 2rem; max-width: 1500px; }
 
 .sec {
     font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em;
@@ -72,7 +72,13 @@ _CSS = """
 .rc-v { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 .rc-obs { font-size: 0.72rem; opacity: 0.70; margin-top: 10px; line-height: 1.6; }
 
-.sub-bar { font-size: 0.72rem; opacity: 0.55; margin-bottom: 14px; }
+.top-bar {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 0.78rem; opacity: 0.55; letter-spacing: 0.04em;
+    padding-bottom: 10px; margin-bottom: 22px;
+    border-bottom: 1px solid rgba(148,163,184,0.15);
+}
+.top-bar-tickers { font-weight: 600; }
 </style>
 """
 
@@ -276,6 +282,16 @@ selected_all = sel_index
 if not selected_all:
     st.info("Select at least one ticker in the sidebar.")
     st.stop()
+
+_top_tickers = " · ".join(selected_all)
+_top_date = datetime.now().strftime("%a %b %d, %Y").replace(" 0", " ")
+st.markdown(
+    f"""<div class="top-bar">
+  <span class="top-bar-tickers">{_top_tickers}</span>
+  <span>{_top_date}  ·  CBOE delayed, 15-min lag  ·  OI as of prior session</span>
+</div>""",
+    unsafe_allow_html=True,
+)
 
 # ── Fetch all tickers ──────────────────────────────────────────────────────────
 all_data: dict[str, dict] = {}
