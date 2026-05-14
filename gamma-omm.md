@@ -48,7 +48,7 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-14 15:10 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-14 15:17 UTC
 
 **Milestone:** v3.1 — SHIPPED · **Status:** shipped · **STATE last_updated:** 2026-05-14 (vol surface OTM convention + GEX overlays)
 
@@ -110,9 +110,55 @@ Commits today (six total):
 Next:
 - ~~Reframe ZGL + wall labels~~ ✅ done as part of `a5e377f` (γ-flip + methodology expander)
 - ~~Store `front_skew`, `put_25d_iv`, `call_50d_iv` in daily parquet snapshots~~ ✅ done in `70a9021` (first snapshot lands tomorrow at 16:30 ET)
-- README.md hand-update — strip "Δ-flow" / "Cross-asset overview" references, add Skew + IV Surface + OTM convention notes. (Project CLAUDE.md says READMEs are maintained separately, so flagging rather than auto-editing.)
-- Email image attachments (full-size JPGs via Outlook `Attachments.Add()`) — finally tackleable now that charts are visually final
-- End-to-end sanity pass on the dashboard (tabs, methodology expander, rendered surface)
+- **v3.2 — Codebase Rigor Sweep (planned 2026-05-14)** — six-item formal phase, see below
+
+---
+
+## v3.2 — Codebase Rigor Sweep (planned 2026-05-14, ready to execute)
+
+**Why:** After 12 commits of out-of-phase methodology + UI + viz work over 2026-05-13/14, the dashboard is *defensible* but the codebase has accumulated loose ends. This phase lifts it from "works and is defensible" to "production-grade." Nothing is broken; this is rigor not repair.
+
+**Scope (6 items, ~3–5 days):**
+
+1. **Test coverage expansion** — target +15–25 tests for currently-uncovered critical paths:
+   - `vol_surface_data()` OTM convention (K<S → put, K≥S → call); moneyness band filter; log_moneyness math
+   - `compute_skew()` 25Δ put / 50Δ call selection; min_dte=7 filter; pp output
+   - `save_snapshot()` schema-additive migration (new cols on old store, NaN backfill)
+   - `_get_risk_free_rate()` fallback to 0.05 when yfinance fails
+   - `oi_vol_surface_data` (now `vol_surface_data`) → `compute_ticker` → summary roundtrip
+   - Hedge Shares/$1 formula `net_gex / (spot**2 × 0.01)` vs known inputs
+   - Annotation meridian rendering (γ-flip, walls within range vs outside)
+
+2. **Email pipeline E2E verification** — `python -m gex.run_daily --dry-run`. Open `out/gex_YYYYMMDD.html` in a browser. Confirm every new metric renders (Hedge Shares/$1, Skew 25Δ), glossary entries correct, no `Δ-flow` leakage anywhere. Document any silent breakage.
+
+3. **README.md hand-update** (draft → approve workflow per Adam's preference):
+   - Strip "Δ-flow" references; rename to "Hedge Shares/$1"
+   - Remove "Cross-asset overview" section (deleted from dashboard)
+   - Add Skew (25Δ), IV Surface (OTM convention), Methodology expander references
+   - Update dashboard table to mention tabbed expanders
+
+4. **Config consolidation** — pull scattered magic numbers into `gex/config.py`:
+   - Surface: grid sizes (50×40), moneyness band (0.22), dte_max (180), z-cap percentile (97)
+   - Filters: min OI (100), max IV (3.0), min DTE (1), skew min_dte (7)
+   - Caching: TTL (300s, 1800s)
+   - Plot anchors: K/S tick values, DTE tick values
+   Each constant gets a one-line docstring with rationale + source.
+
+5. **Dead code + stale-ref sweep** — audit run_daily, report.py, validation, tests for unused branches and obsolete imports. Plot_overview was an example; find any others. Confirm no remaining `OI×vega`, `Δ-flow`, `gamma_regime`, `vanna_exposure` references in *active* code (research docs and historical commit logs OK to keep).
+
+6. **DIST-01 + DIST-04 closure** (v3.2 ship-blockers from prior backlog):
+   - **DIST-01:** Thread `ChainSnapshot.as_of` through `compute_ticker` → `summary` → `report.build_email()` so the email displays the actual quote timestamp instead of inferring from "today"
+   - **DIST-04:** Filter-drop transparency — log/display "filters removed X% of raw chain OI" so opaque exclusions are visible
+
+**README workflow:** I draft the new content → Adam reviews → I commit on approval. Per project rule "READMEs are maintained separately," explicit ask treated as one-time scope, not blanket override.
+
+**Out of scope (deferred):**
+- Type hint audit (modern syntax sweep) — distinct workstream
+- Email JPG attachments (Inbox item) — separate UX polish, after v3.2 ships
+- SVI parametric vol surface fit — only if the linear surface becomes load-bearing for decisions
+- Single-name extension (non-SPY/QQQ/IWM) — requires per-ticker positioning assumption review
+
+**Ready to execute via `/gsd-plan-phase` for formal multi-plan breakdown, or `/gsd-quick` item-by-item if Adam prefers tighter cycles.**
 
 Hub: [[gamma-omm/gamma-omm]]
 
