@@ -18,10 +18,6 @@ import argparse
 import datetime
 import pathlib
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-
 from gex.data_loader import load_chain
 from gex.greeks_engine import add_greeks
 from gex.exposure_engine import compute_gex, strike_gex, gamma_profile
@@ -51,21 +47,19 @@ def run(ticker: str = "SPY", save: bool = True) -> dict:
         date_tag = snapshot.as_of.isoformat()
 
         fig1 = plot_strike_gex(strike_df, snapshot.spot, ticker, summary)
-        path1 = OUT_DIR / f"gex_strikes_{ticker}_{date_tag}.png"
-        fig1.savefig(path1, dpi=150)
-        plt.close(fig1)
+        path1 = OUT_DIR / f"gex_strikes_{ticker}_{date_tag}.html"
+        fig1.write_html(str(path1))
         print(f"[gex] Saved: {path1}")
 
         fig2 = plot_gamma_profile(profile_df, snapshot.spot, ticker, summary)
-        path2 = OUT_DIR / f"gex_profile_{ticker}_{date_tag}.png"
-        fig2.savefig(path2, dpi=150)
-        plt.close(fig2)
+        path2 = OUT_DIR / f"gex_profile_{ticker}_{date_tag}.html"
+        fig2.write_html(str(path2))
         print(f"[gex] Saved: {path2}")
     else:
-        matplotlib.use("TkAgg")
-        plot_strike_gex(strike_df, snapshot.spot, ticker, summary)
-        plot_gamma_profile(profile_df, snapshot.spot, ticker, summary)
-        plt.show()
+        fig1 = plot_strike_gex(strike_df, snapshot.spot, ticker, summary)
+        fig2 = plot_gamma_profile(profile_df, snapshot.spot, ticker, summary)
+        fig1.show()
+        fig2.show()
 
     return summary
 
