@@ -55,7 +55,7 @@ def expiry_gex(df: pd.DataFrame) -> pd.DataFrame:
 
 def vol_surface_data(df: pd.DataFrame, spot: float,
                      dte_max: int = 180,
-                     moneyness_band: float = 0.18) -> pd.DataFrame:
+                     moneyness_band: float = 0.22) -> pd.DataFrame:
     """
     Extract (dte, log_moneyness, iv_pct) points for the implied vol surface.
 
@@ -70,7 +70,7 @@ def vol_surface_data(df: pd.DataFrame, spot: float,
         - log-moneyness = log(strike/spot), centred at 0 = ATM
         - DTE in days
 
-    Filtered to the liquid near-money region (±18% of spot, ≤180 DTE).
+    Filtered to the liquid near-money region (±22% of spot, ≤180 DTE).
     Returns DataFrame: dte (days), strike, moneyness, log_moneyness, iv_pct.
     """
     lo = spot * (1 - moneyness_band)

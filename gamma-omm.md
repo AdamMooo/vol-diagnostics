@@ -1,6 +1,6 @@
 # Gamma OMM — Market Intelligence Dashboard
 
-GEX monitor for SPY, QQQ, IWM — dealer gamma exposure. Defensible outputs: net GEX (sign + magnitude), zero-gamma level, single-strike call/put walls, Hedge Shares/$1, IV30, IV skew (25Δ put − 50Δ call), OI×vega-weighted 3D implied vol surface.
+GEX monitor for SPY, QQQ, IWM — dealer gamma exposure. Defensible outputs: net GEX (sign + magnitude), γ-flip level, single-strike call/put walls, Hedge Shares/$1, IV30, IV skew (25Δ put − 50Δ call), 3D implied vol surface (OTM convention, log-moneyness) with γ-flip + wall meridian overlays.
 
 ## Running the Dashboard
 
@@ -18,7 +18,7 @@ Opens at `http://localhost:8501`.
 - **Cards** — spot, net GEX, Hedge Sh/$1, γ-flip, skew 25Δ, IV30. Accent bar reflects sign of net GEX (no categorical regime label)
 - **Per-ticker expanders** with **tabs**:
   - **Strikes** — GEX by strike + gamma profile
-  - **Vol** — OI×vega-weighted 3D implied vol surface + skew term structure
+  - **Vol** — 3D implied vol surface (OTM convention, log-moneyness) with γ-flip + Call/Put Wall meridians overlaid; skew term structure below
   - **History** — 30-day γ-flip vs spot
 - **Bottom expander: Methodology & Assumptions** — full caveat block (free CBOE feed, American greeks model, ^IRX rate, all filters, γ-flip/walls as model constructs, dealer positioning assumption)
 
@@ -48,14 +48,14 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-13 21:06 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-14 15:10 UTC
 
-**Milestone:** v3.1 — SHIPPED · **Status:** shipped · **STATE last_updated:** 2026-05-13 (methodology audit + formula fixes)
+**Milestone:** v3.1 — SHIPPED · **Status:** shipped · **STATE last_updated:** 2026-05-14 (vol surface OTM convention + GEX overlays)
 
 ### Current Position
 - **Phase:** 5 — UAT Sign-Off & Cleanup (complete) + Out-of-Phase Refactor + Methodology Validation (complete)
 - **Status:** ✅ v3.1 SHIPPED + methodology validated + 2 new defensible metrics added
-- **Last activity:** 2026-05-13 — Two research passes + six commits. Methodology: d193b1b (delta-flow fix + live ^IRX), c173c1b (OI×vega 3D vol surface), 83a9ff5 (IV skew, Xing 2010 JFQA). Docs/viz/UI: dc0919b (hub sync), 943228d (vol surface viz fix), a5e377f (dashboard UI cleanup — no title, tabbed expanders, γ-flip relabel, consolidated methodology surfacing previously-silent assumptions). Charm-by-DTE (Phase 6) intentionally cancelled — adds model assumptions on top of dealer-positioning assumption.
+- **Last activity:** 2026-05-14 — Vol surface rebuilt on OTM convention. Five commits: 6c3dc3d (log-moneyness axis), 70a9021 (skew history snapshots), c914da7 (stale-cache fix + restored top status bar), c16c094 (cubic griddata dropped — was creating artificial wells from undershoot), 0104c29 (OI×vega → OTM convention + GEX overlays: spot plane + γ-flip + Call/Put Wall meridians on the surface). Pending commit: cleanup pass (wider moneyness band ±22%, clean DTE ticks, plot_overview removed, hub doc aligned).
 
 ### Pending Todos
 - Validate charm calculation methodology for American options
@@ -71,7 +71,16 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 
 ### Operator notes (handwritten — survives hub-sync)
 
-Last hand-updated: 2026-05-13 | **Methodology fully validated + 2 new metrics shipped**
+Last hand-updated: 2026-05-14 | **Vol surface rebuilt on OTM convention + GEX overlays**
+
+**Recent changes (2026-05-14):** Five commits — carry-over (skew history) + vol surface philosophical refactor (OI×vega → OTM convention) + GEX cross-product overlays + cleanup pass.
+
+- **`6c3dc3d`** — Vol surface in log-moneyness `log(K/S)` (Cont & da Fonseca 2002, Gatheral). Cross-ticker comparable.
+- **`70a9021`** — Skew history snapshots: `front_skew`, `put_25d_iv`, `call_50d_iv`, `iv30` added to parquet store. 30-day skew chart in History tab.
+- **`c914da7`** — Bug fixes: stale Streamlit cache `KeyError`, restored subtle top status bar after over-correcting on title removal.
+- **`c16c094`** — Cubic griddata dropped after Adam spotted "holes" in QQQ surface (cubic was undershooting below local minimum at sparse boundaries → clip-to-zero wells). Linear-only now — no overshoot possible.
+- **`0104c29`** — **Vol surface philosophical refactor.** Replaced OI×vega weighting (Avellaneda 2020 framing didn't change the visual — put-call parity meant weighted ≈ unweighted) with **OTM convention** (Gatheral §2.1: put IV for K<S, call IV for K≥S — industry standard, no citation needed). Added **GEX cross-product overlays** on the surface: spot plane + γ-flip meridian + Call/Put Wall meridians. The vol structure can now be read against dealer positioning — the actual novel insight.
+- **(this commit pending)** — Cleanup: widened moneyness band to ±22% (far-OTM walls now have rendering headroom), clean DTE tick labels (7/30/60/90/120/180), removed orphan `plot_overview()` + its test (dead after cross-asset bar chart removed), hub doc Defensibility table updated.
 
 **Recent changes (2026-05-13):** Two research passes followed by three out-of-phase commits.
 
@@ -91,7 +100,7 @@ Commits today (six total):
 - ✅ GEX formula (Gatheral/Bergomi derivable; SpotGamma/perfiliev/GEXboard match)
 - ✅ Dealer positioning (Garleanu, Pedersen & Poteshman 2009, RFS — empirically confirmed)
 - ✅ Hedge Shares/$1 (mechanism well-supported in Egebjerg & Kokholm 2024)
-- ✅ OI×vega vol surface (Avellaneda 2020, arXiv)
+- ✅ IV surface, OTM convention (Gatheral §2.1; log-moneyness per Cont & da Fonseca 2002)
 - ✅ IV Skew (Xing, Zhang & Zhao 2010, JFQA)
 - ⚠️ ZGL — zero peer-reviewed papers as a price level; defensible only as a model construct
 - ⚠️ Walls — trader lore; defensible only as OI concentration, not support/resistance
@@ -100,9 +109,10 @@ Commits today (six total):
 
 Next:
 - ~~Reframe ZGL + wall labels~~ ✅ done as part of `a5e377f` (γ-flip + methodology expander)
-- Store `front_skew`, `put_25d_iv`, `call_50d_iv` in daily parquet snapshots → enable 30-day skew history chart in the History tab
-- Email image attachments (full-size JPGs) — defer until charts are visually final
-- End-to-end sanity check of cleaned dashboard (tabs, methodology expander, rendered surface)
+- ~~Store `front_skew`, `put_25d_iv`, `call_50d_iv` in daily parquet snapshots~~ ✅ done in `70a9021` (first snapshot lands tomorrow at 16:30 ET)
+- README.md hand-update — strip "Δ-flow" / "Cross-asset overview" references, add Skew + IV Surface + OTM convention notes. (Project CLAUDE.md says READMEs are maintained separately, so flagging rather than auto-editing.)
+- Email image attachments (full-size JPGs via Outlook `Attachments.Add()`) — finally tackleable now that charts are visually final
+- End-to-end sanity pass on the dashboard (tabs, methodology expander, rendered surface)
 
 Hub: [[gamma-omm/gamma-omm]]
 

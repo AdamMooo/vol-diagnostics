@@ -154,43 +154,6 @@ def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
     return fig
 
 
-def plot_overview(results: list[dict]) -> go.Figure:
-    """Horizontal bar chart — net GEX for all tickers. Color = sign."""
-    from gex.report import TICKER_LABEL
-
-    valid = [r for r in results if not r.get("error")]
-    labels = [TICKER_LABEL.get(r["ticker"], r["ticker"]) for r in valid]
-    values = [r["net_gex"] / 1e9 for r in valid]
-    colors = [_sign_color(r.get("net_gex")) for r in valid]
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=values,
-        y=labels,
-        orientation="h",
-        marker_color=colors,
-        marker_line_width=0,
-        hovertemplate="%{y}: %{x:+.2f}B<extra></extra>",
-        text=[f"{v:+.2f}B" for v in values],
-        textposition="outside",
-        textfont_size=10,
-    ))
-
-    fig.add_vline(x=0, line_color="rgba(255,255,255,0.25)", line_width=1)
-
-    fig.update_layout(
-        template="plotly_dark",
-        title=dict(text="Cross-Asset Gamma Exposure", font_size=13),
-        xaxis_title="Net GEX ($B)",
-        xaxis_ticksuffix="B",
-        yaxis=dict(autorange="reversed"),
-        showlegend=False,
-        height=max(220, len(valid) * 34 + 80),
-        margin=dict(t=50, b=45, l=130, r=70),
-    )
-    return fig
-
-
 def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
                      iv30: float | None = None,
                      gamma_flip: float | None = None,
@@ -251,10 +214,12 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
     STRIKE_GRID = KS * spot
     customdata = np.dstack([KS, STRIKE_GRID])
 
-    lm_ticks = [round(np.log(k), 4) for k in (0.85, 0.90, 0.95, 1.0, 1.05, 1.10, 1.15)
+    _ks_anchors = (0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20)
+    lm_ticks = [round(np.log(k), 4) for k in _ks_anchors
                 if lm_min <= np.log(k) <= lm_max]
-    lm_tick_labels = [f"{k:.2f}" for k in (0.85, 0.90, 0.95, 1.0, 1.05, 1.10, 1.15)
+    lm_tick_labels = [f"{k:.2f}" for k in _ks_anchors
                       if lm_min <= np.log(k) <= lm_max]
+    dte_ticks = [d for d in (7, 30, 60, 90, 120, 180) if dte_min <= d <= dte_max]
 
     iv30_label = f" · IV30 {iv30:.1f}%" if iv30 else ""
 
@@ -343,7 +308,14 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
             camera=dict(eye=dict(x=-1.7, y=-1.7, z=1.1)),
             aspectmode="manual",
             aspectratio=dict(x=1.4, y=1.4, z=0.7),
-            xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
+            xaxis=dict(
+                showgrid=True,
+                gridcolor="rgba(255,255,255,0.08)",
+                tickmode="array",
+                tickvals=dte_ticks,
+                ticktext=[f"{d}" for d in dte_ticks],
+                tickfont=dict(size=10),
+            ),
             yaxis=dict(
                 showgrid=True,
                 gridcolor="rgba(255,255,255,0.08)",

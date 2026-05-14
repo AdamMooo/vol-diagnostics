@@ -20,10 +20,3 @@ def test_fetch_ticker_has_clear():
     assert callable(getattr(fetch_ticker, "clear", None))
 
 
-def test_plot_overview_renders():
-    """DASH-04: plot_overview() returns a Plotly Figure for a minimal result list."""
-    import plotly.graph_objects as go
-    from gex.analytics import plot_overview
-    results = [{"ticker": "SPY", "net_gex": 1e9, "error": None}]
-    fig = plot_overview(results)
-    assert isinstance(fig, go.Figure)
