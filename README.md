@@ -1,8 +1,24 @@
-# Gamma OMM — GEX Dashboard
+# Gamma OMM — Dashboard
 
-Dealer gamma exposure monitor for SPY, QQQ, IWM. Pulls live options chains from CBOE delayed quotes, computes GEX from chain gamma (sourced directly from CBOE's American-model greeks), and surfaces positioning levels in a Streamlit dashboard and an HTML email report.
+Dealer gamma exposure + implied vol structure for SPY, QQQ, IWM. Pulls live CBOE delayed-quote chains, computes GEX from CBOE-supplied American-model greeks, and surfaces positioning + vol structure in a Streamlit dashboard and an HTML email report.
 
-Defensible outputs only: **Net GEX (sign + magnitude)**, **Zero-γ level**, **Call/Put wall strikes** (single max one-sided GEX), **Δ-flow**, **IV30**. Vanna/charm/VEX/CHEX, wall clusters, vs-yesterday classifier, and the categorical regime label were removed in the 2026-05-11 methodology cleanup — they could not be defended at a quant PM's level of scrutiny.
+## Defensibility
+
+**Peer-reviewed predictive backing:**
+- **Skew (25Δ put − 50Δ call)** — Xing, Zhang & Zhao (2010, *JFQA*) — 10.9% annual alpha on skew-sorted portfolios.
+
+**Mechanistic / derivable:**
+- **Net GEX** — Gatheral / Bergomi dollar-gamma framework; dealer-net-short positioning empirically confirmed by Garleanu, Pedersen & Poteshman (2009, *RFS*).
+- **Hedge Shares/$1** — `Γ_net × OI × 100`; price-impact mechanism in Egebjerg & Kokholm (2024).
+- **IV Surface** — OTM convention (Gatheral §2.1); log-moneyness axes per Cont & da Fonseca (2002).
+
+**Model constructs (descriptive, not predictive):**
+- **γ-flip** (formerly "Zero-γ Level") — zero peer-reviewed papers test it as a price level. Read as the model's gamma-sign-flip threshold, not a price target.
+- **Call/Put Wall strikes** — trader lore. Describes where OI gamma is concentrated, not support/resistance.
+
+**Explicitly removed for rigor:** vanna/charm exposures, hand-tuned regime labels, vs-yesterday classifier, wall clusters, OI×vega weighting — each carried more assumption than benefit.
+
+Full research: [`research/methodology-deep-review.md`](research/methodology-deep-review.md) (academic literature with SSRN/DOI citations) and [`research/methodology-audit.md`](research/methodology-audit.md) (practitioner-source audit).
 
 ## Setup
 
@@ -37,9 +53,10 @@ python -m gex.run_gex --ticker IWM
 
 | Section | What it shows |
 |---------|--------------|
-| Cards | Spot, Net GEX, Δ-flow, Zero-γ level, Call/Put walls, IV30. Accent bar = sign of Net GEX |
-| Cross-asset overview | Net GEX bar across selected tickers (color = sign) |
-| Per-ticker expanders | Strike GEX chart, gamma profile, 30-day ZGL-vs-spot history |
+| **Top bar** | Selected tickers · date · data freshness (CBOE delayed, 15-min lag, OI as of prior session) |
+| **Cards** | Spot, Net GEX, Hedge Shares/$1, γ-flip, Skew (25Δ), IV30. Accent bar = sign of Net GEX |
+| **Per-ticker tabbed expanders** | **Strikes** — GEX by strike + gamma profile. **Vol** — 3D IV surface (OTM convention, log-moneyness) with γ-flip + Call/Put Wall meridians overlaid; skew term structure below. **History** — 30-day γ-flip vs spot + 30-day Skew (25Δ) |
+| **Methodology & Assumptions expander** | All caveats consolidated: free CBOE feed (no OPRA), CBOE American option pricing model, live ^IRX risk-free rate, all filters explicit, model-construct tags on γ-flip + walls, dealer positioning assumption |
 
 Sidebar lets you filter tickers and refresh the cache (5-min TTL per ticker).
 
@@ -47,18 +64,20 @@ Sidebar lets you filter tickers and refresh the cache (5-min TTL per ticker).
 
 | Module | Purpose |
 |--------|---------|
-| `streamlit_app.py` | Interactive dashboard |
-| `gex/data_loader.py` | CBOE delayed quotes → `ChainSnapshot` |
-| `gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used by `gamma_profile()` |
-| `gex/exposure_engine.py` | GEX aggregation + gamma profile sweep |
-| `gex/analytics.py` | `summarise()` → net GEX, ZGL, walls, δ-flow + plotly charts |
-| `gex/compute.py` | Shared pipeline used by both daily report and streamlit |
-| `gex/validation.py` | Parquet snapshot store (history for 30-day ZGL chart) |
+| `streamlit_app.py` | Interactive dashboard with tabbed expanders + methodology expander |
+| `gex/data_loader.py` | CBOE delayed quotes → `ChainSnapshot` (greeks pre-computed by CBOE's American model) |
+| `gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` sweep |
+| `gex/exposure_engine.py` | GEX aggregation, gamma profile sweep, `vol_surface_data()` (OTM convention), `compute_skew()` (25Δ put − 50Δ call) |
+| `gex/analytics.py` | `summarise()` → Net GEX, γ-flip, walls, Hedge Shares/$1; plotly charts: strike GEX, gamma profile, IV surface (with γ-flip + wall meridians), skew term structure |
+| `gex/compute.py` | Shared pipeline used by daily report and streamlit. `_get_risk_free_rate()` pulls live `^IRX` 3-month T-bill |
+| `gex/validation.py` | Parquet snapshot store: `net_gex`, `zero_gamma_level`, `call_wall`, `put_wall`, `front_skew`, `put_25d_iv`, `call_50d_iv`, `iv30` |
 | `gex/report.py` | HTML email builder |
-| `gex/run_daily.py` | Daily orchestrator (snapshot + email + daily-note observation block) |
+| `gex/run_daily.py` | Daily orchestrator (snapshot + email + daily-note observation block). Scheduled Mon–Fri 16:30 ET via Windows Task Scheduler |
 
 ## Tests
 
 ```powershell
 python -m pytest gex/tests/ -q
 ```
+
+23 tests covering data loading, GEX aggregation, gamma profile, analytics, email rendering, snapshot store, and streamlit app boot.
