@@ -211,6 +211,7 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
 
     iv_floor = float(np.nanmin(IV))
     iv_cap = float(np.nanpercentile(IV, config.SURFACE_Z_CAP_PERCENTILE))
+    IV = np.clip(IV, iv_floor, iv_cap)
 
     KS = np.exp(LM)
     STRIKE_GRID = KS * spot

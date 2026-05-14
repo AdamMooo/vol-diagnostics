@@ -2,7 +2,7 @@
 gsd_state_version: "1.0"
 milestone: "v3.1 — SHIPPED"
 status: shipped
-last_updated: 2026-05-13 (methodology audit + formula fixes)
+last_updated: 2026-05-14 (vol surface OTM convention + GEX overlays)
 context_gathered: true
 plans_ready: false
 ---
@@ -20,8 +20,8 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 
 Phase: 5 — UAT Sign-Off & Cleanup (complete) + Out-of-Phase Refactor + Methodology Validation (complete)
 Status: ✅ v3.1 SHIPPED + methodology validated + 2 new defensible metrics added
-Next: Reframe ZGL + wall labels (10-min UI change); store skew in daily snapshots; formalize email
-Last activity: 2026-05-13 — Two research passes (practitioner audit + peer-reviewed deep review). Three commits: d193b1b (delta-flow fix + live ^IRX rate + caveats), c173c1b (OI×vega 3D vol surface), 83a9ff5 (IV skew 25Δp−50Δc, Xing 2010 JFQA). Charm-by-DTE (Phase 6) intentionally cancelled — adds model assumptions on top of dealer-positioning assumption.
+Next: v3.2 Codebase Rigor Sweep — 4 of 6 done. Item 4 (test coverage expansion) paused — needs structural plan via /gsd-plan-phase --chain. Item 6 (DIST-01/04 closure) remains — /gsd-quick suitable.
+Last activity: 2026-05-14 — Item 5 (dead code + stale-ref sweep) complete (22ec33a). Found and fixed broken matplotlib/Plotly mismatch in run_gex.py (savefig → write_html). All other flagged terms confirmed clean.
 
 Progress: [██████████] v3.1 shipped + methodology layer complete
 
@@ -62,6 +62,12 @@ Progress: [██████████] v3.1 shipped + methodology layer comp
 ### Blockers/Concerns
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260514-fz2 | v3.2 item 5 — dead code + stale-ref sweep | 2026-05-14 | 22ec33a | [260514-fz2-dead-code-stale-ref-sweep](./quick/260514-fz2-dead-code-stale-ref-sweep/) |
 
 ## Deferred Items
 

@@ -12,6 +12,7 @@ from gex.data_loader import load_chain
 from gex.greeks_engine import add_greeks
 from gex.exposure_engine import (
     compute_gex, strike_gex, gamma_profile, vol_surface_data, compute_skew,
+    compute_surface_slopes,
 )
 from gex.analytics import summarise
 
@@ -51,6 +52,7 @@ def compute_ticker(ticker: str) -> dict:
     surface_df = vol_surface_data(df, spot=snapshot.spot)
     skew_df = compute_skew(df)
     front_skew = float(skew_df["skew_pp"].iloc[0]) if not skew_df.empty else None
+    slopes = compute_surface_slopes(surface_df)
 
     net_gex_scalar = float(s_df["gex"].sum())
     # Shares dealers must trade per $1 spot move to stay delta-neutral.
@@ -66,6 +68,8 @@ def compute_ticker(ticker: str) -> dict:
     summary["iv30"] = snapshot.iv30
     summary["price_change_pct"] = snapshot.price_change_pct
     summary["front_skew"] = front_skew
+    summary["strike_slope"] = slopes.get("strike_slope")
+    summary["term_slope"] = slopes.get("term_slope")
 
     return {"summary": summary, "s_df": s_df, "p_df": p_df,
             "spot": snapshot.spot, "surface_df": surface_df, "skew_df": skew_df}

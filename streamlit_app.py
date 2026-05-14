@@ -211,6 +211,33 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                         ),
                         use_container_width=True,
                     )
+                strike_slope = s.get("strike_slope")
+                term_slope = s.get("term_slope")
+                if strike_slope is not None or term_slope is not None:
+                    sm1, sm2, _ = st.columns([1, 1, 2])
+                    with sm1:
+                        if strike_slope is not None:
+                            st.metric(
+                                "Strike Slope",
+                                f"{strike_slope:+.1f} pp/10%",
+                                help=(
+                                    "∂IV/∂(log K) at front expiry (≤45 DTE), scaled to pp per 10% K/S move. "
+                                    "Negative = put skew dominant (normal). More negative = steeper skew. "
+                                    "Model construct — no peer-reviewed predictive backing."
+                                ),
+                            )
+                    with sm2:
+                        if term_slope is not None:
+                            st.metric(
+                                "Term Slope",
+                                f"{term_slope:+.1f} pp/30d",
+                                help=(
+                                    "∂IV/∂(DTE) at ATM (|log K/S| < 5%), scaled to pp per 30 DTE. "
+                                    "Positive = contango (normal). Negative = backwardation (short-end stress). "
+                                    "Model construct — no peer-reviewed predictive backing."
+                                ),
+                            )
+
                 skew_df = data.get("skew_df")
                 if skew_df is not None and not skew_df.empty:
                     st.plotly_chart(
