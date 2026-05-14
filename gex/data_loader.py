@@ -19,6 +19,8 @@ from dataclasses import dataclass
 import pandas as pd
 import requests
 
+from gex import config
+
 _CBOE_URL = "https://cdn.cboe.com/api/global/delayed_quotes/options/{ticker}.json"
 _HEADERS = {"User-Agent": "options-quant/1.0"}
 
@@ -49,9 +51,9 @@ def _parse_symbol(sym: str, ticker: str) -> tuple[datetime.date, str, float] | N
 
 def load_chain(
     ticker: str = "SPY",
-    min_oi: int = 100,
-    min_dte: int = 1,
-    max_iv: float = 3.0,
+    min_oi: int = config.MIN_OI,
+    min_dte: int = config.MIN_DTE,
+    max_iv: float = config.MAX_IV,
 ) -> ChainSnapshot:
     """
     Fetch all listed expiries for ticker from CBOE delayed quotes and return a ChainSnapshot.

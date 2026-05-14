@@ -17,6 +17,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from gex import config
+
 MULTIPLIER = 100  # shares per contract
 
 
@@ -54,8 +56,8 @@ def expiry_gex(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def vol_surface_data(df: pd.DataFrame, spot: float,
-                     dte_max: int = 180,
-                     moneyness_band: float = 0.22) -> pd.DataFrame:
+                     dte_max: int = config.SURFACE_DTE_MAX,
+                     moneyness_band: float = config.SURFACE_MONEYNESS_BAND) -> pd.DataFrame:
     """
     Extract (dte, log_moneyness, iv_pct) points for the implied vol surface.
 
@@ -101,7 +103,7 @@ def vol_surface_data(df: pd.DataFrame, spot: float,
     )
 
 
-def compute_skew(df: pd.DataFrame, min_dte: int = 7) -> pd.DataFrame:
+def compute_skew(df: pd.DataFrame, min_dte: int = config.SKEW_MIN_DTE) -> pd.DataFrame:
     """
     Per-expiry IV skew: IV(25Δ put) − IV(50Δ call), in percentage points.
 
@@ -125,8 +127,8 @@ def compute_skew(df: pd.DataFrame, min_dte: int = 7) -> pd.DataFrame:
         calls = grp[grp["type"] == "call"]
         if puts.empty or calls.empty:
             continue
-        put_idx = (puts["delta"] - (-0.25)).abs().idxmin()
-        call_idx = (calls["delta"] - 0.50).abs().idxmin()
+        put_idx = (puts["delta"] - config.SKEW_PUT_DELTA).abs().idxmin()
+        call_idx = (calls["delta"] - config.SKEW_CALL_DELTA).abs().idxmin()
         put_iv = puts.loc[put_idx, "iv"] * 100
         call_iv = calls.loc[call_idx, "iv"] * 100
         rows.append({
@@ -141,8 +143,9 @@ def compute_skew(df: pd.DataFrame, min_dte: int = 7) -> pd.DataFrame:
 
 
 def gamma_profile(df: pd.DataFrame, spot: float,
-                  n_points: int = 200, width_pct: float = 0.15,
-                  r: float = 0.05) -> pd.DataFrame:
+                  n_points: int = config.PROFILE_N_POINTS,
+                  width_pct: float = config.PROFILE_WIDTH_PCT,
+                  r: float = config.RISK_FREE_FALLBACK) -> pd.DataFrame:
     """
     Recompute net GEX across a grid of hypothetical spot levels.
     Used to find the zero-gamma level and visualise the profile.

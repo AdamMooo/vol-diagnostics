@@ -7,6 +7,7 @@ Both callers wrap this function:
 """
 from __future__ import annotations
 
+from gex import config
 from gex.data_loader import load_chain
 from gex.greeks_engine import add_greeks
 from gex.exposure_engine import (
@@ -16,7 +17,7 @@ from gex.analytics import summarise
 
 
 def _get_risk_free_rate() -> float:
-    """3-month T-bill rate from ^IRX; falls back to 0.05 on failure."""
+    """3-month T-bill rate from ^IRX; falls back to config.RISK_FREE_FALLBACK on failure."""
     try:
         import yfinance as yf
         rate = yf.Ticker("^IRX").fast_info.get("lastPrice")
@@ -24,7 +25,7 @@ def _get_risk_free_rate() -> float:
             return float(rate) / 100
     except Exception:
         pass
-    return 0.05
+    return config.RISK_FREE_FALLBACK
 
 
 def compute_ticker(ticker: str) -> dict:

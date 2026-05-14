@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from gex import config
 from gex.compute import compute_ticker
 from gex.analytics import (
     plot_strike_gex, plot_gamma_profile,
@@ -105,13 +106,13 @@ def _derive_observations(summary: dict, spot: float) -> list[str]:
     return obs
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=config.CACHE_TTL_TICKER, show_spinner=False)
 def fetch_ticker(ticker: str) -> dict:
     return compute_ticker(ticker)
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
-def _load_history_cached(ticker: str, days: int = 30) -> pd.DataFrame:
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _load_history_cached(ticker: str, days: int = config.HISTORY_DAYS) -> pd.DataFrame:
     from gex.validation import load_history
     return load_history(ticker, days)
 
@@ -218,7 +219,7 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                     )
 
             with tab_history:
-                hist30 = _load_history_cached(ticker, days=30)
+                hist30 = _load_history_cached(ticker, days=config.HISTORY_DAYS)
                 if hist30.empty:
                     st.caption("No history yet — daily snapshots accumulate from `gex.run_daily`.")
                 else:
@@ -234,7 +235,7 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                     ))
                     zgl_fig.update_layout(
                         template="plotly_dark",
-                        title="γ-flip vs Spot — 30 sessions",
+                        title=f"γ-flip vs Spot — {config.HISTORY_DAYS} sessions",
                         height=260,
                         margin=dict(t=40, b=30, l=60, r=20),
                         legend=dict(orientation="h", y=1.15),
@@ -255,7 +256,7 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                         skew_fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
                         skew_fig.update_layout(
                             template="plotly_dark",
-                            title="Skew (25Δ put − 50Δ call) — 30 sessions",
+                            title=f"Skew (25Δ put − 50Δ call) — {config.HISTORY_DAYS} sessions",
                             height=240,
                             yaxis_title="Skew (pp)",
                             yaxis_ticksuffix="pp",

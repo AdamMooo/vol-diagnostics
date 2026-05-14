@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+from gex import config
+
 
 def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
               spot: float,
@@ -194,12 +196,12 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
     vals = surface_df["iv_pct"].to_numpy()
 
     dte_min = max(float(surface_df["dte"].min()), 1.0)
-    dte_max = min(float(surface_df["dte"].max()), 180.0)
+    dte_max = min(float(surface_df["dte"].max()), float(config.SURFACE_DTE_MAX))
     lm_min = float(surface_df["log_moneyness"].min())
     lm_max = float(surface_df["log_moneyness"].max())
 
-    dte_grid = np.linspace(dte_min, dte_max, 40)
-    lm_grid = np.linspace(lm_min, lm_max, 50)
+    dte_grid = np.linspace(dte_min, dte_max, config.SURFACE_GRID_DTE)
+    lm_grid = np.linspace(lm_min, lm_max, config.SURFACE_GRID_LM)
     DTE, LM = np.meshgrid(dte_grid, lm_grid)
 
     IV = griddata(pts, vals, (DTE, LM), method="linear")
@@ -208,18 +210,17 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
     IV[mask] = IV_nn[mask]
 
     iv_floor = float(np.nanmin(IV))
-    iv_cap = float(np.nanpercentile(IV, 97))
+    iv_cap = float(np.nanpercentile(IV, config.SURFACE_Z_CAP_PERCENTILE))
 
     KS = np.exp(LM)
     STRIKE_GRID = KS * spot
     customdata = np.dstack([KS, STRIKE_GRID])
 
-    _ks_anchors = (0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20)
-    lm_ticks = [round(np.log(k), 4) for k in _ks_anchors
+    lm_ticks = [round(np.log(k), 4) for k in config.PLOT_KS_ANCHORS
                 if lm_min <= np.log(k) <= lm_max]
-    lm_tick_labels = [f"{k:.2f}" for k in _ks_anchors
+    lm_tick_labels = [f"{k:.2f}" for k in config.PLOT_KS_ANCHORS
                       if lm_min <= np.log(k) <= lm_max]
-    dte_ticks = [d for d in (7, 30, 60, 90, 120, 180) if dte_min <= d <= dte_max]
+    dte_ticks = [d for d in config.PLOT_DTE_ANCHORS if dte_min <= d <= dte_max]
 
     iv30_label = f" · IV30 {iv30:.1f}%" if iv30 else ""
 
