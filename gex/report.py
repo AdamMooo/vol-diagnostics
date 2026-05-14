@@ -207,8 +207,8 @@ def _ticker_card(r: dict) -> str:
         + _kv_cell("Day %", _fmt_pct(pct_chg) if pct_chg else "—",
                    value_color=_signed_color(pct_chg) if pct_chg else None)
         + _kv_cell("IV30 / 1d σ", f"{iv30_str} &middot; {expected_str}", mono=False)
-        + _kv_cell("Zero-γ", _fmt_price(zgl, dp=1) if zgl is not None else "—")
-        + _kv_cell("vs ZGL",
+        + _kv_cell("γ-flip", _fmt_price(zgl, dp=1) if zgl is not None else "—")
+        + _kv_cell("vs γ-flip",
                    _fmt_pct(vs_zgl_spot) if vs_zgl_spot is not None else "—",
                    value_color=_signed_color(vs_zgl_spot))
     )
@@ -293,9 +293,12 @@ def build_email(
         '<b>Day %</b>: change vs prior session close.<br>'
         '<b>IV30 / 1d σ</b>: 30-day implied vol, then 1-sigma 1-day move under a lognormal '
         'assumption (≈ IV30 / √252). Textbook stdev — not a forecast.<br>'
-        '<b>Zero-γ (ZGL)</b>: spot level at which cumulative net GEX crosses zero. '
-        'Linear interpolation of the profile sign change.<br>'
-        '<b>vs ZGL</b>: % distance from spot to ZGL. Positive = spot above the flip.<br>'
+        '<b>γ-flip</b> (formerly "Zero-γ Level" / ZGL): spot level at which cumulative '
+        'net GEX crosses zero. Linear interpolation of the profile sign change. '
+        'Model construct — no peer-reviewed validation as a price level; interpret as '
+        'the threshold where the gamma-hedging environment flips sign, not a price target.<br>'
+        '<b>vs γ-flip</b>: % distance from spot to γ-flip. Positive = spot above the flip '
+        '(stabilising dealer regime); negative = spot below (destabilising regime).<br>'
         '<b>Net GEX</b>: sum of strike-level gamma exposure. Calls +, puts −. '
         'Positive = dealers long gamma. Negative = dealers short gamma. '
         'The accent bar on the left of each card reflects the sign of this number; '
@@ -314,7 +317,7 @@ def build_email(
         '<b>Range</b>: width between walls as % of spot &middot; pin location of spot inside the range.'
         '<br><br>'
         '<b>Data limitations — read before trading off this</b><br>'
-        '&bull; <b>OI is T-1.</b> Open interest reflects the prior session close. ZGL and walls '
+        '&bull; <b>OI is T-1.</b> Open interest reflects the prior session close. γ-flip and walls '
         'describe <i>yesterday\'s</i> positioning. Intraday OI drift is not captured.<br>'
         '&bull; <b>Quotes are ~15-min delayed.</b> Spot, IV, and chain mids are not live.<br>'
         '&bull; <b>Full-chain ≥ 1 DTE.</b> 0DTE is excluded for math consistency. Absolute GEX '
@@ -326,8 +329,12 @@ def build_email(
         '&bull; <b>Dealer positioning assumption.</b> GEX assumes dealers are net short all options '
         '(retail buys, dealers sell). Holds empirically in aggregate for SPY/QQQ/IWM; can be wrong '
         'at individual strikes with covered-call, vol-selling, or institutional flow dominant.<br>'
-        '&bull; <b>What is genuinely defensible:</b> Net GEX sign, ZGL location, wall strikes, '
-        'Hedge Shares/$1, IV30. Everything else has been removed.<br>'
+        '&bull; <b>What is genuinely defensible:</b> Net GEX (Gatheral/Bergomi-derivable; '
+        'dealer positioning per Garleanu-Pedersen-Poteshman 2009, RFS), Hedge Shares/$1 '
+        '(Egebjerg & Kokholm 2024 mechanism), <b>Skew (25Δ)</b> (Xing-Zhang-Zhao 2010, JFQA — '
+        'only metric here with direct peer-reviewed predictive validity), IV30. '
+        'γ-flip and wall strikes are model constructs (zero peer-reviewed papers as price '
+        'levels) — read as descriptive positioning context, not predictions.<br>'
         '<b>Universe</b>: SPY / QQQ / IWM only — the standard dealer positioning convention '
         '(long calls, short puts) is empirically defensible for these names.'
         '</div>'
