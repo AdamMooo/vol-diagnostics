@@ -48,7 +48,7 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-14 15:17 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-14 16:10 UTC
 
 **Milestone:** v3.1 — SHIPPED · **Status:** shipped · **STATE last_updated:** 2026-05-14 (vol surface OTM convention + GEX overlays)
 
@@ -159,6 +159,19 @@ Next:
 - Single-name extension (non-SPY/QQQ/IWM) — requires per-ticker positioning assumption review
 
 **Ready to execute via `/gsd-plan-phase` for formal multi-plan breakdown, or `/gsd-quick` item-by-item if Adam prefers tighter cycles.**
+
+### v3.2 — execution progress (2026-05-14 evening)
+
+| # | Item | Status | Commit |
+|---|---|---|---|
+| 1 | Email pipeline E2E verification | ✅ done — caught real label drift + stale "everything removed" line | `d9b6f91` |
+| 2 | README hand-update | ✅ done — draft→approve workflow, defensibility tiers front and centre | `af8cda9` |
+| 3 | Config consolidation (`gex/config.py`) | ✅ done — 15+ constants from 5+ files into one module with rationale docstrings | `287e1da` |
+| 4 | Test coverage expansion | ⏸ **paused — needs structural plan** | — |
+| 5 | Dead code + stale-ref sweep | pending | — |
+| 6 | DIST-01 + DIST-04 closure | pending | — |
+
+**Test coverage paused on purpose.** Adam's call: "do it more structurally." The heavy item (~2-3 hours focused) benefits from a real upfront breakdown — which critical paths to cover, prioritisation, what counts as adequate coverage — rather than ad-hoc /gsd-quick improvisation. Suggested next invocation: `/gsd-plan-phase` with `--discuss --validate` for proper task decomposition. Items 5 and 6 can still go via /gsd-quick when convenient (both have well-defined scope).
 
 Hub: [[gamma-omm/gamma-omm]]
 
