@@ -10,7 +10,7 @@ from __future__ import annotations
 from gex.data_loader import load_chain
 from gex.greeks_engine import add_greeks
 from gex.exposure_engine import (
-    compute_gex, strike_gex, gamma_profile, oi_vol_surface_data, compute_skew,
+    compute_gex, strike_gex, gamma_profile, vol_surface_data, compute_skew,
 )
 from gex.analytics import summarise
 
@@ -47,7 +47,7 @@ def compute_ticker(ticker: str) -> dict:
 
     r = _get_risk_free_rate()
     p_df = gamma_profile(df, spot=snapshot.spot, r=r)
-    surface_df = oi_vol_surface_data(df, spot=snapshot.spot)
+    surface_df = vol_surface_data(df, spot=snapshot.spot)
     skew_df = compute_skew(df)
     front_skew = float(skew_df["skew_pp"].iloc[0]) if not skew_df.empty else None
 

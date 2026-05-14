@@ -191,12 +191,21 @@ def plot_overview(results: list[dict]) -> go.Figure:
     return fig
 
 
-def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
-                        spot: float, iv30: float | None = None) -> go.Figure:
+def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
+                     iv30: float | None = None,
+                     gamma_flip: float | None = None,
+                     call_wall: float | None = None,
+                     put_wall: float | None = None) -> go.Figure:
     """
-    3D implied vol surface interpolated onto a DTE × strike grid.
-    Source points are OI×vega-weighted per (expiry, strike) — see exposure_engine.oi_vol_surface_data.
-    Sparse CBOE chain → cubic griddata; linear fallback for boundary NaNs.
+    3D implied vol surface from the CBOE chain, OTM convention.
+
+    Annotations overlay the GEX positioning state onto the surface so the smile
+    shape can be read against where dealer exposure is concentrated:
+      - translucent grey plane at spot (log(K/S) = 0)
+      - meridian curves along the surface at γ-flip, call wall, put wall
+
+    Built on linear interpolation onto a 50×40 DTE×log-moneyness grid (cubic
+    produced overshoot artifacts at sparse boundaries).
     """
     import numpy as np
     from scipy.interpolate import griddata
@@ -211,8 +220,8 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
         )
         return fig
 
-    # Backward-compat: compute log_moneyness on the fly if missing (handles
-    # stale Streamlit caches that were populated before the schema change).
+    # Defensive: compute log_moneyness on the fly if missing (handles stale
+    # caches populated by an older schema).
     if "log_moneyness" not in surface_df.columns:
         surface_df = surface_df.copy()
         surface_df["log_moneyness"] = np.log(surface_df["strike"] / spot)
@@ -230,34 +239,25 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
     lm_grid = np.linspace(lm_min, lm_max, 50)
     DTE, LM = np.meshgrid(dte_grid, lm_grid)
 
-    # Linear interpolation: cannot overshoot or undershoot the convex hull of
-    # nearby data values, so no risk of negative IV or artificial wells. Cubic
-    # produced smoother shading but oscillated to negative at sparse boundaries
-    # (deep-OTM short-DTE wings), creating visible holes when clipped.
     IV = griddata(pts, vals, (DTE, LM), method="linear")
-    # Nearest-neighbour fill for cells outside the data's convex hull (corners).
     IV_nn = griddata(pts, vals, (DTE, LM), method="nearest")
     mask = np.isnan(IV)
     IV[mask] = IV_nn[mask]
 
-    # Cap z to prevent the deep-OTM near-term IV spike from crushing the rest
-    # of the surface. 97th percentile keeps the smile/wing visible while
-    # clipping just the outlier corner.
     iv_floor = float(np.nanmin(IV))
     iv_cap = float(np.nanpercentile(IV, 97))
 
-    # Build hover customdata: K/S ratio + actual strike for each grid cell
     KS = np.exp(LM)
     STRIKE_GRID = KS * spot
     customdata = np.dstack([KS, STRIKE_GRID])
 
-    # Tick marks at meaningful log-moneyness values (e.g. -15%, -10%, ATM, +10%, +15%)
     lm_ticks = [round(np.log(k), 4) for k in (0.85, 0.90, 0.95, 1.0, 1.05, 1.10, 1.15)
                 if lm_min <= np.log(k) <= lm_max]
     lm_tick_labels = [f"{k:.2f}" for k in (0.85, 0.90, 0.95, 1.0, 1.05, 1.10, 1.15)
                       if lm_min <= np.log(k) <= lm_max]
 
     iv30_label = f" · IV30 {iv30:.1f}%" if iv30 else ""
+
     fig = go.Figure(data=[go.Surface(
         x=dte_grid,
         y=lm_grid,
@@ -275,12 +275,65 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
         ),
         contours=dict(z=dict(show=True, usecolormap=True, project_z=True,
                              highlight=False, width=2)),
+        showlegend=False,
     )])
+
+    # ── Annotations: spot plane + meridians for γ-flip / call wall / put wall ──
+    def _meridian_iv(target_lm: float) -> np.ndarray:
+        """IV(target_lm, dte) for each DTE in dte_grid — interpolated from the grid."""
+        out = np.empty_like(dte_grid)
+        for j in range(len(dte_grid)):
+            out[j] = np.interp(target_lm, lm_grid, IV[:, j])
+        return out
+
+    # Translucent spot plane at log(K/S) = 0
+    if lm_min <= 0 <= lm_max:
+        fig.add_trace(go.Mesh3d(
+            x=[dte_min, dte_max, dte_max, dte_min],
+            y=[0, 0, 0, 0],
+            z=[max(0, iv_floor - 2), max(0, iv_floor - 2), iv_cap, iv_cap],
+            i=[0, 0],
+            j=[1, 2],
+            k=[2, 3],
+            color="rgba(255,255,255,0.08)",
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+
+    def _add_meridian(level: float | None, name: str, color: str,
+                      dash: str | None = None) -> None:
+        if level is None or level <= 0:
+            return
+        target_lm = float(np.log(level / spot))
+        if not (lm_min <= target_lm <= lm_max):
+            return
+        z_vals = _meridian_iv(target_lm)
+        # Slight z-offset so the line sits visibly on top of the surface
+        z_lifted = np.clip(z_vals, iv_floor, iv_cap)
+        fig.add_trace(go.Scatter3d(
+            x=dte_grid,
+            y=np.full_like(dte_grid, target_lm),
+            z=z_lifted,
+            mode="lines",
+            line=dict(color=color, width=6, dash=dash) if dash
+                 else dict(color=color, width=6),
+            name=f"{name} {level:.0f}",
+            hovertemplate=(
+                f"{name} @ K/S=%{{y:.3f}} (strike {level:.0f})<br>"
+                "DTE: %{x:.0f}<br>IV at level: %{z:.1f}%<extra></extra>"
+            ),
+            showlegend=True,
+        ))
+
+    _add_meridian(gamma_flip, "γ-flip", "#f59e0b", dash="dash")
+    _add_meridian(call_wall, "Call Wall", "#3b82f6")
+    _add_meridian(put_wall,  "Put Wall",  "#ef4444")
+
     fig.update_layout(
         template="plotly_dark",
         title=dict(
-            text=(f"OI×Vega-Weighted IV Surface — {ticker} "
-                  f"(log-moneyness, prior-session OI){iv30_label}"),
+            text=(f"IV Surface — {ticker} "
+                  f"(CBOE chain, OTM convention, log-moneyness){iv30_label}"),
             font_size=13,
         ),
         scene=dict(
@@ -305,7 +358,9 @@ def plot_oi_vol_surface(surface_df: pd.DataFrame, ticker: str,
                 range=[max(0, iv_floor - 2), iv_cap],
             ),
         ),
-        height=520,
+        legend=dict(orientation="h", y=1.04, x=0.5, xanchor="center",
+                    bgcolor="rgba(0,0,0,0)", font=dict(size=11)),
+        height=540,
         margin=dict(t=50, b=10, l=10, r=10),
     )
     return fig

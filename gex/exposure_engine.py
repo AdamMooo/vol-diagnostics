@@ -53,53 +53,48 @@ def expiry_gex(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def oi_vol_surface_data(df: pd.DataFrame, spot: float,
-                        dte_max: int = 180,
-                        moneyness_band: float = 0.18) -> pd.DataFrame:
+def vol_surface_data(df: pd.DataFrame, spot: float,
+                     dte_max: int = 180,
+                     moneyness_band: float = 0.18) -> pd.DataFrame:
     """
-    Extract (dte, log_moneyness, iv_pct) points for vol surface interpolation.
+    Extract (dte, log_moneyness, iv_pct) points for the implied vol surface.
 
-    Weighting: OI × vega at each (expiry, strike) pair — combines calls and puts.
-    Avellaneda et al. (2020, arXiv 2002.00085) shows OI×vega weighting is the
-    empirically-supported choice for vol surface aggregation.
+    OTM convention (Gatheral, "The Volatility Surface" §2.1 — industry standard):
+        - K <  spot: use the PUT IV  (OTM put — more liquid below spot)
+        - K >= spot: use the CALL IV (OTM call — more liquid at/above spot)
+    OTM options are more liquid and avoid early-exercise premium distortions in
+    American equity options. Yields exactly one IV per (expiry, strike) point
+    with no aggregation/weighting decision.
 
     Axes follow academic convention (Cont & da Fonseca 2002, Gatheral):
         - log-moneyness = log(strike/spot), centred at 0 = ATM
         - DTE in days
 
     Filtered to the liquid near-money region (±18% of spot, ≤180 DTE).
-    Returns DataFrame: dte (days), strike, log_moneyness, moneyness, iv_pct.
+    Returns DataFrame: dte (days), strike, moneyness, log_moneyness, iv_pct.
     """
     lo = spot * (1 - moneyness_band)
     hi = spot * (1 + moneyness_band)
+
+    is_otm = (((df["type"] == "put") & (df["strike"] < spot)) |
+              ((df["type"] == "call") & (df["strike"] >= spot)))
+
     valid = df[
+        is_otm &
         (df["T_years"] > 0) &
         (df["iv"] > 0) &
-        (df["vega"] > 0) &
         (df["oi"] > 0) &
         (df["strike"] >= lo) &
         (df["strike"] <= hi)
     ].copy()
     valid["dte"] = valid["T_years"] * 365
     valid = valid[valid["dte"] <= dte_max].copy()
-    valid["weight"] = valid["oi"] * valid["vega"]
-    valid["wiv"] = valid["weight"] * valid["iv"]
+    valid["moneyness"] = valid["strike"] / spot
+    valid["log_moneyness"] = np.log(valid["moneyness"])
+    valid["iv_pct"] = valid["iv"] * 100
 
-    agg = (
-        valid.groupby(["expiry", "strike"])
-        .agg(
-            dte=pd.NamedAgg(column="dte", aggfunc="first"),
-            weight_sum=pd.NamedAgg(column="weight", aggfunc="sum"),
-            wiv_sum=pd.NamedAgg(column="wiv", aggfunc="sum"),
-        )
-        .reset_index()
-    )
-    agg = agg[agg["weight_sum"] > 0].copy()
-    agg["iv_pct"] = agg["wiv_sum"] / agg["weight_sum"] * 100
-    agg["moneyness"] = agg["strike"] / spot
-    agg["log_moneyness"] = np.log(agg["moneyness"])
     return (
-        agg[["dte", "strike", "moneyness", "log_moneyness", "iv_pct"]]
+        valid[["dte", "strike", "moneyness", "log_moneyness", "iv_pct"]]
         .dropna()
         .sort_values("dte")
         .reset_index(drop=True)

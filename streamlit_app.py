@@ -10,7 +10,7 @@ import streamlit as st
 from gex.compute import compute_ticker
 from gex.analytics import (
     plot_strike_gex, plot_gamma_profile,
-    plot_oi_vol_surface, plot_skew_term_structure,
+    plot_vol_surface, plot_skew_term_structure,
 )
 from gex.report import REGIME_COLOR
 
@@ -202,7 +202,12 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                 surface_df = data.get("surface_df")
                 if surface_df is not None and not surface_df.empty:
                     st.plotly_chart(
-                        plot_oi_vol_surface(surface_df, ticker, spot=spot, iv30=iv30),
+                        plot_vol_surface(
+                            surface_df, ticker, spot=spot, iv30=iv30,
+                            gamma_flip=s.get("zero_gamma_level"),
+                            call_wall=s.get("call_wall"),
+                            put_wall=s.get("put_wall"),
+                        ),
                         use_container_width=True,
                     )
                 skew_df = data.get("skew_df")
@@ -347,11 +352,13 @@ for liquid-region focus.
   **Xing, Zhang & Zhao (2010, JFQA)**: steeper skew predicts subsequent
   underperformance — 10.9% annual alpha. Only metric here with direct
   peer-reviewed predictive backing.
-- **Vol surface** — OI×vega-weighted IV plotted in **log-moneyness** `log(K/S)`
-  (academic convention per Cont & da Fonseca 2002, Gatheral, Avellaneda 2020):
-  ATM is pinned at 0; smile is visually symmetric; cross-ticker comparable.
-  3D interpolation via scipy cubic griddata (linear fallback at boundaries);
-  cubic overshoot clipped to non-negative. K/S ratio shown in hover.
+- **IV Surface** — CBOE chain IVs in log-moneyness `log(K/S)` (academic convention
+  per Cont & da Fonseca 2002, Gatheral). **OTM convention**: put IV for K<S,
+  call IV for K≥S — the industry standard (Gatheral §2.1). OTM options are
+  more liquid and avoid American early-exercise distortion. Linear interpolation
+  onto a 50×40 grid (no overshoot artifacts). Annotated with **γ-flip, call
+  wall, and put wall meridians** so the smile shape can be read against the
+  dealer positioning state — the cross-product between vol structure and GEX.
 - **IV30** — CBOE-computed 30-day constant-maturity vol, taken directly from
   the delayed payload.
 
