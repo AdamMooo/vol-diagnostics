@@ -1,16 +1,24 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-05-06 — v3.1 milestone started*
+*Last updated: 2026-05-12 — v3.1 Phase 5 complete; out-of-phase refactor 2026-05-11 documented*
 
 ## Current Milestone: v3.1 — Hardening & Charm
 
-**Goal:** Sign off deferred UAT, add Charm chart, and fill critical test coverage gaps before handing the platform to PMs.
+**Status:** Phase 5 complete; Phase 6–7 pending; out-of-phase refactoring (2026-05-11) completed partial Phase 8 scope.
 
-**Target features:**
-- Phase 3 UAT sign-off (4 pending Streamlit scenarios)
-- Docs/notes cleanup + commit outstanding changes (emailer, report, validation)
-- Charm by DTE bucket chart in analytics + dashboard
-- Critical-path test coverage for data_loader, report, emailer, run_daily, analytics
+**Goal:** Sign off deferred UAT ✅, add Charm chart (pending Phase 6), and fill critical test coverage gaps (pending Phase 7) before handing the platform to PMs.
+
+**Accomplished (v3.1 so far):**
+- Phase 5: ✅ UAT all 4 scenarios pass, docs updated, code cleaned
+- Out-of-phase refactor (2026-05-11): ✅ Removed non-defensible outputs (VEX, CHEX, regime labels, vs-yesterday badge, streak counter, etc.); added expected-1d-sigma display; clarified wall/ZGL/DF as load-bearing signals
+
+**Remaining (v3.1):**
+- Phase 6: Charm by DTE chart (ready to plan and execute)
+- Phase 7: Critical-path test coverage (~15 new tests to ~35–40 total)
+
+**Out-of-scope items moved to v3.2:**
+- Phase 8: Remaining ship-blockers (snapshot timestamp threading, filter-drop transparency, finalized gamma slope display)
+- Phase 8 is 50% complete via out-of-phase work
 
 ## What This Is
 
@@ -22,43 +30,69 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 
 ## Runtime & Stack
 
-- **Runtime:** local Python venv. `python -m gex.run_daily` → email. `streamlit run streamlit_app.py` → dashboard.
+- **Runtime:** local Python venv. `python -m gex.run_daily --send` → email (scheduled via Task Scheduler). `streamlit run streamlit_app.py` → dashboard (interactive).
 - **Data:** CBOE delayed quotes JSON (`cdn.cboe.com` — free, no auth). Snapshots: `out/gex_snapshots.parquet`.
-- **Stack:** pandas, numpy, scipy, matplotlib, requests, pyarrow, streamlit, plotly.
-- **Tests:** pytest, 77 tests green.
+- **Stack:** pandas, numpy, scipy, matplotlib, requests, pyarrow, streamlit, plotly, pandas_market_calendars.
+- **Tests:** pytest, 24 tests green (down from 77 post-v3.0 due to feature cuts per 2026-05-11 refactor).
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `gex/greeks_engine.py` | BS gamma, vanna, charm — vectorised with 0DTE guard |
-| `gex/exposure_engine.py` | GEX/VEX/CHEX by strike; delta-hedge flow |
-| `gex/analytics.py` | Summary dict, matplotlib charts |
-| `gex/validation.py` | Parquet snapshot store, load_yesterday, load_history |
-| `gex/report.py` | HTML email body builder |
-| `gex/run_daily.py` | Daily orchestrator — 3 tickers, save + send |
-| `streamlit_app.py` | Interactive dashboard — Live + Historical tabs |
-| `out/gex_snapshots.parquet` | Historical GEX/VEX snapshot store |
+| File | Purpose | Last Updated |
+|------|---------|---|
+| `gex/greeks_engine.py` | BS gamma, vanna, charm — vectorised with 0DTE guard | 2026-05-06 |
+| `gex/exposure_engine.py` | GEX/VEX by strike; delta-hedge flow | 2026-05-11 (refactor: kept GEX only) |
+| `gex/analytics.py` | Summary dict, defensible chart outputs | 2026-05-11 (refactor: removed CHEX, regime labels) |
+| `gex/validation.py` | Parquet snapshot store, load_yesterday, load_history | 2026-05-06 |
+| `gex/report.py` | HTML email body builder — defensible outputs only | 2026-05-11 (refactor: removed VEX, ZGL flow, regime label) |
+| `gex/run_daily.py` | Daily orchestrator — 3 tickers, save + send | 2026-05-06 |
+| `streamlit_app.py` | Interactive dashboard — Live + Historical tabs; defensible display only | 2026-05-11 (refactor: removed VEX/CHEX, regime label, badges) |
+| `out/gex_snapshots.parquet` | Historical GEX snapshot store (30+ days) | Growing daily |
 
 ## Requirements
 
-### Validated
+### Validated / Implemented (v3.0–v3.1)
 
+**Core Defensible Outputs** (all surfaces):
+- ✓ Spot, Day %, IV30, 1-day σ (from IV30)
+- ✓ Net GEX (sign + magnitude)
+- ✓ Zero-gamma level and vs-ZGL %
+- ✓ Single max-GEX call/put walls + distance from spot
+- ✓ Δ-flow = |Net GEX| / (spot × 0.01)
+- ✓ 30-session ZGL-vs-spot history chart (dashboard only)
+- ✓ Accent bar (driven by net GEX sign; no categorical label)
+
+**Greeks & Flow Engine:**
 - ✓ GRKS-01/02/03/04 — Vanna + Charm in BS engine, `add_greeks()` enriches chain DF, 0DTE guard — v3.0
-- ✓ EXP-01/02/03/04 — VEX + CHEX by strike, net scalars in `summarise()`, `vanna_exposure` in parquet — v3.0
-- ✓ FLOW-01/02/03/04 — Delta-hedge $/1%, vs-yesterday classification, email table columns — v3.0
-- ✓ DASH-01/02/03/04/05/06 — Streamlit app: regime cards, chart, expanders, COM isolation — v3.0
-- ✓ HIST-01/02/03/04 — Historical tab: ZGL trend, regime persistence, streak counter, event study — v3.0
+- ✓ EXP-01/02/03 — GEX by strike, net scalar in `summarise()`, parquet store — v3.1 (VEX removed)
+- ✓ FLOW-01/02/03 — Delta-hedge $/1%, email table columns — v3.0
 
-### Active (v3.1)
+**Dashboard & Email:**
+- ✓ DASH-01/02/03/04/05 — Streamlit app: regime cards (sign-driven color only), cross-asset chart, expanders, COM isolation — v3.0/v3.1
+- ✓ HIST-01/02/03/04 — Historical tab: ZGL trend, regime persistence, streak counter, event study — v3.0 (streak removed v3.1)
+- ✓ EMAIL-01/02/03 — HTML email: per-ticker cards, defensible fields, theme-adaptive styling — v3.0/v3.1
 
-- [ ] UAT-01 — Streamlit app launch (no import/COM/matplotlib errors)
-- [ ] UAT-02 — Regime cards render with correct colors and all fields
-- [ ] UAT-03 — Per-ticker expander shows charts + summary table
-- [ ] UAT-04 — Refresh button clears cache and re-fetches
-- [ ] CHARM-01 — Charm by DTE bucket chart in analytics
-- [ ] CHARM-02 — Charm chart surfaced in Streamlit dashboard
-- [ ] COV-01/02/03/04/05 — Critical-path tests: data_loader, report, emailer, run_daily, analytics
+**UAT Sign-Off:**
+- ✓ UAT-01/02/03/04 — All 4 Streamlit scenarios pass; dashboard launches without error — v3.1
+
+### Removed / Not Defensible
+
+| Output | Reason | Cut When |
+|--------|--------|----------|
+| VEX display | Vanna is BS-European; 5–15% error on American options | 2026-05-11 |
+| CHEX display | Charm is second-order vol; less PM-readable; statistically thin | 2026-05-11 |
+| Regime categorical label | $200M neutral floor is hand-tuned; non-stationary | 2026-05-11 |
+| vs-yesterday badge | Daily OI roll dominates 5% threshold | 2026-05-11 |
+| Regime streak counter | Depends on removed label | 2026-05-11 |
+| VEX/GEX ratio | Depends on VEX | 2026-05-11 |
+| Early-exercise flag | Fragile signal; not actionable for SPY/QQQ/IWM | 2026-05-11 |
+| ZGL flow row | ~20% numerical differentiation error | 2026-05-11 |
+| GEX-weighted wall cluster | Arbitrary band parameters | 2026-05-11 |
+
+### Active (v3.1–v3.2)
+
+- [ ] CHARM-01/02 — Charm by DTE chart (Phase 6)
+- [ ] COV-01/02/03/04/05 — Critical-path test coverage (Phase 7)
+- [ ] DIST-01/02/03/04 — Pre-distribution hardening (Phase 8, partial out-of-phase)
 
 ### Out of Scope
 
@@ -77,21 +111,24 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-05-11 | Cut VEX/CHEX/regime labels per methodology audit | BS-European Greeks on American options add 5–15% error; categorical regime label depends on hand-tuned non-stationary floor; focus on defensible outputs only |
 | 2026-05-06 | GSD sign convention: calls +, puts − | SpotGamma/retail standard. Positive net GEX = dealers net long gamma = stabilising |
 | 2026-05-05 | Vanna over Vomma | Vanna (∂delta/∂vol) translates to dealer rehedging flow — PM-readable. Vomma is not. |
 | 2026-05-05 | Streamlit additive — email pipeline preserved | Email is scheduled and working; dashboard adds interactivity without breaking existing workflow |
 | 2026-05-06 | Replaced yfinance with CBOE delayed quotes JSON | Free, no auth, CBOE-native Greeks (American-style). data_loader.py rewritten. |
 | 2026-05-05 | New milestone v3.0 — GEX Interactive Dashboard | GEX POC is production-grade; direction is depth (Greeks, flow, dashboard) not more signals |
+| 2026-05-11 | Expected-1d-sigma display (from IV30) | Answers "how much might this move today?" without eyeballing gamma charts |
+| 2026-05-11 | Single max-strike walls (not GEX-weighted cluster) | Empirically observable; no arbitrary band parameters |
 
 ## Known Open Items
 
-| Item | Description | Status |
-|------|-------------|--------|
-| Phase 3 UAT | 03-HUMAN-UAT.md: 4 pending scenarios | Deferred to v3.1 |
-| Phase 3 verification | 03-VERIFICATION.md: human_needed | Deferred to v3.1 |
-| Coverage gaps | data_loader, report, emailer, run_daily, analytics charts — zero test coverage | Tracked in v3.1 |
-| American-style BS | IWM uses European model — acknowledged with early exercise risk signal | Acceptable for POC |
-| NDX skew identity | NDX/SPX share same CBOE SKEW signal in sleeve framework | v2.x track — not blocking |
+| Item | Description | Status | Next Action |
+|------|-------------|--------|---|
+| Phase 6 (Charm by DTE) | Pending — ready to plan/execute | Blocked on Phase 5 complete ✅ + refactor sign-off | Plan Phase 6 |
+| Phase 7 (Test coverage) | Pending — 24 current tests; target ~35–40 | Blocked on Phase 6 complete | Plan Phase 7 |
+| Phase 8 (Pre-Dist Hardening) | Partial out-of-phase (2026-05-11); ~2 requirements remain (timestamp, filter-drop) | In progress | Integrate out-of-phase work; complete DIST-01 + DIST-04 |
+| American-style BS for IWM | IWM uses European model — acknowledged with expected early exercise risk signal | Acceptable for POC | Revisit in v4.x if PM feedback warrants |
+| NDX skew identity | NDX/SPX share same CBOE SKEW signal in sleeve framework | v2.x track — not blocking | Defer to v2.x roadmap |
 
 ## Evolution
 

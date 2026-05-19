@@ -48,14 +48,14 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-14 16:10 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-14 17:49 UTC
 
 **Milestone:** v3.1 — SHIPPED · **Status:** shipped · **STATE last_updated:** 2026-05-14 (vol surface OTM convention + GEX overlays)
 
 ### Current Position
 - **Phase:** 5 — UAT Sign-Off & Cleanup (complete) + Out-of-Phase Refactor + Methodology Validation (complete)
 - **Status:** ✅ v3.1 SHIPPED + methodology validated + 2 new defensible metrics added
-- **Last activity:** 2026-05-14 — Vol surface rebuilt on OTM convention. Five commits: 6c3dc3d (log-moneyness axis), 70a9021 (skew history snapshots), c914da7 (stale-cache fix + restored top status bar), c16c094 (cubic griddata dropped — was creating artificial wells from undershoot), 0104c29 (OI×vega → OTM convention + GEX overlays: spot plane + γ-flip + Call/Put Wall meridians on the surface). Pending commit: cleanup pass (wider moneyness band ±22%, clean DTE ticks, plot_overview removed, hub doc aligned).
+- **Last activity:** 2026-05-14 — Item 5 (dead code + stale-ref sweep) complete (22ec33a). Found and fixed broken matplotlib/Plotly mismatch in run_gex.py (savefig → write_html). All other flagged terms confirmed clean.
 
 ### Pending Todos
 - Validate charm calculation methodology for American options
@@ -168,10 +168,14 @@ Next:
 | 2 | README hand-update | ✅ done — draft→approve workflow, defensibility tiers front and centre | `af8cda9` |
 | 3 | Config consolidation (`gex/config.py`) | ✅ done — 15+ constants from 5+ files into one module with rationale docstrings | `287e1da` |
 | 4 | Test coverage expansion | ⏸ **paused — needs structural plan** | — |
-| 5 | Dead code + stale-ref sweep | pending | — |
+| 5 | Dead code + stale-ref sweep | ✅ done — fixed broken matplotlib/Plotly mismatch in run_gex.py; all stale refs confirmed absent | `22ec33a` |
 | 6 | DIST-01 + DIST-04 closure | pending | — |
 
-**Test coverage paused on purpose.** Adam's call: "do it more structurally." The heavy item (~2-3 hours focused) benefits from a real upfront breakdown — which critical paths to cover, prioritisation, what counts as adequate coverage — rather than ad-hoc /gsd-quick improvisation. Suggested next invocation: `/gsd-plan-phase` with `--discuss --validate` for proper task decomposition. Items 5 and 6 can still go via /gsd-quick when convenient (both have well-defined scope).
+**Test coverage paused on purpose.** Next: `/gsd-plan-phase --chain` for proper breakdown.
+
+**Out-of-phase additions (same session):**
+- Vol surface spike fix: `IV = np.clip(IV, iv_floor, iv_cap)` — surface geometry was not clipped, only the z-axis display range was. Needle spike gone. (`cdc9e90`)
+- Strike Slope + Term Slope metrics in Vol tab + parquet snapshots. Shows `value (Nth pctile, Nd)` once N≥10 sessions of history, "Nd, building context" until then. First slope snapshots land tomorrow at 16:30 ET. (`cdc9e90`, `fdfdaff`)
 
 Hub: [[gamma-omm/gamma-omm]]
 
