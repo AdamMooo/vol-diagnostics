@@ -17,6 +17,7 @@ env/
 .streamlit/secrets.toml
 
 # IDE / OS
+.vscode/
 .vault.yaml
 .idea/
 *.swp
