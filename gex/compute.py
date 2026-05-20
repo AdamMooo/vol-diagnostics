@@ -57,6 +57,8 @@ def compute_ticker(ticker: str) -> dict:
     net_gex_scalar = float(s_df["gex"].sum())
     # Shares dealers must trade per $1 spot move to stay delta-neutral.
     # Derived by cancelling the S²×0.01 normalization from GEX: Γ_net × OI × 100.
+    if snapshot.spot <= 0:
+        raise ValueError(f"Invalid spot price {snapshot.spot} for {ticker}")
     delta_hedge_flow = net_gex_scalar / (snapshot.spot ** 2 * 0.01)
 
     summary = summarise(

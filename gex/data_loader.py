@@ -73,6 +73,10 @@ def load_chain(
 
     data = payload["data"]
     spot = float(data.get("current_price") or 0.0)
+    if spot <= 0:
+        raise ValueError(
+            f"CBOE returned invalid spot price for {ticker}: {data.get('current_price')!r}"
+        )
     iv30 = float(data.get("iv30") or 0.0)
     price_change_pct = float(data.get("price_change_percent") or 0.0)
     today = datetime.date.today()
