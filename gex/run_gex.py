@@ -11,6 +11,11 @@ What it proves:
     1. Can compute a stable gamma profile from public chain data
     2. Profile produces intuitive levels (walls, zero-gamma area)
     3. Regime classification is interpretable
+
+NOTE: This is a lightweight CLI entry point. It intentionally bypasses
+compute_ticker() (which fetches live ^IRX and computes vol surface/skew/slopes).
+The gamma profile sweep uses config.RISK_FREE_FALLBACK. For production output,
+use run_daily or the Streamlit dashboard (both call compute_ticker()).
 """
 from __future__ import annotations
 
