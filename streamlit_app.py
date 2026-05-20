@@ -90,17 +90,17 @@ def _derive_observations(summary: dict, spot: float) -> list[str]:
     flags, all of which depend on inputs we don't fully trust."""
     obs = []
     zgl = summary.get("zero_gamma_level")
-    if zgl and spot:
+    if zgl is not None and spot:
         pct = (spot - zgl) / zgl * 100
         obs.append(f"{pct:+.1f}% vs ZGL")
 
     cw = summary.get("call_wall")
     pw = summary.get("put_wall")
-    if cw and pw:
+    if cw is not None and pw is not None:
         obs.append(f"Range {pw:.0f}–{cw:.0f}")
 
     pct_chg = summary.get("price_change_pct")
-    if pct_chg:
+    if pct_chg is not None:
         obs.append(f"{pct_chg:+.2f}% today")
 
     return obs
@@ -336,7 +336,7 @@ _top_date = datetime.now().strftime("%a %b %d, %Y").replace(" 0", " ")
 st.markdown(
     f"""<div class="top-bar">
   <span class="top-bar-tickers">{_top_tickers}</span>
-  <span>{_top_date}  ·  CBOE delayed, 15-min lag  ·  OI as of prior session</span>
+  <span>{_top_date}  ·  CBOE delayed, 15-min lag  ·  OI T-1 (OCC standard)</span>
 </div>""",
     unsafe_allow_html=True,
 )
@@ -369,8 +369,9 @@ with st.expander("Methodology & Assumptions  ·  read before trading off this", 
     st.markdown(
         """
 **Data source.** Free CBOE delayed quotes JSON (no auth, no OPRA tick feed).
-Spot, IV, and chain mids are ~15-min delayed. **OI is T-1** — settled at prior
-session close, does not update intraday. Greeks (γ, Δ, vega, θ) come from
+Spot, IV, and chain mids are ~15-min delayed. **OI reflects prior session close**
+(OCC settles contracts end-of-day; this is true for all data vendors including
+Bloomberg — no intraday OI update exists). Greeks (γ, Δ, vega, θ) come from
 **CBOE's American option pricing model** (accounts for early exercise + dividends);
 we do not recompute them locally.
 
