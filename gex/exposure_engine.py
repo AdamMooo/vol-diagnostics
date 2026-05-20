@@ -44,16 +44,6 @@ def strike_gex(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def expiry_gex(df: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate GEX by expiry."""
-    return (
-        df.groupby("expiry")["gex"]
-        .sum()
-        .reset_index()
-        .sort_values("expiry")
-        .reset_index(drop=True)
-    )
-
 
 def vol_surface_data(df: pd.DataFrame, spot: float,
                      dte_max: int = config.SURFACE_DTE_MAX,

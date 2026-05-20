@@ -58,7 +58,7 @@ python -m gex.run_daily              # all 3 tickers → HTML email
 |--------|---------|
 | `gex/data_loader.py` | CBOE delayed quotes JSON → `ChainSnapshot` (gamma from CBOE) |
 | `gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` to sweep spot |
-| `gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; `strike_gex`, `expiry_gex`, `gamma_profile` |
+| `gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; `strike_gex`, `gamma_profile` |
 | `gex/analytics.py` | `summarise()` → net GEX, zero-γ level, call/put walls, δ-flow; plotly charts |
 | `gex/compute.py` | Shared pipeline `compute_ticker(ticker)` — single source of truth for daily + streamlit |
 | `gex/run_gex.py` | Single-ticker CLI — fetch → compute → print summary → save PNGs |
