@@ -16,6 +16,7 @@ import datetime
 REGIME_COLOR = {
     "positive": "#16a34a",  # green-600
     "negative": "#dc2626",  # red-600
+    "zero":     "#64748b",  # slate-500 — consistent with analytics._sign_color()
 }
 
 # Badge backgrounds (solid color with white text — survive theme inversion).

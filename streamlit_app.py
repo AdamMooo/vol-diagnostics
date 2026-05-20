@@ -128,7 +128,7 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
     background reflect the sign of net gex; no categorical regime label."""
     ticker = summary["ticker"]
     sign = _sign_key(summary.get("net_gex"))
-    color = REGIME_COLOR.get(sign, "#999")
+    color = REGIME_COLOR[sign]
     bg = _SIGN_RGBA.get(sign, "rgba(127,140,141,0.12)")
     net_gex_b = (summary.get("net_gex") or 0) / _B
     df_val = summary.get("delta_hedge_flow")
