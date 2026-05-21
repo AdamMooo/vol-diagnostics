@@ -64,7 +64,46 @@ color scale (linear? log?), and whether it replaces or supplements the strike ba
 - History tab (γ-flip vs spot, skew history)
 - Methodology & assumptions footer
 
+## Output Audit (2026-05-21)
+
+Every output scored against: **"Does this change a PM decision?"**
+
+### CUT (no PM value)
+1. **Hedge Sh / $1** — mechanism trivia, no one trades off this number
+2. **% vs ZGL** — derivative of a model construct with no predictive backing
+3. **Strike Slope** (pp/10% K/S) — unintuitive, no predictive value, model construct
+4. **Term Slope** (pp/30 DTE) — same; crude linear fit, noisy
+5. **Vol Surface** — demoted to collapsed/optional section (not a primary tab)
+
+### KEEP (earns its spot)
+- **Net GEX** — with sign narrative + percentile rank (new)
+- **IV30** — with VRP pairing (new)
+- **Skew 25Δ** — strongest metric (Xing et al. 2010), add percentile
+- **GEX by Strike** bar chart — shows WHERE gamma concentrates
+- **Gamma Profile** — lightweight, useful
+- **γ-flip vs Spot** history — positioning evolution
+- **Skew history** — trending skew matters
+- **% today** — basic context
+
+### ADD (new for v3.2)
+- **Positioning narrative** — always-visible mechanical explanation of GEX sign
+- **GEX percentile** — vs trailing 30–90d history
+- **VRP** — IV30 − RV20, hedging cost context
+- **OI tilt** — dollar-weighted put/call pressure
+- **Skew gauge** — front-month percentile on card
+
+## PM Use Case (crystallized)
+**"Should I pay up for protection right now, and what's the dealer-driven vol
+environment telling me about whether I need to?"**
+
+This is NOT a day-trading tool ("spot above call wall, expect pin"). It's a
+hedging cost advisor + vol regime monitor for PMs thinking in weeks/months.
+
+## Validation Plan
+1. **Dogfood** — use personally for 2–4 weeks, journal which outputs change decisions
+2. **Peer feedback** — share with 1–2 PMs, observe engagement vs ignored outputs
+3. **Basic backtest** — does GEX-sign × VRP explain next-week RV or sleeve P&L?
+
 ## Key Decision
-The vol surface and slope metrics are NOT being removed — they're being deprioritized
-in visual hierarchy. The new positioning narrative + magnitude context + VRP become
-the primary read; vol structure becomes the "dig deeper" layer.
+Strip academic elegance. Keep positioning signal. Add PM-facing context.
+Vol surface demoted to optional deep-dig. Slope metrics killed entirely.
