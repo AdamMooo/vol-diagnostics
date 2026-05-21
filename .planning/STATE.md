@@ -1,8 +1,8 @@
 ---
 gsd_state_version: "1.0"
-milestone: "v3.1 — SHIPPED"
-status: shipped
-last_updated: 2026-05-14 (vol surface OTM convention + GEX overlays)
+milestone: "v3.2 — Actionable Positioning Context"
+status: active
+last_updated: 2026-05-21
 context_gathered: true
 plans_ready: false
 ---
@@ -11,19 +11,19 @@ plans_ready: false
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-06)
+See: .planning/PROJECT.md (updated 2026-05-21)
 
-**Core value:** Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, how much dealer hedging flow will a 1% move generate, and where are the structural levels that matter?
-**Current focus:** v3.1 — Hardening & Charm
+**Core value:** Should a PM pay up for protection right now, and is the dealer-driven vol environment suppressing or amplifying moves?
+**Current focus:** v3.2 — Actionable Positioning Context
 
 ## Current Position
 
-Phase: 5 — UAT Sign-Off & Cleanup (complete) + Out-of-Phase Refactor + Methodology Validation (complete)
-Status: ✅ v3.1 SHIPPED + methodology validated + 2 new defensible metrics added
-Next: v3.2 Codebase Rigor Sweep — 4 of 6 done. Item 4 (test coverage expansion) paused — needs structural plan via /gsd-plan-phase --chain. Item 6 (DIST-01/04 closure) remains — /gsd-quick suitable.
-Last activity: 2026-05-14 — Item 5 (dead code + stale-ref sweep) complete (22ec33a). Found and fixed broken matplotlib/Plotly mismatch in run_gex.py (savefig → write_html). All other flagged terms confirmed clean.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-21 — Milestone v3.2 started
 
-Progress: [██████████] v3.1 shipped + methodology layer complete
+Progress: [░░░░░░░░░░] Requirements phase
 
 ## Performance Metrics
 

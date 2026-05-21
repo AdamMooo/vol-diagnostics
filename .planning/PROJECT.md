@@ -1,24 +1,20 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-05-12 — v3.1 Phase 5 complete; out-of-phase refactor 2026-05-11 documented*
+*Last updated: 2026-05-21 — v3.2 milestone started; PM-actionable positioning pivot*
 
-## Current Milestone: v3.1 — Hardening & Charm
+## Current Milestone: v3.2 — Actionable Positioning Context
 
-**Status:** Phase 5 complete; Phase 6–7 pending; out-of-phase refactoring (2026-05-11) completed partial Phase 8 scope.
+**Goal:** Transform GEX dashboard from mathematical showcase to PM-actionable positioning monitor — cut outputs that don't inform decisions, add context that does.
 
-**Goal:** Sign off deferred UAT ✅, add Charm chart (pending Phase 6), and fill critical test coverage gaps (pending Phase 7) before handing the platform to PMs.
+**PM use case:** "Should I pay up for protection right now, and what's the dealer-driven vol environment telling me about whether I need to?"
 
-**Accomplished (v3.1 so far):**
-- Phase 5: ✅ UAT all 4 scenarios pass, docs updated, code cleaned
-- Out-of-phase refactor (2026-05-11): ✅ Removed non-defensible outputs (VEX, CHEX, regime labels, vs-yesterday badge, streak counter, etc.); added expected-1d-sigma display; clarified wall/ZGL/DF as load-bearing signals
-
-**Remaining (v3.1):**
-- Phase 6: Charm by DTE chart (ready to plan and execute)
-- Phase 7: Critical-path test coverage (~15 new tests to ~35–40 total)
-
-**Out-of-scope items moved to v3.2:**
-- Phase 8: Remaining ship-blockers (snapshot timestamp threading, filter-drop transparency, finalized gamma slope display)
-- Phase 8 is 50% complete via out-of-phase work
+**Target features:**
+- Positioning narrative — always-visible mechanical explanation of GEX sign (dampening vs amplifying)
+- GEX percentile rank — today's net GEX vs trailing 30–90d history
+- VRP (IV30 − RV20) — hedging cost context ("options rich/cheap")
+- OI tilt — dollar-weighted put vs call OI, directional pressure
+- Front skew gauge — percentile rank on card (term structure chart stays)
+- Output cuts — remove non-decision-informing metrics, demote vol surface
 
 ## What This Is
 
@@ -26,7 +22,7 @@ A dealer gamma exposure (GEX) analysis platform. Computes dealer positioning acr
 
 ## Core Value
 
-Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, how much dealer hedging flow will a 1% move generate, and where are the structural levels that matter? One-sentence answer per ticker, full analytics on demand.
+Given today's dealer positioning across SPY/QQQ/IWM — should a PM pay up for protection right now, and is the dealer-driven vol environment suppressing or amplifying moves? Actionable positioning context, not mathematical showcase.
 
 ## Runtime & Stack
 
@@ -88,11 +84,15 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 | ZGL flow row | ~20% numerical differentiation error | 2026-05-11 |
 | GEX-weighted wall cluster | Arbitrary band parameters | 2026-05-11 |
 
-### Active (v3.1–v3.2)
+### Active (v3.2)
 
-- [ ] CHARM-01/02 — Charm by DTE chart (Phase 6)
-- [ ] COV-01/02/03/04/05 — Critical-path test coverage (Phase 7)
-- [ ] DIST-01/02/03/04 — Pre-distribution hardening (Phase 8, partial out-of-phase)
+- [ ] NARR-01 — Positioning narrative (always-visible mechanical explanation of GEX sign)
+- [ ] NARR-02 — GEX percentile rank vs trailing history
+- [ ] CTX-01 — VRP display (IV30 − RV20) with hedging cost interpretation
+- [ ] CTX-02 — OI tilt (dollar-weighted put vs call OI)
+- [ ] CTX-03 — Front skew gauge with percentile rank
+- [ ] CUT-01 — Remove Hedge Sh/$1, % vs ZGL, strike slope, term slope from cards
+- [ ] CUT-02 — Demote vol surface to collapsed/optional section
 
 ### Out of Scope
 
@@ -111,6 +111,9 @@ Given today's dealer positioning across SPY/QQQ/IWM — what regime are we in, h
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-05-21 | Pivot to PM-actionable positioning; cut non-decision metrics | Outputs audited against "does this change a PM decision?"; mathematical elegance deprioritized |
+| 2026-05-21 | Add VRP (IV30 − RV20) as hedging cost context | Carr & Wu (2009) VRP; descriptive metric even without causal backing |
+| 2026-05-21 | Kill strike slope, term slope, hedge sh/$1, % vs ZGL | None inform a PM decision; model constructs without predictive value |
 | 2026-05-11 | Cut VEX/CHEX/regime labels per methodology audit | BS-European Greeks on American options add 5–15% error; categorical regime label depends on hand-tuned non-stationary floor; focus on defensible outputs only |
 | 2026-05-06 | GSD sign convention: calls +, puts − | SpotGamma/retail standard. Positive net GEX = dealers net long gamma = stabilising |
 | 2026-05-05 | Vanna over Vomma | Vanna (∂delta/∂vol) translates to dealer rehedging flow — PM-readable. Vomma is not. |
