@@ -58,21 +58,21 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NARR-01 | TBD | Pending |
-| NARR-02 | TBD | Pending |
-| CTX-01 | TBD | Pending |
-| CTX-02 | TBD | Pending |
-| CUT-01 | TBD | Pending |
-| CUT-02 | TBD | Pending |
-| CUT-03 | TBD | Pending |
-| INFRA-01 | TBD | Pending |
-| INFRA-02 | TBD | Pending |
+| NARR-01 | Phase 7 | Pending |
+| NARR-02 | Phase 7 | Pending |
+| CTX-01 | Phase 7 | Pending |
+| CTX-02 | Phase 6 | Pending |
+| CUT-01 | Phase 6 | Pending |
+| CUT-02 | Phase 6 | Pending |
+| CUT-03 | Phase 6 | Pending |
+| INFRA-01 | Phase 6 | Pending |
+| INFRA-02 | Phase 6 | Pending |
 
 **Coverage:**
 - v3.2 requirements: 9 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 9
+- Mapped to phases: 9
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-21*
-*Last updated: 2026-05-21 after milestone initialization*
+*Last updated: 2026-05-22 — traceability updated with phase assignments*
