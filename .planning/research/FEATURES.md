@@ -1,240 +1,140 @@
-# Feature Landscape — GEX Interactive Dashboard v3.0
+# Feature Landscape
 
-**Domain:** Options dealer-flow analytics dashboard (PM-facing)
-**Researched:** 2026-05-05
-**Confidence:** HIGH (math verified against multiple primary sources; display conventions from SpotGamma, FlashAlpha, VannaCharm, Volland)
+**Domain:** PM-facing options positioning monitor (GEX/vol context)
+**Milestone:** v3.2 — Actionable Positioning Context
+**Researched:** 2026-05-21
 
----
+## PM Use Case
 
-## Feature Summary Table
+> "Should I pay up for protection right now, and what's the dealer-driven vol environment telling me about whether I need to?"
 
-| Feature | Category | Complexity | PM-Readable | Dependencies |
-|---------|----------|------------|-------------|--------------|
-| Net VEX (single number) | Table stakes | Low | Yes — "dealer delta shift per 1-vol-point move" | vanna in greeks_engine |
-| VEX by strike (bar chart) | Table stakes | Low | Partial — needs label | gex column → vex column in exposure_engine |
-| Net CHEX (single number) | Table stakes | Low | Yes — "daily dealer buying/selling from time decay" | charm in greeks_engine |
-| Delta-hedge $/1% flow | Table stakes | Low | Yes — direct dollar figure | net_gex already computed |
-| Regime card with color | Table stakes | Low | Yes | analytics.summarise() already outputs regime |
-| vs-yesterday regime delta | Table stakes | Medium | Yes — "regime unchanged / flipped / intensified" | parquet snapshots already exist |
-| Streamlit dashboard shell | Table stakes | Medium | N/A — infrastructure | new file streamlit_app.py |
-| Cross-asset overview chart | Table stakes | Low | Yes | plot_overview() already exists |
-| VEX by expiry bar chart | Differentiator | Medium | Partial — needs expiry label formatting | expiry_gex() pattern already exists |
-| Charm by expiry bar chart | Differentiator | Medium | Partial | same pattern |
-| Historical tab: ZGL trend | Differentiator | Medium | Yes — "how far spot is from the flip level over time" | parquet snapshots |
-| Historical tab: regime persistence table | Differentiator | Medium | Yes | parquet snapshots |
-| Event study output | Differentiator | High | Partial — statistical output needs framing | validation.py already has stub |
-| Vanna zero-level (VEX profile) | Defer | High | No — too abstract without context | requires profile recompute like gamma_profile() |
-| Intraday refresh / live streaming | Defer | High | N/A | yfinance rate limits; not needed for PM use case |
-| Predictive flow signals | Defer | High | N/A | out of scope per PROJECT.md |
-| Per-ticker IV surface | Defer | High | No | new data layer; not in scope |
+30-second glance, not 10-minute analysis session. Every feature earns its pixel by answering part of this question or gets cut.
 
 ---
 
-## Table Stakes Features
+## Table Stakes
 
-These are expected by anyone who has seen SpotGamma or Volland. Missing them makes the dashboard feel unfinished.
+Features the PM **expects** on a positioning monitor that claims to be actionable. Missing = "why am I looking at this?"
 
-### 1. Net VEX — scalar
-
-**What it is:** Aggregate vanna exposure across the full chain. Measures how many dollars of dealer delta shift occur per 1 vol-point (1%) move in IV.
-
-**Formula:** `VEX = Σ (vanna_i × OI_i × 100 × spot) × sign`
-where sign = +1 for calls, -1 for puts. (FlashAlpha convention, consistent with GEX sign convention already in the codebase.)
-
-**BS vanna per share:** `vanna = -exp(-r*T) * N'(d1) * d2 / sigma`
-Equivalently: `-vega * d2 / (S * sigma * sqrt(T))`. This is the analytical formula, vectorisable exactly like `bs_gamma` in `greeks_engine.py`.
-
-**PM framing:** "If IV drops 1 point, dealers need to buy $X in {ticker} to rebalance their delta books." Positive net VEX = vol-compression rally tailwind (dealers buy as IV drops). Negative net VEX = vol-spike selling amplifier (dealers sell as IV rises).
-
-**Complexity:** Low. One new function in `greeks_engine.py`, one new column in `exposure_engine.py`.
-
-**Aggregation nuance:** Short-dated options near expiry contribute near-zero vanna (their vega is negligible). The vol-sensitivity story lives in medium- and back-end expirations. This means raw net VEX is dominated by 2-8 week options — generally correct, but worth noting when VEX by expiry reveals concentration.
-
-### 2. VEX by Strike — bar chart
-
-**What it is:** The strike-level decomposition of VEX, identical aggregation pattern to `strike_gex()`. Call vanna positive, put vanna negative, net shown per strike.
-
-**Display convention (SpotGamma / FlashAlpha standard):** Calls in blue/green, puts in red. Spot line, call wall and put wall vlines reused from GEX chart. Same bar-width logic applies.
-
-**PM framing:** "The largest green bar is where a vol drop would force the most dealer buying." Visually identical to the GEX bar chart — PMs who understand GEX will immediately read VEX.
-
-**Complexity:** Low. `plot_strike_vex()` in `analytics.py` is a near-copy of `plot_strike_gex()`.
-
-### 3. Net CHEX — scalar
-
-**What it is:** Aggregate charm exposure. Measures how many dollars of dealer delta shift occur per one day of time passing, with no price move.
-
-**Formula:** `CHEX = Σ (charm_i × OI_i × 100 × spot) × sign`
-
-**BS charm per share:** `charm = -N'(d1) * (2*r*T - d2*sigma*sqrt(T)) / (2*T*sigma*sqrt(T))`
-For the dealer-flow convention, charm is the daily delta decay rate. Positive net CHEX = time decay is pushing dealers toward selling (bearish drift). Negative net CHEX = time decay is pushing dealers toward buying (supportive drift). This is the FlashAlpha/SpotGamma sign convention.
-
-**PM framing:** "By close today, dealers need to [buy/sell] $X in {ticker} simply because of time passing — no price move required." Most relevant on days approaching monthly/weekly expiry when near-the-money options have large charm.
-
-**Complexity:** Low. Same implementation path as VEX.
-
-### 4. Delta-Hedge $/1% Flow
-
-**What it is:** `delta_hedge_flow = net_gex / (spot * 0.01)`. Converts net GEX from dollar-gamma units to the dollar amount of stock dealers must trade if spot moves 1%.
-
-**PM framing:** "A 1% SPY move forces dealers to [buy/sell] $X." This is the most immediately actionable number for a PM: it translates abstract GEX into a concrete flow estimate they can compare to average daily volume.
-
-**Complexity:** Low. Arithmetic on existing `net_gex`. Add as a field in `analytics.summarise()`.
-
-**Note:** This is a first-order approximation. It assumes the dealer hedges instantaneously and the gamma profile is flat near current spot. Good enough for daily context; not suitable for intraday precision claims.
-
-### 5. Regime Cards (colored)
-
-**What it is:** One card per ticker in the Streamlit dashboard. Shows: ticker, spot, net GEX, regime badge, vs-flip distance, call wall, put wall. Color-coded by regime (green / red / grey). Existing `REGIME_COLOR` and `REGIME_BG` from `report.py` translate directly to Streamlit `st.metric` or custom HTML.
-
-**PM framing:** The card is the unit of communication. One glance = regime state for that asset. Cards collapse to a summary row in the cross-asset view.
-
-**Complexity:** Low. Streamlit `st.columns()` with HTML/CSS from the existing email template.
-
-### 6. vs-Yesterday Regime Comparison
-
-**What it is:** Load the previous session's snapshot from `gex_snapshots.parquet`, compare `gamma_regime` field. Emit one of: UNCHANGED / FLIPPED (pos→neg or neg→pos) / INTENSIFIED (net GEX magnitude grew >20%) / EASED (magnitude shrank >20%).
-
-**PM framing:** "SPY: negative gamma, INTENSIFIED (net GEX now -$3.2B vs -$2.1B yesterday)." The delta matters more than the absolute level for a PM who already saw yesterday's email.
-
-**Complexity:** Medium. Parquet keyed on `(date, ticker)` already exists. Requires a lookup function + comparison logic. The idempotent write in `validation.py` means yesterday's row is reliably present.
-
-**Watch out for:** Weekends and holidays — "yesterday" must mean "previous trading session," not calendar -1 day. Requires a trading-calendar check or a "most recent prior date" query on the parquet index.
-
-### 7. Streamlit Dashboard Shell
-
-**What it is:** `streamlit_app.py` at the repo root. Layout: top-level tabs (Today / Historical). Today tab: cross-asset overview chart, regime cards in a responsive grid, per-ticker expanders with full analytics. Historical tab: ZGL trend chart, regime persistence table, event study output.
-
-**Complexity:** Medium. No new data work — purely presentation. `st.tabs()`, `st.columns()`, `st.expander()`. The matplotlib figures already exist in `analytics.py`; wrap them with `st.pyplot()`.
-
-**Email pipeline independence:** `streamlit_app.py` imports from `gex/` modules but does not modify them. `run_daily.py` → email stays untouched.
-
----
+| Feature | Why Expected | Complexity | Dependencies | Notes |
+|---------|--------------|------------|--------------|-------|
+| **Positioning narrative** | Raw GEX sign (+2.3B) is meaningless without "dealers long gamma → vol suppression → mean-reversion bias." Every professional GEX tool (SpotGamma, Menthor Q) explains the mechanism. A number without interpretation forces the PM to do the translation mentally — they won't. | **Low** | Existing `net_gex` sign from `summarise()` | Static text template keyed on sign. No model, no estimation. Two states: positive (dampening) and negative (amplifying). Could add a third for near-zero but avoid reinventing the killed regime label — threshold-free is the point. |
+| **GEX percentile rank** | "$2.3B net GEX" means nothing without context. Is that high? Low? Normal? Percentile vs trailing history is the standard way to normalize non-stationary dollar-denominated metrics. SpotGamma shows "GEX Index" for exactly this reason. This is what killed the $200M neutral floor — percentile adapts automatically. | **Low** | Parquet snapshot history (`validation.py`); currently 44 rows across 11 sessions for SPY/QQQ/IWM. Needs ≥10 sessions per ticker for meaningful percentile. | Compute `(hist < current).mean() * 100`. Already have the pattern in the (soon-to-be-cut) strike slope percentile code in `streamlit_app.py` lines 223-228. Use 30d default, configurable to 90d. Display as "Xth pctile (Nd)" with "building context" fallback when N < 10. |
+| **Output cuts** | Information overload is the #1 failure mode of quant dashboards shown to PMs. Hedge Sh/$1, % vs ZGL, strike slope, term slope — none change a PM decision (per the 2026-05-21 audit). Keeping them signals "we don't know what matters." Professional tools ruthlessly curate. | **Low** | Card HTML in `streamlit_app.py` `render_regime_card()`; Vol tab slope section; `compute.py` still computes slopes (can defer removal of compute, just stop displaying). | Cut from display first. Compute removal can follow in a cleanup pass — no user-facing impact. Vol surface demoted to collapsed expander, not a primary tab. |
 
 ## Differentiators
 
-Features that distinguish this from a basic GEX printout. Not expected on first contact, but valued by a PM who returns to the dashboard regularly.
+Features that **set this apart** from a generic GEX dashboard. Not expected, but directly answer the PM question in a way most positioning monitors don't.
 
-### 8. VEX by Expiry
-
-**What it is:** Bar chart with expirations on the x-axis, summed VEX per expiry. Highlights which expiry bucket is driving the aggregate vanna story.
-
-**Why it matters:** Net VEX is dominated by 2-8 week options. But during vol events, short-dated options can briefly spike. The per-expiry view lets the PM see "is this a front-month story or a back-end story?" SpotGamma shows this as a secondary chart in their Vanna panel.
-
-**Complexity:** Medium. `expiry_vex()` function mirrors `expiry_gex()`. Chart is a simple bar chart with expiry dates on x-axis. Formatting challenge: expiry dates as labels require rotation and a sensible date format (e.g., "Dec 20" not "2024-12-20").
-
-**Aggregation nuance:** Filter to expirations within 0-45 DTE for the primary chart; show 45-90 DTE as a separate "back-end" bar. This is the industry standard — near-term and far-term have different interpretive weight.
-
-### 9. Charm by Expiry
-
-**What it is:** Same pattern as VEX by expiry but for charm. Most relevant in the 0-14 DTE bucket — charm spikes exponentially as expiry approaches.
-
-**Why it matters:** Near-expiry charm is the "invisible bid/offer" that moves markets at open and into close on expiry weeks. A PM running covered calls on XLF wants to know if charm is supporting or pressuring the underlying heading into Friday expiry.
-
-**PM framing:** Color-code by DTE bucket: 0-7 DTE (red — high urgency), 8-21 DTE (amber), 22+ DTE (grey). This immediately communicates urgency.
-
-**Complexity:** Medium. Same as #8.
-
-### 10. Historical Tab: Zero-Gamma Level Trend
-
-**What it is:** Line chart of ZGL (zero-gamma level) per date for a selected ticker, overlaid with spot. Shows whether the gamma flip level is rising, falling, or converging with current price.
-
-**Why it matters:** When spot is approaching ZGL from above (positive gamma regime eroding), that is a structural warning. The PM can see this over 20-30 sessions.
-
-**Complexity:** Medium. ZGL is already stored in `gex_snapshots.parquet` (or needs to be added to the snapshot schema). Two-line chart with `spot` and `zero_gamma_level`.
-
-### 11. Historical Tab: Regime Persistence Table
-
-**What it is:** Rolling window table showing for each ticker: current regime, sessions in current regime streak, % of last 20 sessions in positive/negative/neutral. Color-coded.
-
-**Why it matters:** A PM needs to know if today's negative gamma is day 1 of a new regime or day 12 of a persistent negative streak. Duration context changes how much weight to put on the signal.
-
-**Complexity:** Medium. Pure parquet query and pandas groupby. No new data needed.
-
-### 12. Event Study Output Display
-
-**What it is:** Surface the output of `validation.py`'s event study in the Historical tab. Show: positive gamma days — next-day range distribution vs negative gamma days — next-day range distribution. Box plots or violin plots.
-
-**PM framing:** "On the 47 positive-gamma days in the last 12 months, next-day SPY range averaged 0.6%. On 31 negative-gamma days, 1.1%." This is the validation artifact that earns credibility with a skeptical PM.
-
-**Complexity:** High. The event study logic already exists in `validation.py` but needs enough historical data (60+ sessions) to produce meaningful distributions. The display itself is straightforward (Matplotlib box plot via `st.pyplot()`). The risk is that early data is sparse — build in a "minimum N sessions" gate before showing the chart.
-
----
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|--------------|-------|
+| **VRP (IV30 − RV20)** | Bridges positioning and hedging cost — "are options cheap or expensive right now?" Most GEX monitors show positioning without hedging cost context. VRP directly answers "should I pay up for protection?" Positive VRP = options rich = less urgency. Negative VRP = options cheap relative to realized = potential opportunity. Well-established (Carr & Wu 2009). | **Medium** | IV30: already in `ChainSnapshot` from CBOE. RV20: **needs new data** — 20-day close-to-close realized vol. Options: (a) yfinance daily closes, (b) store spot in parquet and compute from history. Option (b) is preferable — spot is already stored in snapshots, just need ≥20 sessions of history. Currently have ~11 sessions, so RV20 will show "building context" initially. | RV20 = `std(log returns) * sqrt(252) * 100` over trailing 20 sessions. Annualized, in vol points, same units as IV30. VRP display: `IV30 − RV20` with label "rich" (positive) or "cheap" (negative). **Critical:** this is descriptive, not predictive. Don't imply trade signals. |
+| **OI tilt** | Shows directional pressure — "is the market positioned for downside or upside?" Dollar-weighted because 100 OI at strike 600 is 10× the notional of 100 OI at strike 60. Most GEX dashboards show GEX by strike but don't aggregate the put/call OI balance into a single directional reading. | **Low** | Chain DataFrame already has `strike`, `oi`, `type` columns. Pure aggregation: `Σ(OI × strike × 100)` for puts vs calls. | Express as ratio or tilt percentage: `put_notional / (put_notional + call_notional)`. 50% = balanced. >50% = put-heavy (protection demand). <50% = call-heavy (upside positioning). Consider showing as a simple bar or gauge on the card. Avoid over-interpreting — covered calls inflate call OI without being bullish. Note this caveat in methodology. |
+| **Front skew gauge with percentile** | Skew is already the project's strongest metric (Xing et al. 2010 — 10.9% alpha). Currently displayed as raw `+X.Xpp` on the card with full chart in Vol tab. Adding percentile rank transforms it from "here's a number" to "this is steep/flat relative to recent history." Skew percentile at a glance tells the PM whether tail protection is bid up relative to normal — directly addresses "should I pay up?" | **Low** | `front_skew` already in parquet snapshots; same percentile logic as GEX percentile. | Display: "Skew 25Δ: +X.Xpp (Yth pctile, Zd)" on the card. High percentile = steep skew = tail demand elevated = protection is expensive. Chart stays in Vol tab (or History tab) for trend context. |
 
 ## Anti-Features
 
-Explicitly excluded. Revisiting these is scope creep.
+Features to explicitly **NOT** build. Each would seem natural but would undermine the tool's integrity or the PM's trust.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Live intraday refresh | yfinance chain pulls are slow (~2-5s per ticker × 10 tickers). Auto-refresh at 1-5 min intervals will hit rate limits and create a poor UX. | Manual "Refresh" button. |
-| Predictive scoring / signal | Holm-Bonferroni bar is high; GEX-based predictions are directional hypotheses, not validated signals. Adding a "bullish score" invites misuse. | Stick to descriptive: regime + flow mechanics. |
-| Vomma (∂vega/∂vol) | Harder to explain than vanna. "How vol sensitivity changes with vol" is a second-order vol story, not a delta-hedging flow story. PMs won't use it. | Vanna tells the PM-relevant story cleanly. |
-| Per-contract flow scanner | Unusual options activity / large print detection is a different product (Barchart / OptionsHawk territory). Requires a different data layer. | Out of scope for this project. |
-| IV surface visualization | Skew charts, term structure plots — useful but orthogonal to the dealer-flow angle. Creates scope expansion without PM validation. | Defer to v4.x if desk asks for it. |
-| Bloomberg data swap | One-class change in `data_loader.py`. Defer until team validates the yfinance-based dashboard. | Keep the swap documented in `CLAUDE.md`. |
-| Order routing / execution | Research and decision-support only, per project constraints. | Hard boundary. |
-
----
+| **Regime categorical label** (e.g., "POSITIVE REGIME", "NEUTRAL") | Already killed in v3.1 for good reason — the $200M neutral floor was hand-tuned and non-stationary. Percentile rank replaces this without arbitrary thresholds. Reintroducing any categorical label (even percentile-based like "high/low/normal") adds a discretionary boundary the PM will anchor on. | Show the percentile number. Let the PM interpret. If they want buckets, they'll mentally bucket 85th pctile as "high." |
+| **Predictive signals / trade recommendations** | "GEX says buy/sell" is indefensible. GEX sign predicts next-day vol direction in some studies but effect sizes are small and sample-dependent. The tool is a **monitor**, not a signal generator. Any predictive framing invites backtesting, which will fail the Holm-Bonferroni bar (per v2.0 experience). | Frame everything as descriptive: "dealers are positioned X, which mechanically means Y." Never "therefore do Z." |
+| **Intraday refresh / real-time mode** | CBOE CDN is 15-min delayed. OI is T-1 (OCC standard — true for all vendors including Bloomberg). Implying intraday freshness when the core data is stale is misleading. Day-traders will demand it; PMs thinking in weeks/months don't need it. | Show timestamp prominently. "CBOE delayed, 15-min lag · OI T-1" is already in the top bar. |
+| **Color-coded alert thresholds** (red/yellow/green on VRP, skew, etc.) | Color thresholds are regime labels in disguise. "VRP > 3 = green" is the same problem as "$200M neutral = neutral regime." The thresholds will be wrong in the next vol regime. | Show numbers with percentile context. Accent bar driven by GEX sign (already exists) is the one color signal — it's binary and mechanically defensible. |
+| **GEX heatmap (strike × DTE)** | Deferred in exploration notes. Aggregation decisions (by expiry week? individual expiry?), color scale (linear? log?), and relationship to existing strike bar chart are unresolved. Adding it now creates a second way to see the same positioning data without clarity on which is primary. | Defer to v3.3. The strike GEX bar chart already shows WHERE gamma concentrates. A heatmap adds the WHEN dimension but needs design work. |
+| **Multi-asset composite score** | Tempting to combine SPY/QQQ/IWM into a single "market positioning" number. But weighting is arbitrary and hides the per-ticker signal that matters to PMs running different sleeve allocations. | Keep per-ticker cards. The 3-card layout IS the cross-asset view. |
 
 ## Feature Dependencies
 
 ```
-greeks_engine.bs_vanna()    →  exposure_engine.compute_vex()  →  analytics.summarise() (net_vex field)
-greeks_engine.bs_charm()    →  exposure_engine.compute_chex() →  analytics.summarise() (net_chex field)
-analytics.summarise()       →  streamlit_app.py (Today tab — regime cards)
-net_gex (existing)          →  delta_hedge_flow (arithmetic only, no new data)
-gex_snapshots.parquet       →  vs_yesterday comparison
-gex_snapshots.parquet       →  Historical tab (ZGL trend, regime persistence, event study)
-exposure_engine.expiry_gex  →  exposure_engine.expiry_vex / expiry_chex  (pattern copy)
+Output Cuts ─── (independent, do first — clears visual space for new features)
+
+Positioning Narrative ──→ needs: net_gex sign (existing)
+                         no new data, no new computation
+
+GEX Percentile ──→ needs: parquet history (existing, growing daily)
+                   needs: ≥10 sessions per ticker for meaningful output
+                   graceful degradation: "building context (Nd)" when N < 10
+
+Front Skew Gauge ──→ needs: front_skew in parquet (existing)
+                     same percentile logic as GEX percentile
+                     implement together to share the percentile helper
+
+VRP (IV30 − RV20) ──→ needs: IV30 (existing in ChainSnapshot)
+                      needs: RV20 (NEW — compute from stored spot history)
+                      needs: ≥20 sessions of spot data in parquet
+                      currently ~11 sessions → will show "building" for ~2 weeks
+
+OI Tilt ──→ needs: chain DataFrame (existing)
+            pure aggregation, no history needed
+            independent of other features
 ```
 
-**Phase ordering implied by dependencies:**
-- Phase 1: greeks_engine (vanna + charm) + exposure_engine (VEX + CHEX + delta_hedge_flow)
-- Phase 2: analytics.summarise() extended + vs-yesterday comparison
-- Phase 3: Streamlit shell + Today tab (depends on Phase 1 + 2 outputs)
-- Phase 4: Historical tab (depends on Phase 3 shell + existing parquet)
+**Critical path:** VRP has the longest ramp-up (needs 20 sessions of spot history). Start storing spot immediately, show "building context" in the interim. All other features can ship day-one with existing data.
 
----
+## MVP Recommendation
 
-## VEX Aggregation Nuances — Decision Record
+**Phase 1 — Ship immediately (all low complexity, existing data):**
+1. Output cuts (CUT-01, CUT-02) — clear the noise first
+2. Positioning narrative (NARR-01) — highest-impact, zero-data feature
+3. OI tilt (CTX-02) — pure aggregation on existing chain data
+4. GEX percentile + Front skew gauge (NARR-02, CTX-03) — same percentile logic, implement together; graceful "building context" degradation
 
-Industry practice (FlashAlpha, VannaCharm, SpotGamma) aggregates VEX **across all strikes and all expirations** for the net scalar. Strike-level breakdown is the primary secondary view. Expiry-level breakdown is the tertiary view, most useful for identifying 0DTE vs front-month vs back-end concentration.
+**Phase 2 — Ships after data accumulation (~2 weeks):**
+5. VRP display (CTX-01) — needs RV20 from 20+ sessions of spot history
 
-**Recommended approach for this project:**
-1. Net VEX: full chain aggregate (Phase 1)
-2. VEX by strike: bar chart, same visual language as GEX (Phase 3)
-3. VEX by expiry: secondary chart in per-ticker expander (Phase 3, lower priority)
+**Defer:**
+- GEX heatmap: design decisions unresolved, not blocking PM use case
+- Composite scores: arbitrary weighting, per-ticker view is better
 
-The expiry view is a differentiator, not table stakes. Build the strike view first; expiry view only if the PM desk asks for it during dashboard validation.
+## Card Layout Recommendation (30-second glance)
 
-**Sign convention lock:** calls +, puts - for both VEX and CHEX. Consistent with existing GEX sign convention in `exposure_engine.py`. Do not invert.
+The card needs to answer the PM question in a visual scan. Recommended layout:
 
----
+```
+┌─────────────────────────────────────────┐
+│ SPY                          (accent bar)│
+│─────────────────────────────────────────│
+│ Spot   $583.20    +0.42% today          │
+│ Net GEX  +2.31B   72nd pctile (28d)     │
+│ γ-flip   578.5                          │
+│ Walls    565 – 595                      │
+│─────────────────────────────────────────│
+│ IV30     14.2%     VRP +2.1pp (rich)    │
+│ Skew 25Δ +6.8pp   85th pctile (28d)    │
+│ OI Tilt  58% put-weighted              │
+│─────────────────────────────────────────│
+│ Dealers long gamma → vol suppression.   │
+│ Selling rallies, buying dips. Mean-     │
+│ reversion toward γ-flip expected.       │
+└─────────────────────────────────────────┘
+```
 
-## Charm Sign Convention — Note
+**Top section:** Position (what dealers are doing)
+**Middle section:** Cost/pressure (what protection costs, where pressure is)
+**Bottom section:** Narrative (plain-English mechanical interpretation)
 
-FlashAlpha uses: positive CHEX = dealers selling (bearish), negative CHEX = dealers buying (supportive).
-SpotGamma uses: charm chart is "opposite sign of vanna on each strike" — their framing is from the dealer's perspective as net short options.
+The narrative is at the bottom because it's the synthesis — the PM reads the numbers first, then the interpretation confirms or contextualizes. Keep it to 2-3 sentences max.
 
-These are equivalent under the standard dealer-short assumption already baked into the GEX engine. The key is that the **PM-facing label must state direction explicitly** — "net charm implies dealer buying of $X" — not just show a sign. The sign alone is unintuitive.
+## Complexity Assessment
 
----
+| Feature | Code Changes | Data Changes | Risk |
+|---------|-------------|--------------|------|
+| NARR-01 Positioning narrative | Template text in card renderer | None | Very low — static text keyed on sign |
+| NARR-02 GEX percentile | Percentile helper + card display | Read existing parquet | Low — pattern exists in codebase |
+| CTX-01 VRP | RV20 computation + card display | Needs spot history ≥20d; may need yfinance for backfill | Medium — new data dependency, graceful degradation needed |
+| CTX-02 OI tilt | Aggregation in compute pipeline + card display | None — uses existing chain DF | Low — pure arithmetic |
+| CTX-03 Skew gauge | Percentile on existing metric + card display | Read existing parquet | Low — same as NARR-02 |
+| CUT-01 Card cuts | Remove 4 fields from card HTML | None | Very low — deletion |
+| CUT-02 Vol surface demotion | Move from tab to collapsed expander | None | Low — UI restructure only |
 
 ## Sources
 
-- FlashAlpha VEX concept: https://flashalpha.com/concepts/vex
-- FlashAlpha Vanna/Charm guide: https://flashalpha.com/articles/vanna-charm-second-order-greeks-guide
-- FlashAlpha CHEX chart conventions: https://flashalpha.com/tools/charm-exposure
-- SpotGamma Vanna/Charm: https://spotgamma.com/options-vanna-charm/
-- VannaCharm platform intro: https://vannacharm.com/blog/introducing-vannacharm
-- MenthorQ dealer hedging mechanics: https://menthorq.com/guide/dealer-hedging-mechanics/
-- BS Greeks (analytical vanna formula): https://www.macroption.com/black-scholes-formula/
-- Charm delta-decay mechanics: https://medium.com/@navnoorbawa/options-charm-and-delta-decay-how-hedge-funds-profit-from-dealer-hedging-flows-the-3-8-billion-eadcf46d24c9
-- Greeks (finance) - Wikipedia: https://en.wikipedia.org/wiki/Greeks_(finance)
-
----
-<!-- LINKS:AUTO -->
-## Related
-**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
-<!-- LINKS:END -->
+- SpotGamma dashboard (GEX normalization, positioning narrative patterns) — industry standard reference
+- Carr & Wu (2009), "Variance Risk Premiums" — VRP methodology backing
+- Xing, Zhang & Zhao (2010, JFQA) — skew predictive value (10.9% alpha)
+- Egebjerg & Kokholm (2024) — dealer hedging mechanism
+- Garleanu, Pedersen & Poteshman (2009, RFS) — dealer positioning assumption
+- Project exploration notes (`.planning/notes/actionable-positioning-pivot.md`) — output audit decisions
+- Existing codebase audit (`streamlit_app.py`, `compute.py`, `validation.py`) — dependency analysis
