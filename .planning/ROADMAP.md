@@ -44,9 +44,52 @@
   1. `gex/positioning.py` exists with pure functions (`compute_rv20()`, `compute_vrp()`, `gex_percentile()`, `positioning_narrative()`) that return correct values given test inputs
   2. Running `python -m gex.run_daily` produces a summary dict containing `rv20`, `vrp`, `gex_percentile`, and `narrative` keys (values may be None during cold-start)
   3. Parquet snapshots written after this phase include `rv20` and `vrp` columns; old snapshots load without error (NaN for new columns)
-  4. Dashboard regime cards no longer show "Hedge Sh/$1" row or "% vs ZGL" line; Vol tab no longer shows strike slope or term slope widgets
+  4. Dashboard regime cards no longer show "Hedge Sh/`# Roadmap: Options Quant — GEX Analysis Platform
+
+*Last updated: 2026-05-22 · v3.2 in progress*
+
+## Milestones
+
+- ✅ **v3.0 GEX Interactive Dashboard** — Phases 1–4 (shipped 2026-05-06)
+- ✅ **v3.1 Hardening & Cleanup** — Phase 5 + out-of-phase refactor (shipped 2026-05-06 + 2026-05-11)
+- 🚧 **v3.2 Actionable Positioning Context** — Phases 6–7 (in progress)
+- **Backlog (999.x)** — Charm, test coverage, pre-distribution; awaiting research
+
+## Phases
+
+<details>
+<summary>✅ v3.0 GEX Interactive Dashboard (Phases 1–4) — SHIPPED 2026-05-06</summary>
+
+- [x] **Phase 1: Greeks Engine** — Vanna + Charm in BS engine, 0DTE guard
+- [x] **Phase 2: Exposure + PM Flow** — GEX/VEX by strike, delta-hedge flow, parquet store
+- [x] **Phase 3: Streamlit Dashboard** — Regime cards, cross-asset chart, per-ticker expanders
+- [x] **Phase 4: Historical Tab** — ZGL trend, regime persistence, streak counter, event study
+
+</details>
+
+<details>
+<summary>✅ v3.1 Hardening & Cleanup (Phase 5) — SHIPPED 2026-05-11</summary>
+
+- [x] **Phase 5: UAT Sign-Off & Cleanup** — 4 Streamlit scenarios pass, docs updated
+- [x] **Out-of-Phase Refactor** — VEX/CHEX/regime labels removed; expected-1d-sigma added
+
+</details>
+
+### 🚧 v3.2 Actionable Positioning Context
+
+- [ ] **Phase 6: Computation Engine + Output Cuts** — New positioning module, parquet schema, RV20 computation, remove noise metrics
+- [ ] **Phase 7: Actionable Card Rendering** — VRP/percentile/narrative on dashboard + email with graceful degradation
+
+## Phase Details
+
+1" row or "% vs ZGL" line; Vol tab no longer shows strike slope or term slope widgets
   5. `compute_surface_slopes()` is no longer called in the compute pipeline (dead code removed)
-**Plans**: TBD
+**Plans**: 3 plans in 2 waves
+
+Plans:
+- [ ] 06-01-PLAN.md — gex/positioning.py pure functions + config constants + tests (Wave 1)
+- [ ] 06-02-PLAN.md — Output cuts CUT-01/CUT-02 in streamlit_app.py (Wave 1, parallel)
+- [ ] 06-03-PLAN.md — Pipeline wiring in compute.py + parquet schema in validation.py (Wave 2)
 
 ### Phase 7: Actionable Card Rendering
 **Goal**: PM sees actionable positioning context on every card — VRP with hedging cost interpretation, GEX percentile rank, and mechanical positioning narrative — on both dashboard and email
@@ -95,3 +138,4 @@
 ## Related
 **Project:** [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
+
