@@ -176,7 +176,12 @@ def compute_vrp(iv30: float | None, rv20: float | None) -> float | None:
     """
     Volatility risk premium: iv30 - rv20.
 
+    Both arguments must be decimal fractions (e.g., 0.18 for 18% vol, not 18.0).
+    The caller is responsible for normalising iv30 from percentage to decimal before
+    calling this function.
+
     Returns None if either input is None.
+    Result is in decimal fraction units (e.g., 0.022 for ~2.2 vol points).
     """
     if iv30 is None or rv20 is None:
         return None

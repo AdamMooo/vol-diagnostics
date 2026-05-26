@@ -117,8 +117,6 @@ class TestComputeRv20:
         prices = [100 * (1.01 ** i) for i in range(22)]
         series = pd.Series(prices)
         # compute expected: use last 21 prices → 20 log returns
-        arr = np.array(prices)
-        log_returns = np.log(arr[1:] / arr[:-1])
         # iloc[-21:] gives the last 21 prices; log returns of those 21 prices = 20 returns
         last_21 = np.array(prices[-21:])
         expected = float(np.sqrt(252) * np.log(last_21[1:] / last_21[:-1]).std(ddof=1))
@@ -134,7 +132,15 @@ class TestComputeRv20:
 
 class TestComputeVrp:
     def test_vrp_sign(self):
-        assert compute_vrp(25.0, 20.0) == pytest.approx(5.0)
+        # Both args are decimal fractions per compute_vrp contract.
+        # iv30=0.18 (18% vol), rv20=0.158 (~15.8% vol) → VRP ~0.022 (~2.2 vol points).
+        assert compute_vrp(0.18, 0.158) == pytest.approx(0.022)
+
+    def test_vrp_realistic_range(self):
+        # Typical SPY VRP is 1–10 vol points in decimal (0.01–0.10).
+        result = compute_vrp(0.18, 0.158)
+        assert result is not None
+        assert 0.001 < result < 0.10
 
     def test_vrp_none_propagation(self):
         assert compute_vrp(None, 20.0) is None
