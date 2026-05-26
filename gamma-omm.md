@@ -48,23 +48,15 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-14 17:49 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-26 16:19 UTC
 
-**Milestone:** v3.1 — SHIPPED · **Status:** shipped · **STATE last_updated:** 2026-05-14 (vol surface OTM convention + GEX overlays)
+**Milestone:** v3.2 — Institutional Vol Diagnostics · **Status:** unknown · **STATE last_updated:** ?
 
 ### Current Position
-- **Phase:** 5 — UAT Sign-Off & Cleanup (complete) + Out-of-Phase Refactor + Methodology Validation (complete)
-- **Status:** ✅ v3.1 SHIPPED + methodology validated + 2 new defensible metrics added
-- **Last activity:** 2026-05-14 — Item 5 (dead code + stale-ref sweep) complete (22ec33a). Found and fixed broken matplotlib/Plotly mismatch in run_gex.py (savefig → write_html). All other flagged terms confirmed clean.
-
-### Pending Todos
-- Validate charm calculation methodology for American options
-- Propose defensible Greeks/flow metrics with historical backing
-- Define new milestone scope based on validated approach
-
-### Roadmap (current milestone)
-- ✅ Phase 5: UAT Sign-Off & Cleanup (all 4 scenarios pass, docs updated)
-- ✅ Out-of-Phase Refactor (2026-05-11): VEX/CHEX/regime labels removed; expected-1d-sigma added; methodology footer rewritten
+- **Phase:** 6 of 7 (Whole-Chain Computation Engine) — COMPLETE (human UAT pending)
+- **Plan:** 4 of 4 plans complete
+- **Status:** Awaiting human verification (3 browser tests)
+- **Last activity:** 2026-05-26 — Phase 6 all plans done; 60 tests pass; 06-04 gap closure executed
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->

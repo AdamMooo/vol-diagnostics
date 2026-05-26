@@ -56,11 +56,12 @@ PM-facing questions this product answers:
   4. Parquet snapshots include `rv20` and `vrp` columns; old snapshots load without error (NaN for new columns)
   5. `compute_surface_slopes()` is no longer called anywhere (dead code removed)
   6. Noise cuts: dashboard no longer shows "Hedge Sh" row or "% vs ZGL" line
-**Plans**: 3 plans
+**Plans**: 4 plans
 Plans:
-- [ ] 06-01-PLAN.md — create gex/vol_metrics.py with 4 pure functions + 11 unit tests (TDD)
-- [ ] 06-02-PLAN.md — strip GEX overlays from plot_vol_surface(), Viridis colorscale, 3 noise cuts in streamlit_app.py
-- [ ] 06-03-PLAN.md — wire new metrics into compute_ticker() return dict; extend parquet schema (rv20, vrp)
+- [x] 06-01-PLAN.md — create gex/vol_metrics.py with 4 pure functions + 11 unit tests (TDD)
+- [x] 06-02-PLAN.md — strip GEX overlays from plot_vol_surface(), Viridis colorscale, 3 noise cuts in streamlit_app.py
+- [x] 06-03-PLAN.md — wire new metrics into compute_ticker() return dict; extend parquet schema (rv20, vrp)
+- [x] 06-04-PLAN.md — gap closure: VRP unit fix (CR-01 BLOCKER), mock namespace (WR-01), stale text (WR-02), dead var (IN-01)
 
 ### Phase 7: Institutional Dashboard Rendering
 **Goal**: Dashboard presents as a whole-chain vol diagnostics tool with 5 clear modules. PM can answer cost-of-protection and vol-carry questions directly from the dashboard.
@@ -104,9 +105,11 @@ Plans:
 | 4. Historical Tab | v3.0 | 2/2 | Complete | 2026-05-06 |
 | 5. UAT Sign-Off & Cleanup | v3.1 | 3/3 | Complete | 2026-05-06 |
 | Out-of-Phase Refactor | v3.1 | (ad hoc) | Complete | 2026-05-11 |
-| 6. Whole-Chain Computation Engine | v3.2 | 0/3 | Not started | - |
+| 6. Whole-Chain Computation Engine | v3.2 | 4/4 | Complete | 2026-05-26 |
 | 7. Institutional Dashboard Rendering | v3.2 | 0/TBD | Not started | - |
 
+---
+---
 ---
 <!-- LINKS:AUTO -->
 ## Related
