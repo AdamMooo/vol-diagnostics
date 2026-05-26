@@ -11,7 +11,8 @@ OI roll noise rather than signal.
 
 Store path: out/gex_snapshots.parquet
 Columns:    date, ticker, spot, net_gex, zero_gamma_level, call_wall, put_wall,
-            front_skew, put_25d_iv, call_50d_iv, iv30, strike_slope, term_slope
+            front_skew, put_25d_iv, call_50d_iv, iv30, strike_slope, term_slope,
+            rv20, vrp
 
 Schema is forward-compatible: older snapshots missing newer columns load as
 NaN on read. Don't reorder or rename columns.
@@ -30,6 +31,7 @@ _FLOAT_COLS = (
     "zero_gamma_level", "call_wall", "put_wall",
     "front_skew", "put_25d_iv", "call_50d_iv", "iv30",
     "strike_slope", "term_slope",
+    "rv20", "vrp",
 )
 
 
@@ -58,6 +60,8 @@ def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = Non
         "iv30": summary.get("iv30"),
         "strike_slope": summary.get("strike_slope"),
         "term_slope": summary.get("term_slope"),
+        "rv20": summary.get("rv20"),
+        "vrp": summary.get("vrp"),
     }
 
     if STORE.exists():
