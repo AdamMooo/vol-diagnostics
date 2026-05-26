@@ -89,11 +89,6 @@ def _derive_observations(summary: dict, spot: float) -> list[str]:
     spot, zgl, and wall strikes — no derived ratios, streaks, or vanna-based
     flags, all of which depend on inputs we don't fully trust."""
     obs = []
-    zgl = summary.get("zero_gamma_level")
-    if zgl is not None and spot:
-        pct = (spot - zgl) / zgl * 100
-        obs.append(f"{pct:+.1f}% vs ZGL")
-
     cw = summary.get("call_wall")
     pw = summary.get("put_wall")
     if cw is not None and pw is not None:
@@ -131,12 +126,6 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
     color = REGIME_COLOR[sign]
     bg = _SIGN_RGBA.get(sign, "rgba(127,140,141,0.12)")
     net_gex_b = (summary.get("net_gex") or 0) / _B
-    df_val = summary.get("delta_hedge_flow")
-    if df_val is not None:
-        v = abs(df_val)
-        df_str = f"{v / 1e6:.1f}M sh/$1" if v >= 1e6 else f"{v / 1e3:.0f}K sh/$1"
-    else:
-        df_str = "—"
     zgl = summary.get("zero_gamma_level")
     zgl_str = f"{zgl:.1f}" if zgl is not None else "—"
     spot_str = f"{spot:,.2f}" if spot else "—"
@@ -153,7 +142,6 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
   <div class="rc-grid">
     <span class="rc-k">Spot</span>           <span class="rc-v">{spot_str}</span>
     <span class="rc-k">Net GEX</span>        <span class="rc-v">{net_gex_b:+.2f}B</span>
-    <span class="rc-k">Hedge Sh / $1</span> <span class="rc-v">{df_str}</span>
     <span class="rc-k">&gamma;-flip</span>  <span class="rc-v">{zgl_str}</span>
     <span class="rc-k">Skew 25&Delta;</span>  <span class="rc-v">{skew_str}</span>
     <span class="rc-k">IV30</span>           <span class="rc-v">{iv30:.1f}%</span>
@@ -203,56 +191,9 @@ def render_section(tickers: list[str], all_data: dict[str, dict],
                 surface_df = data.get("surface_df")
                 if surface_df is not None and not surface_df.empty:
                     st.plotly_chart(
-                        plot_vol_surface(
-                            surface_df, ticker, spot=spot, iv30=iv30,
-                            gamma_flip=s.get("zero_gamma_level"),
-                            call_wall=s.get("call_wall"),
-                            put_wall=s.get("put_wall"),
-                        ),
+                        plot_vol_surface(surface_df, ticker, spot=spot),
                         use_container_width=True,
                     )
-                strike_slope = s.get("strike_slope")
-                term_slope = s.get("term_slope")
-                if strike_slope is not None or term_slope is not None:
-                    slope_hist = _load_history_cached(ticker, days=90)
-                    _ss_hist = (slope_hist["strike_slope"].dropna()
-                                if "strike_slope" in slope_hist.columns else pd.Series(dtype=float))
-                    _ts_hist = (slope_hist["term_slope"].dropna()
-                                if "term_slope" in slope_hist.columns else pd.Series(dtype=float))
-
-                    def _pctile_label(val: float, hist: pd.Series, name: str) -> str:
-                        n = len(hist)
-                        if n >= 10:
-                            pct = int((hist < val).mean() * 100)
-                            return f"{val:+.1f}  ({pct}th pctile, {n}d)"
-                        return f"{val:+.1f}  ({n}d, building context)"
-
-                    sm1, sm2, _ = st.columns([1, 1, 2])
-                    with sm1:
-                        if strike_slope is not None:
-                            st.metric(
-                                "Strike Slope (pp / 10% K/S)",
-                                _pctile_label(strike_slope, _ss_hist, "strike_slope"),
-                                help=(
-                                    "∂IV/∂(log K) at front expiry (≤45 DTE), scaled to pp per 10% K/S move. "
-                                    "Negative = put skew dominant (normal). More negative = steeper. "
-                                    "Percentile rank vs trailing 90 sessions once N≥10. "
-                                    "Model construct — no peer-reviewed predictive backing."
-                                ),
-                            )
-                    with sm2:
-                        if term_slope is not None:
-                            st.metric(
-                                "Term Slope (pp / 30 DTE)",
-                                _pctile_label(term_slope, _ts_hist, "term_slope"),
-                                help=(
-                                    "∂IV/∂(DTE) at ATM (|log K/S| < 5%), scaled to pp per 30 DTE. "
-                                    "Positive = contango (normal). Negative = backwardation (short-end stress/event premium). "
-                                    "Percentile rank vs trailing 90 sessions once N≥10. "
-                                    "Model construct — no peer-reviewed predictive backing."
-                                ),
-                            )
-
                 skew_df = data.get("skew_df")
                 if skew_df is not None and not skew_df.empty:
                     st.plotly_chart(
