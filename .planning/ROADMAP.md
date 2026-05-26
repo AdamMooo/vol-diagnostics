@@ -1,13 +1,22 @@
-# Roadmap: Options Quant — GEX Analysis Platform
+# Roadmap: Options Quant — Institutional Vol Diagnostics Platform
 
-*Last updated: 2026-05-22 · v3.2 in progress*
+*Last updated: 2026-05-26 · v3.2 in progress — reframed as institutional vol diagnostics*
 
 ## Milestones
 
 - ✅ **v3.0 GEX Interactive Dashboard** — Phases 1–4 (shipped 2026-05-06)
 - ✅ **v3.1 Hardening & Cleanup** — Phase 5 + out-of-phase refactor (shipped 2026-05-06 + 2026-05-11)
-- 🚧 **v3.2 Actionable Positioning Context** — Phases 6–7 (in progress)
+- 🚧 **v3.2 Institutional Vol Diagnostics** — Phases 6–7 (in progress)
 - **Backlog (999.x)** — Charm, test coverage, pre-distribution; awaiting research
+
+## Product Philosophy
+
+Dashboard anchors on observable option prices and derived quantities (IV surface, skew, term structure, VRP). GEX is a secondary contextual layer — useful for short-horizon flow context, not the organizing principle.
+
+PM-facing questions this product answers:
+- **Protection timing**: is downside insurance expensive or cheap right now?
+- **Vol-writing/overwrite timing**: are we being paid enough to be short vol?
+- **Risk regime monitoring**: is the surface behaving normally, stressed, or dislocated?
 
 ## Phases
 
@@ -29,76 +38,41 @@
 
 </details>
 
-### 🚧 v3.2 Actionable Positioning Context
+### 🚧 v3.2 Institutional Vol Diagnostics
 
-- [ ] **Phase 6: Computation Engine + Output Cuts** — New positioning module, parquet schema, RV20 computation, remove noise metrics
-- [ ] **Phase 7: Actionable Card Rendering** — VRP/percentile/narrative on dashboard + email with graceful degradation
+- [ ] **Phase 6: Whole-Chain Computation Engine** — 25Δ skew, ATM term structure, VRP/carry engine, clean surface data; noise cuts
+- [ ] **Phase 7: Institutional Dashboard Rendering** — 5-module tab structure: Surface, Skew, Term Structure, Carry, Flow Context (GEX demoted)
 
 ## Phase Details
 
-### Phase 6: Computation Engine + Output Cuts
-**Goal**: Pipeline produces all new positioning metrics (RV20, VRP, percentile rank, narrative) and noise metrics are removed — computation exists before display
+### Phase 6: Whole-Chain Computation Engine
+**Goal**: Pipeline computes all institutional vol metrics from the chain — 25Δ skew per expiry, ATM term structure, RV20/VRP carry — and surface is stripped of GEX overlays. Computation exists before display.
 **Depends on**: Phase 5
-**Requirements**: INFRA-01, INFRA-02, CTX-02, CUT-01, CUT-02, CUT-03
+**Product modules delivered**: Surface (data), Skew (computation), Term Structure (computation), Carry (computation)
 **Success Criteria** (what must be TRUE):
-  1. `gex/positioning.py` exists with pure functions (`compute_rv20()`, `compute_vrp()`, `gex_percentile()`, `positioning_narrative()`) that return correct values given test inputs
-  2. Running `python -m gex.run_daily` produces a summary dict containing `rv20`, `vrp`, `gex_percentile`, and `narrative` keys (values may be None during cold-start)
-  3. Parquet snapshots written after this phase include `rv20` and `vrp` columns; old snapshots load without error (NaN for new columns)
-  4. Dashboard regime cards no longer show "Hedge Sh/`# Roadmap: Options Quant — GEX Analysis Platform
-
-*Last updated: 2026-05-22 · v3.2 in progress*
-
-## Milestones
-
-- ✅ **v3.0 GEX Interactive Dashboard** — Phases 1–4 (shipped 2026-05-06)
-- ✅ **v3.1 Hardening & Cleanup** — Phase 5 + out-of-phase refactor (shipped 2026-05-06 + 2026-05-11)
-- 🚧 **v3.2 Actionable Positioning Context** — Phases 6–7 (in progress)
-- **Backlog (999.x)** — Charm, test coverage, pre-distribution; awaiting research
-
-## Phases
-
-<details>
-<summary>✅ v3.0 GEX Interactive Dashboard (Phases 1–4) — SHIPPED 2026-05-06</summary>
-
-- [x] **Phase 1: Greeks Engine** — Vanna + Charm in BS engine, 0DTE guard
-- [x] **Phase 2: Exposure + PM Flow** — GEX/VEX by strike, delta-hedge flow, parquet store
-- [x] **Phase 3: Streamlit Dashboard** — Regime cards, cross-asset chart, per-ticker expanders
-- [x] **Phase 4: Historical Tab** — ZGL trend, regime persistence, streak counter, event study
-
-</details>
-
-<details>
-<summary>✅ v3.1 Hardening & Cleanup (Phase 5) — SHIPPED 2026-05-11</summary>
-
-- [x] **Phase 5: UAT Sign-Off & Cleanup** — 4 Streamlit scenarios pass, docs updated
-- [x] **Out-of-Phase Refactor** — VEX/CHEX/regime labels removed; expected-1d-sigma added
-
-</details>
-
-### 🚧 v3.2 Actionable Positioning Context
-
-- [ ] **Phase 6: Computation Engine + Output Cuts** — New positioning module, parquet schema, RV20 computation, remove noise metrics
-- [ ] **Phase 7: Actionable Card Rendering** — VRP/percentile/narrative on dashboard + email with graceful degradation
-
-## Phase Details
-
-1" row or "% vs ZGL" line; Vol tab no longer shows strike slope or term slope widgets
-  5. `compute_surface_slopes()` is no longer called in the compute pipeline (dead code removed)
-**Plans**: 3 plans in 2 waves
-
+  1. `gex/vol_metrics.py` exists with pure functions: `compute_skew_25d()`, `compute_term_structure()`, `compute_rv20()`, `compute_vrp()` — each returns correct values given test inputs
+  2. `vol_surface_data()` in `exposure_engine.py` returns clean OTM IV scatter; `plot_vol_surface()` in `analytics.py` accepts no GEX overlay parameters — no spot plane, no meridian traces
+  3. `compute_ticker()` in `compute.py` returns dict containing `skew`, `term_structure`, `rv20`, `vrp` keys (values may be None on cold-start)
+  4. Parquet snapshots include `rv20` and `vrp` columns; old snapshots load without error (NaN for new columns)
+  5. `compute_surface_slopes()` is no longer called anywhere (dead code removed)
+  6. Noise cuts: dashboard no longer shows "Hedge Sh" row or "% vs ZGL" line
+**Plans**: 3 plans
 Plans:
-- [ ] 06-01-PLAN.md — gex/positioning.py pure functions + config constants + tests (Wave 1)
-- [ ] 06-02-PLAN.md — Output cuts CUT-01/CUT-02 in streamlit_app.py (Wave 1, parallel)
-- [ ] 06-03-PLAN.md — Pipeline wiring in compute.py + parquet schema in validation.py (Wave 2)
+- [ ] 06-01-PLAN.md — create gex/vol_metrics.py with 4 pure functions + 11 unit tests (TDD)
+- [ ] 06-02-PLAN.md — strip GEX overlays from plot_vol_surface(), Viridis colorscale, 3 noise cuts in streamlit_app.py
+- [ ] 06-03-PLAN.md — wire new metrics into compute_ticker() return dict; extend parquet schema (rv20, vrp)
 
-### Phase 7: Actionable Card Rendering
-**Goal**: PM sees actionable positioning context on every card — VRP with hedging cost interpretation, GEX percentile rank, and mechanical positioning narrative — on both dashboard and email
+### Phase 7: Institutional Dashboard Rendering
+**Goal**: Dashboard presents as a whole-chain vol diagnostics tool with 5 clear modules. PM can answer cost-of-protection and vol-carry questions directly from the dashboard.
 **Depends on**: Phase 6
-**Requirements**: NARR-01, NARR-02, CTX-01
+**Product modules delivered**: all 5 rendered
 **Success Criteria** (what must be TRUE):
-  1. Dashboard and email cards show VRP (IV30 − RV20) with "options rich" / "options cheap" label; displays "—" gracefully when fewer than 20 sessions of spot history exist
-  2. Dashboard cards show GEX percentile rank ("82nd percentile" style) when 30+ days of history exist; shows "Accumulating context (N/30 sessions)" below threshold
-  3. Dashboard and email cards show a mechanical positioning narrative explaining GEX sign (positive = dampening, negative = amplifying) — frozen template text, no dynamic generation, no forward-looking language
+  1. **Surface tab**: clean 3D IV surface (log-moneyness × DTE × IV%), no GEX overlays, viridis colorscale, matches institutional reference aesthetic
+  2. **Skew tab**: front-month and second-month 25Δ put-call skew displayed with rolling 30-day history chart; labeled precisely ("25Δ put-call skew")
+  3. **Term Structure tab**: ATM IV by expiry plotted as line chart; curve classified as normal / flat / humped / inverted with restrained label
+  4. **Carry tab**: IV30 vs RV20 side-by-side + VRP spread (IV30 − RV20) with rolling history; labeled as "vol carry / VRP"
+  5. **Flow Context tab**: GEX, net gamma, zero-gamma level displayed here only, with explicit header "Microstructure / Execution Context — model-based, not market prices"
+  6. No deterministic language anywhere on dashboard; all panels use precise metric labels
 **Plans**: TBD
 **UI hint**: yes
 
@@ -130,12 +104,11 @@ Plans:
 | 4. Historical Tab | v3.0 | 2/2 | Complete | 2026-05-06 |
 | 5. UAT Sign-Off & Cleanup | v3.1 | 3/3 | Complete | 2026-05-06 |
 | Out-of-Phase Refactor | v3.1 | (ad hoc) | Complete | 2026-05-11 |
-| 6. Computation Engine + Output Cuts | v3.2 | 0/TBD | Not started | - |
-| 7. Actionable Card Rendering | v3.2 | 0/TBD | Not started | - |
+| 6. Whole-Chain Computation Engine | v3.2 | 0/3 | Not started | - |
+| 7. Institutional Dashboard Rendering | v3.2 | 0/TBD | Not started | - |
 
 ---
 <!-- LINKS:AUTO -->
 ## Related
 **Project:** [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
-
