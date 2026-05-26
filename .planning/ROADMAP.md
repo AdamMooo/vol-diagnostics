@@ -76,7 +76,7 @@ Plans:
   6. No deterministic language anywhere on dashboard; all panels use precise metric labels
 **Plans**: 2 plans
 Plans:
-- [ ] 07-01-PLAN.md — add plot_skew_25d_current(), plot_term_structure(), plot_carry_vrp() to analytics.py + 6 smoke tests
+- [x] 07-01-PLAN.md — add plot_skew_25d_current(), plot_term_structure(), plot_carry_vrp() to analytics.py + 6 smoke tests
 - [ ] 07-02-PLAN.md — restructure streamlit_app.py: 5-tab layout, wire Phase 6 data, move GEX to Flow Context
 **UI hint**: yes
 
@@ -109,8 +109,10 @@ Plans:
 | 5. UAT Sign-Off & Cleanup | v3.1 | 3/3 | Complete | 2026-05-06 |
 | Out-of-Phase Refactor | v3.1 | (ad hoc) | Complete | 2026-05-11 |
 | 6. Whole-Chain Computation Engine | v3.2 | 4/4 | Complete | 2026-05-26 |
-| 7. Institutional Dashboard Rendering | v3.2 | 0/TBD | Not started | - |
+| 7. Institutional Dashboard Rendering | v3.2 | 1/2 | In progress | - |
 
+---
+---
 ---
 ---
 ---
