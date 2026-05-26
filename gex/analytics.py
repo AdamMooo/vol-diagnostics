@@ -300,6 +300,147 @@ def plot_skew_term_structure(skew_df: pd.DataFrame, ticker: str) -> go.Figure:
     return fig
 
 
+def plot_skew_25d_current(skew: dict, ticker: str) -> go.Figure:
+    """Bar chart of 25Δ put-call skew for front and second month expiries.
+
+    Args:
+        skew: dict with keys "front_month" and "second_month", each either None
+              or {"put_iv": float, "call_iv": float, "skew": float, "dte": float}
+        ticker: underlying ticker symbol
+    """
+    front = skew.get("front_month")
+    second = skew.get("second_month")
+
+    if front is None and second is None:
+        fig = go.Figure()
+        fig.update_layout(
+            template="plotly_dark",
+            title=f"25Δ Put-Call Skew — {ticker}: no data",
+            height=240,
+            margin=dict(t=50, b=40, l=65, r=20),
+        )
+        return fig
+
+    x_labels = []
+    y_values = []
+    if front is not None:
+        x_labels.append(f"Front ({front['dte']:.0f}d)")
+        y_values.append(front["skew"])
+    if second is not None:
+        x_labels.append(f"2nd ({second['dte']:.0f}d)")
+        y_values.append(second["skew"])
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=x_labels,
+        y=y_values,
+        marker_color="#f59e0b",
+        hovertemplate="%{x}<br>Skew: %{y:+.1f}pp<extra></extra>",
+    ))
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.2)", line_width=0.8)
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(text=f"25Δ Put-Call Skew — {ticker}", font_size=13),
+        yaxis_title="Skew (pp)",
+        yaxis_ticksuffix="pp",
+        showlegend=False,
+        height=240,
+        margin=dict(t=50, b=40, l=65, r=20),
+    )
+    return fig
+
+
+def plot_term_structure(ts: dict, ticker: str) -> go.Figure:
+    """ATM IV line chart with curve classification in title.
+
+    Args:
+        ts: dict with keys "points" (list of {"dte": float, "atm_iv": float})
+            and "classification" (str: "normal" | "flat" | "inverted" | "humped")
+        ticker: underlying ticker symbol
+
+    CRITICAL label constraint: classification is a descriptor only — no interpretive
+    suffix, no trade signals. Injected verbatim from vol_metrics.compute_term_structure().
+    """
+    points = ts.get("points", [])
+    classification = ts.get("classification", "normal")
+
+    if not points:
+        fig = go.Figure()
+        fig.update_layout(
+            template="plotly_dark",
+            title=f"ATM IV Term Structure — {ticker}: no data",
+            height=300,
+            margin=dict(t=50, b=40, l=65, r=20),
+        )
+        return fig
+
+    x = [p["dte"] for p in points]
+    y = [p["atm_iv"] for p in points]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=x,
+        y=y,
+        mode="lines+markers",
+        line=dict(color="#60a5fa", width=2),
+        marker=dict(size=6),
+        hovertemplate="DTE: %{x:.0f}<br>ATM IV: %{y:.1f}%<extra></extra>",
+    ))
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(
+            text=f"ATM IV Term Structure — {ticker}  ·  {classification}",
+            font_size=13,
+        ),
+        xaxis_title="DTE",
+        yaxis_title="ATM IV (%)",
+        yaxis_ticksuffix="%",
+        height=300,
+        margin=dict(t=50, b=40, l=65, r=20),
+    )
+    return fig
+
+
+def plot_carry_vrp(
+    iv30_pct: float | None,
+    rv20_pct: float | None,
+    vrp_pp: float | None,
+    ticker: str,
+) -> go.Figure:
+    """Grouped bar chart of IV30 vs RV20 with VRP spread in title.
+
+    UNIT CONSTRAINT: iv30_pct must already be in percent (e.g. 18.0), rv20_pct must
+    already be multiplied by 100 (e.g. 15.8), vrp_pp must already be multiplied by 100
+    (e.g. 2.2). The caller (streamlit_app.py) is responsible for the conversion.
+    This function does NOT convert — it renders what it receives.
+    """
+    fig = go.Figure()
+    labels = ["IV30", "RV20"]
+    values = [iv30_pct or 0.0, rv20_pct or 0.0]
+    colors = ["#f59e0b", "#60a5fa"]
+    fig.add_trace(go.Bar(
+        x=labels,
+        y=values,
+        marker_color=colors,
+        width=0.5,
+        hovertemplate="%{x}: %{y:.1f}%<extra></extra>",
+    ))
+    vrp_label = f"VRP: {vrp_pp:+.1f}pp" if vrp_pp is not None else "VRP: n/a (cold start)"
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(
+            text=f"Vol Carry / VRP — {ticker}  ·  {vrp_label}",
+            font_size=13,
+        ),
+        yaxis_title="Vol (%)",
+        yaxis_ticksuffix="%",
+        showlegend=False,
+        height=280,
+        margin=dict(t=50, b=40, l=65, r=20),
+    )
+    return fig
+
+
 def _bar_width(gex_df: pd.DataFrame) -> float:
     strikes = sorted(gex_df["strike"].unique())
     if len(strikes) < 2:
