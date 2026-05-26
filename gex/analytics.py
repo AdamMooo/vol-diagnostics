@@ -156,18 +156,9 @@ def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
     return fig
 
 
-def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
-                     iv30: float | None = None,
-                     gamma_flip: float | None = None,
-                     call_wall: float | None = None,
-                     put_wall: float | None = None) -> go.Figure:
+def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.Figure:
     """
     3D implied vol surface from the CBOE chain, OTM convention.
-
-    Annotations overlay the GEX positioning state onto the surface so the smile
-    shape can be read against where dealer exposure is concentrated:
-      - translucent grey plane at spot (log(K/S) = 0)
-      - meridian curves along the surface at γ-flip, call wall, put wall
 
     Built on linear interpolation onto a 50×40 DTE×log-moneyness grid (cubic
     produced overshoot artifacts at sparse boundaries).
@@ -223,15 +214,13 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
                       if lm_min <= np.log(k) <= lm_max]
     dte_ticks = [d for d in config.PLOT_DTE_ANCHORS if dte_min <= d <= dte_max]
 
-    iv30_label = f" · IV30 {iv30:.1f}%" if iv30 else ""
-
     fig = go.Figure(data=[go.Surface(
         x=dte_grid,
         y=lm_grid,
         z=IV,
         cmin=iv_floor,
         cmax=iv_cap,
-        colorscale="Plasma",
+        colorscale="Viridis",
         colorbar=dict(title="IV %", thickness=14, len=0.7, ticksuffix="%"),
         customdata=customdata,
         hovertemplate=(
@@ -245,62 +234,10 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
         showlegend=False,
     )])
 
-    # ── Annotations: spot plane + meridians for γ-flip / call wall / put wall ──
-    def _meridian_iv(target_lm: float) -> np.ndarray:
-        """IV(target_lm, dte) for each DTE in dte_grid — interpolated from the grid."""
-        out = np.empty_like(dte_grid)
-        for j in range(len(dte_grid)):
-            out[j] = np.interp(target_lm, lm_grid, IV[:, j])
-        return out
-
-    # Translucent spot plane at log(K/S) = 0
-    if lm_min <= 0 <= lm_max:
-        fig.add_trace(go.Mesh3d(
-            x=[dte_min, dte_max, dte_max, dte_min],
-            y=[0, 0, 0, 0],
-            z=[max(0, iv_floor - 2), max(0, iv_floor - 2), iv_cap, iv_cap],
-            i=[0, 0],
-            j=[1, 2],
-            k=[2, 3],
-            color="rgba(255,255,255,0.08)",
-            hoverinfo="skip",
-            showlegend=False,
-        ))
-
-    def _add_meridian(level: float | None, name: str, color: str,
-                      dash: str | None = None) -> None:
-        if level is None or level <= 0:
-            return
-        target_lm = float(np.log(level / spot))
-        if not (lm_min <= target_lm <= lm_max):
-            return
-        z_vals = _meridian_iv(target_lm)
-        # Slight z-offset so the line sits visibly on top of the surface
-        z_lifted = np.clip(z_vals, iv_floor, iv_cap)
-        fig.add_trace(go.Scatter3d(
-            x=dte_grid,
-            y=np.full_like(dte_grid, target_lm),
-            z=z_lifted,
-            mode="lines",
-            line=dict(color=color, width=6, dash=dash) if dash
-                 else dict(color=color, width=6),
-            name=f"{name} {level:.0f}",
-            hovertemplate=(
-                f"{name} @ K/S=%{{y:.3f}} (strike {level:.0f})<br>"
-                "DTE: %{x:.0f}<br>IV at level: %{z:.1f}%<extra></extra>"
-            ),
-            showlegend=True,
-        ))
-
-    _add_meridian(gamma_flip, "γ-flip", "#f59e0b", dash="dash")
-    _add_meridian(call_wall, "Call Wall", "#3b82f6")
-    _add_meridian(put_wall,  "Put Wall",  "#ef4444")
-
     fig.update_layout(
         template="plotly_dark",
         title=dict(
-            text=(f"IV Surface — {ticker} "
-                  f"(CBOE chain, OTM convention, log-moneyness){iv30_label}"),
+            text=f"IV Surface — {ticker}  (CBOE chain, OTM convention, log-moneyness)",
             font_size=13,
         ),
         scene=dict(
@@ -332,8 +269,6 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float,
                 range=[max(0, iv_floor - 2), iv_cap],
             ),
         ),
-        legend=dict(orientation="h", y=1.04, x=0.5, xanchor="center",
-                    bgcolor="rgba(0,0,0,0)", font=dict(size=11)),
         height=540,
         margin=dict(t=50, b=10, l=10, r=10),
     )
