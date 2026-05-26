@@ -341,9 +341,7 @@ for liquid-region focus.
   per Cont & da Fonseca 2002, Gatheral). **OTM convention**: put IV for K<S,
   call IV for K≥S — the industry standard (Gatheral §2.1). OTM options are
   more liquid and avoid American early-exercise distortion. Linear interpolation
-  onto a 50×40 grid (no overshoot artifacts). Annotated with **γ-flip, call
-  wall, and put wall meridians** so the smile shape can be read against the
-  dealer positioning state — the cross-product between vol structure and GEX.
+  onto a 50×40 grid (no overshoot artifacts). Clean surface — GEX overlays (γ-flip, call wall, put wall meridians) removed per v3.2 reframe; GEX context available in the Strikes tab.
 - **IV30** — CBOE-computed 30-day constant-maturity vol, taken directly from
   the delayed payload.
 

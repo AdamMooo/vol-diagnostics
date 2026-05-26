@@ -117,8 +117,6 @@ class TestComputeRv20:
         prices = [100 * (1.01 ** i) for i in range(22)]
         series = pd.Series(prices)
         # compute expected: use last 21 prices → 20 log returns
-        arr = np.array(prices)
-        log_returns = np.log(arr[1:] / arr[:-1])
         # iloc[-21:] gives the last 21 prices; log returns of those 21 prices = 20 returns
         last_21 = np.array(prices[-21:])
         expected = float(np.sqrt(252) * np.log(last_21[1:] / last_21[:-1]).std(ddof=1))
