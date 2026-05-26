@@ -12,6 +12,7 @@ from gex.compute import compute_ticker
 from gex.analytics import (
     plot_strike_gex, plot_gamma_profile,
     plot_vol_surface, plot_skew_term_structure,
+    plot_skew_25d_current, plot_term_structure, plot_carry_vrp,
 )
 from gex.report import REGIME_COLOR
 
@@ -20,7 +21,7 @@ INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 _B = 1e9
 
 st.set_page_config(
-    page_title="GEX Dashboard",
+    page_title="Vol Diagnostics",
     page_icon="assets/gamma-icon-lg.png",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -101,6 +102,22 @@ def _derive_observations(summary: dict, spot: float) -> list[str]:
     return obs
 
 
+def _carry_values(data: dict) -> tuple[float | None, float | None, float | None]:
+    """Return (iv30_pct, rv20_pct, vrp_pp) in display units.
+
+    iv30 from summary is already percent (e.g. 18.0).
+    rv20 and vrp from compute_ticker() are decimal fractions (e.g. 0.158, 0.022).
+    Multiply by 100 here so all three are in the same unit for plot_carry_vrp().
+    """
+    summary = data.get("summary", {})
+    iv30_pct = summary.get("iv30")
+    rv20 = data.get("rv20")
+    vrp = data.get("vrp")
+    rv20_pct = float(rv20 * 100) if rv20 is not None else None
+    vrp_pp = float(vrp * 100) if vrp is not None else None
+    return iv30_pct, rv20_pct, vrp_pp
+
+
 @st.cache_data(ttl=config.CACHE_TTL_TICKER, show_spinner=False)
 def fetch_ticker(ticker: str) -> dict:
     return compute_ticker(ticker)
@@ -151,107 +168,18 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
 """, unsafe_allow_html=True)
 
 
-def render_section(tickers: list[str], all_data: dict[str, dict],
-                   n_cols: int = 5) -> None:
-    data_list = [all_data[t] for t in tickers if t in all_data and not all_data[t]["summary"].get("error")]
-
+def render_regime_cards(tickers: list[str], all_data: dict[str, dict],
+                        n_cols: int = 3) -> None:
+    data_list = [all_data[t] for t in tickers if t in all_data
+                 and not all_data[t]["summary"].get("error")]
     if not data_list:
-        st.info("No data loaded for this section.")
+        st.info("No data loaded.")
         return
-
     rows = [data_list[i:i + n_cols] for i in range(0, len(data_list), n_cols)]
     for row in rows:
         cols = st.columns(n_cols)
         for col, data in zip(cols, row):
             render_regime_card(col, data["summary"], spot=data.get("spot"))
-
-    for data in data_list:
-        s = data["summary"]
-        ticker = s["ticker"]
-        spot = data.get("spot")
-        iv30 = s.get("iv30", 0.0)
-
-        net_b = (s.get("net_gex") or 0) / _B
-        spot_str = f"${spot:,.2f}" if spot else "—"
-        label = f"{ticker}   ·   {spot_str}   ·   Net {net_b:+.2f}B"
-
-        with st.expander(label, expanded=False):
-            tab_strikes, tab_vol, tab_history = st.tabs(["Strikes", "Vol", "History"])
-
-            with tab_strikes:
-                c1, c2 = st.columns([3, 2])
-                with c1:
-                    st.plotly_chart(plot_strike_gex(data["s_df"], spot, ticker, s),
-                                    use_container_width=True)
-                with c2:
-                    st.plotly_chart(plot_gamma_profile(data["p_df"], spot, ticker, s),
-                                    use_container_width=True)
-
-            with tab_vol:
-                surface_df = data.get("surface_df")
-                if surface_df is not None and not surface_df.empty:
-                    st.plotly_chart(
-                        plot_vol_surface(surface_df, ticker, spot=spot),
-                        use_container_width=True,
-                    )
-                skew_df = data.get("skew_df")
-                if skew_df is not None and not skew_df.empty:
-                    st.plotly_chart(
-                        plot_skew_term_structure(skew_df, ticker),
-                        use_container_width=True,
-                    )
-
-            with tab_history:
-                hist30 = _load_history_cached(ticker, days=config.HISTORY_DAYS)
-                if hist30.empty:
-                    st.caption("No history yet — daily snapshots accumulate from `gex.run_daily`.")
-                else:
-                    chart_df = hist30.sort_values("date")
-                    zgl_fig = go.Figure()
-                    zgl_fig.add_trace(go.Scatter(
-                        x=chart_df["date"], y=chart_df["zero_gamma_level"],
-                        name="γ-flip", line=dict(color="#f59e0b", width=1.5),
-                    ))
-                    zgl_fig.add_trace(go.Scatter(
-                        x=chart_df["date"], y=chart_df["spot"],
-                        name="Spot", line=dict(color="white", width=1.2, dash="dash"),
-                    ))
-                    zgl_fig.update_layout(
-                        template="plotly_dark",
-                        title=f"γ-flip vs Spot — {config.HISTORY_DAYS} sessions",
-                        height=260,
-                        margin=dict(t=40, b=30, l=60, r=20),
-                        legend=dict(orientation="h", y=1.15),
-                    )
-                    st.plotly_chart(zgl_fig, use_container_width=True)
-
-                    if "front_skew" in chart_df.columns and chart_df["front_skew"].notna().any():
-                        skew_hist = chart_df.dropna(subset=["front_skew"])
-                        skew_fig = go.Figure()
-                        skew_fig.add_trace(go.Scatter(
-                            x=skew_hist["date"], y=skew_hist["front_skew"],
-                            name="Skew (25Δ)",
-                            mode="lines+markers",
-                            line=dict(color="#f59e0b", width=1.5),
-                            marker=dict(size=5),
-                            hovertemplate="%{x|%b %d}<br>Skew: %{y:+.2f}pp<extra></extra>",
-                        ))
-                        skew_fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
-                        skew_fig.update_layout(
-                            template="plotly_dark",
-                            title=f"Skew (25Δ put − 50Δ call) — {config.HISTORY_DAYS} sessions",
-                            height=240,
-                            yaxis_title="Skew (pp)",
-                            yaxis_ticksuffix="pp",
-                            margin=dict(t=40, b=30, l=60, r=20),
-                            showlegend=False,
-                        )
-                        st.plotly_chart(skew_fig, use_container_width=True)
-                    else:
-                        st.caption(
-                            "Skew history empty — accumulates from today's `gex.run_daily` run forward. "
-                            "Existing snapshots predate the skew metric and will show NaN."
-                        )
 
 
 # ── Boot ──────────────────────────────────────────────────────────────────────
@@ -303,7 +231,224 @@ if not all_data:
     st.stop()
 
 if sel_index:
-    render_section(sel_index, all_data, n_cols=min(len(sel_index), 3))
+    render_regime_cards(sel_index, all_data)
+
+    tab_surface, tab_skew, tab_term, tab_carry, tab_flow = st.tabs(
+        ["Surface", "Skew", "Term Structure", "Carry", "Flow Context"]
+    )
+
+    # ── Surface ──────────────────────────────────────────────────────────────
+    with tab_surface:
+        for ticker in selected_all:
+            if ticker not in all_data:
+                continue
+            data = all_data[ticker]
+            surface_df = data.get("surface_df")
+            spot = data.get("spot")
+            if surface_df is not None and not surface_df.empty:
+                st.plotly_chart(
+                    plot_vol_surface(surface_df, ticker, spot=spot),
+                    use_container_width=True,
+                )
+            else:
+                st.caption(f"{ticker}: insufficient data for surface.")
+
+    # ── Skew ─────────────────────────────────────────────────────────────────
+    with tab_skew:
+        cols_skew = st.columns(len(selected_all)) if len(selected_all) > 1 else [st]
+        for col, ticker in zip(cols_skew, selected_all):
+            if ticker not in all_data:
+                continue
+            data = all_data[ticker]
+            skew_data = data.get("skew") or {}
+            front = skew_data.get("front_month")
+            second = skew_data.get("second_month")
+
+            with col:
+                st.plotly_chart(
+                    plot_skew_25d_current(skew_data, ticker),
+                    use_container_width=True,
+                )
+                if front or second:
+                    m1, m2 = st.columns(2)
+                    with m1:
+                        if front:
+                            st.metric(
+                                f"Front ({front['dte']:.0f} DTE)",
+                                f"{front['skew']:+.1f}pp",
+                                help="25Δ put IV − 25Δ call IV",
+                            )
+                        else:
+                            st.caption("Front month: insufficient chain data")
+                    with m2:
+                        if second:
+                            st.metric(
+                                f"2nd ({second['dte']:.0f} DTE)",
+                                f"{second['skew']:+.1f}pp",
+                                help="25Δ put IV − 25Δ call IV",
+                            )
+                        else:
+                            st.caption("Second month: insufficient chain data")
+
+                hist30 = _load_history_cached(ticker, days=config.HISTORY_DAYS)
+                if hist30.empty:
+                    st.caption("No history yet — daily snapshots accumulate from `gex.run_daily`.")
+                else:
+                    chart_df = hist30.sort_values("date")
+                    if "front_skew" in chart_df.columns and chart_df["front_skew"].notna().any():
+                        skew_hist = chart_df.dropna(subset=["front_skew"])
+                        skew_fig = go.Figure()
+                        skew_fig.add_trace(go.Scatter(
+                            x=skew_hist["date"],
+                            y=skew_hist["front_skew"],
+                            mode="lines+markers",
+                            line=dict(color="#f59e0b", width=1.5),
+                            marker=dict(size=5),
+                            hovertemplate="%{x|%b %d}<br>Skew: %{y:+.2f}pp<extra></extra>",
+                        ))
+                        skew_fig.add_hline(
+                            y=0,
+                            line_color="rgba(255,255,255,0.15)",
+                            line_width=0.8,
+                        )
+                        skew_fig.update_layout(
+                            template="plotly_dark",
+                            title=f"Skew (25Δ put − 50Δ call) — {config.HISTORY_DAYS} sessions",
+                            height=240,
+                            yaxis_title="Skew (pp)",
+                            yaxis_ticksuffix="pp",
+                            margin=dict(t=40, b=30, l=60, r=20),
+                            showlegend=False,
+                        )
+                        st.plotly_chart(skew_fig, use_container_width=True)
+                    else:
+                        st.caption(
+                            "Skew history empty — accumulates from today's `gex.run_daily` run forward."
+                        )
+
+    # ── Term Structure ────────────────────────────────────────────────────────
+    with tab_term:
+        cols_term = st.columns(len(selected_all)) if len(selected_all) > 1 else [st]
+        for col, ticker in zip(cols_term, selected_all):
+            if ticker not in all_data:
+                continue
+            data = all_data[ticker]
+            ts = data.get("term_structure") or {}
+            with col:
+                st.plotly_chart(
+                    plot_term_structure(ts, ticker),
+                    use_container_width=True,
+                )
+                classification = ts.get("classification")
+                if classification:
+                    st.caption(f"Term structure: {classification}")
+
+    # ── Carry ─────────────────────────────────────────────────────────────────
+    with tab_carry:
+        cols_carry = st.columns(len(selected_all)) if len(selected_all) > 1 else [st]
+        for col, ticker in zip(cols_carry, selected_all):
+            if ticker not in all_data:
+                continue
+            data = all_data[ticker]
+            iv30_pct, rv20_pct, vrp_pp = _carry_values(data)
+            with col:
+                st.plotly_chart(
+                    plot_carry_vrp(iv30_pct, rv20_pct, vrp_pp, ticker),
+                    use_container_width=True,
+                )
+                if iv30_pct is None and rv20_pct is None:
+                    st.caption(
+                        "Not yet available — accumulates after 20 daily runs."
+                    )
+
+                hist30 = _load_history_cached(ticker, days=config.HISTORY_DAYS)
+                if hist30.empty:
+                    st.caption("No history yet — daily snapshots accumulate from `gex.run_daily`.")
+                else:
+                    chart_df = hist30.sort_values("date")
+                    if "vrp" in chart_df.columns and chart_df["vrp"].notna().any():
+                        vrp_hist = chart_df.dropna(subset=["vrp"]).copy()
+                        vrp_hist["vrp_pp"] = vrp_hist["vrp"] * 100
+                        vrp_fig = go.Figure()
+                        vrp_fig.add_trace(go.Scatter(
+                            x=vrp_hist["date"],
+                            y=vrp_hist["vrp_pp"],
+                            mode="lines+markers",
+                            line=dict(color="#a78bfa", width=1.5),
+                            marker=dict(size=5),
+                            hovertemplate="%{x|%b %d}<br>VRP: %{y:+.2f}pp<extra></extra>",
+                        ))
+                        vrp_fig.add_hline(
+                            y=0,
+                            line_color="rgba(255,255,255,0.15)",
+                            line_width=0.8,
+                        )
+                        vrp_fig.update_layout(
+                            template="plotly_dark",
+                            title=f"Vol Carry / VRP — {config.HISTORY_DAYS} sessions",
+                            height=240,
+                            yaxis_title="VRP (vol pts)",
+                            yaxis_ticksuffix="pp",
+                            margin=dict(t=40, b=30, l=60, r=20),
+                            showlegend=False,
+                        )
+                        st.plotly_chart(vrp_fig, use_container_width=True)
+                    else:
+                        st.caption(
+                            "VRP history empty — accumulates from today's `gex.run_daily` run forward."
+                        )
+
+    # ── Flow Context ──────────────────────────────────────────────────────────
+    with tab_flow:
+        st.markdown(
+            "### Microstructure / Execution Context — model-based, not market prices",
+            unsafe_allow_html=False,
+        )
+        st.caption(
+            "GEX assumes dealers are net short all options (Garleanu, Pedersen & Poteshman 2009). "
+            "Sign and order of magnitude are informative; absolute levels are vendor-dependent."
+        )
+        for ticker in selected_all:
+            if ticker not in all_data:
+                continue
+            data = all_data[ticker]
+            s = data["summary"]
+            spot = data.get("spot")
+            c1, c2 = st.columns([3, 2])
+            with c1:
+                st.plotly_chart(
+                    plot_strike_gex(data["s_df"], spot, ticker, s),
+                    use_container_width=True,
+                )
+            with c2:
+                st.plotly_chart(
+                    plot_gamma_profile(data["p_df"], spot, ticker, s),
+                    use_container_width=True,
+                )
+            hist30 = _load_history_cached(ticker, days=config.HISTORY_DAYS)
+            if not hist30.empty:
+                chart_df = hist30.sort_values("date")
+                zgl_fig = go.Figure()
+                zgl_fig.add_trace(go.Scatter(
+                    x=chart_df["date"],
+                    y=chart_df["zero_gamma_level"],
+                    name="γ-flip",
+                    line=dict(color="#f59e0b", width=1.5),
+                ))
+                zgl_fig.add_trace(go.Scatter(
+                    x=chart_df["date"],
+                    y=chart_df["spot"],
+                    name="Spot",
+                    line=dict(color="white", width=1.2, dash="dash"),
+                ))
+                zgl_fig.update_layout(
+                    template="plotly_dark",
+                    title=f"γ-flip vs Spot — {config.HISTORY_DAYS} sessions",
+                    height=260,
+                    margin=dict(t=40, b=30, l=60, r=20),
+                    legend=dict(orientation="h", y=1.15),
+                )
+                st.plotly_chart(zgl_fig, use_container_width=True)
 
 # ── Methodology & assumptions (consolidated) ──────────────────────────────────
 with st.expander("Methodology & Assumptions  ·  read before trading off this", expanded=False):
