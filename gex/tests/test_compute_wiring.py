@@ -98,7 +98,7 @@ class TestComputeTickerReturnKeys:
              mock.patch.object(compute_mod, "gamma_profile", return_value=fake_p_df), \
              mock.patch.object(compute_mod, "vol_surface_data", return_value=fake_surface_df), \
              mock.patch.object(compute_mod, "compute_skew", return_value=fake_skew_df), \
-             mock.patch("gex.validation.load_history", return_value=pd.DataFrame()):
+             mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()):
             result = compute_mod.compute_ticker("SPY")
 
         return result
