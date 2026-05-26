@@ -85,7 +85,8 @@ def compute_ticker(ticker: str) -> dict:
     else:
         spot_series = hist["spot"].iloc[::-1]   # reverse to oldest-first (load_history returns descending)
         rv20 = compute_rv20(spot_series)
-        vrp = compute_vrp(snapshot.iv30, rv20)
+        iv30_decimal = (snapshot.iv30 / 100.0) if snapshot.iv30 is not None else None
+        vrp = compute_vrp(iv30_decimal, rv20)
     summary["rv20"] = rv20
     summary["vrp"] = vrp
 
