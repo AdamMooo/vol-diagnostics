@@ -74,7 +74,10 @@ Plans:
   4. **Carry tab**: IV30 vs RV20 side-by-side + VRP spread (IV30 − RV20) with rolling history; labeled as "vol carry / VRP"
   5. **Flow Context tab**: GEX, net gamma, zero-gamma level displayed here only, with explicit header "Microstructure / Execution Context — model-based, not market prices"
   6. No deterministic language anywhere on dashboard; all panels use precise metric labels
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 07-01-PLAN.md — add plot_skew_25d_current(), plot_term_structure(), plot_carry_vrp() to analytics.py + 6 smoke tests
+- [ ] 07-02-PLAN.md — restructure streamlit_app.py: 5-tab layout, wire Phase 6 data, move GEX to Flow Context
 **UI hint**: yes
 
 ---
