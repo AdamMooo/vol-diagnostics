@@ -40,7 +40,7 @@ PM-facing questions this product answers:
 
 ### 🚧 v3.2 Institutional Vol Diagnostics
 
-- [ ] **Phase 6: Whole-Chain Computation Engine** — 25Δ skew, ATM term structure, VRP/carry engine, clean surface data; noise cuts
+- [x] **Phase 6: Whole-Chain Computation Engine** — 25Δ skew, ATM term structure, VRP/carry engine, clean surface data; noise cuts (2026-05-26)
 - [ ] **Phase 7: Institutional Dashboard Rendering** — 5-module tab structure: Surface, Skew, Term Structure, Carry, Flow Context (GEX demoted)
 
 ## Phase Details
@@ -108,6 +108,7 @@ Plans:
 | 6. Whole-Chain Computation Engine | v3.2 | 4/4 | Complete | 2026-05-26 |
 | 7. Institutional Dashboard Rendering | v3.2 | 0/TBD | Not started | - |
 
+---
 ---
 ---
 ---

@@ -18,10 +18,10 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 6 of 7 (Whole-Chain Computation Engine) — COMPLETE (human UAT pending)
-Plan: 4 of 4 plans complete
-Status: Awaiting human verification (3 browser tests)
-Last activity: 2026-05-26 — Phase 6 all plans done; 60 tests pass; 06-04 gap closure executed
+Phase: 7 of 7 (Institutional Dashboard Rendering)
+Plan: 0/TBD — not started
+Status: Ready to plan
+Last activity: 2026-05-26 — Phase 6 UAT complete; marked done; advancing to Phase 7
 
 Progress: [█████░░░░░] 50% (v3.2)
 
@@ -72,11 +72,13 @@ None.
 ## Session Continuity
 
 Last session: 2026-05-26
-Stopped at: Phase 6 complete — all 4 plans done, 60 tests pass, human UAT pending (3 browser tests)
+Stopped at: Phase 6 UAT signed off — 1 pass, 1 cosmetic issue (vol surface labels/symmetry, deferred to Phase 7), 1 skip (VRP display is Phase 7 scope). Phase 6 marked complete.
 Resume file: None
 
-**Next action:** Run browser UAT (streamlit run streamlit_app.py), then `/gsd-discuss-phase 7` or `/gsd-plan-phase 7`
+**Next action:** `/gsd-discuss-phase 7` or `/gsd-plan-phase 7`
 
+---
+---
 ---
 ---
 ---

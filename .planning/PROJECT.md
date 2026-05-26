@@ -1,6 +1,6 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-05-21 — v3.2 milestone started; PM-actionable positioning pivot*
+*Last updated: 2026-05-26 — Phase 6 complete; vol metrics computation engine built; advancing to Phase 7 rendering*
 
 ## Current Milestone: v3.2 — Actionable Positioning Context
 
@@ -84,15 +84,22 @@ Given today's dealer positioning across SPY/QQQ/IWM — should a PM pay up for p
 | ZGL flow row | ~20% numerical differentiation error | 2026-05-11 |
 | GEX-weighted wall cluster | Arbitrary band parameters | 2026-05-11 |
 
-### Active (v3.2)
+### Validated / Implemented (v3.2 Phase 6)
+
+- ✓ CUT-01 — Hedge Sh/$1, % vs ZGL, strike slope, term slope removed from cards — Phase 6
+- ✓ INFRA-01 — `gex/vol_metrics.py` with compute_skew_25d, compute_term_structure, compute_rv20, compute_vrp — Phase 6
+- ✓ INFRA-02 — Parquet schema extended with rv20 + vrp columns; old snapshots load safely — Phase 6
+- ✓ SURF-CLEAN — Vol surface stripped of GEX overlays (no meridians, no spot plane), Viridis colorscale — Phase 6
+
+### Active (v3.2 Phase 7)
 
 - [ ] NARR-01 — Positioning narrative (always-visible mechanical explanation of GEX sign)
 - [ ] NARR-02 — GEX percentile rank vs trailing history
-- [ ] CTX-01 — VRP display (IV30 − RV20) with hedging cost interpretation
+- [ ] CTX-01 — VRP display (IV30 − RV20) with hedging cost interpretation — computation done (Phase 6), rendering pending
 - [ ] CTX-02 — OI tilt (dollar-weighted put vs call OI)
 - [ ] CTX-03 — Front skew gauge with percentile rank
-- [ ] CUT-01 — Remove Hedge Sh/$1, % vs ZGL, strike slope, term slope from cards
 - [ ] CUT-02 — Demote vol surface to collapsed/optional section
+- [ ] SURF-UX — Vol surface labels + grid interpolation cosmetic fix (user reported: too symmetric, labels unclear)
 
 ### Out of Scope
 
@@ -111,6 +118,8 @@ Given today's dealer positioning across SPY/QQQ/IWM — should a PM pay up for p
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-05-26 | iv30 normalised to decimal at compute_ticker() call site before compute_vrp | Keeps compute_vrp() contract pure (decimal-only); unit mismatch was producing VRP ~17-18 instead of ~0.02 |
+| 2026-05-26 | Vol surface overlays fully stripped; Viridis colorscale | GEX overlays demoted to Strikes tab per v3.2 reframe |
 | 2026-05-21 | Pivot to PM-actionable positioning; cut non-decision metrics | Outputs audited against "does this change a PM decision?"; mathematical elegance deprioritized |
 | 2026-05-21 | Add VRP (IV30 − RV20) as hedging cost context | Carr & Wu (2009) VRP; descriptive metric even without causal backing |
 | 2026-05-21 | Kill strike slope, term slope, hedge sh/$1, % vs ZGL | None inform a PM decision; model constructs without predictive value |
