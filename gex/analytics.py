@@ -224,17 +224,6 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
         showlegend=False,
     ))
 
-    # Raw chain quotes as white scatter — shows where actual data exists
-    fig.add_trace(go.Scatter3d(
-        x=dte_vals,
-        y=pct_otm,
-        z=iv_vals,
-        mode="markers",
-        marker=dict(size=2, color="white", opacity=0.45),
-        hovertemplate="DTE: %{x:.0f}<br>% OTM: %{y:.1f}%<br>IV: %{z:.1f}%<extra></extra>",
-        showlegend=False,
-    ))
-
     fig.update_layout(
         template="plotly_dark",
         title=dict(
