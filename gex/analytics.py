@@ -221,8 +221,6 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
             "% OTM: %{y:.1f}%<br>"
             "IV: %{z:.1f}%<extra></extra>"
         ),
-        contours=dict(z=dict(show=True, usecolormap=True, project_z=True,
-                             highlight=False, width=2)),
         showlegend=False,
     ))
 
