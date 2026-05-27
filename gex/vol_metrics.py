@@ -93,7 +93,7 @@ def compute_term_structure(df: pd.DataFrame, spot: float) -> dict:
     points = []
     for expiry, grp in valid.groupby("expiry"):
         dte = float(grp["dte"].iloc[0])
-        calls = grp[grp["type"] == "call"]
+        calls = grp[(grp["type"] == "call") & (grp["strike"] >= spot)]
         candidates = calls if not calls.empty else grp[grp["type"] == "put"]
         if candidates.empty:
             continue
@@ -168,6 +168,8 @@ def compute_rv20(spot_history: pd.Series) -> float | None:
         return None
 
     prices = spot_history.iloc[-21:].to_numpy(dtype=float)
+    if np.any(np.isnan(prices)) or np.any(prices <= 0):
+        return None
     log_returns = np.log(prices[1:] / prices[:-1])
     return float(np.sqrt(252) * log_returns.std(ddof=1))
 

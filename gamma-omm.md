@@ -48,15 +48,15 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-26 19:18 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-26 19:21 UTC
 
 **Milestone:** v3.2 — Institutional Vol Diagnostics · **Status:** unknown · **STATE last_updated:** ?
 
 ### Current Position
 - **Phase:** 7 of 7 (Institutional Dashboard Rendering)
-- **Plan:** 1/2 — 07-01 complete
-- **Status:** In progress
-- **Last activity:** 2026-05-26 — 07-01 complete: 3 chart functions + 6 smoke tests added to analytics.py
+- **Plan:** 2/2 — 07-02 Task 1 complete, awaiting UAT checkpoint
+- **Status:** In progress — blocked at human-verify checkpoint
+- **Last activity:** 2026-05-26 — 07-02 Task 1: streamlit_app.py restructured to 5-tab layout (fe44011)
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->

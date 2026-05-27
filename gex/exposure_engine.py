@@ -93,17 +93,22 @@ def vol_surface_data(df: pd.DataFrame, spot: float,
     )
 
 
-def compute_skew(df: pd.DataFrame, min_dte: int = config.SKEW_MIN_DTE) -> pd.DataFrame:
+def compute_skew(df: pd.DataFrame, spot: float, min_dte: int = config.SKEW_MIN_DTE) -> pd.DataFrame:
     """
-    Per-expiry IV skew: IV(25Δ put) − IV(50Δ call), in percentage points.
+    Per-expiry IV skew: IV(25Δ put) − IV(25Δ call), in percentage points.
 
-    Uses delta-based selection (CBOE-supplied). Front-month defined as nearest
-    expiry with DTE >= min_dte to avoid expiry-day gamma noise.
+    Symmetric 25Δ risk reversal — measures wing asymmetry without conflating
+    ATM level with skew. Uses delta-based selection (CBOE-supplied). Front-month
+    defined as nearest expiry with DTE >= min_dte to avoid expiry-day noise.
 
-    Methodology: Xing, Zhang & Zhao (2010, JFQA) — steeper skew predicts
-    subsequent underperformance (10.9% annual alpha).
+    OTM filter enforced: puts must be below spot, calls at/above spot. Prevents
+    deep ITM options (which can have |delta|≈0.25) from being selected as the
+    wing leg — ITM IVs carry intrinsic value distortion, not wing vol.
 
-    Returns DataFrame: expiry, dte, put_25d_iv, call_50d_iv, skew_pp.
+    Methodology: symmetric 25Δ convention. Xing, Zhang & Zhao (2010, JFQA) used
+    50Δ−25Δ; directional finding holds but magnitude comparisons don't apply directly.
+
+    Returns DataFrame: expiry, dte, put_25d_iv, call_25d_iv, skew_pp.
     """
     valid = df[(df["T_years"] > 0) & (df["iv"] > 0) & (df["oi"] > 0)].copy()
     valid["dte"] = valid["T_years"] * 365
@@ -113,8 +118,8 @@ def compute_skew(df: pd.DataFrame, min_dte: int = config.SKEW_MIN_DTE) -> pd.Dat
         dte = grp["dte"].iloc[0]
         if dte < min_dte:
             continue
-        puts = grp[grp["type"] == "put"]
-        calls = grp[grp["type"] == "call"]
+        puts = grp[(grp["type"] == "put") & (grp["strike"] < spot)]
+        calls = grp[(grp["type"] == "call") & (grp["strike"] >= spot)]
         if puts.empty or calls.empty:
             continue
         put_idx = (puts["delta"] - config.SKEW_PUT_DELTA).abs().idxmin()
@@ -125,7 +130,7 @@ def compute_skew(df: pd.DataFrame, min_dte: int = config.SKEW_MIN_DTE) -> pd.Dat
             "expiry": expiry,
             "dte": dte,
             "put_25d_iv": put_iv,
-            "call_50d_iv": call_iv,
+            "call_25d_iv": call_iv,
             "skew_pp": put_iv - call_iv,
         })
 

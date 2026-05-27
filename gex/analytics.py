@@ -161,49 +161,71 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
     3D implied vol surface from the CBOE chain, OTM convention.
 
     Coordinate system: x=DTE, y=% OTM (K/S−1)×100, z=IV%.
-    Coarse grid (25×20); NaN left as holes where data is absent — no
-    nearest-neighbour fill so the surface only exists where real quotes are.
-    Raw data points overlaid as white scatter so chain density is visible.
+    Grid 40×30; RBF thin-plate-spline interpolation fills the full grid
+    without NaN cliffs at convex-hull boundaries. Axes are fixed-range so
+    the visual footprint is stable across sessions. DTE floor=5 suppresses
+    near-expiry microstructure spikes. Colorscale: Plasma (dark=low IV,
+    bright/yellow=high wing vol).
     """
-    from scipy.interpolate import griddata
+    from scipy.interpolate import RBFInterpolator
 
-    if surface_df.empty or len(surface_df) < 6:
+    _DTE_FLOOR = 5
+
+    def _empty(reason: str) -> go.Figure:
         fig = go.Figure()
         fig.update_layout(
             template="plotly_dark",
-            title=f"IV Surface — {ticker}: insufficient data",
+            title=f"IV Surface — {ticker}: {reason}",
             height=480,
             margin=dict(t=50, b=10, l=10, r=10),
         )
         return fig
 
+    if surface_df.empty or len(surface_df) < 6:
+        return _empty("insufficient data")
+
+    clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
+
     pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
     dte_vals = surface_df["dte"].to_numpy()
     iv_vals = surface_df["iv_pct"].to_numpy()
 
+    in_band = (np.abs(pct_otm) <= clip_pct) & (dte_vals >= _DTE_FLOOR)
+    pct_otm = pct_otm[in_band]
+    dte_vals = dte_vals[in_band]
+    iv_vals = iv_vals[in_band]
+
+    if len(iv_vals) < 6:
+        return _empty("insufficient data after clip")
+
     pts = np.column_stack([dte_vals, pct_otm])
 
-    dte_min = max(float(dte_vals.min()), 1.0)
+    dte_min = float(_DTE_FLOOR)  # pin to floor, not data minimum — fixed visual footprint
     dte_max = min(float(dte_vals.max()), float(config.SURFACE_DTE_MAX))
-    otm_min = float(pct_otm.min())
-    otm_max = float(pct_otm.max())
+    if dte_max <= dte_min + 1:
+        return _empty("single expiry — surface requires ≥2 expirations")
 
     dte_grid = np.linspace(dte_min, dte_max, config.SURFACE_GRID_DTE)
-    otm_grid = np.linspace(otm_min, otm_max, config.SURFACE_GRID_LM)
+    otm_grid = np.linspace(-clip_pct, clip_pct, config.SURFACE_GRID_LM)
     DTE, OTM = np.meshgrid(dte_grid, otm_grid)
 
-    # Linear interpolation only — NaN stays NaN where chain data is absent.
-    # No nearest-neighbour fill: surface shows honest holes, not extrapolation.
-    IV = griddata(pts, iv_vals, (DTE, OTM), method="linear")
+    # RBF thin-plate-spline: no convex-hull NaN cliffs, graceful extrapolation,
+    # smoothing=1.5 regularises without over-flattening the skew shape.
+    # Scale axes: DTE spans ~5–180, OTM spans ~±15 — must normalise or DTE dominates.
+    pts_std = pts.std(axis=0)
+    pts_std[pts_std < 1e-6] = 1.0
+    rbf = RBFInterpolator(pts / pts_std, iv_vals, kernel="thin_plate_spline", smoothing=1.5)
+    grid_pts = np.column_stack([DTE.ravel(), OTM.ravel()])
+    IV = rbf(grid_pts / pts_std).reshape(DTE.shape)
+    IV = np.clip(IV, 0.0, None)  # RBF can extrapolate to negative at boundaries
 
-    all_nan = np.all(np.isnan(IV))
-    iv_floor = float(np.nanmin(IV)) if not all_nan else 0.0
-    iv_cap = float(np.nanpercentile(IV, config.SURFACE_Z_CAP_PERCENTILE)) if not all_nan else 100.0
+    iv_floor = float(IV.min())
+    iv_cap = float(np.percentile(IV, config.SURFACE_Z_CAP_PERCENTILE))
 
     otm_ticks = [(k - 1.0) * 100.0 for k in config.PLOT_KS_ANCHORS
-                 if otm_min <= (k - 1.0) * 100.0 <= otm_max]
+                 if -clip_pct <= (k - 1.0) * 100.0 <= clip_pct]
     otm_tick_labels = [f"{(k - 1.0) * 100:+.0f}%" for k in config.PLOT_KS_ANCHORS
-                       if otm_min <= (k - 1.0) * 100.0 <= otm_max]
+                       if -clip_pct <= (k - 1.0) * 100.0 <= clip_pct]
     dte_ticks = [d for d in config.PLOT_DTE_ANCHORS if dte_min <= d <= dte_max]
 
     fig = go.Figure()
@@ -214,8 +236,19 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
         z=IV,
         cmin=iv_floor,
         cmax=iv_cap,
-        colorscale="Viridis",
-        colorbar=dict(title="IV %", thickness=14, len=0.7, ticksuffix="%"),
+        colorscale="Plasma",
+        colorbar=dict(title="IV %", thickness=14, len=0.65, ticksuffix="%"),
+        lighting=dict(
+            ambient=0.7,
+            diffuse=0.6,
+            specular=0.2,
+            roughness=0.45,
+            fresnel=0.2,
+        ),
+        contours=dict(
+            z=dict(show=True, usecolormap=True, highlightcolor="white",
+                   project_z=True, width=1),
+        ),
         hovertemplate=(
             "DTE: %{x:.0f}<br>"
             "% OTM: %{y:.1f}%<br>"
@@ -234,27 +267,29 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
             xaxis_title="DTE",
             yaxis_title="% OTM",
             zaxis_title="IV (%)",
-            camera=dict(eye=dict(x=-1.7, y=-1.7, z=1.1)),
+            camera=dict(eye=dict(x=2.0, y=-1.2, z=0.8)),
             aspectmode="manual",
-            aspectratio=dict(x=1.4, y=1.4, z=0.7),
+            aspectratio=dict(x=1.5, y=1.2, z=0.6),
             xaxis=dict(
                 showgrid=True,
-                gridcolor="rgba(255,255,255,0.08)",
+                gridcolor="rgba(255,255,255,0.06)",
                 tickmode="array",
                 tickvals=dte_ticks,
                 ticktext=[str(d) for d in dte_ticks],
                 tickfont=dict(size=10),
+                range=[dte_min, dte_max],
             ),
             yaxis=dict(
                 showgrid=True,
-                gridcolor="rgba(255,255,255,0.08)",
+                gridcolor="rgba(255,255,255,0.06)",
                 tickmode="array",
                 tickvals=otm_ticks,
                 ticktext=otm_tick_labels,
+                range=[-clip_pct, clip_pct],
             ),
             zaxis=dict(
                 showgrid=True,
-                gridcolor="rgba(255,255,255,0.08)",
+                gridcolor="rgba(255,255,255,0.06)",
                 ticksuffix="%",
                 range=[max(0, iv_floor - 2), iv_cap],
             ),
@@ -265,8 +300,190 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
     return fig
 
 
+def plot_iv_change_surface(
+    df_today: pd.DataFrame,
+    df_prior: pd.DataFrame,
+    ticker: str,
+    spot_today: float,
+    spot_prior: float,
+    label_prior: str,
+) -> go.Figure:
+    """
+    ∆IV surface: IV_today − IV_prior on a common fixed % OTM / DTE grid.
+
+    Both surfaces are interpolated independently with RBF on the same grid,
+    then differenced. Colorscale RdBu_r centred at 0 — red = vol up,
+    blue = vol down. Each day's strikes are normalised by that day's spot
+    so the % OTM axis is comparable across sessions.
+    """
+    from scipy.interpolate import RBFInterpolator
+
+    _DTE_FLOOR = 5
+
+    def _empty(reason: str) -> go.Figure:
+        fig = go.Figure()
+        fig.update_layout(
+            template="plotly_dark",
+            title=f"∆IV Surface — {ticker}: {reason}",
+            height=480,
+            margin=dict(t=50, b=10, l=10, r=10),
+        )
+        return fig
+
+    if df_today.empty or df_prior.empty:
+        return _empty("missing data for one or both dates")
+
+    clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
+
+    def _rbf_grid(df: pd.DataFrame, spot: float, dte_grid: np.ndarray,
+                  otm_grid: np.ndarray) -> np.ndarray:
+        pct_otm = (df["strike"].to_numpy() / spot - 1.0) * 100.0
+        dte_v = df["dte"].to_numpy()
+        iv_v = df["iv_pct"].to_numpy()
+        mask = (np.abs(pct_otm) <= clip_pct) & (dte_v >= _DTE_FLOOR)
+        pct_otm, dte_v, iv_v = pct_otm[mask], dte_v[mask], iv_v[mask]
+        if len(iv_v) < 6:
+            return np.full((len(otm_grid), len(dte_grid)), np.nan)
+        pts = np.column_stack([dte_v, pct_otm])
+        pts_std = pts.std(axis=0)
+        pts_std[pts_std < 1e-6] = 1.0
+        rbf = RBFInterpolator(pts / pts_std, iv_v, kernel="thin_plate_spline", smoothing=1.5)
+        DTE, OTM = np.meshgrid(dte_grid, otm_grid)
+        grid_pts = np.column_stack([DTE.ravel(), OTM.ravel()])
+        IV = rbf(grid_pts / pts_std).reshape(DTE.shape)
+        return np.clip(IV, 0.0, None)
+
+    # Shared grid bounded by the intersection of both datasets
+    dte_min = max(float(df_today["dte"].min()), float(df_prior["dte"].min()), float(_DTE_FLOOR))
+    dte_max = min(
+        min(float(df_today["dte"].max()), float(df_prior["dte"].max())),
+        float(config.SURFACE_DTE_MAX),
+    )
+    if dte_min >= dte_max:
+        return _empty("DTE ranges do not overlap")
+
+    dte_grid = np.linspace(dte_min, dte_max, config.SURFACE_GRID_DTE)
+    otm_grid = np.linspace(-clip_pct, clip_pct, config.SURFACE_GRID_LM)
+
+    IV_today = _rbf_grid(df_today, spot_today, dte_grid, otm_grid)
+    IV_prior = _rbf_grid(df_prior, spot_prior, dte_grid, otm_grid)
+    IV_diff = IV_today - IV_prior
+
+    abs_max = float(np.nanpercentile(np.abs(IV_diff), 97)) if not np.all(np.isnan(IV_diff)) else 1.0
+    if abs_max < 0.5:
+        abs_max = 0.5  # keep scale readable when vol barely moved
+
+    otm_ticks = [(k - 1.0) * 100.0 for k in config.PLOT_KS_ANCHORS
+                 if -clip_pct <= (k - 1.0) * 100.0 <= clip_pct]
+    otm_tick_labels = [f"{(k - 1.0) * 100:+.0f}%" for k in config.PLOT_KS_ANCHORS
+                       if -clip_pct <= (k - 1.0) * 100.0 <= clip_pct]
+    dte_ticks = [d for d in config.PLOT_DTE_ANCHORS if dte_min <= d <= dte_max]
+
+    fig = go.Figure()
+    fig.add_trace(go.Surface(
+        x=dte_grid,
+        y=otm_grid,
+        z=IV_diff,
+        cmin=-abs_max,
+        cmax=abs_max,
+        colorscale="RdBu_r",
+        colorbar=dict(title="∆IV (pp)", thickness=14, len=0.65, ticksuffix="pp"),
+        lighting=dict(ambient=0.7, diffuse=0.6, specular=0.2, roughness=0.45, fresnel=0.2),
+        contours=dict(
+            z=dict(show=True, usecolormap=True, highlightcolor="white",
+                   project_z=True, width=1),
+        ),
+        hovertemplate=(
+            "DTE: %{x:.0f}<br>"
+            "% OTM: %{y:.1f}%<br>"
+            "∆IV: %{z:+.1f}pp<extra></extra>"
+        ),
+        showlegend=False,
+    ))
+
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(
+            text=f"∆IV Surface — {ticker}  (today − {label_prior})",
+            font_size=13,
+        ),
+        scene=dict(
+            xaxis_title="DTE",
+            yaxis_title="% OTM",
+            zaxis_title="∆IV (pp)",
+            camera=dict(eye=dict(x=2.0, y=-1.2, z=0.8)),
+            aspectmode="manual",
+            aspectratio=dict(x=1.5, y=1.2, z=0.6),
+            xaxis=dict(
+                showgrid=True, gridcolor="rgba(255,255,255,0.06)",
+                tickmode="array", tickvals=dte_ticks,
+                ticktext=[str(d) for d in dte_ticks],
+                tickfont=dict(size=10), range=[dte_min, dte_max],
+            ),
+            yaxis=dict(
+                showgrid=True, gridcolor="rgba(255,255,255,0.06)",
+                tickmode="array", tickvals=otm_ticks, ticktext=otm_tick_labels,
+                range=[-clip_pct, clip_pct],
+            ),
+            zaxis=dict(
+                showgrid=True, gridcolor="rgba(255,255,255,0.06)",
+                ticksuffix="pp", range=[-abs_max, abs_max],
+            ),
+        ),
+        height=540,
+        margin=dict(t=50, b=10, l=10, r=10),
+    )
+    return fig
+
+
+def plot_skew_cross_ticker(skew_by_ticker: dict) -> go.Figure:
+    """
+    Grouped bar chart comparing 25Δ risk reversal across tickers.
+
+    skew_by_ticker: {ticker: {"front_month": {...}, "second_month": {...}}}
+    Each inner dict has keys "skew" (pp) and "dte" (days). Missing buckets
+    produce no bar for that ticker/expiry combination.
+    """
+    COLORS = {"SPY": "#60a5fa", "QQQ": "#f59e0b", "IWM": "#34d399"}
+    DEFAULT_COLOR = "#a78bfa"
+
+    fig = go.Figure()
+    for ticker, skew_data in skew_by_ticker.items():
+        color = COLORS.get(ticker, DEFAULT_COLOR)
+        front = skew_data.get("front_month")
+        second = skew_data.get("second_month")
+        x_vals, y_vals = [], []
+        if front:
+            x_vals.append(f"Front (~{front['dte']:.0f}d)")
+            y_vals.append(front["skew"])
+        if second:
+            x_vals.append(f"2nd (~{second['dte']:.0f}d)")
+            y_vals.append(second["skew"])
+        if x_vals:
+            fig.add_trace(go.Bar(
+                name=ticker,
+                x=x_vals,
+                y=y_vals,
+                marker_color=color,
+                hovertemplate=f"{ticker} %{{x}}<br>Skew: %{{y:+.2f}}pp<extra></extra>",
+            ))
+
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.2)", line_width=0.8)
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(text="25Δ Risk Reversal — cross-ticker comparison", font_size=13),
+        yaxis_title="Skew (pp)",
+        yaxis_ticksuffix="pp",
+        barmode="group",
+        height=300,
+        margin=dict(t=45, b=30, l=60, r=20),
+        legend=dict(orientation="h", y=1.12, x=0),
+    )
+    return fig
+
+
 def plot_skew_term_structure(skew_df: pd.DataFrame, ticker: str) -> go.Figure:
-    """Term structure of IV skew (25Δ put − 50Δ call) across expirations."""
+    """Term structure of IV skew (25Δ put − 25Δ call) across expirations."""
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=skew_df["dte"], y=skew_df["skew_pp"],
@@ -274,12 +491,12 @@ def plot_skew_term_structure(skew_df: pd.DataFrame, ticker: str) -> go.Figure:
         line=dict(color="#f59e0b", width=2),
         marker=dict(size=6),
         hovertemplate="DTE: %{x:.0f}<br>Skew: %{y:.1f}pp<extra></extra>",
-        name="Skew (25Δ put − 50Δ call)",
+        name="Skew (25Δ put − 25Δ call)",
     ))
     fig.add_hline(y=0, line_color="rgba(255,255,255,0.2)", line_width=0.8)
     fig.update_layout(
         template="plotly_dark",
-        title=dict(text=f"IV Skew Term Structure — {ticker}  ·  25Δ put − 50Δ call", font_size=13),
+        title=dict(text=f"IV Skew Term Structure — {ticker}  ·  25Δ put − 25Δ call", font_size=13),
         xaxis_title="DTE",
         yaxis_title="Skew (pp)",
         yaxis_ticksuffix="pp",

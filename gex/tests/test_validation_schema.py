@@ -104,7 +104,7 @@ class TestOldSnapshotCompat:
             "put_wall": 490.0,
             "front_skew": 4.0,
             "put_25d_iv": 22.0,
-            "call_50d_iv": 18.0,
+            "call_25d_iv": 18.0,
             "iv30": 20.0,
             "strike_slope": None,
             "term_slope": None,

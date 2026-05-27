@@ -11,7 +11,7 @@ OI roll noise rather than signal.
 
 Store path: out/gex_snapshots.parquet
 Columns:    date, ticker, spot, net_gex, zero_gamma_level, call_wall, put_wall,
-            front_skew, put_25d_iv, call_50d_iv, iv30, strike_slope, term_slope,
+            front_skew, put_25d_iv, call_25d_iv, iv30, strike_slope, term_slope,
             rv20, vrp
 
 Schema is forward-compatible: older snapshots missing newer columns load as
@@ -29,7 +29,7 @@ STORE = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex_snapshots.par
 
 _FLOAT_COLS = (
     "zero_gamma_level", "call_wall", "put_wall",
-    "front_skew", "put_25d_iv", "call_50d_iv", "iv30",
+    "front_skew", "put_25d_iv", "call_25d_iv", "iv30",
     "strike_slope", "term_slope",
     "rv20", "vrp",
 )
@@ -39,12 +39,12 @@ def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = Non
     """Append today's summary dict to the parquet store (idempotent on date+ticker).
 
     skew_df: optional output of compute_skew() — front-row put_25d_iv and
-    call_50d_iv are captured for skew history. If omitted, those columns are NaN.
+    call_25d_iv are captured for skew history. If omitted, those columns are NaN.
     """
-    put_25d = call_50d = None
+    put_25d = call_25d = None
     if skew_df is not None and not skew_df.empty:
         put_25d = float(skew_df["put_25d_iv"].iloc[0])
-        call_50d = float(skew_df["call_50d_iv"].iloc[0])
+        call_25d = float(skew_df["call_25d_iv"].iloc[0])
 
     row = {
         "date": datetime.date.today(),
@@ -56,7 +56,7 @@ def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = Non
         "put_wall": summary.get("put_wall"),
         "front_skew": summary.get("front_skew"),
         "put_25d_iv": put_25d,
-        "call_50d_iv": call_50d,
+        "call_25d_iv": call_25d,
         "iv30": summary.get("iv30"),
         "strike_slope": summary.get("strike_slope"),
         "term_slope": summary.get("term_slope"),
@@ -88,5 +88,6 @@ def load_history(ticker: str, days: int = 30) -> pd.DataFrame:
         hist["date"] = pd.to_datetime(hist["date"]).dt.date
         hist = hist[hist["ticker"] == ticker].sort_values("date", ascending=False)
         return hist.head(days).reset_index(drop=True)
-    except Exception:
+    except Exception as exc:
+        print(f"[validation] load_history failed: {exc}")
         return pd.DataFrame()

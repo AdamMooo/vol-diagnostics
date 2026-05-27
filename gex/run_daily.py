@@ -18,6 +18,7 @@ import pytz
 
 from gex.compute import compute_ticker
 from gex.validation import save_snapshot
+from gex.surface_history import save_surface_snapshot
 from gex import report as rpt
 from gex import emailer
 from gex import observation
@@ -63,6 +64,7 @@ def run(dry_run: bool = False) -> None:
         s = data["summary"]
         if not s.get("error"):
             save_snapshot(s, ticker, skew_df=data.get("skew_df"))
+            save_surface_snapshot(data.get("surface_df"), ticker, spot=s["spot"])
             iv30_str = f"  iv30={s['iv30']:.1f}%" if s.get("iv30") else ""
             print(f"spot={s['spot']:.2f}  gex=${s['net_gex']/1e9:.2f}B{iv30_str}")
         else:

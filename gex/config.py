@@ -63,14 +63,15 @@ SURFACE_DTE_MAX: int = 180
 """Maximum DTE included in the vol surface. Beyond 180 days, OI thins out and
 the surface gets very sparse; SVI would be needed to extrapolate further."""
 
-SURFACE_GRID_DTE: int = 25
-"""Number of grid points along the DTE axis for surface interpolation.
-Coarser than the old 40-point grid — matches actual chain density so the
-interpolation isn't inventing data across large sparse gaps."""
+SURFACE_GRID_DTE: int = 40
+"""Number of grid points along the DTE axis for surface interpolation."""
 
-SURFACE_GRID_LM: int = 20
-"""Number of grid points along the moneyness axis (% OTM) for surface interpolation.
-Coarser than the old 50-point grid for the same reason as SURFACE_GRID_DTE."""
+SURFACE_GRID_LM: int = 30
+"""Number of grid points along the moneyness axis (% OTM) for surface interpolation."""
+
+SURFACE_PLOT_OTM_CLIP: float = 0.15
+"""Max |% OTM| shown on the surface. Data collection uses SURFACE_MONEYNESS_BAND (±22%)
+but deep-wing quotes are too noisy to plot — clip to ±15% for a clean surface."""
 
 SURFACE_Z_CAP_PERCENTILE: float = 99.5
 """Clip the z-axis (IV %) at this percentile of the interpolated surface.
@@ -88,8 +89,8 @@ SKEW_PUT_DELTA: float = -0.25
 """Target delta for the OTM put leg of the skew metric (Xing et al. 2010
 convention). CBOE put deltas are negative."""
 
-SKEW_CALL_DELTA: float = 0.50
-"""Target delta for the ATM call leg of the skew metric."""
+SKEW_CALL_DELTA: float = 0.25
+"""Target delta for the OTM call leg of the skew metric (symmetric 25Δ risk reversal)."""
 
 # ── Plot anchors ───────────────────────────────────────────────────────────────
 

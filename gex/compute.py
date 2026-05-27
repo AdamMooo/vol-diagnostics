@@ -25,8 +25,8 @@ def _get_risk_free_rate() -> float:
         rate = yf.Ticker("^IRX").fast_info.get("lastPrice")
         if rate and rate > 0:
             return float(rate) / 100
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"[compute] rate fetch failed ({exc}); using fallback {config.RISK_FREE_FALLBACK}")
     return config.RISK_FREE_FALLBACK
 
 
@@ -57,7 +57,8 @@ def compute_ticker(ticker: str) -> dict:
     r = _get_risk_free_rate()
     p_df = gamma_profile(df, spot=snapshot.spot, r=r)
     surface_df = vol_surface_data(df, spot=snapshot.spot)
-    skew_df = compute_skew(df)
+    skew_df = compute_skew(df, spot=snapshot.spot)
+    # skew_df is sorted by dte ascending — iloc[0] is shortest qualifying expiry
     front_skew = float(skew_df["skew_pp"].iloc[0]) if not skew_df.empty else None
 
     net_gex_scalar = float(s_df["gex"].sum())
@@ -85,7 +86,7 @@ def compute_ticker(ticker: str) -> dict:
     else:
         spot_series = hist["spot"].iloc[::-1]   # reverse to oldest-first (load_history returns descending)
         rv20 = compute_rv20(spot_series)
-        iv30_decimal = (snapshot.iv30 / 100.0) if snapshot.iv30 is not None else None
+        iv30_decimal = (snapshot.iv30 / 100.0) if snapshot.iv30 else None
         vrp = compute_vrp(iv30_decimal, rv20)
     summary["rv20"] = rv20
     summary["vrp"] = vrp
