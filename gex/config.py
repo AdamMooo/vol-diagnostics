@@ -63,16 +63,19 @@ SURFACE_DTE_MAX: int = 180
 """Maximum DTE included in the vol surface. Beyond 180 days, OI thins out and
 the surface gets very sparse; SVI would be needed to extrapolate further."""
 
-SURFACE_GRID_DTE: int = 40
-"""Number of grid points along the DTE axis for surface interpolation."""
+SURFACE_GRID_DTE: int = 25
+"""Number of grid points along the DTE axis for surface interpolation.
+Coarser than the old 40-point grid — matches actual chain density so the
+interpolation isn't inventing data across large sparse gaps."""
 
-SURFACE_GRID_LM: int = 50
-"""Number of grid points along the log-moneyness axis for surface interpolation."""
+SURFACE_GRID_LM: int = 20
+"""Number of grid points along the moneyness axis (% OTM) for surface interpolation.
+Coarser than the old 50-point grid for the same reason as SURFACE_GRID_DTE."""
 
-SURFACE_Z_CAP_PERCENTILE: float = 97.0
+SURFACE_Z_CAP_PERCENTILE: float = 99.5
 """Clip the z-axis (IV %) at this percentile of the interpolated surface.
-Prevents the deep-OTM short-DTE IV spike (often 100%+) from crushing the
-moderate-OTM smile into the bottom 30% of the rendered view."""
+99.5th pctile drops only genuine data errors (bad CBOE quotes) while letting
+real wing vol show — previously 97th was suppressing real far-OTM IV."""
 
 # ── IV skew (Xing, Zhang & Zhao 2010, JFQA) ────────────────────────────────────
 

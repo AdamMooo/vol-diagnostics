@@ -12,7 +12,7 @@ from gex.compute import compute_ticker
 from gex.analytics import (
     plot_strike_gex, plot_gamma_profile,
     plot_vol_surface, plot_skew_term_structure,
-    plot_skew_25d_current, plot_term_structure, plot_carry_vrp,
+    plot_skew_25d_current, plot_term_structure,
 )
 from gex.report import REGIME_COLOR
 
@@ -101,21 +101,6 @@ def _derive_observations(summary: dict, spot: float) -> list[str]:
 
     return obs
 
-
-def _carry_values(data: dict) -> tuple[float | None, float | None, float | None]:
-    """Return (iv30_pct, rv20_pct, vrp_pp) in display units.
-
-    iv30 from summary is already percent (e.g. 18.0).
-    rv20 and vrp from compute_ticker() are decimal fractions (e.g. 0.158, 0.022).
-    Multiply by 100 here so all three are in the same unit for plot_carry_vrp().
-    """
-    summary = data.get("summary", {})
-    iv30_pct = summary.get("iv30")
-    rv20 = data.get("rv20")
-    vrp = data.get("vrp")
-    rv20_pct = float(rv20 * 100) if rv20 is not None else None
-    vrp_pp = float(vrp * 100) if vrp is not None else None
-    return iv30_pct, rv20_pct, vrp_pp
 
 
 @st.cache_data(ttl=config.CACHE_TTL_TICKER, show_spinner=False)
@@ -233,8 +218,8 @@ if not all_data:
 if sel_index:
     render_regime_cards(sel_index, all_data)
 
-    tab_surface, tab_skew, tab_term, tab_carry, tab_flow = st.tabs(
-        ["Surface", "Skew", "Term Structure", "Carry", "Flow Context"]
+    tab_surface, tab_skew, tab_term, tab_flow = st.tabs(
+        ["Surface", "Skew", "Term Structure", "Flow Context"]
     )
 
     # ── Surface ──────────────────────────────────────────────────────────────
@@ -343,61 +328,6 @@ if sel_index:
                 if classification:
                     st.caption(f"Term structure: {classification}")
 
-    # ── Carry ─────────────────────────────────────────────────────────────────
-    with tab_carry:
-        cols_carry = st.columns(len(selected_all)) if len(selected_all) > 1 else [st]
-        for col, ticker in zip(cols_carry, selected_all):
-            if ticker not in all_data:
-                continue
-            data = all_data[ticker]
-            iv30_pct, rv20_pct, vrp_pp = _carry_values(data)
-            with col:
-                st.plotly_chart(
-                    plot_carry_vrp(iv30_pct, rv20_pct, vrp_pp, ticker),
-                    use_container_width=True,
-                )
-                if iv30_pct is None and rv20_pct is None:
-                    st.caption(
-                        "Not yet available — accumulates after 20 daily runs."
-                    )
-
-                hist30 = _load_history_cached(ticker, days=config.HISTORY_DAYS)
-                if hist30.empty:
-                    st.caption("No history yet — daily snapshots accumulate from `gex.run_daily`.")
-                else:
-                    chart_df = hist30.sort_values("date")
-                    if "vrp" in chart_df.columns and chart_df["vrp"].notna().any():
-                        vrp_hist = chart_df.dropna(subset=["vrp"]).copy()
-                        vrp_hist["vrp_pp"] = vrp_hist["vrp"] * 100
-                        vrp_fig = go.Figure()
-                        vrp_fig.add_trace(go.Scatter(
-                            x=vrp_hist["date"],
-                            y=vrp_hist["vrp_pp"],
-                            mode="lines+markers",
-                            line=dict(color="#a78bfa", width=1.5),
-                            marker=dict(size=5),
-                            hovertemplate="%{x|%b %d}<br>VRP: %{y:+.2f}pp<extra></extra>",
-                        ))
-                        vrp_fig.add_hline(
-                            y=0,
-                            line_color="rgba(255,255,255,0.15)",
-                            line_width=0.8,
-                        )
-                        vrp_fig.update_layout(
-                            template="plotly_dark",
-                            title=f"Vol Carry / VRP — {config.HISTORY_DAYS} sessions",
-                            height=240,
-                            yaxis_title="VRP (vol pts)",
-                            yaxis_ticksuffix="pp",
-                            margin=dict(t=40, b=30, l=60, r=20),
-                            showlegend=False,
-                        )
-                        st.plotly_chart(vrp_fig, use_container_width=True)
-                    else:
-                        st.caption(
-                            "VRP history empty — accumulates from today's `gex.run_daily` run forward."
-                        )
-
     # ── Flow Context ──────────────────────────────────────────────────────────
     with tab_flow:
         st.markdown(
@@ -482,11 +412,12 @@ for liquid-region focus.
   **Xing, Zhang & Zhao (2010, JFQA)**: steeper skew predicts subsequent
   underperformance — 10.9% annual alpha. Only metric here with direct
   peer-reviewed predictive backing.
-- **IV Surface** — CBOE chain IVs in log-moneyness `log(K/S)` (academic convention
-  per Cont & da Fonseca 2002, Gatheral). **OTM convention**: put IV for K<S,
-  call IV for K≥S — the industry standard (Gatheral §2.1). OTM options are
-  more liquid and avoid American early-exercise distortion. Linear interpolation
-  onto a 50×40 grid (no overshoot artifacts). Clean surface — GEX overlays (γ-flip, call wall, put wall meridians) removed per v3.2 reframe; GEX context available in the Strikes tab.
+- **IV Surface** — CBOE chain IVs plotted on a % OTM axis `(K/S−1)×100`.
+  **OTM convention**: put IV for K<S, call IV for K≥S — the industry standard
+  (Gatheral §2.1). OTM options are more liquid and avoid American early-exercise
+  distortion. Coarse 25×20 linear interpolation grid; NaN left as holes where
+  chain data is absent (no nearest-neighbour fill). Raw chain quotes overlaid as
+  scatter so data density is visible. GEX context available in Flow Context tab.
 - **IV30** — CBOE-computed 30-day constant-maturity vol, taken directly from
   the delayed payload.
 

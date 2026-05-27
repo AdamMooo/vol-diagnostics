@@ -160,10 +160,11 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
     """
     3D implied vol surface from the CBOE chain, OTM convention.
 
-    Built on linear interpolation onto a 50×40 DTE×log-moneyness grid (cubic
-    produced overshoot artifacts at sparse boundaries).
+    Coordinate system: x=DTE, y=% OTM (K/S−1)×100, z=IV%.
+    Coarse grid (25×20); NaN left as holes where data is absent — no
+    nearest-neighbour fill so the surface only exists where real quotes are.
+    Raw data points overlaid as white scatter so chain density is visible.
     """
-    import numpy as np
     from scipy.interpolate import griddata
 
     if surface_df.empty or len(surface_df) < 6:
@@ -176,73 +177,75 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
         )
         return fig
 
-    # Defensive: compute log_moneyness on the fly if missing (handles stale
-    # caches populated by an older schema).
-    if "log_moneyness" not in surface_df.columns:
-        surface_df = surface_df.copy()
-        surface_df["log_moneyness"] = np.log(surface_df["strike"] / spot)
-        surface_df["moneyness"] = surface_df["strike"] / spot
+    pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
+    dte_vals = surface_df["dte"].to_numpy()
+    iv_vals = surface_df["iv_pct"].to_numpy()
 
-    pts = surface_df[["dte", "log_moneyness"]].to_numpy()
-    vals = surface_df["iv_pct"].to_numpy()
+    pts = np.column_stack([dte_vals, pct_otm])
 
-    dte_min = max(float(surface_df["dte"].min()), 1.0)
-    dte_max = min(float(surface_df["dte"].max()), float(config.SURFACE_DTE_MAX))
-    lm_min = float(surface_df["log_moneyness"].min())
-    lm_max = float(surface_df["log_moneyness"].max())
+    dte_min = max(float(dte_vals.min()), 1.0)
+    dte_max = min(float(dte_vals.max()), float(config.SURFACE_DTE_MAX))
+    otm_min = float(pct_otm.min())
+    otm_max = float(pct_otm.max())
 
     dte_grid = np.linspace(dte_min, dte_max, config.SURFACE_GRID_DTE)
-    lm_grid = np.linspace(lm_min, lm_max, config.SURFACE_GRID_LM)
-    DTE, LM = np.meshgrid(dte_grid, lm_grid)
+    otm_grid = np.linspace(otm_min, otm_max, config.SURFACE_GRID_LM)
+    DTE, OTM = np.meshgrid(dte_grid, otm_grid)
 
-    IV = griddata(pts, vals, (DTE, LM), method="linear")
-    IV_nn = griddata(pts, vals, (DTE, LM), method="nearest")
-    mask = np.isnan(IV)
-    IV[mask] = IV_nn[mask]
+    # Linear interpolation only — NaN stays NaN where chain data is absent.
+    # No nearest-neighbour fill: surface shows honest holes, not extrapolation.
+    IV = griddata(pts, iv_vals, (DTE, OTM), method="linear")
 
-    iv_floor = float(np.nanmin(IV))
-    iv_cap = float(np.nanpercentile(IV, config.SURFACE_Z_CAP_PERCENTILE))
-    IV = np.clip(IV, iv_floor, iv_cap)
+    all_nan = np.all(np.isnan(IV))
+    iv_floor = float(np.nanmin(IV)) if not all_nan else 0.0
+    iv_cap = float(np.nanpercentile(IV, config.SURFACE_Z_CAP_PERCENTILE)) if not all_nan else 100.0
 
-    KS = np.exp(LM)
-    STRIKE_GRID = KS * spot
-    customdata = np.dstack([KS, STRIKE_GRID])
-
-    lm_ticks = [round(np.log(k), 4) for k in config.PLOT_KS_ANCHORS
-                if lm_min <= np.log(k) <= lm_max]
-    lm_tick_labels = [f"{k:.2f}" for k in config.PLOT_KS_ANCHORS
-                      if lm_min <= np.log(k) <= lm_max]
+    otm_ticks = [(k - 1.0) * 100.0 for k in config.PLOT_KS_ANCHORS
+                 if otm_min <= (k - 1.0) * 100.0 <= otm_max]
+    otm_tick_labels = [f"{(k - 1.0) * 100:+.0f}%" for k in config.PLOT_KS_ANCHORS
+                       if otm_min <= (k - 1.0) * 100.0 <= otm_max]
     dte_ticks = [d for d in config.PLOT_DTE_ANCHORS if dte_min <= d <= dte_max]
 
-    fig = go.Figure(data=[go.Surface(
+    fig = go.Figure()
+
+    fig.add_trace(go.Surface(
         x=dte_grid,
-        y=lm_grid,
+        y=otm_grid,
         z=IV,
         cmin=iv_floor,
         cmax=iv_cap,
         colorscale="Viridis",
         colorbar=dict(title="IV %", thickness=14, len=0.7, ticksuffix="%"),
-        customdata=customdata,
         hovertemplate=(
             "DTE: %{x:.0f}<br>"
-            "K/S: %{customdata[0]:.3f} (strike %{customdata[1]:.0f})<br>"
-            "log(K/S): %{y:.3f}<br>"
+            "% OTM: %{y:.1f}%<br>"
             "IV: %{z:.1f}%<extra></extra>"
         ),
         contours=dict(z=dict(show=True, usecolormap=True, project_z=True,
                              highlight=False, width=2)),
         showlegend=False,
-    )])
+    ))
+
+    # Raw chain quotes as white scatter — shows where actual data exists
+    fig.add_trace(go.Scatter3d(
+        x=dte_vals,
+        y=pct_otm,
+        z=iv_vals,
+        mode="markers",
+        marker=dict(size=2, color="white", opacity=0.45),
+        hovertemplate="DTE: %{x:.0f}<br>% OTM: %{y:.1f}%<br>IV: %{z:.1f}%<extra></extra>",
+        showlegend=False,
+    ))
 
     fig.update_layout(
         template="plotly_dark",
         title=dict(
-            text=f"IV Surface — {ticker}  (CBOE chain, OTM convention, log-moneyness)",
+            text=f"IV Surface — {ticker}  (CBOE chain, OTM convention)",
             font_size=13,
         ),
         scene=dict(
             xaxis_title="DTE",
-            yaxis_title="K/S  (log scale)",
+            yaxis_title="% OTM",
             zaxis_title="IV (%)",
             camera=dict(eye=dict(x=-1.7, y=-1.7, z=1.1)),
             aspectmode="manual",
@@ -252,15 +255,15 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
                 gridcolor="rgba(255,255,255,0.08)",
                 tickmode="array",
                 tickvals=dte_ticks,
-                ticktext=[f"{d}" for d in dte_ticks],
+                ticktext=[str(d) for d in dte_ticks],
                 tickfont=dict(size=10),
             ),
             yaxis=dict(
                 showgrid=True,
                 gridcolor="rgba(255,255,255,0.08)",
                 tickmode="array",
-                tickvals=lm_ticks,
-                ticktext=lm_tick_labels,
+                tickvals=otm_ticks,
+                ticktext=otm_tick_labels,
             ),
             zaxis=dict(
                 showgrid=True,

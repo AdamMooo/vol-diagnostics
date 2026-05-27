@@ -60,12 +60,15 @@ def test_colorscale_is_viridis():
 
 
 def test_no_gex_overlay_traces():
-    """Figure must contain only the Surface trace (+ possibly contours) — no Mesh3d or Scatter3d."""
+    """No Mesh3d (spot plane). Exactly one Scatter3d allowed — the raw data overlay,
+    not GEX meridian lines. Marker color must be white (data overlay), not a meridian color."""
     df = _minimal_surface_df()
     fig = plot_vol_surface(df, "SPY", spot=500.0)
     trace_types = [type(t).__name__ for t in fig.data]
     assert "Mesh3d" not in trace_types, "Spot plane Mesh3d trace should be removed"
-    assert "Scatter3d" not in trace_types, "Meridian Scatter3d traces should be removed"
+    scatter3d_traces = [t for t in fig.data if type(t).__name__ == "Scatter3d"]
+    assert len(scatter3d_traces) == 1, "Expected exactly one Scatter3d (raw data overlay)"
+    assert scatter3d_traces[0].marker.color == "white", "Data overlay marker must be white"
 
 
 def test_call_with_positional_spot_works():
