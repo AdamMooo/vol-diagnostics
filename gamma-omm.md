@@ -48,15 +48,15 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-26 19:21 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-29 20:57 UTC
 
-**Milestone:** v3.2 — Institutional Vol Diagnostics · **Status:** unknown · **STATE last_updated:** ?
+**Milestone:** v3.3 — Surface Evolution & Daily Intelligence (Phases 8–11) · **Status:** unknown · **STATE last_updated:** ?
 
 ### Current Position
-- **Phase:** 7 of 7 (Institutional Dashboard Rendering)
-- **Plan:** 2/2 — 07-02 Task 1 complete, awaiting UAT checkpoint
-- **Status:** In progress — blocked at human-verify checkpoint
-- **Last activity:** 2026-05-26 — 07-02 Task 1: streamlit_app.py restructured to 5-tab layout (fe44011)
+- **Phase:** Phase 8 of 11 — Surface Validation (the gate); first of 4 in v3.3
+- **Plan:** 4 plans in 3 waves — ready to execute
+- **Status:** Planned — ready to execute Phase 8
+- **Last activity:** 2026-05-29 — Phase 8 planned: 4 PLAN.md files (08-01..08-04) passed plan-checker (zero blockers); rbf_grid extraction → mask → diagnostics → snapshot → Streamlit readout chain
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->

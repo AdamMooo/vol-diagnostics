@@ -4,7 +4,7 @@ milestone: "v3.3 — Surface Evolution & Daily Intelligence"
 status: active
 last_updated: 2026-05-29
 context_gathered: true
-plans_ready: false
+plans_ready: true
 ---
 
 # Project State
@@ -19,9 +19,9 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: Phase 8 of 11 — Surface Validation (the gate); first of 4 in v3.3
-Plan: —
-Status: Context gathered — ready to plan Phase 8
-Last activity: 2026-05-29 — Phase 8 context gathered: kNN data-adaptive mask (k=2.0), raw no-threshold trust readout, VALID-04 reframed no-arb→surface-coherence (headless, no UI), re-runnable sweep script
+Plan: 4 plans in 3 waves — ready to execute
+Status: Planned — ready to execute Phase 8
+Last activity: 2026-05-29 — Phase 8 planned: 4 PLAN.md files (08-01..08-04) passed plan-checker (zero blockers); rbf_grid extraction → mask → diagnostics → snapshot → Streamlit readout chain
 
 Progress: [░░░░░░░░░░] 0% (v3.3 — 0/4 phases)
 
@@ -77,13 +77,16 @@ None.
 ## Session Continuity
 
 Last session: 2026-05-29
-Stopped at: Phase 8 context gathered — 5 implementation decisions locked (mask method/radius, trust readout, surface-coherence reframe, sweep form).
-Resume file: .planning/phases/08-surface-validation/08-CONTEXT.md
+Stopped at: Phase 8 planned and verified — 4 plans (08-01..08-04) in 3 waves, plan-checker passed with zero blockers.
+Resume file: .planning/phases/08-surface-validation/08-01-PLAN.md (+ 02, 03, 04)
 
-**Next action:** Run `/gsd-plan-phase 8` to plan Surface Validation (the gate).
+**Next action:** `/clear`, then run `/gsd-execute-phase 8` to build Surface Validation (the gate).
 
 **Carry-over for executor:** VALID-04 reframes "no-arbitrage" → "surface coherence" (per 08-CONTEXT D-11) — update wording in REQUIREMENTS.md + ROADMAP Phase 8 SC#5 during execution.
 
+---
+---
+---
 ---
 <!-- LINKS:AUTO -->
 ## Related

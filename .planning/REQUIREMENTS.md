@@ -1,78 +1,58 @@
-# Requirements — v3.1 Hardening & Charm
+# Requirements — v3.3 Surface Evolution & Daily Intelligence
 
-*Last updated: 2026-05-12 — Phase 5 complete; out-of-phase refactor work documented*
+*Last updated: 2026-05-29 — milestone v3.3 defined*
 
 ## Milestone Goal
 
-Sign off deferred UAT, add Charm chart, and fill critical test coverage gaps before handing the platform to PMs.
+Turn the vol surface into an accumulating, trustworthy daily diagnostic: prove the interpolated surface isn't overfit, build the "calculus" of how it moves over time, surface that change in a restructured local dashboard, and deliver it in a clean, formal daily report. Streamlit is LOCAL-only (removed from the live server).
 
-**Note:** Out-of-phase refactoring (2026-05-11) removed non-defensible outputs (VEX, CHEX, regime categorical labels). Core requirements updated to reflect actual feature set.
+**Foundation-first gate:** every downstream metric reads off the RBF/TPS surface. Phase 8 produces a coverage mask + fit-honesty layer that becomes the single source of truth for "where the surface is real." Phases 9–11 may not compute, display, or email a value in an uncovered grid cell.
 
 ---
 
 ## Requirements
 
-### UAT Sign-Off
+### Surface Validation (Phase 8 — the gate)
 
-**Status: ✅ COMPLETE** — All 4 scenarios passed 2026-05-06. Out-of-phase refactor (2026-05-11) preserves core UAT scenarios.
+- [ ] **VALID-01** — A coverage mask flags every interpolated grid cell that has no nearby real quote (convex-hull / kNN over actual quote locations); unsupported cells render as honest NaN holes, not fabricated IV. The mask is exported as the single source of truth consumed by all downstream phases.
+- [ ] **VALID-02** — Surface fit quality is reported per ticker: RMSE and max residual (pp) of the RBF fit against the input quotes, persisted daily to the snapshot store.
+- [ ] **VALID-03** — The `smoothing` parameter is moved out of inline code into `config.py` with a documented sensitivity sweep justifying the chosen value (no unexplained magic number).
+- [ ] **VALID-04** — No-arbitrage sanity checks (calendar-spread total-variance monotonicity + butterfly convexity) report PASS/FAIL and the locations of any violation. Checks report only — they never auto-repair the surface.
+- [ ] **VALID-05** — The RBF interpolation logic exists as one shared helper (`rbf_grid`) consumed by the surface render, the diagnostics, and the evolution engine — no duplicated interpolation definitions.
+- [ ] **VALID-06** — Surface coverage % and fit RMS are visible in the Streamlit dashboard so the user can see at a glance whether today's surface is trustworthy.
 
-- [x] **UAT-01** — User can launch `streamlit run streamlit_app.py` without ImportError, COM error, or matplotlib backend error, and the browser page loads showing the app title ✅ PASS (2026-05-06)
-- [x] **UAT-02** — Regime cards render for SPY, QQQ, IWM with correct colors (accent bar driven by net GEX sign) showing: Spot, Net GEX, Δ-flow, Zero-Gamma level ✅ PASS (2026-05-06; regime label removed per 2026-05-11 refactor)
-- [x] **UAT-03** — Clicking a ticker expander reveals two charts (strike GEX, gamma profile) and a summary table with columns: Spot, Net GEX, Zero-Gamma, Call Wall, Put Wall, IV30, 1-day σ ✅ PASS (2026-05-06; VEX/CHEX removed per 2026-05-11 refactor)
-- [x] **UAT-04** — Clicking Refresh in the sidebar clears the per-ticker cache and triggers a re-fetch (spinners visible); new data loads successfully ✅ PASS (2026-05-06)
+### Surface Evolution Engine (Phase 9)
 
-### Charm Chart
+- [ ] **EVOL-01** — A `surface_evolution` module computes the change between today's surface and a prior stored snapshot, decomposed into four scalars on the masked grid: level (mean ΔIV), rms (total movement), skew-change (put-wing vs call-wing ΔIV), term-change (front vs back ΔIV).
+- [ ] **EVOL-02** — The comparison runs at multiple horizons — 1, 5, and 20 trading days back — with each horizon resolved against actually-stored trading sessions (not calendar arithmetic) and labelled with the real prior date.
+- [ ] **EVOL-03** — Evolution metrics persist to `out/surface_evolution.parquet`, idempotent on (date, ticker, horizon), accumulating forward.
+- [ ] **EVOL-04** — Evolution is computed automatically as a non-blocking pass inside `run_daily` after the day's snapshot is saved; a failure here never blocks the email.
+- [ ] **EVOL-05** — Surface-change is comparable across SPY / QQQ / IWM (cross-ticker view), so divergence (e.g. IWM moving alone) is visible.
+- [ ] **EVOL-06** — A backfill routine retro-computes evolution from existing `surface_history` so the dashboard is not empty on first use.
 
-**Status: ⏳ PENDING** — Phase 6 (not yet started). Out-of-phase refactor has cleared the way by removing CHEX display.
+### Dashboard Restructure (Phase 10 — local only)
 
-- [ ] **CHARM-01** — `analytics.py` exposes a `charm_by_dte_chart()` function that renders net charm exposure bucketed by DTE (e.g. 0–7, 8–30, 31–60, 60+) as a bar chart
-- [ ] **CHARM-02** — The Streamlit Live tab surfaces the Charm by DTE chart inside the per-ticker expander alongside the existing strike GEX and gamma profile charts
+- [ ] **VIEW-01** — Tabs collapse from 5 to 4; Skew and Term Structure merge into a single tab reframed around the surface calculus.
+- [ ] **VIEW-02** — The carry/VRP block, the 25Δ risk-reversal history chart, and the strike-GEX bar charts are removed (data over bar charts).
+- [ ] **VIEW-03** — The surface comparison view can compare two stored dates (not only today-live vs a stored date), so the dashboard is useful on accumulated history without a live fetch.
+- [ ] **VIEW-04** — A surface-evolution view charts level / rms / skew-change / term-change over time, selectable by horizon.
+- [ ] **VIEW-05** — The dashboard uses a restrained, professional palette (no garish colours); coverage holes are shown honestly; the interactive 3D surface is retained here.
 
-### Test Coverage
+### Richer Daily Report (Phase 11)
 
-**Status: ⏳ PENDING** — Phase 7 (not yet started). Current: 24 tests green (post-refactor; down from 77 post-v3.0 due to removed features).
-
-- [ ] **COV-01** — `tests/test_data_loader.py` covers: happy-path CBOE JSON parse → valid ChainSnapshot; min_oi / min_dte / max_iv filters each drop the right rows; malformed symbol is skipped without crash
-- [ ] **COV-02** — `tests/test_report.py` covers: `build_email()` returns a non-empty HTML string containing expected ticker headers and accent bar colors (driven by net GEX sign)
-- [ ] **COV-03** — `tests/test_emailer.py` covers: `send()` raises ValueError when no recipients configured; Outlook COM dispatch is mocked so the test runs without Outlook installed
-- [ ] **COV-04** — `tests/test_run_daily.py` covers: full orchestration happy path (all 3 tickers) with data_loader and emailer mocked; parquet snapshot is written and contains expected columns
-- [ ] **COV-05** — `tests/test_analytics_charts.py` covers: chart functions return a matplotlib Figure without error for known-good input; zero-exposure edge case does not crash
-
----
-
-## Removed by Out-of-Phase Refactor (2026-05-11)
-
-Per methodology audit, the following features were removed because they cannot be defended rigorously at PM-level scrutiny:
-
-| Item | Reason |
-|------|--------|
-| VEX display (both email/dashboard) | Vanna/Charm are BS-European derivations; 5–15% error on American options (CBOE doesn't publish Greeks) |
-| CHEX display (both email/dashboard) | Charm is second-order vol derivative; less PM-readable than vanna; statistically thin |
-| Regime categorical label ("POSITIVE/NEGATIVE/NEUTRAL") | $200M neutral floor is hand-tuned; non-stationary; label adds editorial noise |
-| vs-yesterday badge | Daily OI roll dominates threshold (5%+ noise) |
-| Regime streak counter | Depends on calibrated regime label (removed) |
-| VEX/GEX ratio | Depends on VEX (removed) |
-| Early-exercise flag | Uses delayed mid quotes; fragile signal; not actionable for SPY/QQQ/IWM size |
-| "Regime % days" frequency table | Depends on calibrated label (removed) |
-| ZGL flow row | Numerical differentiation across 200-point grid = ~20% error; indefensible |
-| GEX-weighted wall cluster center | Arbitrary ±2% / top-3 band parameters; replaced with single max one-sided GEX strike |
-
-**What remains** (defensible outputs only):
-- Spot, Day %, IV30, 1-day σ (from IV30)
-- Net GEX value (sign + magnitude)
-- Zero-gamma level and vs-ZGL %
-- Single max-GEX call/put wall strikes + distance from spot
-- Δ-flow = |Net GEX| / spot / 0.01
-- 30-session ZGL-vs-spot history chart (dashboard only)
+- [ ] **RPT-01** — PNG export works on the target Windows machine via `kaleido>=1.0,<2.0` + a one-time Chrome fetch; Phase 11 opens with a smoke-test spike before PNG embedding is committed (HTML-artifact attachment is the documented fallback if the spike fails).
+- [ ] **RPT-02** — The daily email attaches the surface and ΔIV-surface images as 3D renders consistent with the Streamlit views, using a pinned camera angle so the static frame is readable.
+- [ ] **RPT-03** — Report content is prioritised surfaces > put/call walls > OI > gamma; open interest is surfaced as data (currently absent from the email).
+- [ ] **RPT-04** — The report reads as a clean, formal business document: restrained palette consistent with the dashboard, no crazy colours, no decorative noise.
+- [ ] **RPT-05** — Evolution scalars appear in the report and the narrative leads with the 5-day horizon (1-day ΔIV is mostly expiry-roll + quote noise — the same hazard that retired the v3.1 vs-yesterday badge).
 
 ---
 
 ## Future Requirements (deferred)
 
-- Live intraday refresh — CBOE CDN is delayed; real-time needs paid feed
-- Automated Task Scheduler / Streamlit autostart — after PM desk validates
-- Bloomberg data swap — one-class change in data_loader.py, v4.x
-- Vomma — less PM-readable than vanna
+- Inline-embedded (`cid:`) email images instead of attachments — requires Outlook COM PropertyAccessor plumbing; plain attachment ships first.
+- Bloomberg data swap — one-class change in `data_loader.py`, v4.x.
+- Live intraday refresh — CBOE CDN is delayed; real-time needs a paid feed.
 
 ---
 
@@ -80,22 +60,46 @@ Per methodology audit, the following features were removed because they cannot b
 
 | Feature | Reason |
 |---------|--------|
-| New GEX signals | Holm-Bonferroni bar is high |
-| Sleeve allocation framework | v2.x separate track |
-| Dispersion / implied-correlation | Research tool only |
-| Live execution / order routing | Research tool only |
-| American-style BS for IWM | Acceptable for POC; acknowledged |
+| PCA / factor decomposition of surface change | First 3 factors are exactly the level/skew/term scalars already measured directly; tiny non-stationary sample is noisy + sign-ambiguous. Cut, not deferred. |
+| SVI / SSVI / SABR calibration | Fragile per-slice calibration engine for a tradable book; this is a free-data descriptive tool. Verify the surface (no-arb checks), don't re-calibrate it. v4.x at earliest. |
+| `kaleido==0.2.1` | Hangs indefinitely on Windows against the installed plotly 6.7. |
+| Downgrading plotly to 5.x | Would regress the signed-off 3D surface charts to keep an old kaleido. |
+| scikit-learn for cross-validation | RBFInterpolator isn't an sklearn estimator; hand-rolled leave-one-expiry-out is fewer lines. |
+| Predictive / "fair value" surface forecasting | Descriptive-only constraint stands. |
+| New tickers beyond SPY/QQQ/IWM | Dealer-positioning convention is only defensible for these. |
 
 ---
 
 ## Traceability
 
-| REQ-ID | Phase |
-|--------|-------|
-| UAT-01/02/03/04 | Phase 5 |
-| CHARM-01 | Phase 6 |
-| CHARM-02 | Phase 6 |
-| COV-01/02/03/04/05 | Phase 7 |
+All 22 v1 requirements mapped to exactly one phase. No orphans, no duplicates.
+
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| VALID-01 | Phase 8 | Pending |
+| VALID-02 | Phase 8 | Pending |
+| VALID-03 | Phase 8 | Pending |
+| VALID-04 | Phase 8 | Pending |
+| VALID-05 | Phase 8 | Pending |
+| VALID-06 | Phase 8 | Pending |
+| EVOL-01 | Phase 9 | Pending |
+| EVOL-02 | Phase 9 | Pending |
+| EVOL-03 | Phase 9 | Pending |
+| EVOL-04 | Phase 9 | Pending |
+| EVOL-05 | Phase 9 | Pending |
+| EVOL-06 | Phase 9 | Pending |
+| VIEW-01 | Phase 10 | Pending |
+| VIEW-02 | Phase 10 | Pending |
+| VIEW-03 | Phase 10 | Pending |
+| VIEW-04 | Phase 10 | Pending |
+| VIEW-05 | Phase 10 | Pending |
+| RPT-01 | Phase 11 | Pending |
+| RPT-02 | Phase 11 | Pending |
+| RPT-03 | Phase 11 | Pending |
+| RPT-04 | Phase 11 | Pending |
+| RPT-05 | Phase 11 | Pending |
+
+**Coverage:** 22/22 mapped ✓
 
 ---
 <!-- LINKS:AUTO -->

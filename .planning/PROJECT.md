@@ -2,19 +2,19 @@
 
 *Last updated: 2026-05-26 — Phase 6 complete; vol metrics computation engine built; advancing to Phase 7 rendering*
 
-## Current Milestone: v3.2 — Actionable Positioning Context
+## Current Milestone: v3.3 — Surface Evolution & Daily Intelligence
 
-**Goal:** Transform GEX dashboard from mathematical showcase to PM-actionable positioning monitor — cut outputs that don't inform decisions, add context that does.
+**Goal:** Turn the vol surface into an accumulating, trustworthy daily diagnostic — prove it isn't overfit, build the calculus of how it moves over time, surface that in a restructured local dashboard, and deliver it in a clean formal daily report.
 
-**PM use case:** "Should I pay up for protection right now, and what's the dealer-driven vol environment telling me about whether I need to?"
+**Streamlit is LOCAL-only** (removed from the live server). Foundation-first: a surface coverage mask gates every downstream metric.
 
 **Target features:**
-- Positioning narrative — always-visible mechanical explanation of GEX sign (dampening vs amplifying)
-- GEX percentile rank — today's net GEX vs trailing 30–90d history
-- VRP (IV30 − RV20) — hedging cost context ("options rich/cheap")
-- OI tilt — dollar-weighted put vs call OI, directional pressure
-- Front skew gauge — percentile rank on card (term structure chart stays)
-- Output cuts — remove non-decision-informing metrics, demote vol surface
+- Surface validation — coverage mask (honest NaN holes), fit residuals, no-arb checks, documented smoothing; the mask is the single source of truth
+- Surface evolution — ΔIV decomposed into level/rms/skew/term over 1/5/20 trading-day horizons, persisted daily and accumulating
+- Dashboard restructure — 5→4 tabs, merge Skew+Term around the surface calculus, remove carry/RR-history/bar charts, stored-vs-stored compare + evolution time-series
+- Richer daily report — 3D surface + ΔIV PNG attachments (kaleido v1, pinned camera), content priority surfaces>walls>OI>gamma, clean formal palette
+
+**Cut:** PCA, SVI/SABR calibration (verify the surface, don't re-calibrate it).
 
 ## What This Is
 
