@@ -82,14 +82,20 @@ SURFACE_SMOOTHING: float = 1.5
 """RBF thin-plate-spline smoothing, applied in std-normalized (DTE, %OTM) coords.
 Regularises without over-flattening the skew. Non-stationary: effective strength
 depends on each day's quote spread (same caveat as any tuned constant here).
-Validated by gex/surface_sweep.py (run `python -m gex.surface_sweep`)."""
+Chosen 1.5: fit RMSE stays ~0.4pp on a typical SPY day while regularising enough to
+avoid the ringing/overshoot that exact interpolation (smoothing=0, RMSE 0.0) produces on
+crossed/wide delayed quotes — leave-one-expiry-out CV mildly favours less smoothing on a
+single clean day but that does not outweigh the overfit risk across noisier sessions.
+See gex/surface_sweep.py (run `python -m gex.surface_sweep`)."""
 
 COVERAGE_KNN_K: float = 2.0
 """Coverage-mask radius multiplier. A grid cell is NaN'd if its nearest real quote
 (in std-normalized DTE/%OTM space) exceeds r = COVERAGE_KNN_K × median nearest-neighbor
 distance among real quotes. Data-adaptive (scales to today's chain density) — NOT a fixed
-non-stationary cutoff. k=2.0 keeps cells within ~2× the typical quote gap while holing true
-missing-expiry gaps. Validated by gex/surface_sweep.py."""
+non-stationary cutoff. Chosen 2.0: holes true missing-expiry / far-wing gaps honestly
+(coverage ~22% on a typical SPY day — most of the 40×30 grid genuinely lacks nearby quotes);
+raising k inflates coverage only by extrapolating, which is exactly what this gate prevents.
+See gex/surface_sweep.py (run `python -m gex.surface_sweep`)."""
 
 # ── IV skew (Xing, Zhang & Zhao 2010, JFQA) ────────────────────────────────────
 
