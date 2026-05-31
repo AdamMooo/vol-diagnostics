@@ -23,8 +23,8 @@ Turn the vol surface into an accumulating, trustworthy daily diagnostic: prove t
 
 ### Surface Evolution Engine (Phase 9)
 
-- [ ] **EVOL-01** — A `surface_evolution` module computes the change between today's surface and a prior stored snapshot, decomposed into four scalars on the masked grid: level (mean ΔIV), rms (total movement), skew-change (put-wing vs call-wing ΔIV), term-change (front vs back ΔIV).
-- [ ] **EVOL-02** — The comparison runs at multiple horizons — 1, 5, and 20 trading days back — with each horizon resolved against actually-stored trading sessions (not calendar arithmetic) and labelled with the real prior date.
+- [ ] **EVOL-01** — A `surface_evolution` module computes the change between today's surface and a prior baseline, decomposed into four scalars on the masked grid: level (mean ΔIV), rms (total movement), skew-change (put-wing vs call-wing ΔIV), term-change (front vs back ΔIV). The headline baseline is the **N-day rolling mean** of the masked daily surfaces (`IV_today − nanmean_k(masked grids)`), with the comparison mask = today ∩ all N baseline-day masks so no extrapolated cell enters the diff. Point-to-point (today vs a single stored snapshot) is retained for the 3D Δ-surface render and the two-date comparator (VIEW-03).
+- [ ] **EVOL-02** — The comparison runs at multiple horizons — **5, 10, and 20 trading days back** — with each horizon resolved against actually-stored trading sessions (not calendar arithmetic) and labelled with the real prior date. 1-day is intentionally excluded (mostly expiry-roll + quote noise).
 - [ ] **EVOL-03** — Evolution metrics persist to `out/surface_evolution.parquet`, idempotent on (date, ticker, horizon), accumulating forward.
 - [ ] **EVOL-04** — Evolution is computed automatically as a non-blocking pass inside `run_daily` after the day's snapshot is saved; a failure here never blocks the email.
 - [ ] **EVOL-05** — Surface-change is comparable across SPY / QQQ / IWM (cross-ticker view), so divergence (e.g. IWM moving alone) is visible.
@@ -44,7 +44,7 @@ Turn the vol surface into an accumulating, trustworthy daily diagnostic: prove t
 - [ ] **RPT-02** — The daily email attaches the surface and ΔIV-surface images as 3D renders consistent with the Streamlit views, using a pinned camera angle so the static frame is readable.
 - [ ] **RPT-03** — Report content is prioritised surfaces > put/call walls > OI > gamma; open interest is surfaced as data (currently absent from the email).
 - [ ] **RPT-04** — The report reads as a clean, formal business document: restrained palette consistent with the dashboard, no crazy colours, no decorative noise.
-- [ ] **RPT-05** — Evolution scalars appear in the report and the narrative leads with the 5-day horizon (1-day ΔIV is mostly expiry-roll + quote noise — the same hazard that retired the v3.1 vs-yesterday badge).
+- [ ] **RPT-05** — Evolution scalars appear in the report and the narrative leads with the 5-day rolling read (today vs the 5-day mean surface); 1-day is excluded as mostly expiry-roll + quote noise — the same hazard that retired the v3.1 vs-yesterday badge.
 
 ---
 
