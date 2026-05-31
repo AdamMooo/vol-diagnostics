@@ -2,9 +2,9 @@
 gsd_state_version: "1.0"
 milestone: "v3.3 — Surface Evolution & Daily Intelligence"
 status: active
-last_updated: 2026-05-29
+last_updated: 2026-05-30
 context_gathered: true
-plans_ready: true
+plans_ready: false
 ---
 
 # Project State
@@ -18,12 +18,12 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: Phase 8 of 11 — Surface Validation (the gate); first of 4 in v3.3
-Plan: 4 plans in 3 waves — ready to execute
-Status: Planned — ready to execute Phase 8
-Last activity: 2026-05-29 — Phase 8 planned: 4 PLAN.md files (08-01..08-04) passed plan-checker (zero blockers); rbf_grid extraction → mask → diagnostics → snapshot → Streamlit readout chain
+Phase: Phase 8 of 11 — Surface Validation (the gate) — ✅ COMPLETE (verified 2026-05-30, PASSED)
+Next: Phase 9 — Surface Evolution Engine (not yet planned)
+Status: Phase 8 verified PASSED — all 6 VALID reqs met; ready to plan Phase 9
+Last activity: 2026-05-30 — Phase 8 executed inline (4 plans, all SUMMARY+VERIFICATION written), 92 tests pass; rbf_grid + coverage_mask + surface_diagnostics + sweep + trust readout shipped
 
-Progress: [░░░░░░░░░░] 0% (v3.3 — 0/4 phases)
+Progress: [██▌░░░░░░░] 25% (v3.3 — 1/4 phases)
 
 ## Performance Metrics
 
@@ -46,6 +46,9 @@ Progress: [░░░░░░░░░░] 0% (v3.3 — 0/4 phases)
 
 ### Decisions
 
+- 2026-05-30: GSD `gsd-sdk query` SDK is BROKEN on this machine (`@gsd-build/sdk@0.1.0` = autonomous runner, no `query`; content is v1.37.1). Legacy `gsd-tools.cjs state` mutators CORRUPT STATE.md (rewrite to v1.x schema). Phase 8 executed/verified inline via git + by-hand STATE/REQUIREMENTS edits. Repair the SDK before Phase 9 (no published query-capable @gsd-build/sdk found).
+- 2026-05-30: ΔIV horizons locked {5,10,20} (drop noisy 1d, add 10d), headline baseline = N-day rolling mean (mask-intersected) — REQUIREMENTS EVOL-01/02, RPT-05.
+- 2026-05-30: Phase 8 finding — honest surface coverage is only ~22% at k=2.0 on the 40×30 grid (SPY); the gate working as intended (quotes cluster at discrete expiries). Phase 10 to weigh coarsening/narrowing the grid vs accepting sparsity. Smoothing kept at 1.5 (D-12) despite cv mildly favouring less on one clean day.
 - 2026-05-29: v3.3 foundation-first gate — Phase 8 coverage mask is the single source of truth; no downstream phase computes/displays/emails a value in an uncovered grid cell
 - 2026-05-29: Cut (not deferred) — PCA (first 3 factors are level/skew/term, already measured directly) and SVI/SABR calibration (verify the surface, don't re-calibrate)
 - 2026-05-29: `kaleido>=1.0,<2.0` + one-time `get_chrome` for PNG export; `kaleido==0.2.1` hangs on Windows/plotly 6.7, do not downgrade plotly to 5.x; HTML-attachment is the documented fallback
@@ -76,14 +79,18 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-29
-Stopped at: Phase 8 planned and verified — 4 plans (08-01..08-04) in 3 waves, plan-checker passed with zero blockers.
-Resume file: .planning/phases/08-surface-validation/08-01-PLAN.md (+ 02, 03, 04)
+Last session: 2026-05-30
+Stopped at: Phase 8 COMPLETE — all 4 plans executed inline + verified (08-VERIFICATION.md, status passed). 92 tests pass. VALID-04 reworded in REQUIREMENTS.md (ROADMAP reword N/A — stale v3.1 doc).
+Resume file: .planning/phases/08-surface-validation/08-VERIFICATION.md
 
-**Next action:** `/clear`, then run `/gsd-execute-phase 8` to build Surface Validation (the gate).
+**Next action:** repair the GSD SDK (so `gsd-sdk query` works), then `/clear` and `/gsd-discuss-phase 9` (or `/gsd-plan-phase 9`) for the Surface Evolution Engine — build with the locked {5,10,20} horizons + rolling-mean baseline.
 
-**Carry-over for executor:** VALID-04 reframes "no-arbitrage" → "surface coherence" (per 08-CONTEXT D-11) — update wording in REQUIREMENTS.md + ROADMAP Phase 8 SC#5 during execution.
+**Phase 9 carry-over:** EVOL engine recomputes `analytics.coverage_mask` per stored day and INTERSECTS today ∩ all N baseline-day masks before differencing (never diff independently-extrapolated grids). Headline baseline = N-day rolling mean. Honest grid coverage is ~22% — surface reads sparse (Phase 10 concern).
 
+---
+---
+---
+---
 ---
 ---
 ---
