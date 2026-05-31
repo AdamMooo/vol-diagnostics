@@ -46,7 +46,7 @@ Progress: [██▌░░░░░░░] 25% (v3.3 — 1/4 phases)
 
 ### Decisions
 
-- 2026-05-30: GSD `gsd-sdk query` SDK is BROKEN on this machine (`@gsd-build/sdk@0.1.0` = autonomous runner, no `query`; content is v1.37.1). Legacy `gsd-tools.cjs state` mutators CORRUPT STATE.md (rewrite to v1.x schema). Phase 8 executed/verified inline via git + by-hand STATE/REQUIREMENTS edits. Repair the SDK before Phase 9 (no published query-capable @gsd-build/sdk found).
+- 2026-05-30: GSD SDK was broken (Phase 8 ran inline) then REPAIRED — `gsd-sdk` on PATH was the wrong pkg (`@gsd-build/sdk@0.1.0`, an autonomous runner with no `query`). Fix: `npm uninstall -g @gsd-build/sdk && npm install -g get-shit-done-cc@latest` (the real pkg ships the query-capable `gsd-sdk`/`gsd-tools` bins). `gsd-sdk query init.execute-phase` now returns JSON. NOTE: content is 1.37.1, sdk is 1.42.3 — works, but `/gsd-update` would sync content+agents to 1.42.3 for full consistency (wipes/replaces get-shit-done content; custom files backed up). Do NOT use the old `gsd-tools.cjs state` mutators (they corrupted STATE.md).
 - 2026-05-30: ΔIV horizons locked {5,10,20} (drop noisy 1d, add 10d), headline baseline = N-day rolling mean (mask-intersected) — REQUIREMENTS EVOL-01/02, RPT-05.
 - 2026-05-30: Coverage mask switched kNN-radius → CONVEX HULL (reverses D-01/D-03). The kNN radius (median-NN, dominated by dense strike spacing) wrongly holed legitimate between-expiry interpolation → only ~22% coverage; convex-hull support (interpolation inside the quote cloud is honest, only extrapolation holed) gives 92.9% SPY / 92.4% QQQ / 88.6% IWM. COVERAGE_KNN_K + the k-sweep removed (now parameter-free — fits no-hand-tuned-cutoffs rule). VALID-01 wording already allowed "convex-hull / kNN".
 - 2026-05-30: Smoothing kept at 1.5 (D-12) despite cv mildly favouring less on one clean SPY day — exact-interpolation (smoothing=0) reintroduces ringing risk; revisit as more days accumulate.
@@ -81,13 +81,15 @@ None.
 ## Session Continuity
 
 Last session: 2026-05-30
-Stopped at: Phase 8 COMPLETE — all 4 plans executed inline + verified (08-VERIFICATION.md, status passed). 92 tests pass. VALID-04 reworded in REQUIREMENTS.md (ROADMAP reword N/A — stale v3.1 doc).
+Stopped at: Phase 8 COMPLETE — all 4 plans executed inline + verified (08-VERIFICATION.md, status passed) + coverage_mask refined kNN→convex hull (coverage ~22%→~93%). 93 tests pass. GSD SDK repaired (gsd-sdk query works again).
 Resume file: .planning/phases/08-surface-validation/08-VERIFICATION.md
 
-**Next action:** repair the GSD SDK (so `gsd-sdk query` works), then `/clear` and `/gsd-discuss-phase 9` (or `/gsd-plan-phase 9`) for the Surface Evolution Engine — build with the locked {5,10,20} horizons + rolling-mean baseline.
+**Next action:** `/clear`, then `/gsd-discuss-phase 9` (or `/gsd-plan-phase 9`) for the Surface Evolution Engine — build with the locked {5,10,20} horizons + rolling-mean baseline. (Optional: `/gsd-update` first to sync content 1.37.1→1.42.3.)
 
-**Phase 9 carry-over:** EVOL engine recomputes `analytics.coverage_mask` per stored day and INTERSECTS today ∩ all N baseline-day masks before differencing (never diff independently-extrapolated grids). Headline baseline = N-day rolling mean. Honest grid coverage is ~22% — surface reads sparse (Phase 10 concern).
+**Phase 9 carry-over:** EVOL engine recomputes `analytics.coverage_mask` per stored day (now convex-hull, parameter-free) and INTERSECTS today ∩ all N baseline-day masks before differencing (never diff independently-extrapolated grids). Headline baseline = N-day rolling mean.
 
+---
+---
 ---
 ---
 ---
