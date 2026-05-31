@@ -1,11 +1,11 @@
 """
-Sensitivity sweep for the two vol-surface magic numbers (VALID-03, D-12).
+Sensitivity sweep for the vol-surface smoothing parameter (VALID-03, D-12).
 
-Re-runnable proof artifact — keeps SURFACE_SMOOTHING and COVERAGE_KNN_K justified
-and live rather than frozen. Sweeps:
-  - smoothing: scored on fit RMSE / max-residual / leave-one-expiry-out CV (pp).
-    Lower fit RMSE = closer fit; too little smoothing overfits quote noise (cv_rmse rises).
-  - COVERAGE_KNN_K: scored on coverage % / hole-count on the standard grid.
+Re-runnable proof artifact — keeps SURFACE_SMOOTHING justified and live rather than frozen.
+Sweeps smoothing, scored on fit RMSE / max-residual / leave-one-expiry-out CV (pp): lower fit
+RMSE = closer fit; too little smoothing overfits quote noise (cv_rmse rises). Also reports the
+convex-hull coverage on the standard grid for context (the coverage gate is parameter-free —
+support = inside the quote hull — so there is nothing to sweep there).
 
 Usage:
     python -m gex.surface_sweep                # SPY (most recent stored day, else live)
@@ -13,7 +13,7 @@ Usage:
 
 Reads the most recent stored day from gex.surface_history; falls back to a live
 compute_ticker() fetch if the store is empty. NEVER edits config.py — the human
-reads the tables and decides.
+reads the table and decides.
 """
 from __future__ import annotations
 
@@ -24,7 +24,6 @@ import numpy as np
 from gex import config
 
 SMOOTHING_CANDIDATES = (0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0)
-K_CANDIDATES = (1.0, 1.5, 2.0, 2.5, 3.0)
 _DTE_FLOOR = 5
 
 
@@ -89,16 +88,11 @@ def sweep_smoothing(surface_df, spot, candidates=SMOOTHING_CANDIDATES):
     return rows
 
 
-def sweep_k(surface_df, spot, candidates=K_CANDIDATES):
-    """One row per COVERAGE_KNN_K candidate: k, coverage_pct, hole_count."""
+def hull_coverage(surface_df, spot):
+    """Convex-hull coverage % on the standard grid (parameter-free — for context only)."""
     from gex.analytics import coverage_mask
     dte_grid, otm_grid = _standard_grid(surface_df, spot)
-    rows = []
-    for k in candidates:
-        mask = coverage_mask(surface_df, spot, dte_grid, otm_grid, k=k)
-        rows.append({"k": k, "coverage_pct": 100.0 * float(mask.mean()),
-                     "hole_count": int((~mask).sum())})
-    return rows
+    return 100.0 * float(coverage_mask(surface_df, spot, dte_grid, otm_grid).mean())
 
 
 def _load_surface(ticker):
@@ -129,18 +123,17 @@ def main(ticker="SPY"):
     for r in sweep_smoothing(surface_df, spot):
         print(f"{r['smoothing']:>10.1f} {r['fit_rmse']:>10.2f} {r['max_resid']:>10.2f} {r['cv_rmse']:>10.2f}")
 
-    print(f"\n=== COVERAGE_KNN_K sweep ({ticker}) — coverage vs hole-count ===")
-    print(f"{'k':>10} {'coverage_%':>12} {'hole_count':>12}")
-    for r in sweep_k(surface_df, spot):
-        print(f"{r['k']:>10.1f} {r['coverage_pct']:>12.1f} {r['hole_count']:>12d}")
+    print(f"\n=== coverage ({ticker}) — convex-hull support on the standard grid ===")
+    print(f"  coverage {hull_coverage(surface_df, spot):.1f}%  "
+          f"(interpolation inside the quote hull; corners beyond the data are honest holes)")
 
-    print(f"\n[surface_sweep] configured: SURFACE_SMOOTHING={config.SURFACE_SMOOTHING}, "
-          f"COVERAGE_KNN_K={config.COVERAGE_KNN_K} — kept unless the tables clearly argue otherwise.")
+    print(f"\n[surface_sweep] configured: SURFACE_SMOOTHING={config.SURFACE_SMOOTHING} "
+          f"— kept unless the table clearly argues otherwise. Coverage is parameter-free (convex hull).")
     return 0
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Sweep vol-surface smoothing + coverage-k.")
+    parser = argparse.ArgumentParser(description="Sweep vol-surface smoothing; report hull coverage.")
     parser.add_argument("--ticker", default="SPY")
     args = parser.parse_args()
     raise SystemExit(main(ticker=args.ticker))

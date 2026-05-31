@@ -187,41 +187,42 @@ def rbf_grid(surface_df, spot, dte_grid, otm_grid, *,
 
 
 def coverage_mask(surface_df, spot, dte_grid, otm_grid, *,
-                  dte_floor=5, clip_pct=None, k=None):
-    """Boolean support mask over the (DTE, %OTM) grid — True where a real quote is near.
+                  dte_floor=5, clip_pct=None):
+    """Boolean support mask over the (DTE, %OTM) grid — True where the cell is an
+    INTERPOLATION of real quotes, False where it would be EXTRAPOLATION.
 
-    kNN over real quote locations (NOT convex hull): a grid cell is supported only if its
-    nearest real quote, in std-normalized DTE/%OTM space, is within
-    r = k × median(nearest-neighbor distance among real quotes). Data-adaptive, so it scales
-    to today's chain density rather than using a fixed (non-stationary) cutoff. This is THE
-    exported gate artifact — Phase 9 recomputes it per day and intersects two days' masks.
+    Support = inside the convex hull of the real quote locations. Interpolating between
+    bracketing strikes AND between bracketing expiries is honest; only cells outside the
+    quote cloud (the short/long-DTE deep-wing corners beyond the data) are fabricated and
+    holed. No tunable radius — the data defines its own support, which fits the project's
+    rejection of hand-tuned cutoffs. This is THE exported gate artifact: Phase 9 recomputes
+    it per day and intersects two days' masks.
+
+    (Replaced the earlier kNN-radius mask, whose isotropic radius was set by the dense
+    strike spacing and so wrongly holed legitimate between-expiry interpolation — ~22%
+    coverage vs ~90% here on liquid SPY/QQQ/IWM. See 08-VERIFICATION.md.)
     """
-    from scipy.spatial import cKDTree
+    from scipy.spatial import Delaunay, QhullError
     if clip_pct is None:
         clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
-    if k is None:
-        k = config.COVERAGE_KNN_K
     pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
     dte_v = surface_df["dte"].to_numpy()
     in_band = (np.abs(pct_otm) <= clip_pct) & (dte_v >= dte_floor)
     pct_otm, dte_v = pct_otm[in_band], dte_v[in_band]
     n_cells = (len(otm_grid), len(dte_grid))
-    if len(dte_v) < 6:
+    # need >=6 quotes across >=2 expiries; one expiry is collinear (no 2D hull)
+    if len(dte_v) < 6 or len(np.unique(dte_v)) < 2:
         return np.zeros(n_cells, dtype=bool)
     pts = np.column_stack([dte_v, pct_otm])
     pts_std = pts.std(axis=0)
-    pts_std[pts_std < 1e-6] = 1.0
-    norm_pts = pts / pts_std
-    tree = cKDTree(norm_pts)
-    # median nearest-neighbor distance among the real quotes (k=2: self + nearest)
-    nn_among_quotes, _ = tree.query(norm_pts, k=2)
-    median_nn = float(np.median(nn_among_quotes[:, 1]))
-    radius = k * median_nn
+    pts_std[pts_std < 1e-6] = 1.0  # per-axis scaling is affine: hull membership invariant, aids Qhull
+    try:
+        hull = Delaunay(pts / pts_std)
+    except QhullError:
+        return np.zeros(n_cells, dtype=bool)
     DTE, OTM = np.meshgrid(dte_grid, otm_grid)
     grid_norm = np.column_stack([DTE.ravel(), OTM.ravel()]) / pts_std
-    nn_dist, _ = tree.query(grid_norm)
-    supported = (nn_dist <= radius).reshape(DTE.shape)
-    return supported
+    return (hull.find_simplex(grid_norm) >= 0).reshape(DTE.shape)
 
 
 def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.Figure:

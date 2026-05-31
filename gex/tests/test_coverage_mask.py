@@ -1,5 +1,6 @@
-"""Plan 08-01 Task 3: coverage_mask flags grid cells with no nearby real quote.
-kNN over real quote locations, data-adaptive radius (k × median NN distance)."""
+"""Plan 08-01 Task 3 (convex-hull rev): coverage_mask supports interpolation INSIDE the
+convex hull of real quotes and holes only extrapolation OUTSIDE it. Between-expiry
+interpolation is honest (the kNN-radius mask wrongly holed it)."""
 from __future__ import annotations
 
 import numpy as np
@@ -37,27 +38,32 @@ def test_dense_chain_is_nearly_all_supported():
     dte_grid, otm_grid = _grid(5.0, 90.0)
     mask = coverage_mask(df, spot, dte_grid, otm_grid)
     assert mask.shape == (len(otm_grid), len(dte_grid))
-    assert mask.mean() > 0.95
+    # hull covers all but the boundary ring (grid extent coincides with the quote extent here)
+    assert mask.mean() >= 0.85
 
 
-def test_missing_expiry_gap_creates_holes():
+def test_between_expiry_gap_is_supported():
+    """The fix: interpolating across a missing-expiry gap is honest, not fabricated."""
     spot = 500.0
-    # quotes clustered at the short end only; grid spans to 90 DTE
-    df = _chain([7, 10, 14], [-10, -5, 0, 5, 10], spot)
+    df = _chain([10, 15, 70, 80], [-8, -4, 0, 4, 8], spot)   # wide gap 15..70
     dte_grid, otm_grid = _grid(5.0, 90.0)
     mask = coverage_mask(df, spot, dte_grid, otm_grid)
-
-    # holes must exist somewhere
-    assert not mask.all()
-
-    # a cell at DTE=10, ATM (a real quote sits there) must be supported
-    dte_idx = int(np.argmin(np.abs(dte_grid - 10.0)))
+    dte_idx = int(np.argmin(np.abs(dte_grid - 45.0)))         # inside the gap, between clusters
     otm_idx = int(np.argmin(np.abs(otm_grid - 0.0)))
-    assert mask[otm_idx, dte_idx]
+    assert mask[otm_idx, dte_idx]                             # interior of hull -> supported
 
-    # the far-DTE region (~75 DTE, no quotes near) must be overwhelmingly unsupported
-    far_idx = int(np.argmin(np.abs(dte_grid - 75.0)))
-    assert mask[:, far_idx].mean() < 0.2
+
+def test_extrapolation_outside_hull_is_holed():
+    spot = 500.0
+    df = _chain([20, 35, 50, 60], [-6, -3, 0, 3, 6], spot)   # DTE 20-60, %OTM +/-6 only
+    dte_grid, otm_grid = _grid(5.0, 90.0)
+    mask = coverage_mask(df, spot, dte_grid, otm_grid)
+    atm = int(np.argmin(np.abs(otm_grid - 0.0)))
+    assert mask[atm, int(np.argmin(np.abs(dte_grid - 40.0)))]          # interior -> supported
+    assert not mask[atm, int(np.argmin(np.abs(dte_grid - 85.0)))]     # beyond max expiry -> holed
+    assert not mask[int(np.argmin(np.abs(otm_grid - 14.0))),
+                    int(np.argmin(np.abs(dte_grid - 40.0)))]          # deep wing -> holed
+    assert not mask.all()
 
 
 def test_under_six_points_all_unsupported():
@@ -69,17 +75,10 @@ def test_under_six_points_all_unsupported():
     assert not mask.any()
 
 
-def test_radius_is_data_adaptive_not_fixed():
-    """Scaling DTE values AND the DTE grid by a constant must leave the mask
-    unchanged — the radius scales with the data, so it's adaptive, not a fixed cutoff."""
+def test_single_expiry_all_unsupported():
+    """One expiry is collinear in (DTE, %OTM) — no 2D hull — nothing supported."""
     spot = 500.0
-    df = _chain(np.arange(5, 95, 5), np.arange(-15, 16, 2.5), spot)
-    dte_grid, otm_grid = _grid(5.0, 90.0)
-    base = coverage_mask(df, spot, dte_grid, otm_grid)
-
-    c = 2.0
-    df_scaled = df.copy()
-    df_scaled["dte"] = df_scaled["dte"] * c
-    scaled = coverage_mask(df_scaled, spot, dte_grid * c, otm_grid)
-
-    assert np.array_equal(base, scaled)
+    df = _chain([30], [-10, -5, 0, 5, 10, 12], spot)  # 6 pts, 1 expiry
+    dte_grid, otm_grid = _grid()
+    mask = coverage_mask(df, spot, dte_grid, otm_grid)
+    assert not mask.any()

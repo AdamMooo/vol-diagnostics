@@ -1,5 +1,6 @@
-"""Plan 08-02: plot_vol_surface applies coverage_mask so unsupported cells render
-as honest NaN holes — present where quotes are absent, near-zero where dense."""
+"""Plan 08-02 (convex-hull rev): plot_vol_surface NaN-masks cells OUTSIDE the quote hull
+(extrapolation) — present in the deep wings where strikes are absent, near-zero for a chain
+that fills the displayed band."""
 from __future__ import annotations
 
 import numpy as np
@@ -9,8 +10,10 @@ import plotly.graph_objects as go
 from gex import config
 from gex.analytics import plot_vol_surface
 
+SPOT = 500.0
 
-def _chain(dtes, pct_otms, spot=500.0):
+
+def _chain(dtes, pct_otms, spot=SPOT):
     rows = []
     for dte in dtes:
         for p in pct_otms:
@@ -30,39 +33,29 @@ def _z(fig):
 
 
 def test_dense_chain_has_few_holes():
-    spot = 500.0
-    df = _chain(np.arange(5, 95, 5), np.arange(-15, 16, 2.5), spot)
-    fig = plot_vol_surface(df, "SPY", spot)
+    df = _chain(np.arange(5, 95, 5), np.arange(-15, 16, 2.5))
+    fig = plot_vol_surface(df, "SPY", SPOT)
     assert isinstance(fig, go.Figure)
     assert len(fig.data) == 1 and type(fig.data[0]).__name__ == "Surface"
     z = _z(fig)
-    assert np.isnan(z).mean() < 0.05
+    assert np.isnan(z).mean() < 0.15
 
 
-def test_missing_expiry_gap_creates_nan_holes():
-    spot = 500.0
-    # two DTE clusters (7-14 and 80-90) with a wide internal gap; full %OTM span
-    df = _chain([7, 10, 14, 80, 85, 90], [-15, -7.5, 0, 7.5, 15], spot)
-    fig = plot_vol_surface(df, "SPY", spot)
-    assert isinstance(fig, go.Figure)
-    assert len(fig.data) == 1 and type(fig.data[0]).__name__ == "Surface"
+def test_wing_extrapolation_creates_nan_holes():
+    # quotes only to +/-8% but the plot grid spans +/-15% -> the wings are extrapolation -> holes
+    df = _chain([10, 20, 40, 70, 90], [-8, -4, 0, 4, 8])
+    fig = plot_vol_surface(df, "SPY", SPOT)
     z = _z(fig)
-
-    # holes exist
     assert np.isnan(z).any()
 
-    # the mid-DTE gap (~45 DTE, no quotes) is mostly NaN
-    clip = config.SURFACE_PLOT_OTM_CLIP * 100.0
-    dte_grid = np.linspace(5.0, 90.0, config.SURFACE_GRID_DTE)
-    mid_idx = int(np.argmin(np.abs(dte_grid - 45.0)))
-    assert np.isnan(z[:, mid_idx]).mean() > 0.5
-
-    # a near-cluster column (~10 DTE) retains real (non-NaN) values
-    near_idx = int(np.argmin(np.abs(dte_grid - 10.0)))
-    assert (~np.isnan(z[:, near_idx])).any()
+    otm_grid = np.linspace(-config.SURFACE_PLOT_OTM_CLIP * 100.0,
+                           config.SURFACE_PLOT_OTM_CLIP * 100.0, config.SURFACE_GRID_LM)
+    wing_idx = int(np.argmin(np.abs(otm_grid - 14.0)))   # beyond +/-8% quotes
+    atm_idx = int(np.argmin(np.abs(otm_grid - 0.0)))
+    assert np.isnan(z[wing_idx, :]).mean() > 0.5         # deep wing mostly NaN
+    assert (~np.isnan(z[atm_idx, :])).any()              # ATM column retains real values
 
 
 def test_surface_still_one_valid_figure():
-    """No regression to the Plan-06 strip: empty df still returns a valid Figure."""
-    fig = plot_vol_surface(pd.DataFrame(), "SPY", spot=500.0)
+    fig = plot_vol_surface(pd.DataFrame(), "SPY", spot=SPOT)
     assert isinstance(fig, go.Figure)

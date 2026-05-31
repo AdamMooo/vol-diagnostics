@@ -1,5 +1,5 @@
-"""Plan 08-04 Task 1: surface_sweep produces scored tables for both magic numbers.
-smoothing rows finite (more smoothing != closer fit); coverage non-decreasing in k."""
+"""Plan 08-04 Task 1 (hull rev): surface_sweep scores the smoothing parameter and reports
+parameter-free hull coverage. (The COVERAGE_KNN_K sweep was removed — coverage has no knob.)"""
 from __future__ import annotations
 
 import math
@@ -7,9 +7,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from gex.surface_sweep import (
-    sweep_smoothing, sweep_k, SMOOTHING_CANDIDATES, K_CANDIDATES,
-)
+from gex.surface_sweep import sweep_smoothing, hull_coverage, SMOOTHING_CANDIDATES
 
 SPOT = 500.0
 
@@ -39,14 +37,10 @@ def test_smoothing_sweep_one_row_per_candidate_all_finite():
     assert by_s[5.0] >= by_s[0.0] - 1e-9
 
 
-def test_k_sweep_coverage_non_decreasing():
-    rows = sweep_k(_chain(), SPOT)
-    assert len(rows) == len(K_CANDIDATES)
-    assert [r["k"] for r in rows] == list(K_CANDIDATES)
-    cov = [r["coverage_pct"] for r in rows]
-    assert all(cov[i] <= cov[i + 1] + 1e-9 for i in range(len(cov) - 1))
-    holes = [r["hole_count"] for r in rows]
-    assert all(holes[i] >= holes[i + 1] for i in range(len(holes) - 1))
+def test_hull_coverage_is_a_percentage():
+    cov = hull_coverage(_chain(), SPOT)
+    assert 0.0 <= cov <= 100.0
+    assert cov > 50.0  # a chain spanning the band is mostly interpolatable
 
 
 def test_main_runs_clean_on_empty_store(monkeypatch):
