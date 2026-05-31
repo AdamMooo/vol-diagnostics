@@ -90,3 +90,24 @@ def list_available_dates(ticker: str) -> list[datetime.date]:
     except Exception as exc:
         print(f"[surface_history] list_available_dates failed for {ticker}: {exc}")
         return []
+
+
+def nth_trading_day_back(
+    ticker: str, anchor_date: datetime.date, n: int
+) -> datetime.date | None:
+    """Find the date that is N trading sessions before anchor_date.
+
+    Indexes into the descending list of stored dates — no calendar arithmetic.
+    Returns None if anchor_date is not in the store or if fewer than N+1 sessions
+    exist after (older than) anchor_date (cold-start case).
+
+    Example: stored dates [d5, d4, d3, d2, d1] (newest first), anchor=d5, n=2
+    returns d3 (two positions down in the list = two sessions earlier).
+    """
+    available = list_available_dates(ticker)
+    if anchor_date not in available:
+        return None
+    idx = available.index(anchor_date)
+    if idx + n >= len(available):
+        return None
+    return available[idx + n]
