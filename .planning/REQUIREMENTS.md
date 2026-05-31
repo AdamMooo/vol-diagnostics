@@ -25,7 +25,7 @@ Turn the vol surface into an accumulating, trustworthy daily diagnostic: prove t
 
 - [x] **EVOL-01** — A `surface_evolution` module computes the change between today's surface and a prior baseline, decomposed into four scalars on the masked grid: level (mean ΔIV), rms (total movement), skew-change (put-wing vs call-wing ΔIV), term-change (front vs back ΔIV). The headline baseline is the **N-day rolling mean** of the masked daily surfaces (`IV_today − nanmean_k(masked grids)`), with the comparison mask = today ∩ all N baseline-day masks so no extrapolated cell enters the diff. Point-to-point (today vs a single stored snapshot) is retained for the 3D Δ-surface render and the two-date comparator (VIEW-03).
 - [x] **EVOL-02** — The comparison runs at multiple horizons — **5, 10, and 20 trading days back** — with each horizon resolved against actually-stored trading sessions (not calendar arithmetic) and labelled with the real prior date. 1-day is intentionally excluded (mostly expiry-roll + quote noise).
-- [ ] **EVOL-03** — Evolution metrics persist to `out/surface_evolution.parquet`, idempotent on (date, ticker, horizon), accumulating forward.
+- [x] **EVOL-03** — Evolution metrics persist to `out/surface_evolution.parquet`, idempotent on (date, ticker, horizon), accumulating forward.
 - [ ] **EVOL-04** — Evolution is computed automatically as a non-blocking pass inside `run_daily` after the day's snapshot is saved; a failure here never blocks the email.
 - [x] **EVOL-05** — Surface-change is comparable across SPY / QQQ / IWM (cross-ticker view), so divergence (e.g. IWM moving alone) is visible.
 - [ ] **EVOL-06** — A backfill routine retro-computes evolution from existing `surface_history` so the dashboard is not empty on first use.
@@ -84,7 +84,7 @@ All 22 v1 requirements mapped to exactly one phase. No orphans, no duplicates.
 | VALID-06 | Phase 8 | Complete |
 | EVOL-01 | Phase 9 | Complete |
 | EVOL-02 | Phase 9 | Complete |
-| EVOL-03 | Phase 9 | Pending |
+| EVOL-03 | Phase 9 | Complete |
 | EVOL-04 | Phase 9 | Pending |
 | EVOL-05 | Phase 9 | Complete |
 | EVOL-06 | Phase 9 | Pending |

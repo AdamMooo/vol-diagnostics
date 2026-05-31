@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.3 — Surface Evolution & Daily Intelligence
 milestone_name: Surface Evolution & Daily Intelligence
 status: executing
-stopped_at: "09-01 complete: config constants + nth_trading_day_back + test scaffold (96 passed, 8 skipped)"
-last_updated: "2026-05-31T04:19:00.449Z"
+stopped_at: "09-02 complete: surface_evolution.py engine + 14 passing tests (107 total passed)"
+last_updated: "2026-05-31T04:28:54.397Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
   percent: 40
 ---
 
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09 (surface-evolution-engine) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Next: Phase 9 — Surface Evolution Engine (not yet planned)
 Status: Ready to execute
 Last activity: 2026-05-31
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [████████░░] 80%
 
 **Recent Trend:** v3.2 closed (Phase 7 complete). v3.3 roadmapped — foundation-first surface validation gate, evolution engine, dashboard restructure, richer report.
 | Phase 09-surface-evolution-engine P01 | 8 | 2 tasks | 3 files |
+| Phase 09 P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ Progress: [████████░░] 80%
 - 2026-05-26: plot_vol_surface() stripped of all GEX overlays; Viridis colorscale
 - 2026-05-22: VRP (IV30 − RV20) as hedging cost context; RV20 from parquet history (not yfinance)
 - 2026-05-22: Two-phase v3.2 structure — computation before rendering; cuts before additions
+- [Phase ?]: 09-02: compute_evolution_scalars pure function; update_evolution owns 8-step algorithm; grid axes loop-invariant
+- [Phase ?]: 09-02: save_evolution_row idempotent on (date, ticker, horizon) — read-filter-concat-write pattern with 3-key mask, mirroring validation.py
 
 ### Pending Todos
 
@@ -90,8 +93,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-31T04:19:00.399Z
-Stopped at: 09-01 complete: config constants + nth_trading_day_back + test scaffold (96 passed, 8 skipped)
+Last session: 2026-05-31T04:28:54.364Z
+Stopped at: 09-02 complete: surface_evolution.py engine + 14 passing tests (107 total passed)
 Resume file: None
 
 **Next action:** restart Claude Code (GSD updated to 1.42.3), then `/gsd-discuss-phase 9` (or `/gsd-plan-phase 9`) for the Surface Evolution Engine — build with the locked {5,10,20} horizons + rolling-mean baseline. SDK is healthy, so the normal parallel-executor flow works (no more inline workaround).

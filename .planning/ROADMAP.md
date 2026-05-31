@@ -138,7 +138,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 09-02-PLAN.md — Core engine: compute_evolution_scalars, update_evolution, save_evolution_row, load_evolution + unit/integration tests
+- [x] 09-02-PLAN.md — Core engine: compute_evolution_scalars, update_evolution, save_evolution_row, load_evolution + unit/integration tests
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
