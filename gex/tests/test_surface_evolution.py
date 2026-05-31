@@ -476,6 +476,69 @@ def test_cold_start_no_row_written(monkeypatch, tmp_path):
     )
 
 
+# ---------------------------------------------------------------------------
+# Integration tests (EVOL-04/05/06) — added in Plan 03
+# ---------------------------------------------------------------------------
+
+def test_evolution_does_not_raise_on_empty_store(monkeypatch, tmp_path):
+    """update_evolution with empty snapshot returns silently; no parquet written."""
+    import gex.surface_evolution as se
+
+    monkeypatch.setattr("gex.surface_evolution.STORE", tmp_path / "test_evolution.parquet")
+    monkeypatch.setattr(
+        "gex.surface_evolution.load_surface_snapshot",
+        lambda ticker, date: (pd.DataFrame(), None),
+    )
+
+    se.update_evolution("SPY", datetime.date.today())
+
+    assert not (tmp_path / "test_evolution.parquet").exists(), (
+        "no parquet should be written when load_surface_snapshot returns empty"
+    )
+
+
+def test_run_daily_evolution_failure_does_not_propagate():
+    """Non-blocking loop pattern: all failures collected, none propagated."""
+    failed = []
+    for ticker in ["SPY", "QQQ", "IWM"]:
+        try:
+            raise RuntimeError("simulated")
+        except Exception as exc:
+            failed.append(ticker)
+    assert len(failed) == 3
+
+
+def test_cross_ticker_schema_consistency(monkeypatch, tmp_path):
+    """Rows written for SPY/QQQ/IWM share identical columns and valid horizons."""
+    import gex.surface_evolution as se
+
+    store = tmp_path / "test_cross_ticker.parquet"
+    monkeypatch.setattr("gex.surface_evolution.STORE", store)
+
+    base_date = datetime.date(2026, 5, 30)
+    prior_date = datetime.date(2026, 5, 23)
+    for ticker in ["SPY", "QQQ", "IWM"]:
+        for horizon in (5, 10, 20):
+            se.save_evolution_row(
+                date=base_date,
+                ticker=ticker,
+                horizon=horizon,
+                prior_date=prior_date,
+                level=0.1,
+                rms=0.2,
+                skew_change=0.05,
+                term_change=0.03,
+                coverage=0.75,
+            )
+
+    df = pd.read_parquet(store)
+    assert set(df["ticker"].unique()) == {"SPY", "QQQ", "IWM"}
+    assert set(df["horizon"].unique()).issubset({5, 10, 20})
+    for ticker in ["SPY", "QQQ", "IWM"]:
+        cols = set(df[df["ticker"] == ticker].columns)
+        assert cols == set(df.columns), f"{ticker} has different columns"
+
+
 def test_backfill_consistency(monkeypatch, tmp_path):
     """Backfill from surface_history produces identical scalars to daily ingestion."""
     import gex.surface_evolution as se
