@@ -1,6 +1,6 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-05-26 — Phase 6 complete; vol metrics computation engine built; advancing to Phase 7 rendering*
+*Last updated: 2026-05-31 — Phase 9 complete; surface-evolution engine built (ΔIV scalars at 5/10/20-day horizons, non-blocking daily pass, backfill CLI), accumulating from cold-start; advancing to Phase 10 dashboard restructure*
 
 ## Current Milestone: v3.3 — Surface Evolution & Daily Intelligence
 
