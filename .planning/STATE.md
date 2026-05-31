@@ -1,10 +1,17 @@
 ---
-gsd_state_version: "1.0"
-milestone: "v3.3 — Surface Evolution & Daily Intelligence"
-status: active
-last_updated: 2026-05-30
-context_gathered: true
-plans_ready: false
+gsd_state_version: 1.0
+milestone: v3.3 — Surface Evolution & Daily Intelligence
+milestone_name: Surface Evolution & Daily Intelligence
+status: executing
+stopped_at: "09-01 complete: config constants + nth_trading_day_back + test scaffold (96 passed, 8 skipped)"
+last_updated: "2026-05-31T04:19:00.449Z"
+last_activity: 2026-05-31
+progress:
+  total_phases: 5
+  completed_phases: 2
+  total_plans: 10
+  completed_plans: 8
+  percent: 40
 ---
 
 # Project State
@@ -14,20 +21,22 @@ plans_ready: false
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** v3.3 — Surface Evolution & Daily Intelligence (Phases 8–11)
+**Current focus:** Phase 09 — surface-evolution-engine
 
 ## Current Position
 
-Phase: Phase 8 of 11 — Surface Validation (the gate) — ✅ COMPLETE (verified 2026-05-30, PASSED)
+Phase: 09 (surface-evolution-engine) — EXECUTING
+Plan: 2 of 3
 Next: Phase 9 — Surface Evolution Engine (not yet planned)
-Status: Phase 8 verified PASSED — all 6 VALID reqs met; ready to plan Phase 9
-Last activity: 2026-05-30 — Phase 8 executed inline (4 plans, all SUMMARY+VERIFICATION written), 92 tests pass; rbf_grid + coverage_mask + surface_diagnostics + sweep + trust readout shipped
+Status: Ready to execute
+Last activity: 2026-05-31
 
-Progress: [██▌░░░░░░░] 25% (v3.3 — 1/4 phases)
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 9 (v3.1 Phase 5 × 3 + v3.2 Phase 6 × 4 + v3.2 Phase 7 × 2)
 - Average duration: ~7 min per plan
 - Current test count: 66
@@ -41,6 +50,7 @@ Progress: [██▌░░░░░░░] 25% (v3.3 — 1/4 phases)
 | 7. Institutional Dashboard Rendering | 2 | ~4 min | ~2 min |
 
 **Recent Trend:** v3.2 closed (Phase 7 complete). v3.3 roadmapped — foundation-first surface validation gate, evolution engine, dashboard restructure, richer report.
+| Phase 09-surface-evolution-engine P01 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -80,9 +90,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-30
-Stopped at: Phase 8 COMPLETE — all 4 plans executed inline + verified (08-VERIFICATION.md, status passed) + coverage_mask refined kNN→convex hull (coverage ~22%→~93%). 93 tests pass. GSD SDK repaired (gsd-sdk query works again).
-Resume file: .planning/phases/08-surface-validation/08-VERIFICATION.md
+Last session: 2026-05-31T04:19:00.399Z
+Stopped at: 09-01 complete: config constants + nth_trading_day_back + test scaffold (96 passed, 8 skipped)
+Resume file: None
 
 **Next action:** restart Claude Code (GSD updated to 1.42.3), then `/gsd-discuss-phase 9` (or `/gsd-plan-phase 9`) for the Surface Evolution Engine — build with the locked {5,10,20} horizons + rolling-mean baseline. SDK is healthy, so the normal parallel-executor flow works (no more inline workaround).
 
@@ -102,6 +112,8 @@ Resume file: .planning/phases/08-surface-validation/08-VERIFICATION.md
 ---
 ---
 <!-- LINKS:AUTO -->
+
 ## Related
+
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
