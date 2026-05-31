@@ -70,6 +70,14 @@ def run(dry_run: bool = False) -> None:
         else:
             print(f"ERROR: {s['error']}")
 
+    print("\n[run_daily] Computing surface evolution...")
+    from gex.surface_evolution import update_evolution
+    for ticker in INDEX_TICKERS:
+        try:
+            update_evolution(ticker, today)
+        except Exception as exc:
+            print(f"  [WARN] {ticker} evolution failed (non-blocking): {exc}")
+
     index_results = [d["summary"] for d in all_data if d["summary"]["ticker"] in INDEX_TICKERS]
     good          = [d for d in all_data if not d["summary"].get("error")]
 

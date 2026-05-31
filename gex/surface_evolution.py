@@ -324,14 +324,16 @@ def backfill(ticker: str, start_date: datetime.date) -> None:
         print(f"[surface_evolution] backfill: no dates >= {start_date} for {ticker}")
         return
 
-    print(
-        f"[surface_evolution] backfill: {ticker} — {len(valid_dates)} dates "
-        f"from {min(valid_dates)} to {max(valid_dates)}"
-    )
+    n = 0
     for date in reversed(valid_dates):  # oldest first for progress clarity
-        update_evolution(ticker, date)
+        try:
+            update_evolution(ticker, date)
+            print(f"[backfill] {ticker}: {date} -> rows written")
+            n += 1
+        except Exception as exc:
+            print(f"  [WARN] {ticker} {date}: {exc}")
 
-    print(f"[surface_evolution] backfill: {ticker} complete")
+    print(f"[backfill] {ticker} complete ({n} rows)")
 
 
 # ---------------------------------------------------------------------------
