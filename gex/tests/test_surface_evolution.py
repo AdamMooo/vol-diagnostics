@@ -595,3 +595,52 @@ def test_backfill_consistency(monkeypatch, tmp_path):
     assert abs(daily_level - backfill_level) < 1e-6, (
         f"backfill level {backfill_level:.6f} must match daily level {daily_level:.6f}"
     )
+
+
+def test_backfill_reports_honest_row_count(monkeypatch, tmp_path):
+    """backfill returns rows actually persisted, not dates touched; cold-start = 0.
+
+    Guards against the misleading '(N rows)' summary that counted every date
+    processed even when update_evolution wrote nothing during cold-start.
+    """
+    import gex.surface_evolution as se
+
+    spot = 500.0
+    base = datetime.date(2026, 5, 30)
+    dates = [base - datetime.timedelta(days=i) for i in range(3)]  # descending
+
+    surface_map = {d: (_fixed_surface_df(spot), spot) for d in dates}
+
+    def mock_nth_back(ticker, anchor_date, n):
+        if anchor_date not in dates:
+            return None
+        idx = dates.index(anchor_date)
+        return dates[idx + n] if idx + n < len(dates) else None
+
+    monkeypatch.setattr(
+        "gex.surface_evolution.load_surface_snapshot",
+        lambda ticker, date: surface_map.get(date, (pd.DataFrame(), None)),
+    )
+    monkeypatch.setattr("gex.surface_evolution.nth_trading_day_back", mock_nth_back)
+    monkeypatch.setattr("gex.surface_evolution.list_available_dates", lambda ticker: dates)
+    monkeypatch.setattr("gex.surface_evolution.HORIZONS", (1,))
+
+    # Sufficient history: horizon=1 resolves for the two newer dates → rows persisted.
+    store = tmp_path / "honest.parquet"
+    monkeypatch.setattr("gex.surface_evolution.STORE", store)
+    total = se.backfill("SPY", dates[-1])
+
+    df = pd.read_parquet(store)
+    assert total > 0, "with sufficient history backfill must persist at least one row"
+    assert total == len(df), (
+        f"backfill reported {total} rows but the store holds {len(df)} — count must be honest"
+    )
+
+    # Cold-start: no horizon resolves → 0 rows, no file, honest zero.
+    monkeypatch.setattr("gex.surface_evolution.nth_trading_day_back", lambda t, a, n: None)
+    cold_store = tmp_path / "coldstart.parquet"
+    monkeypatch.setattr("gex.surface_evolution.STORE", cold_store)
+    cold_total = se.backfill("SPY", dates[-1])
+
+    assert cold_total == 0, "cold-start backfill must report 0 rows, not dates processed"
+    assert not cold_store.exists(), "cold-start writes no parquet file"

@@ -11,19 +11,22 @@ compute_evolution_scalars(IV_diff_masked, otm_grid, dte_grid) -> dict
     Pure function — receives an already-masked ΔIV array + grid axes, returns four scalars.
     No I/O, no masking.
 
-update_evolution(ticker, date) -> None
+update_evolution(ticker, date) -> int
     Implements the canonical 8-step rolling-mean algorithm.  Owns grid construction,
     baseline loading, mask intersection, scalar dispatch, and persistence.
+    Returns the number of rows persisted (0 on cold-start / empty surface).
 
 save_evolution_row(date, ticker, horizon, prior_date, level, rms, skew_change,
-                   term_change, coverage) -> None
+                   term_change, coverage) -> bool
     Idempotent parquet write (3-key dedup on date + ticker + horizon).
+    Returns True iff the row was persisted.
 
 load_evolution(ticker, horizon=None, days=30) -> pd.DataFrame
     Read filtered rows from the evolution store.
 
-backfill(ticker, start_date) -> None
+backfill(ticker, start_date) -> int
     Retro-compute evolution for all dates >= start_date in the surface history.
+    Returns the total rows persisted (honest cold-start count, not dates touched).
 """
 from __future__ import annotations
 
@@ -149,11 +152,12 @@ def save_evolution_row(
     skew_change: float,
     term_change: float,
     coverage: float,
-) -> None:
+) -> bool:
     """Append or replace a single (date, ticker, horizon) row in the evolution store.
 
     Idempotent: re-running with the same key produces one row, never two.
     Mirrors the read-filter-concat-write pattern from gex/validation.py.
+    Returns True iff the row was persisted, False if the write failed.
     """
     row = {
         "date": date,
@@ -189,8 +193,10 @@ def save_evolution_row(
             f"[surface_evolution] {ticker} {date} horizon={horizon}: "
             f"level={level:.2f}pp rms={rms:.2f}pp saved"
         )
+        return True
     except Exception as exc:
         print(f"[surface_evolution] save_evolution_row failed for {ticker} {date} horizon={horizon}: {exc}")
+        return False
 
 
 def load_evolution(
@@ -221,7 +227,7 @@ def load_evolution(
 # Public — canonical 8-step rolling-mean algorithm
 # ---------------------------------------------------------------------------
 
-def update_evolution(ticker: str, date: datetime.date) -> None:
+def update_evolution(ticker: str, date: datetime.date) -> int:
     """Compute and persist ΔIV evolution scalars for all horizons on a given date.
 
     Implements the canonical 8-step rolling-mean baseline algorithm:
@@ -235,11 +241,14 @@ def update_evolution(ticker: str, date: datetime.date) -> None:
       Step 6.  Stack prior grids → nanmean baseline.  Skip horizon if stack is empty.
       Step 7.  Intersect all masks (today AND all N prior).
       Step 8.  Diff → mask → compute_evolution_scalars → save.
+
+    Returns the number of (date, ticker, horizon) rows actually persisted this
+    call — 0 on cold-start (no horizon has enough history) or an empty surface.
     """
     # Step 1 — today's surface
     surface_today, spot_today = load_surface_snapshot(ticker, date)
     if surface_today.empty or spot_today is None:
-        return
+        return 0
 
     # Step 2 — construct grid axes ONCE (loop-invariant)
     dte_grid, otm_grid = _construct_grid_axes(surface_today)
@@ -252,6 +261,7 @@ def update_evolution(ticker: str, date: datetime.date) -> None:
         surface_today, spot_today, dte_grid, otm_grid, dte_floor=5
     )
 
+    rows_written = 0
     for horizon in HORIZONS:
         # Step 4 — resolve prior dates; skip entire horizon if the Nth back is None
         prior_date_label = nth_trading_day_back(ticker, date, horizon)
@@ -298,42 +308,59 @@ def update_evolution(ticker: str, date: datetime.date) -> None:
         IV_diff_masked = np.where(mask_intersection, IV_diff, np.nan)
 
         scalars = compute_evolution_scalars(IV_diff_masked, otm_grid, dte_grid)
-        save_evolution_row(
+        if save_evolution_row(
             date=date,
             ticker=ticker,
             horizon=horizon,
             prior_date=prior_date_label,
             **scalars,
-        )
+        ):
+            rows_written += 1
+
+    return rows_written
 
 
 # ---------------------------------------------------------------------------
 # Public — cold-start backfill
 # ---------------------------------------------------------------------------
 
-def backfill(ticker: str, start_date: datetime.date) -> None:
+def backfill(ticker: str, start_date: datetime.date) -> int:
     """Retro-compute evolution metrics for all stored dates >= start_date.
 
     Writes idempotently — safe to re-run; duplicate (date, ticker, horizon)
     rows are replaced, not appended.
+
+    Reports the actual number of rows persisted, not dates touched.  During
+    cold-start (fewer than HORIZON+1 sessions of history) a date is processed
+    but writes 0 rows — the per-date line and the summary say so honestly.
+    Returns the total rows written.
     """
     available_dates = list_available_dates(ticker)
     valid_dates = [d for d in available_dates if d >= start_date]
 
     if not valid_dates:
         print(f"[surface_evolution] backfill: no dates >= {start_date} for {ticker}")
-        return
+        return 0
 
-    n = 0
+    dates_processed = 0
+    total_rows = 0
     for date in reversed(valid_dates):  # oldest first for progress clarity
         try:
-            update_evolution(ticker, date)
-            print(f"[backfill] {ticker}: {date} -> rows written")
-            n += 1
+            rows = update_evolution(ticker, date)
+            dates_processed += 1
+            total_rows += rows
+            if rows:
+                print(f"[backfill] {ticker}: {date} -> {rows} row(s) written")
+            else:
+                print(f"[backfill] {ticker}: {date} -> 0 rows (insufficient history)")
         except Exception as exc:
             print(f"  [WARN] {ticker} {date}: {exc}")
 
-    print(f"[backfill] {ticker} complete ({n} rows)")
+    print(
+        f"[backfill] {ticker} complete "
+        f"({dates_processed} date(s) processed, {total_rows} row(s) written)"
+    )
+    return total_rows
 
 
 # ---------------------------------------------------------------------------

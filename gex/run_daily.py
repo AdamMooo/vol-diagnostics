@@ -74,7 +74,8 @@ def run(dry_run: bool = False) -> None:
     from gex.surface_evolution import update_evolution
     for ticker in INDEX_TICKERS:
         try:
-            update_evolution(ticker, today)
+            rows = update_evolution(ticker, today)
+            print(f"  {ticker}: {rows} evolution row(s) written")
         except Exception as exc:
             print(f"  [WARN] {ticker} evolution failed (non-blocking): {exc}")
 
