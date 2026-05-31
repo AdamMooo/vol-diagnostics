@@ -23,6 +23,10 @@ class TestFloatColsSchema:
     def test_vrp_in_float_cols(self):
         assert "vrp" in _FLOAT_COLS
 
+    def test_diagnostics_in_float_cols(self):
+        assert {"coverage_pct", "fit_rmse", "max_resid", "cv_rmse",
+                "coherence_violations"} <= set(_FLOAT_COLS)
+
 
 # ---------------------------------------------------------------------------
 # save_snapshot row dict tests
@@ -84,6 +88,24 @@ class TestSaveSnapshotRowDict:
         assert "rv20" in hist.columns
         assert pd.isna(hist["rv20"].iloc[0])
 
+    def test_diagnostics_persisted(self, tmp_path):
+        """08-03: coverage_pct/fit_rmse/max_resid/cv_rmse + coherence flags persist."""
+        summary = {
+            "spot": 500.0, "net_gex": 1e9,
+            "coverage_pct": 87.0, "fit_rmse": 0.9, "max_resid": 2.1,
+            "cv_rmse": 1.3, "coherence_violations": 0,
+            "coherence_calendar": True, "coherence_butterfly": True,
+        }
+        store = tmp_path / "diag_snapshots.parquet"
+        with mock.patch("gex.validation.STORE", store):
+            save_snapshot(summary, "SPY")
+        hist = pd.read_parquet(store)
+        assert float(hist["coverage_pct"].iloc[0]) == pytest.approx(87.0)
+        assert float(hist["fit_rmse"].iloc[0]) == pytest.approx(0.9)
+        assert float(hist["max_resid"].iloc[0]) == pytest.approx(2.1)
+        assert int(hist["coherence_violations"].iloc[0]) == 0
+        assert bool(hist["coherence_calendar"].iloc[0]) is True
+
 
 # ---------------------------------------------------------------------------
 # Old snapshot forward-compat tests
@@ -118,3 +140,16 @@ class TestOldSnapshotCompat:
 
         assert not hist.empty
         # rv20 and vrp should be absent or NaN — no KeyError or crash
+
+    def test_load_history_snapshot_without_diagnostics_columns(self, tmp_path):
+        """A snapshot predating the 08-03 diagnostic columns loads without error."""
+        row = {
+            "date": datetime.date.today(), "ticker": "SPY", "spot": 500.0,
+            "net_gex": 1e9, "iv30": 20.0, "rv20": 15.0, "vrp": 4.0,
+            # no coverage_pct / fit_rmse / max_resid / cv_rmse / coherence_*
+        }
+        store = tmp_path / "pre_diag_snapshots.parquet"
+        pd.DataFrame([row]).to_parquet(store, index=False)
+        with mock.patch("gex.validation.STORE", store):
+            hist = load_history("SPY")
+        assert not hist.empty

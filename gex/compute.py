@@ -12,6 +12,7 @@ from gex.data_loader import load_chain
 from gex.greeks_engine import add_greeks
 from gex.exposure_engine import (
     compute_gex, strike_gex, gamma_profile, vol_surface_data, compute_skew,
+    surface_diagnostics,
 )
 from gex.analytics import summarise
 from gex.vol_metrics import compute_skew_25d, compute_term_structure, compute_rv20, compute_vrp
@@ -57,6 +58,10 @@ def compute_ticker(ticker: str) -> dict:
     r = _get_risk_free_rate()
     p_df = gamma_profile(df, spot=snapshot.spot, r=r)
     surface_df = vol_surface_data(df, spot=snapshot.spot)
+    surface_diag = surface_diagnostics(surface_df, snapshot.spot)
+    print(f"[diag] {ticker}: coverage {surface_diag['coverage_pct']:.0f}%  "
+          f"fit_rmse {surface_diag['fit_rmse']:.1f}pp  cv {surface_diag['cv_rmse']:.1f}pp  "
+          f"coherence_violations {surface_diag['coherence_violations']}")
     skew_df = compute_skew(df, spot=snapshot.spot)
     # skew_df is sorted by dte ascending — iloc[0] is shortest qualifying expiry
     front_skew = float(skew_df["skew_pp"].iloc[0]) if not skew_df.empty else None
@@ -77,6 +82,13 @@ def compute_ticker(ticker: str) -> dict:
     summary["iv30"] = snapshot.iv30
     summary["price_change_pct"] = snapshot.price_change_pct
     summary["front_skew"] = front_skew
+    summary["coverage_pct"] = surface_diag["coverage_pct"]
+    summary["fit_rmse"] = surface_diag["fit_rmse"]
+    summary["max_resid"] = surface_diag["max_resid"]
+    summary["cv_rmse"] = surface_diag["cv_rmse"]
+    summary["coherence_calendar"] = surface_diag["coherence_calendar"]
+    summary["coherence_butterfly"] = surface_diag["coherence_butterfly"]
+    summary["coherence_violations"] = surface_diag["coherence_violations"]
 
     skew_25d = compute_skew_25d(df, spot=snapshot.spot)
     term_structure = compute_term_structure(df, spot=snapshot.spot)
@@ -95,5 +107,5 @@ def compute_ticker(ticker: str) -> dict:
         "summary": summary, "s_df": s_df, "p_df": p_df,
         "spot": snapshot.spot, "surface_df": surface_df, "skew_df": skew_df,
         "skew": skew_25d, "term_structure": term_structure,
-        "rv20": rv20, "vrp": vrp,
+        "rv20": rv20, "vrp": vrp, "surface_diag": surface_diag,
     }
