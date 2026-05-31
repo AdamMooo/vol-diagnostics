@@ -93,6 +93,36 @@ See gex/surface_sweep.py (run `python -m gex.surface_sweep`)."""
 # was removed — its isotropic radius under-covered the sparse DTE axis (~22% coverage). See
 # gex/analytics.py:coverage_mask and 08-VERIFICATION.md.
 
+# ── Surface evolution scalar region definitions ──────────────────────────────────
+
+SURFACE_EVOLUTION_PUT_WING_CLIP: float = -5.0
+"""Put-wing region threshold (% OTM) for the skew_change scalar.
+Cells with %OTM below this value are classified as the put wing; symmetric with
+the call wing at +5% so both wings have equal width relative to ATM."""
+
+SURFACE_EVOLUTION_CALL_WING_CLIP: float = 5.0
+"""Call-wing region threshold (% OTM) for the skew_change scalar.
+Cells with %OTM above this value are classified as the call wing; symmetric with
+the put wing at -5% so put-call skew is measured on equal-width bands."""
+
+SURFACE_EVOLUTION_DTE_FRONT_MAX: int = 30
+"""DTE ceiling for the front-month region used in the term_change scalar.
+Front region = [dte_floor=5, this value]. Short-dated contracts react fastest
+to near-term stress and drive the majority of the term-structure signal."""
+
+SURFACE_EVOLUTION_DTE_BACK_MIN: int = 90
+"""DTE floor for the back-month region used in the term_change scalar.
+Back region = [this value, SURFACE_DTE_MAX=180]. Long-dated contracts carry
+the structural vol level; three months of gap between front and back avoids
+mixing the volatile monthly roll zone (30-90 DTE)."""
+
+SURFACE_EVOLUTION_ATM_CLIP: float = 2.0
+"""ATM band half-width (% OTM) for the term_change scalar.
+ATM region = [−this value, +this value]. At ±2% the band is narrow enough to
+isolate at-the-money while still capturing several cells of the 30-point
+moneyness grid (grid spans ±15% → cell width ≈ 1%), keeping the scalar
+meaningful even when coverage is thin."""
+
 # ── IV skew (Xing, Zhang & Zhao 2010, JFQA) ────────────────────────────────────
 
 SKEW_MIN_DTE: int = 7
