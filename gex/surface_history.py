@@ -26,15 +26,23 @@ def _store_path(ticker: str) -> pathlib.Path:
     return STORE_DIR / f"surface_{ticker}.parquet"
 
 
-def save_surface_snapshot(surface_df: pd.DataFrame, ticker: str, spot: float) -> None:
+def save_surface_snapshot(
+    surface_df: pd.DataFrame,
+    ticker: str,
+    spot: float,
+    date: datetime.date | None = None,
+) -> None:
     """Append today's OTM chain points to the per-ticker parquet store.
 
     spot is saved on every row so callers never need to look it up elsewhere.
+    Pass `date` to file the snapshot under the caller's trading date — run_daily
+    uses the ET date so the evolution engine looks the surface up under the same
+    key. Defaults to the local date for ad-hoc callers.
     """
     if surface_df is None or surface_df.empty:
         return
 
-    today = datetime.date.today()
+    today = date if date is not None else datetime.date.today()
     df = surface_df[["dte", "strike", "moneyness", "log_moneyness", "iv_pct"]].copy()
     df.insert(0, "date", today)
     df.insert(1, "ticker", ticker)
