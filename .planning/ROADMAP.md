@@ -142,7 +142,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 09-03-PLAN.md — run_daily non-blocking pass + backfill CLI + integration tests + human checkpoint
+- [x] 09-03-PLAN.md — run_daily non-blocking pass + backfill CLI + integration tests + human checkpoint
 
 **Status**: ○ Pending
 
