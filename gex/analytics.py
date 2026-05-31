@@ -276,8 +276,19 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
     IV = rbf_grid(surface_df, spot, dte_grid, otm_grid,
                   dte_floor=_DTE_FLOOR, clip_pct=clip_pct)
 
-    iv_floor = float(IV.min())
-    iv_cap = float(np.percentile(IV, config.SURFACE_Z_CAP_PERCENTILE))
+    # Coverage gate (VALID-01): NaN out cells with no nearby real quote so Plotly draws
+    # honest holes instead of TPS-extrapolated fabrication — the mask is the gate artifact.
+    mask = coverage_mask(surface_df, spot, dte_grid, otm_grid,
+                         dte_floor=_DTE_FLOOR, clip_pct=clip_pct)
+    IV = np.where(mask, IV, np.nan)
+    if np.isnan(IV).all():
+        return _empty("no supported cells")
+    coverage_pct = 100.0 * float(mask.mean())
+    n_clipped = int((IV[~np.isnan(IV)] == 0.0).sum())  # supported cells the >=0 clip pinned to 0
+    print(f"[surface] {ticker}: coverage {coverage_pct:.0f}%  zero-clipped cells {n_clipped}")
+
+    iv_floor = float(np.nanmin(IV))
+    iv_cap = float(np.nanpercentile(IV, config.SURFACE_Z_CAP_PERCENTILE))
 
     otm_ticks = [(k - 1.0) * 100.0 for k in config.PLOT_KS_ANCHORS
                  if -clip_pct <= (k - 1.0) * 100.0 <= clip_pct]
