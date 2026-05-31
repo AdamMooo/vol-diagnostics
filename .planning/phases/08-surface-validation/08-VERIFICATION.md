@@ -42,7 +42,7 @@ Phases 9–11.* Delivered and wired end-to-end (compute_ticker → snapshot → 
 ## Deviations / findings (carried to later phases, non-blocking)
 
 1. **ROADMAP.md SC#5 reword N/A** — `.planning/ROADMAP.md` is the stale v3.1 doc; v3.3 phase definitions live in REQUIREMENTS.md (reworded). The v3.3 ROADMAP was never generated. Planning-doc drift to repair separately.
-2. **Honest coverage ~22%** at k=2.0 on the standard 40×30 grid (stored SPY) — the gate working as intended (quotes cluster at discrete expiries/near-money), but the 3D surface reads sparse. Phase 10 should weigh coarsening/narrowing the grid vs accepting honest sparsity.
+2. **Honest coverage ~22% → RESOLVED 2026-05-30.** The kNN-radius mask only covered ~22% because its isotropic radius (median-NN, set by the dense strike spacing) wrongly holed legitimate between-expiry interpolation. Switched `coverage_mask` to convex-hull support → 92.9% SPY / 92.4% QQQ / 88.6% IWM. See the refinement addendum below.
 3. **smoothing cv nuance** — leave-one-expiry-out CV mildly favours less smoothing on a single clean SPY day; 1.5 retained per D-12 as insurance against ringing on noisier/crossed-quote days. Revisit when more days accumulate.
 
 ## Tooling note
@@ -53,9 +53,24 @@ Phase 8 was executed and verified inline, routed around the broken binary, using
 for commits. STATE.md + REQUIREMENTS traceability updated by hand (the `state`/`phase.complete`
 mutators corrupt STATE.md — see session notes). Recommend repairing the GSD install before Phase 9.
 
+## Post-verification refinement — coverage_mask → convex hull (2026-05-30)
+
+Running the gate on real stored chains exposed that the kNN-radius coverage mask (D-01/D-03)
+covered only ~22% of the grid: the radius `k × median-NN` is dominated by the dense strike
+axis, so cells between expiries were holed even though interpolating across a ≤21-35d calendar
+gap is honest interpolation, not fabrication (SPY has 22 expiries over DTE 5-175).
+
+Fix (commit `b66625a`): `analytics.coverage_mask` now uses **convex-hull membership** (Delaunay)
+— supported = inside the quote cloud (interpolation), holed = outside (extrapolation: the
+short/long-DTE deep-wing corners). Coverage: **92.9% SPY / 92.4% QQQ / 88.6% IWM**. The mask is
+now **parameter-free** — `COVERAGE_KNN_K` and `surface_sweep.sweep_k` were removed (fits the
+project's no-hand-tuned-cutoffs rule better than kNN). VALID-01's wording already permitted
+"convex-hull / kNN", so the requirement is unchanged; this reverses only the D-01/D-03
+implementation choice. 93 tests pass. VALID-01/06 remain satisfied with stronger, usable coverage.
+
 ---
 *Phase: 08-surface-validation*
-*Verified: 2026-05-30 — PASSED*
+*Verified: 2026-05-30 — PASSED (coverage_mask refined to convex hull same day)*
 
 ---
 <!-- LINKS:AUTO -->

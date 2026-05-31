@@ -48,7 +48,8 @@ Progress: [██▌░░░░░░░] 25% (v3.3 — 1/4 phases)
 
 - 2026-05-30: GSD `gsd-sdk query` SDK is BROKEN on this machine (`@gsd-build/sdk@0.1.0` = autonomous runner, no `query`; content is v1.37.1). Legacy `gsd-tools.cjs state` mutators CORRUPT STATE.md (rewrite to v1.x schema). Phase 8 executed/verified inline via git + by-hand STATE/REQUIREMENTS edits. Repair the SDK before Phase 9 (no published query-capable @gsd-build/sdk found).
 - 2026-05-30: ΔIV horizons locked {5,10,20} (drop noisy 1d, add 10d), headline baseline = N-day rolling mean (mask-intersected) — REQUIREMENTS EVOL-01/02, RPT-05.
-- 2026-05-30: Phase 8 finding — honest surface coverage is only ~22% at k=2.0 on the 40×30 grid (SPY); the gate working as intended (quotes cluster at discrete expiries). Phase 10 to weigh coarsening/narrowing the grid vs accepting sparsity. Smoothing kept at 1.5 (D-12) despite cv mildly favouring less on one clean day.
+- 2026-05-30: Coverage mask switched kNN-radius → CONVEX HULL (reverses D-01/D-03). The kNN radius (median-NN, dominated by dense strike spacing) wrongly holed legitimate between-expiry interpolation → only ~22% coverage; convex-hull support (interpolation inside the quote cloud is honest, only extrapolation holed) gives 92.9% SPY / 92.4% QQQ / 88.6% IWM. COVERAGE_KNN_K + the k-sweep removed (now parameter-free — fits no-hand-tuned-cutoffs rule). VALID-01 wording already allowed "convex-hull / kNN".
+- 2026-05-30: Smoothing kept at 1.5 (D-12) despite cv mildly favouring less on one clean SPY day — exact-interpolation (smoothing=0) reintroduces ringing risk; revisit as more days accumulate.
 - 2026-05-29: v3.3 foundation-first gate — Phase 8 coverage mask is the single source of truth; no downstream phase computes/displays/emails a value in an uncovered grid cell
 - 2026-05-29: Cut (not deferred) — PCA (first 3 factors are level/skew/term, already measured directly) and SVI/SABR calibration (verify the surface, don't re-calibrate)
 - 2026-05-29: `kaleido>=1.0,<2.0` + one-time `get_chrome` for PNG export; `kaleido==0.2.1` hangs on Windows/plotly 6.7, do not downgrade plotly to 5.x; HTML-attachment is the documented fallback
@@ -87,6 +88,7 @@ Resume file: .planning/phases/08-surface-validation/08-VERIFICATION.md
 
 **Phase 9 carry-over:** EVOL engine recomputes `analytics.coverage_mask` per stored day and INTERSECTS today ∩ all N baseline-day masks before differencing (never diff independently-extrapolated grids). Headline baseline = N-day rolling mean. Honest grid coverage is ~22% — surface reads sparse (Phase 10 concern).
 
+---
 ---
 ---
 ---
