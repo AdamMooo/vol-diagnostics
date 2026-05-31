@@ -156,6 +156,74 @@ def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
     return fig
 
 
+def rbf_grid(surface_df, spot, dte_grid, otm_grid, *,
+             dte_floor=5, clip_pct=None):
+    """Interpolate the OTM IV scatter onto a (DTE, %OTM) grid via TPS RBF.
+
+    Single source of truth for the surface interpolation — consumed by plot_vol_surface,
+    plot_iv_change_surface, the fit diagnostics, and (Phase 9) the evolution engine.
+    Axes are std-normalized before RBF so DTE (~5-180) doesn't dominate %OTM (~±15).
+    Returns IV array shaped (len(otm_grid), len(dte_grid)); NaN-filled when <6 in-band points.
+    """
+    from scipy.interpolate import RBFInterpolator
+    if clip_pct is None:
+        clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
+    pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
+    dte_v = surface_df["dte"].to_numpy()
+    iv_v = surface_df["iv_pct"].to_numpy()
+    in_band = (np.abs(pct_otm) <= clip_pct) & (dte_v >= dte_floor)
+    pct_otm, dte_v, iv_v = pct_otm[in_band], dte_v[in_band], iv_v[in_band]
+    if len(iv_v) < 6:
+        return np.full((len(otm_grid), len(dte_grid)), np.nan)
+    pts = np.column_stack([dte_v, pct_otm])
+    pts_std = pts.std(axis=0)
+    pts_std[pts_std < 1e-6] = 1.0
+    rbf = RBFInterpolator(pts / pts_std, iv_v, kernel="thin_plate_spline",
+                          smoothing=config.SURFACE_SMOOTHING)
+    DTE, OTM = np.meshgrid(dte_grid, otm_grid)
+    grid_pts = np.column_stack([DTE.ravel(), OTM.ravel()])
+    IV = rbf(grid_pts / pts_std).reshape(DTE.shape)
+    return np.clip(IV, 0.0, None)
+
+
+def coverage_mask(surface_df, spot, dte_grid, otm_grid, *,
+                  dte_floor=5, clip_pct=None, k=None):
+    """Boolean support mask over the (DTE, %OTM) grid — True where a real quote is near.
+
+    kNN over real quote locations (NOT convex hull): a grid cell is supported only if its
+    nearest real quote, in std-normalized DTE/%OTM space, is within
+    r = k × median(nearest-neighbor distance among real quotes). Data-adaptive, so it scales
+    to today's chain density rather than using a fixed (non-stationary) cutoff. This is THE
+    exported gate artifact — Phase 9 recomputes it per day and intersects two days' masks.
+    """
+    from scipy.spatial import cKDTree
+    if clip_pct is None:
+        clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
+    if k is None:
+        k = config.COVERAGE_KNN_K
+    pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
+    dte_v = surface_df["dte"].to_numpy()
+    in_band = (np.abs(pct_otm) <= clip_pct) & (dte_v >= dte_floor)
+    pct_otm, dte_v = pct_otm[in_band], dte_v[in_band]
+    n_cells = (len(otm_grid), len(dte_grid))
+    if len(dte_v) < 6:
+        return np.zeros(n_cells, dtype=bool)
+    pts = np.column_stack([dte_v, pct_otm])
+    pts_std = pts.std(axis=0)
+    pts_std[pts_std < 1e-6] = 1.0
+    norm_pts = pts / pts_std
+    tree = cKDTree(norm_pts)
+    # median nearest-neighbor distance among the real quotes (k=2: self + nearest)
+    nn_among_quotes, _ = tree.query(norm_pts, k=2)
+    median_nn = float(np.median(nn_among_quotes[:, 1]))
+    radius = k * median_nn
+    DTE, OTM = np.meshgrid(dte_grid, otm_grid)
+    grid_norm = np.column_stack([DTE.ravel(), OTM.ravel()]) / pts_std
+    nn_dist, _ = tree.query(grid_norm)
+    supported = (nn_dist <= radius).reshape(DTE.shape)
+    return supported
+
+
 def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.Figure:
     """
     3D implied vol surface from the CBOE chain, OTM convention.
@@ -167,8 +235,6 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
     near-expiry microstructure spikes. Colorscale: Plasma (dark=low IV,
     bright/yellow=high wing vol).
     """
-    from scipy.interpolate import RBFInterpolator
-
     _DTE_FLOOR = 5
 
     def _empty(reason: str) -> go.Figure:
@@ -198,8 +264,6 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
     if len(iv_vals) < 6:
         return _empty("insufficient data after clip")
 
-    pts = np.column_stack([dte_vals, pct_otm])
-
     dte_min = float(_DTE_FLOOR)  # pin to floor, not data minimum — fixed visual footprint
     dte_max = min(float(dte_vals.max()), float(config.SURFACE_DTE_MAX))
     if dte_max <= dte_min + 1:
@@ -207,17 +271,10 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
 
     dte_grid = np.linspace(dte_min, dte_max, config.SURFACE_GRID_DTE)
     otm_grid = np.linspace(-clip_pct, clip_pct, config.SURFACE_GRID_LM)
-    DTE, OTM = np.meshgrid(dte_grid, otm_grid)
 
-    # RBF thin-plate-spline: no convex-hull NaN cliffs, graceful extrapolation,
-    # smoothing=1.5 regularises without over-flattening the skew shape.
-    # Scale axes: DTE spans ~5–180, OTM spans ~±15 — must normalise or DTE dominates.
-    pts_std = pts.std(axis=0)
-    pts_std[pts_std < 1e-6] = 1.0
-    rbf = RBFInterpolator(pts / pts_std, iv_vals, kernel="thin_plate_spline", smoothing=1.5)
-    grid_pts = np.column_stack([DTE.ravel(), OTM.ravel()])
-    IV = rbf(grid_pts / pts_std).reshape(DTE.shape)
-    IV = np.clip(IV, 0.0, None)  # RBF can extrapolate to negative at boundaries
+    # Single shared interpolation (in-band clip + std-normalization live inside rbf_grid).
+    IV = rbf_grid(surface_df, spot, dte_grid, otm_grid,
+                  dte_floor=_DTE_FLOOR, clip_pct=clip_pct)
 
     iv_floor = float(IV.min())
     iv_cap = float(np.percentile(IV, config.SURFACE_Z_CAP_PERCENTILE))
@@ -316,8 +373,6 @@ def plot_iv_change_surface(
     blue = vol down. Each day's strikes are normalised by that day's spot
     so the % OTM axis is comparable across sessions.
     """
-    from scipy.interpolate import RBFInterpolator
-
     _DTE_FLOOR = 5
 
     def _empty(reason: str) -> go.Figure:
@@ -335,24 +390,6 @@ def plot_iv_change_surface(
 
     clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
 
-    def _rbf_grid(df: pd.DataFrame, spot: float, dte_grid: np.ndarray,
-                  otm_grid: np.ndarray) -> np.ndarray:
-        pct_otm = (df["strike"].to_numpy() / spot - 1.0) * 100.0
-        dte_v = df["dte"].to_numpy()
-        iv_v = df["iv_pct"].to_numpy()
-        mask = (np.abs(pct_otm) <= clip_pct) & (dte_v >= _DTE_FLOOR)
-        pct_otm, dte_v, iv_v = pct_otm[mask], dte_v[mask], iv_v[mask]
-        if len(iv_v) < 6:
-            return np.full((len(otm_grid), len(dte_grid)), np.nan)
-        pts = np.column_stack([dte_v, pct_otm])
-        pts_std = pts.std(axis=0)
-        pts_std[pts_std < 1e-6] = 1.0
-        rbf = RBFInterpolator(pts / pts_std, iv_v, kernel="thin_plate_spline", smoothing=1.5)
-        DTE, OTM = np.meshgrid(dte_grid, otm_grid)
-        grid_pts = np.column_stack([DTE.ravel(), OTM.ravel()])
-        IV = rbf(grid_pts / pts_std).reshape(DTE.shape)
-        return np.clip(IV, 0.0, None)
-
     # Shared grid bounded by the intersection of both datasets
     dte_min = max(float(df_today["dte"].min()), float(df_prior["dte"].min()), float(_DTE_FLOOR))
     dte_max = min(
@@ -365,8 +402,10 @@ def plot_iv_change_surface(
     dte_grid = np.linspace(dte_min, dte_max, config.SURFACE_GRID_DTE)
     otm_grid = np.linspace(-clip_pct, clip_pct, config.SURFACE_GRID_LM)
 
-    IV_today = _rbf_grid(df_today, spot_today, dte_grid, otm_grid)
-    IV_prior = _rbf_grid(df_prior, spot_prior, dte_grid, otm_grid)
+    IV_today = rbf_grid(df_today, spot_today, dte_grid, otm_grid,
+                        dte_floor=_DTE_FLOOR, clip_pct=clip_pct)
+    IV_prior = rbf_grid(df_prior, spot_prior, dte_grid, otm_grid,
+                        dte_floor=_DTE_FLOOR, clip_pct=clip_pct)
     IV_diff = IV_today - IV_prior
 
     abs_max = float(np.nanpercentile(np.abs(IV_diff), 97)) if not np.all(np.isnan(IV_diff)) else 1.0
