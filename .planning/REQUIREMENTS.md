@@ -17,7 +17,7 @@ Turn the vol surface into an accumulating, trustworthy daily diagnostic: prove t
 - [ ] **VALID-01** — A coverage mask flags every interpolated grid cell that has no nearby real quote (convex-hull / kNN over actual quote locations); unsupported cells render as honest NaN holes, not fabricated IV. The mask is exported as the single source of truth consumed by all downstream phases.
 - [ ] **VALID-02** — Surface fit quality is reported per ticker: RMSE and max residual (pp) of the RBF fit against the input quotes, persisted daily to the snapshot store.
 - [ ] **VALID-03** — The `smoothing` parameter is moved out of inline code into `config.py` with a documented sensitivity sweep justifying the chosen value (no unexplained magic number).
-- [ ] **VALID-04** — No-arbitrage sanity checks (calendar-spread total-variance monotonicity + butterfly convexity) report PASS/FAIL and the locations of any violation. Checks report only — they never auto-repair the surface.
+- [ ] **VALID-04** — Surface-coherence checks (calendar total-variance monotonicity + butterfly convexity) report PASS/FAIL and violation locations as fit-quality QA, computed headless and persisted to the snapshot. They are never a trading signal (on delayed CBOE quotes any arbitrage is untradable) and never auto-repair the surface. No dashboard UI in Phase 8.
 - [ ] **VALID-05** — The RBF interpolation logic exists as one shared helper (`rbf_grid`) consumed by the surface render, the diagnostics, and the evolution engine — no duplicated interpolation definitions.
 - [ ] **VALID-06** — Surface coverage % and fit RMS are visible in the Streamlit dashboard so the user can see at a glance whether today's surface is trustworthy.
 
