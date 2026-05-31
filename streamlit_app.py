@@ -108,6 +108,26 @@ def _derive_observations(summary: dict, spot: float) -> list[str]:
 
 
 
+def _trust_readout_strings(surface_diag: dict | None) -> tuple[str, str, str]:
+    """Raw-number surface trust readout (VALID-06): Coverage / Fit RMS / Max resid.
+    No thresholds, no badge — the PM reads the number and judges; '—' for missing/nan.
+    (Surface PASS/FAIL flags stay headless per D-11 — intentionally not shown here.)"""
+    import math
+    d = surface_diag or {}
+
+    def _num(key, suffix, prec):
+        v = d.get(key)
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            return "—"
+        return f"{v:.{prec}f}{suffix}"
+
+    return (
+        f"Coverage {_num('coverage_pct', '%', 0)}",
+        f"Fit RMS {_num('fit_rmse', 'pp', 1)}",
+        f"Max {_num('max_resid', 'pp', 1)}",
+    )
+
+
 @st.cache_data(ttl=config.CACHE_TTL_TICKER, show_spinner=False)
 def fetch_ticker(ticker: str) -> dict:
     return compute_ticker(ticker)
@@ -240,6 +260,8 @@ if sel_index:
                 surface_df = data.get("surface_df")
                 spot = data.get("spot")
                 if surface_df is not None and not surface_df.empty:
+                    cov, rms, mx = _trust_readout_strings(data.get("surface_diag"))
+                    st.markdown(f"**{ticker}**  ·  {cov}  ·  {rms}  ·  {mx}")
                     st.plotly_chart(
                         plot_vol_surface(surface_df, ticker, spot=spot),
                         use_container_width=True,
