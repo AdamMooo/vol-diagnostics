@@ -180,6 +180,125 @@ def compute_surface_slopes(surface_df: pd.DataFrame) -> dict:
     return {"strike_slope": strike_slope, "term_slope": term_slope}
 
 
+def surface_diagnostics(surface_df, spot) -> dict:
+    """Headless fit-honesty + surface-coherence QA for the vol surface (VALID-02/04).
+
+    Pure (DataFrame in, dict out, no I/O). Returns:
+        coverage_pct, fit_rmse (pp), max_resid (pp), cv_rmse (pp, leave-one-expiry-out),
+        coherence_calendar (bool PASS), coherence_butterfly (bool PASS), coherence_violations (int)
+
+    Coherence checks are FIT-QUALITY QA, never a trading signal: on delayed CBOE quotes any
+    genuine arbitrage is untradable, so calendar total-variance monotonicity + butterfly
+    convexity only confirm the fitted surface is internally consistent. They never auto-repair.
+    Degrades to NaN floats (coherence PASS / 0 violations) on empty / sparse / single-expiry
+    input — never raises (a single expiry is a smile, not a surface; the RBF is singular there).
+    """
+    from scipy.interpolate import RBFInterpolator
+    from gex.analytics import coverage_mask
+
+    nan_result = {
+        "coverage_pct": float("nan"), "fit_rmse": float("nan"),
+        "max_resid": float("nan"), "cv_rmse": float("nan"),
+        "coherence_calendar": True, "coherence_butterfly": True,
+        "coherence_violations": 0,
+    }
+    if (surface_df is None or len(surface_df) == 0
+            or not {"strike", "dte", "iv_pct"}.issubset(surface_df.columns)):
+        return nan_result
+
+    clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
+    dte_floor = 5
+    pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
+    dte_v = surface_df["dte"].to_numpy()
+    iv_v = surface_df["iv_pct"].to_numpy()
+    in_band = (np.abs(pct_otm) <= clip_pct) & (dte_v >= dte_floor)
+    pct_otm, dte_v, iv_v = pct_otm[in_band], dte_v[in_band], iv_v[in_band]
+    if len(iv_v) < 6 or len(np.unique(dte_v)) < 2:
+        return nan_result
+
+    # Fit residuals: RBF evaluated AT the real quote locations vs their actual IV.
+    pts = np.column_stack([dte_v, pct_otm])
+    pts_std = pts.std(axis=0)
+    pts_std[pts_std < 1e-6] = 1.0
+    rbf = RBFInterpolator(pts / pts_std, iv_v, kernel="thin_plate_spline",
+                          smoothing=config.SURFACE_SMOOTHING)
+    resid = rbf(pts / pts_std) - iv_v
+    fit_rmse = float(np.sqrt(np.mean(resid ** 2)))
+    max_resid = float(np.max(np.abs(resid)))
+
+    # Leave-one-EXPIRY-out CV (adjacent strikes correlate and flatter leave-one-point-out).
+    expiries = np.unique(dte_v)
+    cv_sq = []
+    for e in expiries:
+        hold = dte_v == e
+        train = ~hold
+        if train.sum() < 4 or len(np.unique(dte_v[train])) < 2:
+            continue
+        tp = np.column_stack([dte_v[train], pct_otm[train]])
+        ts = tp.std(axis=0)
+        ts[ts < 1e-6] = 1.0
+        rbf_cv = RBFInterpolator(tp / ts, iv_v[train], kernel="thin_plate_spline",
+                                 smoothing=config.SURFACE_SMOOTHING)
+        hp = np.column_stack([dte_v[hold], pct_otm[hold]])
+        cv_sq.extend(((rbf_cv(hp / ts) - iv_v[hold]) ** 2).tolist())
+    cv_rmse = float(np.sqrt(np.mean(cv_sq))) if cv_sq else float("nan")
+
+    # Coverage % on the standard grid (reuses the Plan-01 gate artifact).
+    dte_max = min(float(dte_v.max()), float(config.SURFACE_DTE_MAX))
+    dte_grid = np.linspace(dte_floor, max(dte_max, dte_floor + 1.0), config.SURFACE_GRID_DTE)
+    otm_grid = np.linspace(-clip_pct, clip_pct, config.SURFACE_GRID_LM)
+    coverage_pct = 100.0 * float(coverage_mask(
+        surface_df, spot, dte_grid, otm_grid, dte_floor=dte_floor, clip_pct=clip_pct).mean())
+
+    # --- coherence (fit-QA only; flag + count + log, NEVER repair the surface) ---
+    violations = 0
+
+    # Calendar: per ~5% moneyness bucket, total variance IV^2*T must not fall as DTE rises.
+    cal_ok = True
+    band = pd.DataFrame({"dte": dte_v, "p": pct_otm, "iv": iv_v})
+    band["bucket"] = (band["p"] / 5.0).round() * 5.0
+    for bucket, grp in band.groupby("bucket"):
+        agg = grp.groupby("dte")["iv"].mean().sort_index()
+        if len(agg) < 2:
+            continue
+        d = agg.index.to_numpy(dtype=float)
+        w = (agg.to_numpy() / 100.0) ** 2 * (d / 365.0)
+        for i in np.where(np.diff(w) < -1e-6)[0]:
+            cal_ok = False
+            violations += 1
+            print(f"[coherence] calendar variance drop at {bucket:+.0f}%OTM "
+                  f"DTE {d[i]:.0f}->{d[i + 1]:.0f}")
+
+    # Butterfly: within each expiry, 2nd difference of IV across sorted strikes >= -tol
+    # (a concave bump implies negative implied density).
+    bf_ok = True
+    tol = 0.5  # pp — tolerate quote noise
+    for e in expiries:
+        m = dte_v == e
+        if m.sum() < 3:
+            continue
+        order = np.argsort(pct_otm[m])
+        ivs = iv_v[m][order]
+        ps = pct_otm[m][order]
+        for i in np.where(np.diff(ivs, n=2) < -tol)[0]:
+            bf_ok = False
+            violations += 1
+            print(f"[coherence] butterfly concavity at DTE={e:.0f} %OTM~{ps[i + 1]:+.1f}")
+
+    print(f"[coherence] calendar={'PASS' if cal_ok else 'FAIL'} "
+          f"butterfly={'PASS' if bf_ok else 'FAIL'} violations={violations}")
+
+    return {
+        "coverage_pct": coverage_pct,
+        "fit_rmse": fit_rmse,
+        "max_resid": max_resid,
+        "cv_rmse": cv_rmse,
+        "coherence_calendar": cal_ok,
+        "coherence_butterfly": bf_ok,
+        "coherence_violations": violations,
+    }
+
+
 def gamma_profile(df: pd.DataFrame, spot: float,
                   n_points: int = config.PROFILE_N_POINTS,
                   width_pct: float = config.PROFILE_WIDTH_PCT,
