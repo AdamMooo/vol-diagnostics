@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.3 — Surface Evolution & Daily Intelligence
 milestone_name: Surface Evolution & Daily Intelligence
-status: planning
-stopped_at: Phase 11 context gathered
-last_updated: "2026-06-01T03:58:24.165Z"
+status: executing
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-06-01T17:12:51.711Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 16
+  completed_plans: 13
   percent: 80
 ---
 
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 11 — richer daily report
+**Current focus:** Phase 11 — richer-daily-report
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
+Phase: 11 (richer-daily-report) — EXECUTING
+Plan: 2 of 4
 Next: Phase 9 — Surface Evolution Engine (not yet planned)
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-06-01
 
-Progress: [██████████] 100%
+Progress: [████████░░] 81%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 | Phase 09 P02 | 5 | 2 tasks | 2 files |
 | Phase 10 P01 | 12 | 3 tasks | 6 files |
 | Phase 10 P02 | 8 | 3 tasks | 1 files |
+| Phase 11-richer-daily-report P01 | 15 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ Progress: [██████████] 100%
 - [Phase ?]: 09-02: save_evolution_row idempotent on (date, ticker, horizon) — read-filter-concat-write pattern with 3-key mask, mirroring validation.py
 - [Phase ?]: palette token choice
 - [Phase ?]: OI chart fallback
+- [Phase ?]: kaleido 1.3.0 smoke-tested on Windows — PNG export working; OI walls use call_oi/put_oi pivot columns from strike_oi(), not type filter
 
 ### Pending Todos
 
@@ -99,13 +101,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-01T03:58:24.151Z
-Stopped at: Phase 11 context gathered
-Resume file: .planning/phases/11-richer-daily-report/11-CONTEXT.md
-
-**Next action:** restart Claude Code (GSD updated to 1.42.3), then `/gsd-discuss-phase 9` (or `/gsd-plan-phase 9`) for the Surface Evolution Engine — build with the locked {5,10,20} horizons + rolling-mean baseline. SDK is healthy, so the normal parallel-executor flow works (no more inline workaround).
-
-**Phase 9 carry-over:** EVOL engine recomputes `analytics.coverage_mask` per stored day (now convex-hull, parameter-free) and INTERSECTS today ∩ all N baseline-day masks before differencing (never diff independently-extrapolated grids). Headline baseline = N-day rolling mean.
+Last session: 2026-06-01T17:12:51.698Z
+Stopped at: Completed 11-01-PLAN.md
+Resume file: .planning/phases/11-richer-daily-report/11-02-PLAN.md
 
 ---
 ---

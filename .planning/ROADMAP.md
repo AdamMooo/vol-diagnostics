@@ -188,7 +188,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 11-01-PLAN.md — kaleido smoke-test spike + OI wall computation in compute_ticker()
+- [x] 11-01-PLAN.md — kaleido smoke-test spike + OI wall computation in compute_ticker()
 
 **Wave 2** *(blocked on Wave 1 completion)*
 

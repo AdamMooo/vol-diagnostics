@@ -40,9 +40,9 @@ Turn the vol surface into an accumulating, trustworthy daily diagnostic: prove t
 
 ### Richer Daily Report (Phase 11)
 
-- [ ] **RPT-01** — PNG export works on the target Windows machine via `kaleido>=1.0,<2.0` + a one-time Chrome fetch; Phase 11 opens with a smoke-test spike before PNG embedding is committed (HTML-artifact attachment is the documented fallback if the spike fails).
+- [x] **RPT-01** — PNG export works on the target Windows machine via `kaleido>=1.0,<2.0` + a one-time Chrome fetch; Phase 11 opens with a smoke-test spike before PNG embedding is committed (HTML-artifact attachment is the documented fallback if the spike fails).
 - [ ] **RPT-02** — The daily email attaches the surface and ΔIV-surface images as 3D renders consistent with the Streamlit views, using a pinned camera angle so the static frame is readable.
-- [ ] **RPT-03** — Report content is prioritised surfaces > put/call walls > OI > gamma; open interest is surfaced as data (currently absent from the email).
+- [x] **RPT-03** — Report content is prioritised surfaces > put/call walls > OI > gamma; open interest is surfaced as data (currently absent from the email).
 - [ ] **RPT-04** — The report reads as a clean, formal business document: restrained palette consistent with the dashboard, no crazy colours, no decorative noise.
 - [ ] **RPT-05** — Evolution scalars appear in the report and the narrative leads with the 5-day rolling read (today vs the 5-day mean surface); 1-day is excluded as mostly expiry-roll + quote noise — the same hazard that retired the v3.1 vs-yesterday badge.
 
@@ -93,9 +93,9 @@ All 22 v1 requirements mapped to exactly one phase. No orphans, no duplicates.
 | VIEW-03 | Phase 10 | Complete |
 | VIEW-04 | Phase 10 | Complete |
 | VIEW-05 | Phase 10 | Complete |
-| RPT-01 | Phase 11 | Pending |
+| RPT-01 | Phase 11 | Complete |
 | RPT-02 | Phase 11 | Pending |
-| RPT-03 | Phase 11 | Pending |
+| RPT-03 | Phase 11 | Complete |
 | RPT-04 | Phase 11 | Pending |
 | RPT-05 | Phase 11 | Pending |
 
