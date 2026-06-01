@@ -9,7 +9,7 @@ import unittest.mock as mock
 import pandas as pd
 import pytest
 
-from gex.validation import _FLOAT_COLS, save_snapshot, load_history
+from gex.validation import _FLOAT_COLS, save_snapshot, load_history, load_prior_snapshot
 
 
 # ---------------------------------------------------------------------------
@@ -153,3 +153,82 @@ class TestOldSnapshotCompat:
         with mock.patch("gex.validation.STORE", store):
             hist = load_history("SPY")
         assert not hist.empty
+
+
+# ---------------------------------------------------------------------------
+# load_prior_snapshot tests
+# ---------------------------------------------------------------------------
+
+class TestLoadPriorSnapshot:
+    """load_prior_snapshot returns the most-recent row strictly before before_date."""
+
+    def _make_store(self, tmp_path, rows):
+        store = tmp_path / "snap.parquet"
+        pd.DataFrame(rows).to_parquet(store, index=False)
+        return store
+
+    def test_returns_row_strictly_before_date(self, tmp_path):
+        rows = [
+            {"date": datetime.date(2026, 6, 1), "ticker": "SPY", "spot": 500.0, "net_gex": 1e9},
+            {"date": datetime.date(2026, 6, 2), "ticker": "SPY", "spot": 502.0, "net_gex": 1.1e9},
+        ]
+        store = self._make_store(tmp_path, rows)
+        with mock.patch("gex.validation.STORE", store):
+            result = load_prior_snapshot("SPY", datetime.date(2026, 6, 2))
+        assert result is not None
+        assert result["date"] == datetime.date(2026, 6, 1)
+
+    def test_no_store_returns_none(self, tmp_path):
+        store = tmp_path / "nonexistent.parquet"
+        with mock.patch("gex.validation.STORE", store):
+            result = load_prior_snapshot("SPY", datetime.date(2026, 6, 2))
+        assert result is None
+
+    def test_no_row_before_date_returns_none(self, tmp_path):
+        rows = [
+            {"date": datetime.date(2026, 6, 2), "ticker": "SPY", "spot": 502.0, "net_gex": 1.1e9},
+        ]
+        store = self._make_store(tmp_path, rows)
+        with mock.patch("gex.validation.STORE", store):
+            result = load_prior_snapshot("SPY", datetime.date(2026, 6, 2))
+        assert result is None
+
+    def test_multi_ticker_returns_only_matching_ticker(self, tmp_path):
+        rows = [
+            {"date": datetime.date(2026, 6, 1), "ticker": "SPY", "spot": 500.0, "net_gex": 1e9},
+            {"date": datetime.date(2026, 6, 1), "ticker": "QQQ", "spot": 450.0, "net_gex": 0.5e9},
+        ]
+        store = self._make_store(tmp_path, rows)
+        with mock.patch("gex.validation.STORE", store):
+            result = load_prior_snapshot("SPY", datetime.date(2026, 6, 2))
+        assert result is not None
+        assert result["ticker"] == "SPY"
+
+    def test_iv30_in_float_cols(self):
+        assert "iv30" in _FLOAT_COLS
+
+    def test_iv30_persisted_in_snapshot(self, tmp_path):
+        summary = {
+            "spot": 500.0, "net_gex": 1e9,
+            "zero_gamma_level": 498.0, "call_wall": 510.0, "put_wall": 490.0,
+            "front_skew": 4.0, "iv30": 21.5, "rv20": 16.0, "vrp": 5.5,
+        }
+        store = tmp_path / "iv30_snap.parquet"
+        with mock.patch("gex.validation.STORE", store):
+            save_snapshot(summary, "SPY")
+        hist = pd.read_parquet(store)
+        assert "iv30" in hist.columns
+        assert float(hist["iv30"].iloc[0]) == pytest.approx(21.5)
+
+    def test_old_snapshot_without_iv30_loads_cleanly(self, tmp_path):
+        row = {
+            "date": datetime.date(2026, 6, 1), "ticker": "SPY",
+            "spot": 500.0, "net_gex": 1e9,
+            # deliberately omitting iv30
+        }
+        store = tmp_path / "old_no_iv30.parquet"
+        pd.DataFrame([row]).to_parquet(store, index=False)
+        with mock.patch("gex.validation.STORE", store):
+            result = load_prior_snapshot("SPY", datetime.date(2026, 6, 2))
+        assert result is not None
+        # iv30 absent — accessing it may raise KeyError on old pd.Series, but load itself succeeds
