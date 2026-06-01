@@ -217,6 +217,8 @@ def _ticker_card(r: dict) -> str:
     )
 
     # Right column: dealer positioning + wall context (the "what's holding it" lens)
+    oi_cw = r.get("oi_call_wall")
+    oi_pw = r.get("oi_put_wall")
     right_rows = (
         _kv_cell("Net GEX", _fmt_b(net_gex), value_color=_signed_color(net_gex))
         + _kv_cell("Hedge Shares/$1", _fmt_hedge_shares(r.get("delta_hedge_flow")))
@@ -226,6 +228,8 @@ def _ticker_card(r: dict) -> str:
         + _kv_cell("Range",
                    f"{range_width_pct:.1f}% &middot; {_pin_location(spot, pw, cw)}"
                    if range_width_pct is not None else "—")
+        + _kv_cell("OI Call Wall", _wall_value(oi_cw, _pct_from_spot(spot, oi_cw)))
+        + _kv_cell("OI Put Wall",  _wall_value(oi_pw, _pct_from_spot(spot, oi_pw)))
     )
 
     header = (
@@ -270,12 +274,106 @@ def _section_header(label: str) -> str:
     )
 
 
+# ── Evolution section ─────────────────────────────────────────────────
+
+def evolution_section_html(evolution_data: dict) -> str | None:
+    """Build the Surface Evolution cross-ticker table for the email top section.
+
+    evolution_data: {'SPY': {level, rms, skew_change, term_change, as_of}, 'QQQ': ..., 'IWM': ...}
+
+    Returns None (omit entirely) on cold start — when all scalars across all tickers are None.
+    Returns an HTML string otherwise.
+    """
+    _SCALAR_KEYS = ("level", "rms", "skew_change", "term_change")
+
+    all_none = all(
+        all(ticker_data.get(k) is None for k in _SCALAR_KEYS)
+        for ticker_data in evolution_data.values()
+    )
+    if all_none:
+        return None
+
+    # Lead sentence based on SPY level (D-12 Claude's discretion)
+    spy_data = evolution_data.get("SPY", {})
+    spy_level = spy_data.get("level")
+    as_of = spy_data.get("as_of")
+
+    if spy_level is None:
+        lead = "Five-day rolling mean — cross-ticker."
+    elif spy_level > 0.5:
+        lead = "Surfaces moved higher over the 5-day rolling mean."
+    elif spy_level < -0.5:
+        lead = "Surfaces moved lower over the 5-day rolling mean."
+    else:
+        lead = "Surfaces largely unchanged over the 5-day rolling mean."
+
+    if as_of is not None:
+        as_of_str = as_of.strftime("%b %d, %Y") if hasattr(as_of, "strftime") else str(as_of)
+        lead += f" As of {as_of_str}."
+
+    # Table header
+    th_style = (
+        f'style="{_SANS}padding:5px 10px 5px 0;font-size:11px;'
+        f'color:{LABEL_GRAY};letter-spacing:0.5px;text-transform:uppercase;'
+        f'border-bottom:1px solid {RULE_COLOR};text-align:left;"'
+    )
+    td_style = (
+        f'style="{_MONO}padding:5px 10px 5px 0;font-size:13px;font-weight:600;'
+        f'white-space:nowrap;"'
+    )
+    td_ticker_style = (
+        f'style="{_SANS}padding:5px 10px 5px 0;font-size:13px;font-weight:700;'
+        f'white-space:nowrap;"'
+    )
+
+    header_row = (
+        f'<tr>'
+        f'<th {th_style}>Ticker</th>'
+        f'<th {th_style}>Level</th>'
+        f'<th {th_style}>RMS</th>'
+        f'<th {th_style}>Skew Chg</th>'
+        f'<th {th_style}>Term Chg</th>'
+        f'</tr>'
+    )
+
+    def _pp(v: float | None) -> str:
+        return f"{v:+.2f}pp" if v is not None else "—"
+
+    ticker_rows = ""
+    for ticker in ("SPY", "QQQ", "IWM"):
+        d = evolution_data.get(ticker, {})
+        ticker_rows += (
+            f'<tr>'
+            f'<td {td_ticker_style}>{ticker}</td>'
+            f'<td {td_style}>{_pp(d.get("level"))}</td>'
+            f'<td {td_style}>{_pp(d.get("rms"))}</td>'
+            f'<td {td_style}>{_pp(d.get("skew_change"))}</td>'
+            f'<td {td_style}>{_pp(d.get("term_change"))}</td>'
+            f'</tr>'
+        )
+
+    table = (
+        f'<table cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;width:100%;margin-top:10px;">'
+        f'{header_row}{ticker_rows}'
+        f'</table>'
+    )
+
+    lead_html = (
+        f'<p style="{_SANS}font-size:13px;margin:10px 0 6px;color:{LABEL_GRAY};">{lead}</p>'
+    )
+
+    return _section_header("Surface Evolution — 5-day") + lead_html + table
+
+
 # ── Main ──────────────────────────────────────────────────────────────
 
 def build_email(
     index_results: list[dict],
     purpose_results: list[dict] | None = None,
     date: datetime.date | None = None,
+    evolution_data: dict | None = None,
+    png_note: str | None = None,
 ) -> str:
     """purpose_results retained for signature compat; ignored (3-ticker focus)."""
     date = date or datetime.date.today()
@@ -317,8 +415,11 @@ def build_email(
         '<b>Call Wall / Put Wall</b>: the single strike with the largest one-sided GEX, with '
         'distance from spot. Use the <i>strike</i> as a hard level; one-sided magnitude is '
         'methodology-dependent and not shown.<br>'
-        '<b>Range</b>: width between walls as % of spot &middot; pin location of spot inside the range.'
-        '<br><br>'
+        '<b>Range</b>: width between walls as % of spot &middot; pin location of spot inside the range.<br>'
+        '<b>OI Call Wall / OI Put Wall</b>: strike with the largest call or put open interest '
+        '(assumption-free — no dealer model). Contrast with Call Wall / Put Wall above, which '
+        'are GEX-weighted (dealer positioning model).<br>'
+        '<br>'
         '<b>Data limitations — read before trading off this</b><br>'
         '&bull; <b>OI is T-1.</b> Open interest reflects the prior session close. γ-flip and walls '
         'describe <i>yesterday\'s</i> positioning. Intraday OI drift is not captured.<br>'
@@ -343,21 +444,37 @@ def build_email(
         '</div>'
     )
 
+    # Evolution section — omitted entirely on cold start (D-10, D-11)
+    evol_html = ""
+    if evolution_data is not None:
+        evol_section = evolution_section_html(evolution_data)
+        if evol_section:
+            evol_html = evol_section
+
+    # PNG fallback note — rendered below ticker cards (D-05)
+    png_note_html = ""
+    if png_note:
+        png_note_html = (
+            f'<p style="{_SANS}font-size:12px;color:{LABEL_GRAY};margin-top:8px;">{png_note}</p>'
+        )
+
     return f"""
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 </head>
-<body style="{_SANS}margin:0;padding:0;">
+<body style="{_SANS}margin:0;padding:0;background:#ffffff;">
 <table width="100%" cellpadding="0" cellspacing="0">
   <tr><td align="center" style="padding:20px;">
     <table width="720" cellpadding="0" cellspacing="0" style="width:720px;max-width:720px;{_SANS}">
       <tr><td>
 
   {_section_header("Equity Index Dealer Flow &middot; " + date.strftime("%b %d, %Y").replace(" 0", " "))}
+  {evol_html}
   {cards}
   {failed_note}
+  {png_note_html}
   {methodology_footer}
 
       </td></tr>

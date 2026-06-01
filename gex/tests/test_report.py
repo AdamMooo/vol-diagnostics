@@ -125,10 +125,10 @@ def test_evolution_section_before_cards():
     }
     html = build_email([spy_result], evolution_data=evol_data)
     evol_pos = html.find("Surface Evolution")
-    # "SPY  S&P 500" is the ticker label in TICKER_LABEL
-    card_pos = html.find("SPY  S&amp;P 500")
+    # TICKER_LABEL["SPY"] = "SPY  S&P 500" — appears literally in HTML (not entity-escaped)
+    card_pos = html.find("SPY  S&P 500")
     if card_pos == -1:
-        card_pos = html.find("S&amp;P 500")
+        card_pos = html.find("S&P 500")
     assert evol_pos != -1, "Surface Evolution section not found"
     assert card_pos != -1, "SPY ticker card not found"
     assert evol_pos < card_pos, "Evolution section must appear before ticker cards (D-10)"
