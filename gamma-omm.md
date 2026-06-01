@@ -48,14 +48,14 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-01 16:42 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-01 18:43 UTC
 
-**Milestone:** v3.3 — Surface Evolution & Daily Intelligence · **Status:** planning · **STATE last_updated:** 2026-06-01T03:58:24.165Z
+**Milestone:** v3.3 — Surface Evolution & Daily Intelligence · **Status:** milestone_complete · **STATE last_updated:** 2026-06-01T17:46:35.068Z
 
 ### Current Position
 - **Phase:** 11
 - **Plan:** Not started
-- **Status:** Ready to plan
+- **Status:** Milestone complete
 - **Last activity:** 2026-06-01
 
 ### Blockers
