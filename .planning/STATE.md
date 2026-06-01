@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.3 — Surface Evolution & Daily Intelligence
 milestone_name: Surface Evolution & Daily Intelligence
-status: ready_to_plan
-stopped_at: Phase 10 complete (2/2) — ready to discuss Phase 11
-last_updated: 2026-06-01T03:11:05.858Z
+status: planning
+stopped_at: Phase 11 context gathered
+last_updated: "2026-06-01T03:58:24.165Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 12
-  completed_plans: 27
+  completed_plans: 12
   percent: 80
 ---
 
@@ -99,9 +99,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-01T02:51:37.475Z
-Stopped at: Phase 10 context gathered
-Resume file: None
+Last session: 2026-06-01T03:58:24.151Z
+Stopped at: Phase 11 context gathered
+Resume file: .planning/phases/11-richer-daily-report/11-CONTEXT.md
 
 **Next action:** restart Claude Code (GSD updated to 1.42.3), then `/gsd-discuss-phase 9` (or `/gsd-plan-phase 9`) for the Surface Evolution Engine — build with the locked {5,10,20} horizons + rolling-mean baseline. SDK is healthy, so the normal parallel-executor flow works (no more inline workaround).
 
