@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Email-First Daily Report Polish
-status: executing
-stopped_at: Completed 12-01-PLAN.md — card_model.py + load_prior_snapshot
-last_updated: "2026-06-01T20:48:26.686Z"
+status: verifying
+stopped_at: Completed 12-03-PLAN.md — dashboard render_regime_card canonical
+last_updated: "2026-06-01T20:54:16.303Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 33
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-06-01)
 
 Phase: 12 (Canonical Card) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-01
 
-Progress: [███████░░░] 67%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [███████░░░] 67%
 | 11. Richer Daily Report | 4 | - | - |
 | Phase 12-canonical-card P01 | 15 min | 2 tasks | 4 files |
 | Phase 12-canonical-card P02 | 10 min | 2 tasks | 2 files |
+| Phase 12-canonical-card P03 | 10 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Progress: [███████░░░] 67%
 - [Phase ?]: iv30 already in _FLOAT_COLS/save_snapshot — no schema change; load_prior_snapshot was the missing piece
 - [Phase ?]: _wall_value in card_model.py is renderer-agnostic plain text; report.py adds HTML span in plan 02
 - [Phase ?]: _ticker_card() delegates field construction to build_card_fields(); no local field logic remains in report.py
+- [Phase ?]: render_regime_card delegates field construction to build_card_fields(); no local field logic remains in streamlit_app
+- [Phase ?]: patch target for load_prior_snapshot in dashboard tests is streamlit_app.load_prior_snapshot — from-import creates a direct reference
 
 ### Pending Todos
 
@@ -85,8 +88,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-01T20:48:21.263Z
-Stopped at: Completed 12-01-PLAN.md — card_model.py + load_prior_snapshot
+Last session: 2026-06-01T20:54:16.290Z
+Stopped at: Completed 12-03-PLAN.md — dashboard render_regime_card canonical
 Resume file: None
 
 ---

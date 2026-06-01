@@ -36,7 +36,7 @@
 
 **Milestone Goal:** Curate the daily email into a tight single-snapshot diagnostic, unify the email and dashboard around one canonical card, replace the static surface PNGs with 1-day ΔIV surfaces, and gate accumulation-dependent UI until enough sessions exist. Every scope item is single-snapshot or near-it.
 
-- [ ] **Phase 12: Canonical Card** — Single source-of-truth card shared by email + dashboard; VRP, scalar deltas, wall labels
+- [x] **Phase 12: Canonical Card** — Single source-of-truth card shared by email + dashboard; VRP, scalar deltas, wall labels (completed 2026-06-01)
 - [ ] **Phase 13: 1-Day ΔIV Email PNGs** — Replace static surface + 5d ΔIV PNGs with one 1d ΔIV surface PNG per ticker
 - [ ] **Phase 14: Accumulation Gating** — Gate history-dependent UI elements behind session-count guards; cold-start safe email
 
@@ -60,7 +60,7 @@
 Plans:
 - [x] 12-01-PLAN.md — Shared card-model layer: CardField + build_card_fields(), iv30 schema, load_prior_snapshot
 - [x] 12-02-PLAN.md — Email renderer integration: _ticker_card() consumes build_card_fields()
-- [ ] 12-03-PLAN.md — Dashboard renderer integration: render_regime_card() consumes build_card_fields()
+- [x] 12-03-PLAN.md — Dashboard renderer integration: render_regime_card() consumes build_card_fields()
 
 ---
 
@@ -92,7 +92,7 @@ Plans:
 
 Plans:
 - [x] 12-01-PLAN.md — Shared card-model layer: CardField + build_card_fields(), iv30 schema, load_prior_snapshot
-- [ ] 12-02-PLAN.md — Email renderer integration: _ticker_card() consumes build_card_fields()
+- [x] 12-02-PLAN.md — Email renderer integration: _ticker_card() consumes build_card_fields()
 - [ ] 12-03-PLAN.md — Dashboard renderer integration: render_regime_card() consumes build_card_fields()
 
 ---
@@ -112,7 +112,7 @@ Plans:
 | 9. Surface Evolution Engine | v3.3 | 3/3 | Complete | 2026-05-30 |
 | 10. Dashboard Restructure | v3.3 | 2/2 | Complete | 2026-06-01 |
 | 11. Richer Daily Report | v3.3 | 4/4 | Complete | 2026-06-01 |
-| 12. Canonical Card | v3.4 | 2/3 | In Progress|  |
+| 12. Canonical Card | v3.4 | 3/3 | Complete   | 2026-06-01 |
 | 13. 1-Day ΔIV Email PNGs | v3.4 | 0/TBD | Not started | - |
 | 14. Accumulation Gating | v3.4 | 0/TBD | Not started | - |
 
