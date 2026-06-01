@@ -188,3 +188,121 @@ def compute_vrp(iv30: float | None, rv20: float | None) -> float | None:
     if iv30 is None or rv20 is None:
         return None
     return iv30 - rv20
+
+
+# ── Phase 11 email plug-in points (D-15) ─────────────────────────────────────
+# Pure functions — no I/O, no Streamlit calls, plain Python return types.
+
+
+def vrp_headline(
+    iv30_pct: float | None,
+    rv20_pct: float | None,
+    vrp_pp: float | None,
+    percentile: int | None,
+) -> str:
+    """Plain-read VRP string for dashboard and Phase 11 email.
+
+    Args:
+        iv30_pct: IV30 as percentage points (e.g. 18.5 for 18.5% vol)
+        rv20_pct: RV20 as percentage points (e.g. 15.8)
+        vrp_pp:   IV30 − RV20 in percentage points (e.g. 2.7)
+        percentile: historical percentile of VRP vs 30-session lookback (0–100)
+
+    Returns:
+        Plain-language read. Cold-start string when vrp_pp or percentile is None.
+    """
+    if vrp_pp is None or percentile is None:
+        return "VRP: insufficient history (accumulates from run_daily)"
+
+    if abs(vrp_pp) < 0.5:
+        return f"vol near fair ({vrp_pp:+.1f}pp, {percentile}th %ile)"
+
+    if vrp_pp > 0:
+        return (
+            f"vol rich +{vrp_pp:.1f}pp, {percentile}th %ile"
+            " — premium-selling favored, protection is expensive"
+        )
+
+    return (
+        f"vol cheap {vrp_pp:.1f}pp, {percentile}th %ile"
+        " — protection cheap relative to realized"
+    )
+
+
+def evolution_5d_summary(evol_df: pd.DataFrame) -> dict:
+    """Extract the most recent row of a 5-day evolution DataFrame.
+
+    evol_df: output of load_evolution(ticker, horizon=5) — columns include
+        level, rms, skew_change, term_change, date. Sorted descending by date
+        (most recent row first).
+
+    Returns dict with keys: level, rms, skew_change, term_change, as_of.
+    All values are None when evol_df is empty.
+    """
+    if evol_df is None or evol_df.empty:
+        return {
+            "level": None,
+            "rms": None,
+            "skew_change": None,
+            "term_change": None,
+            "as_of": None,
+        }
+
+    row = evol_df.iloc[0]
+
+    def _safe(key: str) -> float | None:
+        val = row.get(key) if hasattr(row, "get") else (row[key] if key in evol_df.columns else None)
+        if val is None:
+            return None
+        try:
+            f = float(val)
+            return None if (f != f) else f  # NaN guard
+        except (TypeError, ValueError):
+            return None
+
+    date_val = row.get("date") if hasattr(row, "get") else (row["date"] if "date" in evol_df.columns else None)
+    as_of = str(date_val) if date_val is not None else None
+
+    return {
+        "level": _safe("level"),
+        "rms": _safe("rms"),
+        "skew_change": _safe("skew_change"),
+        "term_change": _safe("term_change"),
+        "as_of": as_of,
+    }
+
+
+def positioning_levels(summary: dict, hist_df: pd.DataFrame) -> dict:
+    """Extract GEX-derived positioning levels and distances from spot.
+
+    summary: dict from compute_ticker — keys call_wall, put_wall,
+        zero_gamma_level, spot, net_gex.
+    hist_df: output of load_history — spot column used for context only
+        (this function uses summary['spot'] for distance calculations).
+
+    Returns dict with structural levels and signed distance-from-spot in percent.
+    Distances are (level - spot) / spot * 100. Returns None for any distance
+    where the level or spot is None or spot == 0. No dealer-assumption language
+    here — the caller (email or dashboard) adds that context per D-07.
+    """
+    spot = summary.get("spot")
+    call_wall = summary.get("call_wall")
+    put_wall = summary.get("put_wall")
+    gamma_flip = summary.get("zero_gamma_level")
+    net_gex = summary.get("net_gex")
+
+    def _dist(level: float | None) -> float | None:
+        if level is None or spot is None or spot == 0:
+            return None
+        return (level - spot) / spot * 100
+
+    return {
+        "call_wall": call_wall,
+        "put_wall": put_wall,
+        "gamma_flip": gamma_flip,
+        "spot": spot,
+        "dist_call_wall_pct": _dist(call_wall),
+        "dist_put_wall_pct": _dist(put_wall),
+        "dist_gamma_flip_pct": _dist(gamma_flip),
+        "net_gex_b": (net_gex / 1e9) if net_gex is not None else None,
+    }
