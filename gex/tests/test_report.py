@@ -6,12 +6,15 @@ Covers:
   - OI Call Wall / OI Put Wall rows in _ticker_card() (D-07, D-09)
   - evolution_section_html() cold-start safety + rendering (D-10, D-11)
   - build_email() signature: evolution_data and png_note params
+  - VRP row, delta suffixes, wall type labels (CARD-02, CARD-03, CARD-04)
 """
 from __future__ import annotations
 
 import datetime
 import re
+from unittest.mock import patch
 
+import pandas as pd
 import pytest
 
 from gex.report import _ticker_card, build_email, evolution_section_html
@@ -28,6 +31,8 @@ def _minimal_result(
     zero_gamma_level: float | None = 495.0,
     oi_call_wall: float | None = None,
     oi_put_wall: float | None = None,
+    vrp: float | None = None,
+    rv20: float | None = None,
 ) -> dict:
     """Minimal result dict sufficient for _ticker_card() to render without KeyError."""
     return {
@@ -43,6 +48,8 @@ def _minimal_result(
         "iv30": 18.0,
         "delta_hedge_flow": None,
         "front_skew": None,
+        "vrp": vrp,
+        "rv20": rv20,
     }
 
 
@@ -168,3 +175,71 @@ def test_build_email_signature_accepts_new_params():
     # Backward-compatible defaults — must not raise
     html = build_email([], evolution_data=None, png_note=None)
     assert html  # non-empty string
+
+
+# ── TestCanonicalCardEmail: CARD-02, CARD-03, CARD-04 ─────────────────────────
+
+class TestCanonicalCardEmail:
+
+    def _r(self, **kwargs) -> dict:
+        return _minimal_result(**kwargs)
+
+    def _render_no_prior(self, **kwargs) -> str:
+        with patch("gex.report.load_prior_snapshot", return_value=None):
+            return _ticker_card(self._r(**kwargs))
+
+    def _render_with_prior(self, prior: pd.Series, **kwargs) -> str:
+        with patch("gex.report.load_prior_snapshot", return_value=prior):
+            return _ticker_card(self._r(**kwargs))
+
+    # CARD-02: VRP row present
+
+    def test_vrp_row_present_with_value(self):
+        html = self._render_no_prior(vrp=2.7)
+        assert re.search(r"VRP", html, re.IGNORECASE), "VRP row missing when vrp=2.7"
+        assert "+2.7pp" in html, "VRP formatted value not found"
+
+    def test_vrp_row_present_when_none(self):
+        html = self._render_no_prior(vrp=None)
+        assert re.search(r"VRP", html, re.IGNORECASE), "VRP row missing when vrp=None"
+        assert "—" in html, "Em-dash for None VRP not found"
+
+    # CARD-04: wall type labels
+
+    def test_call_wall_model_label(self):
+        html = self._render_no_prior()
+        assert re.search(r"Call Wall.*\(model\)", html, re.IGNORECASE), \
+            "Call Wall (model) label not found"
+
+    def test_put_wall_model_label(self):
+        html = self._render_no_prior()
+        assert re.search(r"Put Wall.*\(model\)", html, re.IGNORECASE), \
+            "Put Wall (model) label not found"
+
+    def test_oi_call_wall_raw_oi_label(self):
+        html = self._render_no_prior(oi_call_wall=512.0)
+        assert re.search(r"OI Call Wall.*\(raw OI\)", html, re.IGNORECASE), \
+            "OI Call Wall (raw OI) label not found"
+
+    def test_oi_put_wall_raw_oi_label(self):
+        html = self._render_no_prior(oi_put_wall=488.0)
+        assert re.search(r"OI Put Wall.*\(raw OI\)", html, re.IGNORECASE), \
+            "OI Put Wall (raw OI) label not found"
+
+    # CARD-03: delta suffix present when prior row exists
+
+    def test_net_gex_delta_present_with_prior(self):
+        prior = pd.Series({"net_gex": 1.05e9, "front_skew": None, "iv30": None})
+        html = self._render_with_prior(prior, net_gex=1.20e9)
+        assert re.search(r"\(\+", html), "Net GEX positive delta suffix not found"
+
+    def test_net_gex_delta_absent_without_prior(self):
+        html = self._render_no_prior(net_gex=1.20e9)
+        assert "(+nan)" not in html, "Unexpected (+nan) in no-prior render"
+        assert "(+0" not in html, "Unexpected (+0...) in no-prior render"
+
+    # CARD-03: delta suffix absent (not NaN) when no prior row
+
+    def test_no_delta_nan_when_no_prior(self):
+        html = self._render_no_prior()
+        assert "nan" not in html.lower(), "NaN leaked into email HTML when no prior row"
