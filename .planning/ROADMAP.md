@@ -1,6 +1,6 @@
 # Roadmap: Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-05-30 · v3.1 SHIPPED · v3.3 active (Phase 9 planned)*
+*Last updated: 2026-05-31 · v3.1 SHIPPED · v3.3 active (Phase 10 planned)*
 
 ## Milestones
 
@@ -159,7 +159,12 @@ Plans:
   4. An evolution view charts level / rms / skew-change / term-change over time, selectable by horizon
   5. Restrained palette; coverage holes shown honestly; interactive 3D surface retained here
 
-**Status**: ○ Pending
+**Plans**: 2 plans
+Plans:
+- [ ] 10-01-PLAN.md — Palette tokens + headless analysis functions + analytics.py cleanup (foundation)
+- [ ] 10-02-PLAN.md — streamlit_app.py full tab restructure (Surface / Calculus+VRP / Evolution / Positioning)
+
+**Status**: ○ Ready to execute
 
 ### Phase 11: Richer Daily Report
 
