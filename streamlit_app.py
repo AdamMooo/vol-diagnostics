@@ -10,13 +10,16 @@ import streamlit as st
 from gex import config
 from gex.compute import compute_ticker
 from gex.analytics import (
-    plot_strike_gex, plot_gamma_profile,
+    plot_gamma_profile,
     plot_vol_surface, plot_iv_change_surface,
     plot_oi_by_strike,
 )
 from scipy.stats import percentileofscore
-from gex.surface_history import load_surface_snapshot, list_available_dates
-from gex.report import REGIME_COLOR
+from gex.surface_history import (
+    load_surface_snapshot, list_available_dates, nth_trading_day_back,
+)
+from gex.surface_evolution import load_evolution
+from gex.vol_metrics import vrp_headline
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 
@@ -149,7 +152,8 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
     background reflect the sign of net gex; no categorical regime label."""
     ticker = summary["ticker"]
     sign = _sign_key(summary.get("net_gex"))
-    color = REGIME_COLOR[sign]
+    _palette_sign = {"positive": config.PALETTE["positive"], "negative": config.PALETTE["negative"], "zero": config.PALETTE["neutral"]}
+    color = _palette_sign[sign]
     bg = _SIGN_RGBA.get(sign, "rgba(127,140,141,0.12)")
     net_gex_b = (summary.get("net_gex") or 0) / _B
     zgl = summary.get("zero_gamma_level")
@@ -243,13 +247,13 @@ if not all_data:
 if sel_index:
     render_regime_cards(sel_index, all_data)
 
-    tab_surface, tab_skew, tab_term, tab_flow = st.tabs(
-        ["Surface", "Skew", "Term Structure", "Flow Context"]
+    tab_surface, tab_calculus, tab_evolution, tab_positioning = st.tabs(
+        ["Surface", "Calculus+VRP", "Evolution", "Positioning"]
     )
 
     # ── Surface ──────────────────────────────────────────────────────────────
     with tab_surface:
-        sub_today, sub_change = st.tabs(["Today", "∆ Change"])
+        sub_today, sub_compare = st.tabs(["Today", "Compare"])
 
         with sub_today:
             for ticker in selected_all:
@@ -268,7 +272,16 @@ if sel_index:
                 else:
                     st.caption(f"{ticker}: insufficient data for surface.")
 
-        with sub_change:
+        with sub_compare:
+            _horizon_options = {
+                "live": 0,
+                "1d": 1,
+                "5d": 5,
+                "10d": 10,
+                "20d": 20,
+                "30d": 30,
+                "60d": 60,
+            }
             for ticker in selected_all:
                 if ticker not in all_data:
                     continue
@@ -284,255 +297,386 @@ if sel_index:
                     )
                     continue
 
-                prior_date = st.selectbox(
-                    f"{ticker} — compare against",
-                    options=available,
-                    format_func=lambda d: d.strftime("%b %d, %Y"),
-                    key=f"surface_prior_{ticker}",
-                )
-                surface_df_prior, spot_prior = load_surface_snapshot(ticker, prior_date)
-                if spot_prior is None:
-                    spot_prior = spot_today  # fallback if snapshot predates spot column
+                # Determine which horizon keys have enough stored history
+                anchor = available[0]
+                available_keys = ["live"]
+                for label, n in _horizon_options.items():
+                    if label == "live":
+                        continue
+                    if nth_trading_day_back(ticker, anchor, n) is not None:
+                        available_keys.append(label)
 
-                if surface_df_today is not None and not surface_df_today.empty:
+                # Default: live vs 5d (or first available if 5d not ready)
+                default_b = "5d" if "5d" in available_keys else (available_keys[1] if len(available_keys) > 1 else "live")
+
+                col_a, col_b = st.columns([1, 1])
+                with col_a:
+                    sel_a = st.selectbox(
+                        f"{ticker} — Date A",
+                        options=available_keys,
+                        index=0,
+                        key=f"compare_a_{ticker}",
+                    )
+                with col_b:
+                    default_b_idx = available_keys.index(default_b) if default_b in available_keys else 0
+                    sel_b = st.selectbox(
+                        f"{ticker} — Date B",
+                        options=available_keys,
+                        index=default_b_idx,
+                        key=f"compare_b_{ticker}",
+                    )
+
+                # Resolve A
+                if sel_a == "live":
+                    surface_df_a = surface_df_today
+                    spot_a = spot_today
+                    label_a = "live"
+                else:
+                    n_a = _horizon_options[sel_a]
+                    date_a = nth_trading_day_back(ticker, anchor, n_a)
+                    if date_a is None:
+                        st.caption(f"{ticker}: insufficient history for {sel_a}")
+                        continue
+                    surface_df_a, spot_a = load_surface_snapshot(ticker, date_a)
+                    if spot_a is None:
+                        spot_a = spot_today
+                    label_a = date_a.strftime("%b %d")
+
+                # Resolve B
+                if sel_b == "live":
+                    surface_df_b = surface_df_today
+                    spot_b = spot_today
+                    label_b = "live"
+                else:
+                    n_b = _horizon_options[sel_b]
+                    date_b = nth_trading_day_back(ticker, anchor, n_b)
+                    if date_b is None:
+                        st.caption(f"{ticker}: insufficient history for {sel_b}")
+                        continue
+                    surface_df_b, spot_b = load_surface_snapshot(ticker, date_b)
+                    if spot_b is None:
+                        spot_b = spot_today
+                    label_b = date_b.strftime("%b %d")
+
+                if surface_df_a is not None and not surface_df_a.empty:
                     st.plotly_chart(
                         plot_iv_change_surface(
-                            surface_df_today, surface_df_prior,
-                            ticker, spot_today, spot_prior,
-                            label_prior=prior_date.strftime("%b %d"),
+                            surface_df_a, surface_df_b,
+                            ticker, spot_a, spot_b,
+                            label_prior=label_b,
                         ),
                         use_container_width=True,
                     )
                     st.caption(
-                        f"DTE range is bounded by the intersection of today's and "
-                        f"{prior_date.strftime('%b %d')}'s data — if the surface is "
-                        "narrower than today's, the prior snapshot's front expiry has rolled off."
+                        f"DTE range is bounded by the intersection of {label_a}'s and "
+                        f"{label_b}'s data — if the surface is narrower than today's, "
+                        "the prior snapshot's front expiry has rolled off."
                     )
                 else:
-                    st.caption(f"{ticker}: insufficient live data for comparison.")
+                    st.caption(f"{ticker}: insufficient data for comparison.")
 
-    # ── Skew ─────────────────────────────────────────────────────────────────
-    with tab_skew:
-        # Cross-ticker comparison — most actionable view when ≥2 tickers loaded
-        loaded_tickers = [t for t in selected_all if t in all_data]
-        if len(loaded_tickers) >= 2:
-            skew_by_ticker = {
-                t: all_data[t].get("skew") or {}
-                for t in loaded_tickers
-            }
-            st.plotly_chart(
-                plot_skew_cross_ticker(skew_by_ticker),
-                use_container_width=True,
-            )
-            st.caption(
-                "25Δ risk reversal = put wing IV − call wing IV. "
-                "Higher = market paying more for downside protection. "
-                "Divergence across tickers signals where stress is localised."
-            )
-            st.divider()
-
-        # Per-ticker detail
-        cols_skew = st.columns(len(loaded_tickers)) if len(loaded_tickers) > 1 else [st]
-        for col, ticker in zip(cols_skew, loaded_tickers):
-            data = all_data[ticker]
-            skew_data = data.get("skew") or {}
-            front = skew_data.get("front_month")
-            second = skew_data.get("second_month")
-
-            with col:
-                st.plotly_chart(
-                    plot_skew_25d_current(skew_data, ticker),
-                    use_container_width=True,
-                )
-
-                # Metrics with historical percentile context
-                hist30 = _load_history_cached(ticker, days=config.HISTORY_DAYS)
-                skew_series = (
-                    hist30.dropna(subset=["front_skew"])["front_skew"].tolist()
-                    if not hist30.empty and "front_skew" in hist30.columns
-                    else []
-                )
-
-                if front or second:
-                    m1, m2 = st.columns(2)
-                    with m1:
-                        if front:
-                            st.metric(
-                                f"Front ({front['dte']:.0f} DTE)",
-                                f"{front['skew']:+.1f}pp",
-                                help="25Δ put IV − 25Δ call IV (symmetric risk reversal)",
-                            )
-                            if len(skew_series) >= 5:
-                                pct = int(percentileofscore(skew_series, front["skew"]))
-                                st.caption(f"{pct}th %ile vs {len(skew_series)}-session history")
-                        else:
-                            st.caption("Front month: insufficient chain data")
-                    with m2:
-                        if second:
-                            st.metric(
-                                f"2nd ({second['dte']:.0f} DTE)",
-                                f"{second['skew']:+.1f}pp",
-                                help="25Δ put IV − 25Δ call IV (symmetric risk reversal)",
-                            )
-                        else:
-                            st.caption("Second month: insufficient chain data")
-
-                # Skew term structure: per-expiry 25Δ RR across the curve
-                skew_df = data.get("skew_df")
-                if skew_df is not None and not skew_df.empty:
-                    st.plotly_chart(
-                        plot_skew_term_structure(skew_df, ticker),
-                        use_container_width=True,
-                    )
-
-                # Rolling skew history
-                if hist30.empty:
-                    st.caption("No history yet — accumulates from `gex.run_daily` runs.")
-                else:
-                    chart_df = hist30.sort_values("date")
-                    if "front_skew" in chart_df.columns and chart_df["front_skew"].notna().any():
-                        skew_hist = chart_df.dropna(subset=["front_skew"])
-                        skew_fig = go.Figure()
-                        skew_fig.add_trace(go.Scatter(
-                            x=skew_hist["date"],
-                            y=skew_hist["front_skew"],
-                            mode="lines+markers",
-                            line=dict(color="#f59e0b", width=1.5),
-                            marker=dict(size=5),
-                            hovertemplate="%{x|%b %d}<br>Skew: %{y:+.2f}pp<extra></extra>",
-                        ))
-                        skew_fig.add_hline(
-                            y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8,
-                        )
-                        skew_fig.update_layout(
-                            template="plotly_dark",
-                            title=f"25Δ RR history — {config.HISTORY_DAYS} sessions",
-                            height=240,
-                            yaxis_title="Skew (pp)",
-                            yaxis_ticksuffix="pp",
-                            margin=dict(t=40, b=30, l=60, r=20),
-                            showlegend=False,
-                        )
-                        st.plotly_chart(skew_fig, use_container_width=True)
-                    else:
-                        st.caption("Skew history empty — accumulates from `gex.run_daily` forward.")
-
-    # ── Term Structure ────────────────────────────────────────────────────────
-    with tab_term:
-        cols_term = st.columns(len(loaded_tickers)) if len(loaded_tickers) > 1 else [st]
-        for col, ticker in zip(cols_term, loaded_tickers):
-            data = all_data[ticker]
-            ts = data.get("term_structure") or {}
-            front_iv = ts.get("front_atm_iv")
-            back_iv = ts.get("back_atm_iv")
-            with col:
-                st.plotly_chart(
-                    plot_term_structure(ts, ticker),
-                    use_container_width=True,
-                )
-
-                # Front/back spread with interpretation
-                if front_iv is not None and back_iv is not None:
-                    spread = front_iv - back_iv
-                    if spread > 2.0:
-                        interp = (
-                            f"Near-term premium elevated (+{spread:.1f}pp) — "
-                            "front-month options carry a premium vs back month. "
-                            "Likely event or macro risk priced in near term."
-                        )
-                    elif spread < -2.0:
-                        interp = (
-                            f"Normal carry ({spread:.1f}pp) — "
-                            "term structure upward-sloping. "
-                            "Near-term options cheaper; carry favours selling short-dated vol."
-                        )
-                    else:
-                        interp = (
-                            f"Term structure flat (spread {spread:+.1f}pp) — "
-                            "little carry advantage across expirations."
-                        )
-                    st.caption(interp)
-                elif ts.get("classification"):
-                    st.caption(f"Shape: {ts['classification']}")
-
-                # IV30 percentile vs history
-                hist_ts = _load_history_cached(ticker, days=config.HISTORY_DAYS)
-                if not hist_ts.empty and "iv30" in hist_ts.columns:
-                    iv30_series = hist_ts.dropna(subset=["iv30"])["iv30"].tolist()
-                    summary_iv30 = all_data[ticker]["summary"].get("iv30")
-                    if len(iv30_series) >= 5 and summary_iv30 is not None:
-                        pct = int(percentileofscore(iv30_series, summary_iv30))
-                        st.caption(
-                            f"IV30 {summary_iv30:.1f}% — "
-                            f"{pct}th %ile vs {len(iv30_series)}-session history"
-                        )
-
-                # VRP: IV30 vs RV20 — shows the premium currently being sold
-                iv30_val = data["summary"].get("iv30")
-                rv20 = data.get("rv20")
-                vrp = data.get("vrp")
-                if iv30_val is not None or rv20 is not None:
-                    st.plotly_chart(
-                        plot_carry_vrp(
-                            iv30_pct=iv30_val,
-                            rv20_pct=(rv20 * 100) if rv20 is not None else None,
-                            vrp_pp=(vrp * 100) if vrp is not None else None,
-                            ticker=ticker,
-                        ),
-                        use_container_width=True,
-                    )
-
-    # ── Flow Context ──────────────────────────────────────────────────────────
-    with tab_flow:
-        st.markdown(
-            "### Microstructure / Execution Context — model-based, not market prices",
-            unsafe_allow_html=False,
-        )
-        st.caption(
-            "GEX assumes dealers are net short all options (Garleanu, Pedersen & Poteshman 2009). "
-            "Sign and order of magnitude are informative; absolute levels are vendor-dependent."
-        )
+    # ── Calculus+VRP ──────────────────────────────────────────────────────────
+    with tab_calculus:
         for ticker in selected_all:
             if ticker not in all_data:
                 continue
             data = all_data[ticker]
             s = data["summary"]
             spot = data.get("spot")
+
+            st.markdown(f'<div class="sec">{ticker} · VRP · Skew · Term</div>', unsafe_allow_html=True)
+
+            hist = _load_history_cached(ticker, days=config.HISTORY_DAYS)
+
+            # VRP headline
+            iv30_summary = s.get("iv30")  # percentage points (e.g. 18.5)
+            rv20_raw = data.get("rv20")   # decimal fraction (e.g. 0.158)
+            vrp_raw = data.get("vrp")     # decimal fraction (e.g. 0.027)
+
+            iv30_pct_val = iv30_summary
+            rv20_pct_val = (rv20_raw * 100) if rv20_raw is not None else None
+            vrp_pp_val = (vrp_raw * 100) if vrp_raw is not None else None
+
+            # Compute percentile from history
+            vrp_percentile = None
+            if not hist.empty and "vrp" in hist.columns and vrp_pp_val is not None:
+                vrp_hist_series = hist.dropna(subset=["vrp"])["vrp"] * 100
+                if len(vrp_hist_series) >= 5:
+                    vrp_percentile = int(percentileofscore(vrp_hist_series.tolist(), vrp_pp_val))
+
+            vrp_plain = vrp_headline(iv30_pct_val, rv20_pct_val, vrp_pp_val, vrp_percentile)
+
+            vrp_display = f"{vrp_pp_val:+.1f}pp" if vrp_pp_val is not None else "—"
+            m_col, _ = st.columns([1, 2])
+            with m_col:
+                st.metric(
+                    label="VRP (IV30 − RV20)",
+                    value=vrp_display,
+                    help="Volatility risk premium: implied minus realized vol. Positive = options pricing more vol than realized.",
+                )
+            st.caption(vrp_plain)
+
+            # VRP sparkline
+            if not hist.empty and "vrp" in hist.columns:
+                vrp_chart_df = hist.dropna(subset=["vrp"]).sort_values("date")
+                if not vrp_chart_df.empty:
+                    vrp_fig = go.Figure()
+                    vrp_fig.add_trace(go.Scatter(
+                        x=vrp_chart_df["date"],
+                        y=vrp_chart_df["vrp"] * 100,
+                        mode="lines",
+                        line=dict(color=config.PALETTE["accent"], width=1.5),
+                        hovertemplate="%{x|%b %d}<br>VRP: %{y:+.2f}pp<extra></extra>",
+                    ))
+                    vrp_fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
+                    vrp_fig.update_layout(
+                        template="plotly_dark",
+                        title=f"{ticker} · VRP — {config.HISTORY_DAYS}-session",
+                        height=160,
+                        margin=dict(t=30, b=20, l=50, r=10),
+                        yaxis_title="VRP (pp)",
+                        showlegend=False,
+                    )
+                    st.plotly_chart(vrp_fig, use_container_width=True)
+
+            # Scalar strip
+            front_skew_val = s.get("front_skew")
+            ts = data.get("term_structure") or {}
+            front_iv = ts.get("front_atm_iv")
+            back_iv = ts.get("back_atm_iv")
+            term_spread_val = (front_iv - back_iv) if (front_iv is not None and back_iv is not None) else None
+
+            skew_series = []
+            term_series = []
+            if not hist.empty:
+                if "front_skew" in hist.columns:
+                    skew_series = hist.dropna(subset=["front_skew"])["front_skew"].tolist()
+
+            sc1, sc2 = st.columns(2)
+            with sc1:
+                skew_display = f"{front_skew_val:+.1f}pp" if front_skew_val is not None else "—"
+                st.metric(
+                    label="Front Skew (25Δ RR)",
+                    value=skew_display,
+                    help="25Δ put IV − 25Δ call IV for front expiry ≥7 DTE.",
+                )
+                if len(skew_series) >= 5 and front_skew_val is not None:
+                    skew_pct = int(percentileofscore(skew_series, front_skew_val))
+                    st.caption(f"{skew_pct}th %ile vs {len(skew_series)}-session history")
+            with sc2:
+                term_display = f"{term_spread_val:+.1f}pp" if term_spread_val is not None else "—"
+                st.metric(
+                    label="Term Spread (front − back ATM IV)",
+                    value=term_display,
+                    help="Front-month ATM IV minus back-month ATM IV.",
+                )
+
+            # Cross-ticker 25Δ RR grouped bar — only once, gated on first ticker
+            if ticker == selected_all[0]:
+                rr_tickers = []
+                rr_values = []
+                for t in INDEX_TICKERS:
+                    if t in all_data:
+                        rr_val = all_data[t]["summary"].get("front_skew")
+                        if rr_val is not None:
+                            rr_tickers.append(t)
+                            rr_values.append(rr_val)
+
+                if rr_tickers:
+                    _ticker_colors = {
+                        "SPY": config.PALETTE["call"],
+                        "QQQ": config.PALETTE["accent"],
+                        "IWM": config.PALETTE["positive"],
+                    }
+                    bar_colors = [_ticker_colors.get(t, config.PALETTE["neutral"]) for t in rr_tickers]
+                    rr_fig = go.Figure()
+                    rr_fig.add_trace(go.Bar(
+                        x=rr_tickers,
+                        y=rr_values,
+                        marker_color=bar_colors,
+                        hovertemplate="%{x}<br>25Δ RR: %{y:+.2f}pp<extra></extra>",
+                    ))
+                    rr_fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
+                    rr_fig.update_layout(
+                        template="plotly_dark",
+                        title="Cross-ticker 25Δ RR",
+                        barmode="group",
+                        height=220,
+                        margin=dict(t=40, b=30, l=60, r=20),
+                        yaxis_title="Skew (pp)",
+                        showlegend=False,
+                    )
+                    st.plotly_chart(rr_fig, use_container_width=True)
+
+    # ── Evolution ─────────────────────────────────────────────────────────────
+    with tab_evolution:
+        selected_horizon = st.radio(
+            "Horizon", options=[5, 10, 20], index=0, horizontal=True, key="evol_horizon",
+        )
+
+        _evol_ticker_colors = {
+            "SPY": config.PALETTE["call"],
+            "QQQ": config.PALETTE["accent"],
+            "IWM": config.PALETTE["positive"],
+        }
+
+        # Load evolution data for all three tickers
+        evol_by_ticker: dict[str, pd.DataFrame] = {}
+        for ticker in INDEX_TICKERS:
+            evol_by_ticker[ticker] = load_evolution(ticker, horizon=selected_horizon, days=60)
+
+        all_empty = all(df.empty for df in evol_by_ticker.values())
+
+        if all_empty:
+            st.caption("No evolution data yet — accumulates from `run_daily` runs forward.")
+        else:
+            for metric in ["level", "rms", "skew_change", "term_change"]:
+                fig = go.Figure()
+                any_data = False
+                for ticker in INDEX_TICKERS:
+                    df = evol_by_ticker[ticker]
+                    if df.empty or metric not in df.columns:
+                        continue
+                    metric_df = df.dropna(subset=[metric]).sort_values("date")
+                    if metric_df.empty:
+                        continue
+                    any_data = True
+                    fig.add_trace(go.Scatter(
+                        x=metric_df["date"],
+                        y=metric_df[metric],
+                        name=ticker,
+                        mode="lines",
+                        line=dict(color=_evol_ticker_colors.get(ticker, config.PALETTE["neutral"]), width=1.5),
+                        hovertemplate=f"%{{x|%b %d}}<br>{ticker} {metric}: %{{y:+.3f}}<extra></extra>",
+                    ))
+                if any_data:
+                    fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
+                    fig.update_layout(
+                        template="plotly_dark",
+                        title=f"{metric} ({selected_horizon}d horizon)",
+                        height=220,
+                        margin=dict(t=40, b=30, l=65, r=20),
+                        yaxis_title=f"{metric} (pp)",
+                        legend=dict(orientation="h", y=1.15),
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+            # Per-ticker cold-start captions for tickers with no data
+            for ticker in INDEX_TICKERS:
+                if evol_by_ticker[ticker].empty:
+                    st.caption(f"{ticker}: no evolution data yet — accumulates from `run_daily` runs forward.")
+
+    # ── Positioning ───────────────────────────────────────────────────────────
+    with tab_positioning:
+        st.markdown(
+            "OI is assumption-free — no dealer model needed. "
+            "GEX-derived levels (γ-flip, walls) assume dealers net short all options "
+            "(Garleanu et al. 2009) and are labelled as model constructs.",
+            unsafe_allow_html=False,
+        )
+
+        for ticker in selected_all:
+            if ticker not in all_data:
+                continue
+            data = all_data[ticker]
+            s = data["summary"]
+            spot = data.get("spot")
+
+            st.markdown(f"**{ticker}**")
+
             c1, c2 = st.columns([3, 2])
             with c1:
                 st.plotly_chart(
-                    plot_strike_gex(data["s_df"], spot, ticker, s),
+                    plot_oi_by_strike(data["s_df"], spot, ticker, s),
                     use_container_width=True,
                 )
+                st.caption(
+                    "Call OI = blue, Put OI = red. "
+                    "Call wall / put wall are GEX-defined (model · assumes dealers net short)."
+                )
             with c2:
+                hist42 = _load_history_cached(ticker, days=42)
+                if not hist42.empty:
+                    chart_df = hist42.sort_values("date")
+                    levels_fig = go.Figure()
+
+                    spot_df = chart_df.dropna(subset=["spot"])
+                    if not spot_df.empty:
+                        levels_fig.add_trace(go.Scatter(
+                            x=spot_df["date"],
+                            y=spot_df["spot"],
+                            name="Spot",
+                            mode="lines",
+                            line=dict(color="white", dash="dot", width=1.2),
+                            hovertemplate="%{x|%b %d}<br>Spot: %{y:,.0f}<extra></extra>",
+                        ))
+
+                    zgl_df = chart_df.dropna(subset=["zero_gamma_level"])
+                    if not zgl_df.empty:
+                        levels_fig.add_trace(go.Scatter(
+                            x=zgl_df["date"],
+                            y=zgl_df["zero_gamma_level"],
+                            name="γ-flip",
+                            mode="lines",
+                            line=dict(color=config.PALETTE["accent"], width=1.5),
+                            hovertemplate="%{x|%b %d}<br>γ-flip: %{y:,.0f}<extra></extra>",
+                        ))
+
+                    cw_df = chart_df.dropna(subset=["call_wall"])
+                    if not cw_df.empty:
+                        levels_fig.add_trace(go.Scatter(
+                            x=cw_df["date"],
+                            y=cw_df["call_wall"],
+                            name="call wall",
+                            mode="lines",
+                            line=dict(color=config.PALETTE["call"], dash="dot", width=1.0),
+                            hovertemplate="%{x|%b %d}<br>call wall: %{y:,.0f}<extra></extra>",
+                        ))
+
+                    pw_df = chart_df.dropna(subset=["put_wall"])
+                    if not pw_df.empty:
+                        levels_fig.add_trace(go.Scatter(
+                            x=pw_df["date"],
+                            y=pw_df["put_wall"],
+                            name="put wall",
+                            mode="lines",
+                            line=dict(color=config.PALETTE["put"], dash="dot", width=1.0),
+                            hovertemplate="%{x|%b %d}<br>put wall: %{y:,.0f}<extra></extra>",
+                        ))
+
+                    levels_fig.update_layout(
+                        template="plotly_dark",
+                        title=f"{ticker} · Spot vs Levels — 42 sessions",
+                        height=260,
+                        margin=dict(t=40, b=30, l=60, r=20),
+                        legend=dict(orientation="h", y=1.15),
+                    )
+                    st.plotly_chart(levels_fig, use_container_width=True)
+                else:
+                    st.caption(
+                        f"{ticker}: no history yet — "
+                        "accumulates from `run_daily` runs forward."
+                    )
+
+            with st.expander("γ-flip & walls — model derivation", expanded=False):
                 st.plotly_chart(
                     plot_gamma_profile(data["p_df"], spot, ticker, s),
                     use_container_width=True,
                 )
-            hist30 = _load_history_cached(ticker, days=config.HISTORY_DAYS)
-            if not hist30.empty:
-                chart_df = hist30.sort_values("date")
-                zgl_fig = go.Figure()
-                zgl_fig.add_trace(go.Scatter(
-                    x=chart_df["date"],
-                    y=chart_df["zero_gamma_level"],
-                    name="γ-flip",
-                    line=dict(color="#f59e0b", width=1.5),
-                ))
-                zgl_fig.add_trace(go.Scatter(
-                    x=chart_df["date"],
-                    y=chart_df["spot"],
-                    name="Spot",
-                    line=dict(color="white", width=1.2, dash="dash"),
-                ))
-                zgl_fig.update_layout(
-                    template="plotly_dark",
-                    title=f"γ-flip vs Spot — {config.HISTORY_DAYS} sessions",
-                    height=260,
-                    margin=dict(t=40, b=30, l=60, r=20),
-                    legend=dict(orientation="h", y=1.15),
+                st.markdown(
+                    "**Gamma profile.** Net GEX swept across ±15% spot range in 200 steps "
+                    "(Black-Scholes gamma, dealer net-short assumption). The profile shows "
+                    "how aggregate dealer hedging pressure varies with spot. "
+                    "**Zero-gamma level (γ-flip):** strike where cumulative net GEX crosses zero — "
+                    "by convention, above it dealers are long gamma (stabilising); below it, short gamma (amplifying). "
+                    "**Walls:** strikes with maximum one-sided GEX concentration. "
+                    "**Model assumption:** dealers net short all options (Garleanu, Pedersen & Poteshman 2009)."
                 )
-                st.plotly_chart(zgl_fig, use_container_width=True)
+
+        st.caption(
+            "IWM: OI data is the more reliable signal — "
+            "GEX-derived levels may be less reliable due to thinner dealer positioning in small-caps."
+        )
 
 # ── Methodology & assumptions (consolidated) ──────────────────────────────────
 with st.expander("Methodology & Assumptions  ·  read before trading off this", expanded=False):
@@ -569,9 +713,10 @@ for liquid-region focus.
 - **IV Surface** — CBOE chain IVs plotted on a % OTM axis `(K/S−1)×100`.
   **OTM convention**: put IV for K<S, call IV for K≥S — the industry standard
   (Gatheral §2.1). OTM options are more liquid and avoid American early-exercise
-  distortion. Coarse 25×20 linear interpolation grid; NaN left as holes where
-  chain data is absent (no nearest-neighbour fill). Raw chain quotes overlaid as
-  scatter so data density is visible. GEX context available in Flow Context tab.
+  distortion. Coarse 25×20 linear interpolation grid; convex-hull coverage mask applied —
+  unsupported cells (outside the interpolation support region) rendered as honest NaN holes.
+  Coverage % and fit RMS visible in the Surface tab. Raw chain quotes overlaid as
+  scatter so data density is visible. GEX context available in the Positioning tab.
 - **IV30** — CBOE-computed 30-day constant-maturity vol, taken directly from
   the delayed payload.
 
