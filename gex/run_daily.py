@@ -18,10 +18,14 @@ import pytz
 
 from gex.compute import compute_ticker
 from gex.validation import save_snapshot
-from gex.surface_history import save_surface_snapshot
+from gex.surface_history import save_surface_snapshot, nth_trading_day_back, load_surface_snapshot
 from gex import report as rpt
 from gex import emailer
 from gex import observation
+from gex.png_export import export_png
+from gex.analytics import plot_vol_surface, plot_iv_change_surface
+from gex.surface_evolution import load_evolution
+from gex.vol_metrics import evolution_5d_summary
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ALL_TICKERS = INDEX_TICKERS
@@ -79,6 +83,59 @@ def run(dry_run: bool = False) -> None:
         except Exception as exc:
             print(f"  [WARN] {ticker} evolution failed (non-blocking): {exc}")
 
+    # Gather evolution scalars for email section (non-blocking per-ticker)
+    evolution_data: dict = {}
+    for ticker in INDEX_TICKERS:
+        try:
+            evol_df = load_evolution(ticker, horizon=5, days=30)
+            evolution_data[ticker] = evolution_5d_summary(evol_df)
+        except Exception as exc:
+            print(f"  [WARN] {ticker} evolution gather failed (non-blocking): {exc}")
+            evolution_data[ticker] = {
+                "level": None, "rms": None,
+                "skew_change": None, "term_change": None, "as_of": None,
+            }
+
+    # Generate PNG attachments (non-blocking — kaleido failure sends email without PNGs)
+    attachments: list = []
+    png_note: str | None = None
+    try:
+        for ticker_idx, ticker in enumerate(INDEX_TICKERS):
+            data = all_data[ticker_idx]
+            surface_df = data.get("surface_df")
+            spot = data["summary"].get("spot")
+            if surface_df is not None and spot:
+                fig = plot_vol_surface(surface_df, ticker, spot)
+                path = export_png(fig, ticker, "surface", today, OUT_DIR)
+                if path:
+                    attachments.append(path)
+
+        # SPY ΔIV surface — live vs 5-day rolling mean baseline (D-06)
+        spy_data = all_data[0]
+        spy_surface_df = spy_data.get("surface_df")
+        spy_spot = spy_data["summary"].get("spot")
+        if spy_surface_df is not None and spy_spot:
+            baseline_date = nth_trading_day_back("SPY", today, 5)
+            if baseline_date:
+                baseline_surface_df, baseline_spot = load_surface_snapshot("SPY", baseline_date)
+                if not baseline_surface_df.empty:
+                    # Fall back to today's spot if baseline spot not recorded
+                    baseline_spot = baseline_spot if baseline_spot else spy_spot
+                    fig = plot_iv_change_surface(
+                        spy_surface_df, baseline_surface_df,
+                        "SPY", spy_spot, baseline_spot,
+                        label_prior=baseline_date.strftime("%b %d"),
+                    )
+                    path = export_png(fig, "SPY", "div_surface", today, OUT_DIR)
+                    if path:
+                        attachments.append(path)
+    except Exception as exc:
+        print(f"[WARN] PNG generation failed (non-blocking): {exc}")
+        png_note = "Surface charts unavailable — kaleido not installed or PNG export failed."
+        attachments = []
+
+    print(f"[run_daily] {len(attachments)} PNG attachment(s) ready.")
+
     index_results = [d["summary"] for d in all_data if d["summary"]["ticker"] in INDEX_TICKERS]
     good = [d for d in all_data if not d["summary"].get("error")]
     if not good:
@@ -90,6 +147,8 @@ def run(dry_run: bool = False) -> None:
         index_results=index_results,
         purpose_results=[],
         date=today,
+        evolution_data=evolution_data,
+        png_note=png_note,
     )
 
     if dry_run:
@@ -99,7 +158,7 @@ def run(dry_run: bool = False) -> None:
         return
 
     try:
-        emailer.send(subject=subject, html_body=html)
+        emailer.send(subject=subject, html_body=html, attachments=attachments)
         print("[gex-daily] Email sent.")
     except Exception as exc:
         print(f"[gex-daily] Email failed: {exc}")
