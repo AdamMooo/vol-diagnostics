@@ -155,48 +155,6 @@ def compute_skew(df: pd.DataFrame, spot: float, min_dte: int = config.SKEW_MIN_D
     return pd.DataFrame(rows).sort_values("dte").reset_index(drop=True)
 
 
-def compute_surface_slopes(surface_df: pd.DataFrame) -> dict:
-    """
-    Strike slope and term structure slope from the raw surface scatter points.
-
-    strike_slope: ∂IV/∂(log K) at front expiry (DTE ≤ 45), scaled to pp per 10%
-        K/S move (multiplied by log(1.10)). Negative = normal put skew dominant.
-        Measures how fast OTM put IV rises vs OTM call IV.
-
-    term_slope: ∂IV/∂(DTE) at ATM (|log_moneyness| < 0.05), scaled to pp per
-        30 DTE. Positive = contango (normal). Negative = backwardation (short-
-        end stress/event premium).
-
-    Both are linear fits — model constructs, no peer-reviewed predictive backing.
-    Returns dict: {strike_slope: float|None, term_slope: float|None}
-    """
-    if surface_df.empty:
-        return {"strike_slope": None, "term_slope": None}
-
-    # Strike slope: front expiry band, moderate moneyness
-    front = surface_df[surface_df["dte"] <= 45]
-    if len(front) >= 4:
-        coeff = np.polyfit(front["log_moneyness"], front["iv_pct"], 1)[0]
-        strike_slope = float(coeff * np.log(1.10))
-    else:
-        strike_slope = None
-
-    # Term slope: ATM band across all expiries, average IV per expiry
-    atm = surface_df[surface_df["log_moneyness"].abs() < 0.05]
-    if len(atm) >= 3:
-        atm_avg = (atm.assign(dte_r=atm["dte"].round(0))
-                      .groupby("dte_r")["iv_pct"].mean()
-                      .reset_index())
-        if len(atm_avg) >= 3:
-            coeff = np.polyfit(atm_avg["dte_r"], atm_avg["iv_pct"], 1)[0]
-            term_slope = float(coeff * 30)
-        else:
-            term_slope = None
-    else:
-        term_slope = None
-
-    return {"strike_slope": strike_slope, "term_slope": term_slope}
-
 
 def surface_diagnostics(surface_df, spot) -> dict:
     """Headless fit-honesty + surface-coherence QA for the vol surface (VALID-02/04).

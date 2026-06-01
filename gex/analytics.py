@@ -50,12 +50,12 @@ def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
 def _find_zero_crossing(profile_df: pd.DataFrame) -> float | None:
     vals = profile_df["net_gex"].to_numpy()
     for i in range(len(vals) - 1):
-        if vals[i] == 0.0:
-            return float(profile_df["spot_level"].iloc[i])
         if vals[i] * vals[i + 1] < 0:
             x0, y0 = profile_df["spot_level"].iloc[i], vals[i]
             x1, y1 = profile_df["spot_level"].iloc[i + 1], vals[i + 1]
             return float(x0 - y0 * (x1 - x0) / (y1 - y0))
+        if vals[i] == 0.0:
+            return float(profile_df["spot_level"].iloc[i])
     return None
 
 

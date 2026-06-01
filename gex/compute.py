@@ -23,9 +23,11 @@ def _get_risk_free_rate() -> float:
     """3-month T-bill rate from ^IRX; falls back to config.RISK_FREE_FALLBACK on failure."""
     try:
         import yfinance as yf
-        rate = yf.Ticker("^IRX").fast_info.get("lastPrice")
+        fi = yf.Ticker("^IRX").fast_info
+        rate = fi.get("lastPrice") or fi.get("last_price")
         if rate and rate > 0:
             return float(rate) / 100
+        print(f"[compute] ^IRX rate fetch returned None; using fallback {config.RISK_FREE_FALLBACK}")
     except Exception as exc:
         print(f"[compute] rate fetch failed ({exc}); using fallback {config.RISK_FREE_FALLBACK}")
     return config.RISK_FREE_FALLBACK
@@ -114,7 +116,8 @@ def compute_ticker(ticker: str) -> dict:
         spot_series = hist["spot"].iloc[::-1]   # reverse to oldest-first (load_history returns descending)
         rv20 = compute_rv20(spot_series)
         iv30_decimal = (snapshot.iv30 / 100.0) if snapshot.iv30 else None
-        vrp = compute_vrp(iv30_decimal, rv20)
+        vrp_decimal = compute_vrp(iv30_decimal, rv20)
+        vrp = vrp_decimal * 100 if vrp_decimal is not None else None
     summary["rv20"] = rv20
     summary["vrp"] = vrp
 

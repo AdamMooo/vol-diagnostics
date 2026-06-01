@@ -179,7 +179,7 @@ def _ticker_card(r: dict) -> str:
         accent = "#64748b"
 
     spot = r.get("spot")
-    pct_chg = r.get("price_change_pct") or 0.0
+    pct_chg = r.get("price_change_pct")
     net_gex = r.get("net_gex")
 
     iv30 = r.get("iv30") or 0.0
@@ -207,8 +207,8 @@ def _ticker_card(r: dict) -> str:
     # Left column: spot/price-action + structural levels (the "where am I" lens)
     left_rows = (
         _kv_cell("Spot",   _fmt_price(spot))
-        + _kv_cell("Day %", _fmt_pct(pct_chg) if pct_chg else "—",
-                   value_color=_signed_color(pct_chg) if pct_chg else None)
+        + _kv_cell("Day %", _fmt_pct(pct_chg) if pct_chg is not None else "—",
+                   value_color=_signed_color(pct_chg) if pct_chg is not None else None)
         + _kv_cell("IV30 / 1d σ", f"{iv30_str} &middot; {expected_str}", mono=False)
         + _kv_cell("γ-flip", _fmt_price(zgl, dp=1) if zgl is not None else "—")
         + _kv_cell("vs γ-flip",

@@ -37,11 +37,13 @@ _FLOAT_COLS = (
 )
 
 
-def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = None) -> None:
+def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = None,
+                  date: datetime.date | None = None) -> None:
     """Append today's summary dict to the parquet store (idempotent on date+ticker).
 
     skew_df: optional output of compute_skew() — front-row put_25d_iv and
     call_25d_iv are captured for skew history. If omitted, those columns are NaN.
+    date: explicit date to record; defaults to local date.today() if not provided.
     """
     put_25d = call_25d = None
     if skew_df is not None and not skew_df.empty:
@@ -49,7 +51,7 @@ def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = Non
         call_25d = float(skew_df["call_25d_iv"].iloc[0])
 
     row = {
-        "date": datetime.date.today(),
+        "date": date or datetime.date.today(),
         "ticker": ticker,
         "spot": summary["spot"],
         "net_gex": summary["net_gex"],

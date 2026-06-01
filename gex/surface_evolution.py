@@ -130,7 +130,9 @@ def compute_evolution_scalars(
         atm_idx = np.abs(otm_grid) <= config.SURFACE_EVOLUTION_ATM_CLIP
         front_atm = IV_diff_masked[np.ix_(atm_idx, dte_front_idx)]
         back_atm = IV_diff_masked[np.ix_(atm_idx, dte_back_idx)]
-        term_change = float(np.nanmean(front_atm) - np.nanmean(back_atm))
+        front_mean = float(np.nanmean(front_atm)) if front_atm.size > 0 else float("nan")
+        back_mean = float(np.nanmean(back_atm)) if back_atm.size > 0 else float("nan")
+        term_change = float(front_mean - back_mean)
 
     # coverage — fraction of grid cells included in the intersection mask
     coverage = float(np.sum(~np.isnan(IV_diff_masked))) / IV_diff_masked.size

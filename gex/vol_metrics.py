@@ -261,7 +261,7 @@ def evolution_5d_summary(evol_df: pd.DataFrame) -> dict:
             return None
 
     date_val = row.get("date") if hasattr(row, "get") else (row["date"] if "date" in evol_df.columns else None)
-    as_of = str(date_val) if date_val is not None else None
+    as_of = date_val if date_val is not None else None
 
     return {
         "level": _safe("level"),

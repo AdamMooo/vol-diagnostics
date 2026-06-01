@@ -64,7 +64,7 @@ class TestComputeTickerReturnKeys:
 
         fake_skew_df = pd.DataFrame([
             {"expiry": "2024-06-21", "dte": 37.0, "put_25d_iv": 22.0,
-             "call_50d_iv": 18.0, "skew_pp": 4.0},
+             "call_25d_iv": 18.0, "skew_pp": 4.0},
         ])
         fake_s_df = pd.DataFrame({"strike": [500.0], "gex": [1e9]})
         fake_oi_df = pd.DataFrame({
@@ -95,6 +95,11 @@ class TestComputeTickerReturnKeys:
         fake_snapshot.price_change_pct = -0.5
         fake_snapshot.as_of = None
         fake_snapshot.chains = fake_df
+        fake_diag = {
+            "coverage_pct": 80.0, "fit_rmse": 0.4, "max_resid": 1.2,
+            "cv_rmse": 0.6, "coherence_calendar": True,
+            "coherence_butterfly": True, "coherence_violations": 0,
+        }
 
         with mock.patch.object(compute_mod, "load_chain", return_value=fake_snapshot), \
              mock.patch.object(compute_mod, "add_greeks", return_value=fake_df), \
@@ -104,7 +109,10 @@ class TestComputeTickerReturnKeys:
              mock.patch.object(compute_mod, "_get_risk_free_rate", return_value=0.05), \
              mock.patch.object(compute_mod, "gamma_profile", return_value=fake_p_df), \
              mock.patch.object(compute_mod, "vol_surface_data", return_value=fake_surface_df), \
+             mock.patch.object(compute_mod, "surface_diagnostics", return_value=fake_diag), \
              mock.patch.object(compute_mod, "compute_skew", return_value=fake_skew_df), \
+             mock.patch.object(compute_mod, "compute_skew_25d", return_value={"front_month": None, "second_month": None}), \
+             mock.patch.object(compute_mod, "compute_term_structure", return_value={"points": [], "classification": "normal", "front_atm_iv": None, "back_atm_iv": None}), \
              mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()):
             result = compute_mod.compute_ticker("SPY")
 
@@ -148,7 +156,7 @@ class TestComputeTickerReturnKeys:
 
         fake_skew_df = pd.DataFrame([
             {"expiry": "2024-06-21", "dte": 37.0, "put_25d_iv": 22.0,
-             "call_50d_iv": 18.0, "skew_pp": 4.0},
+             "call_25d_iv": 18.0, "skew_pp": 4.0},
         ])
         fake_s_df = pd.DataFrame({"strike": [480.0, 520.0], "gex": [-1e9, 1e9]})
         # All call_oi = 0, only put_oi populated
@@ -180,6 +188,11 @@ class TestComputeTickerReturnKeys:
         fake_snapshot.price_change_pct = -0.5
         fake_snapshot.as_of = None
         fake_snapshot.chains = fake_df
+        fake_diag = {
+            "coverage_pct": 80.0, "fit_rmse": 0.4, "max_resid": 1.2,
+            "cv_rmse": 0.6, "coherence_calendar": True,
+            "coherence_butterfly": True, "coherence_violations": 0,
+        }
 
         with mock.patch.object(compute_mod, "load_chain", return_value=fake_snapshot), \
              mock.patch.object(compute_mod, "add_greeks", return_value=fake_df), \
@@ -189,7 +202,10 @@ class TestComputeTickerReturnKeys:
              mock.patch.object(compute_mod, "_get_risk_free_rate", return_value=0.05), \
              mock.patch.object(compute_mod, "gamma_profile", return_value=fake_p_df), \
              mock.patch.object(compute_mod, "vol_surface_data", return_value=fake_surface_df), \
+             mock.patch.object(compute_mod, "surface_diagnostics", return_value=fake_diag), \
              mock.patch.object(compute_mod, "compute_skew", return_value=fake_skew_df), \
+             mock.patch.object(compute_mod, "compute_skew_25d", return_value={"front_month": None, "second_month": None}), \
+             mock.patch.object(compute_mod, "compute_term_structure", return_value={"points": [], "classification": "normal", "front_atm_iv": None, "back_atm_iv": None}), \
              mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()):
             result = compute_mod.compute_ticker("SPY")
 
@@ -203,7 +219,7 @@ class TestComputeTickerReturnKeys:
 
         fake_skew_df = pd.DataFrame([
             {"expiry": "2024-06-21", "dte": 37.0, "put_25d_iv": 22.0,
-             "call_50d_iv": 18.0, "skew_pp": 4.0},
+             "call_25d_iv": 18.0, "skew_pp": 4.0},
         ])
         fake_s_df = pd.DataFrame({"strike": [490.0, 510.0], "gex": [1e9, 2e9]})
         fake_oi_df = pd.DataFrame({
@@ -234,6 +250,11 @@ class TestComputeTickerReturnKeys:
         fake_snapshot.price_change_pct = -0.5
         fake_snapshot.as_of = None
         fake_snapshot.chains = fake_df
+        fake_diag = {
+            "coverage_pct": 80.0, "fit_rmse": 0.4, "max_resid": 1.2,
+            "cv_rmse": 0.6, "coherence_calendar": True,
+            "coherence_butterfly": True, "coherence_violations": 0,
+        }
 
         with mock.patch.object(compute_mod, "load_chain", return_value=fake_snapshot), \
              mock.patch.object(compute_mod, "add_greeks", return_value=fake_df), \
@@ -243,7 +264,10 @@ class TestComputeTickerReturnKeys:
              mock.patch.object(compute_mod, "_get_risk_free_rate", return_value=0.05), \
              mock.patch.object(compute_mod, "gamma_profile", return_value=fake_p_df), \
              mock.patch.object(compute_mod, "vol_surface_data", return_value=fake_surface_df), \
+             mock.patch.object(compute_mod, "surface_diagnostics", return_value=fake_diag), \
              mock.patch.object(compute_mod, "compute_skew", return_value=fake_skew_df), \
+             mock.patch.object(compute_mod, "compute_skew_25d", return_value={"front_month": None, "second_month": None}), \
+             mock.patch.object(compute_mod, "compute_term_structure", return_value={"points": [], "classification": "normal", "front_atm_iv": None, "back_atm_iv": None}), \
              mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()):
             result = compute_mod.compute_ticker("SPY")
 

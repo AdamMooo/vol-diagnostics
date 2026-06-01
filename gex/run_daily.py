@@ -67,7 +67,7 @@ def run(dry_run: bool = False) -> None:
         all_data.append(data)
         s = data["summary"]
         if not s.get("error"):
-            save_snapshot(s, ticker, skew_df=data.get("skew_df"))
+            save_snapshot(s, ticker, skew_df=data.get("skew_df"), date=today)
             save_surface_snapshot(data.get("surface_df"), ticker, spot=s["spot"], date=today)
             iv30_str = f"  iv30={s['iv30']:.1f}%" if s.get("iv30") else ""
             print(f"spot={s['spot']:.2f}  gex=${s['net_gex']/1e9:.2f}B{iv30_str}")
