@@ -192,8 +192,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 11-02-PLAN.md — gex/png_export.py module (export_png utility, pinned camera, non-blocking)
-- [ ] 11-03-PLAN.md — report.py enrichment (OI rows, evolution section, #ffffff body, png_note slot)
+- [x] 11-02-PLAN.md — gex/png_export.py module (export_png utility, pinned camera, non-blocking)
+- [x] 11-03-PLAN.md — report.py enrichment (OI rows, evolution section, #ffffff body, png_note slot)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
