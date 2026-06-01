@@ -27,19 +27,17 @@ def _minimal_summary(**overrides):
 
 def _render_regime_card_html(summary_overrides=None, prior_row=None):
     pytest.importorskip("streamlit")
-    import streamlit
     summary = _minimal_summary(**(summary_overrides or {}))
-    captured = {}
+    col = mock.MagicMock()
 
-    def _capture_markdown(html, **kwargs):
-        captured["html"] = html
+    with mock.patch("streamlit_app.load_prior_snapshot", return_value=prior_row):
+        from streamlit_app import render_regime_card
+        render_regime_card(col=col, summary=summary, spot=500.0)
 
-    with mock.patch.object(streamlit, "markdown", side_effect=_capture_markdown):
-        with mock.patch("gex.validation.load_prior_snapshot", return_value=prior_row):
-            from streamlit_app import render_regime_card
-            render_regime_card(col=mock.MagicMock(), summary=summary, spot=500.0)
-
-    return captured.get("html", "")
+    calls = col.markdown.call_args_list
+    if not calls:
+        return ""
+    return calls[-1][0][0] if calls[-1][0] else ""
 
 
 def test_render_regime_card_uses_build_card_fields():
@@ -49,6 +47,49 @@ def test_render_regime_card_uses_build_card_fields():
     import inspect
     src = inspect.getsource(streamlit_app.render_regime_card)
     assert "build_card_fields" in src
+
+
+class TestRegimeCardCanonical:
+    """CARD-01/02/03/04: dashboard regime card parity with email card."""
+
+    def test_vrp_row_present_with_value(self):
+        """CARD-02: VRP row rendered when vrp is set."""
+        html = _render_regime_card_html()
+        assert "VRP" in html
+        assert "2.7" in html
+
+    def test_vrp_row_present_when_none(self):
+        """CARD-02: VRP row present even when vrp=None, value shown as dash."""
+        html = _render_regime_card_html({"vrp": None})
+        assert "VRP" in html
+        assert "—" in html  # em-dash
+
+    def test_wall_labels_model(self):
+        """CARD-04: GEX walls carry '(model)' label."""
+        html = _render_regime_card_html()
+        assert "(model)" in html
+        assert "Call Wall (model)" in html
+        assert "Put Wall (model)" in html
+
+    def test_wall_labels_raw_oi(self):
+        """CARD-04: OI walls carry '(raw OI)' label."""
+        html = _render_regime_card_html()
+        assert "(raw OI)" in html
+        assert "OI Call Wall (raw OI)" in html
+        assert "OI Put Wall (raw OI)" in html
+
+    def test_delta_present_when_prior_row_supplied(self):
+        """CARD-03: net_gex delta suffix appears when prior row exists."""
+        import pandas as pd
+        prior = pd.Series({"net_gex": 1.05e9, "front_skew": 3.0, "iv30": 18.0})
+        html = _render_regime_card_html(prior_row=prior)
+        assert "(+" in html
+
+    def test_no_delta_when_no_prior_snapshot(self):
+        """CARD-03: no '(+nan)', '(+0.0)' when prior_row is None."""
+        html = _render_regime_card_html(prior_row=None)
+        assert "(+nan)" not in html
+        assert "(+0.0)" not in html
 
 
 def test_import_no_emailer_bleed():
