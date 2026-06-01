@@ -67,6 +67,12 @@ class TestComputeTickerReturnKeys:
              "call_50d_iv": 18.0, "skew_pp": 4.0},
         ])
         fake_s_df = pd.DataFrame({"strike": [500.0], "gex": [1e9]})
+        fake_oi_df = pd.DataFrame({
+            "strike":   [500.0],
+            "call_oi":  [150.0],
+            "put_oi":   [80.0],
+            "oi":       [230.0],
+        })
         fake_p_df = pd.DataFrame({
             "spot_level": [490.0, 495.0, 500.0, 505.0, 510.0],
             "net_gex":    [-1e9, -0.5e9, 0.0, 0.5e9, 1e9],
@@ -94,6 +100,7 @@ class TestComputeTickerReturnKeys:
              mock.patch.object(compute_mod, "add_greeks", return_value=fake_df), \
              mock.patch.object(compute_mod, "compute_gex", return_value=fake_df), \
              mock.patch.object(compute_mod, "strike_gex", return_value=fake_s_df), \
+             mock.patch.object(compute_mod, "strike_oi", return_value=fake_oi_df), \
              mock.patch.object(compute_mod, "_get_risk_free_rate", return_value=0.05), \
              mock.patch.object(compute_mod, "gamma_profile", return_value=fake_p_df), \
              mock.patch.object(compute_mod, "vol_surface_data", return_value=fake_surface_df), \
@@ -127,3 +134,117 @@ class TestComputeTickerReturnKeys:
         assert mock_result["vrp"] is None
         assert mock_result["summary"]["rv20"] is None
         assert mock_result["summary"]["vrp"] is None
+
+    def test_summary_has_oi_call_wall(self, mock_result):
+        assert "oi_call_wall" in mock_result["summary"]
+
+    def test_summary_has_oi_put_wall(self, mock_result):
+        assert "oi_put_wall" in mock_result["summary"]
+
+    def test_oi_walls_none_when_no_calls(self):
+        """s_df with only put OI (call_oi=0 everywhere) → oi_call_wall is None."""
+        import pandas as pd
+        from gex import compute as compute_mod
+
+        fake_skew_df = pd.DataFrame([
+            {"expiry": "2024-06-21", "dte": 37.0, "put_25d_iv": 22.0,
+             "call_50d_iv": 18.0, "skew_pp": 4.0},
+        ])
+        fake_s_df = pd.DataFrame({"strike": [480.0, 520.0], "gex": [-1e9, 1e9]})
+        # All call_oi = 0, only put_oi populated
+        fake_oi_df = pd.DataFrame({
+            "strike":  [480.0, 520.0],
+            "call_oi": [0.0,   0.0],
+            "put_oi":  [200.0, 100.0],
+            "oi":      [200.0, 100.0],
+        })
+        fake_p_df = pd.DataFrame({
+            "spot_level": [490.0, 495.0, 500.0, 505.0, 510.0],
+            "net_gex":    [-1e9, -0.5e9, 0.0, 0.5e9, 1e9],
+        })
+        fake_surface_df = pd.DataFrame({
+            "strike": [490.0, 500.0, 510.0],
+            "expiry": ["2024-06-21"] * 3,
+            "T_years": [0.1] * 3,
+            "iv": [0.20, 0.18, 0.19],
+        })
+        fake_df = pd.DataFrame([
+            {"strike": 480.0, "type": "put", "oi": 200, "iv": 0.22,
+             "delta": -0.25, "expiry": "2024-06-21", "T_years": 0.10, "gamma": 0.01, "gex": -1e6},
+            {"strike": 520.0, "type": "put", "oi": 100, "iv": 0.20,
+             "delta": -0.25, "expiry": "2024-06-21", "T_years": 0.10, "gamma": 0.01, "gex": -0.5e6},
+        ])
+        fake_snapshot = mock.MagicMock()
+        fake_snapshot.spot = 500.0
+        fake_snapshot.iv30 = 20.0
+        fake_snapshot.price_change_pct = -0.5
+        fake_snapshot.as_of = None
+        fake_snapshot.chains = fake_df
+
+        with mock.patch.object(compute_mod, "load_chain", return_value=fake_snapshot), \
+             mock.patch.object(compute_mod, "add_greeks", return_value=fake_df), \
+             mock.patch.object(compute_mod, "compute_gex", return_value=fake_df), \
+             mock.patch.object(compute_mod, "strike_gex", return_value=fake_s_df), \
+             mock.patch.object(compute_mod, "strike_oi", return_value=fake_oi_df), \
+             mock.patch.object(compute_mod, "_get_risk_free_rate", return_value=0.05), \
+             mock.patch.object(compute_mod, "gamma_profile", return_value=fake_p_df), \
+             mock.patch.object(compute_mod, "vol_surface_data", return_value=fake_surface_df), \
+             mock.patch.object(compute_mod, "compute_skew", return_value=fake_skew_df), \
+             mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()):
+            result = compute_mod.compute_ticker("SPY")
+
+        assert result["summary"]["oi_call_wall"] is None
+        assert result["summary"]["oi_put_wall"] == 480.0
+
+    def test_oi_call_wall_selects_max_oi_strike(self):
+        """Two call rows: strike 490 has call_oi=100, strike 510 has call_oi=200 → wall=510."""
+        import pandas as pd
+        from gex import compute as compute_mod
+
+        fake_skew_df = pd.DataFrame([
+            {"expiry": "2024-06-21", "dte": 37.0, "put_25d_iv": 22.0,
+             "call_50d_iv": 18.0, "skew_pp": 4.0},
+        ])
+        fake_s_df = pd.DataFrame({"strike": [490.0, 510.0], "gex": [1e9, 2e9]})
+        fake_oi_df = pd.DataFrame({
+            "strike":  [490.0, 510.0],
+            "call_oi": [100.0, 200.0],
+            "put_oi":  [50.0,  30.0],
+            "oi":      [150.0, 230.0],
+        })
+        fake_p_df = pd.DataFrame({
+            "spot_level": [490.0, 495.0, 500.0, 505.0, 510.0],
+            "net_gex":    [-1e9, -0.5e9, 0.0, 0.5e9, 1e9],
+        })
+        fake_surface_df = pd.DataFrame({
+            "strike": [490.0, 500.0, 510.0],
+            "expiry": ["2024-06-21"] * 3,
+            "T_years": [0.1] * 3,
+            "iv": [0.20, 0.18, 0.19],
+        })
+        fake_df = pd.DataFrame([
+            {"strike": 490.0, "type": "call", "oi": 100, "iv": 0.20,
+             "delta": 0.25, "expiry": "2024-06-21", "T_years": 0.10, "gamma": 0.01, "gex": 1e6},
+            {"strike": 510.0, "type": "call", "oi": 200, "iv": 0.18,
+             "delta": 0.25, "expiry": "2024-06-21", "T_years": 0.10, "gamma": 0.01, "gex": 2e6},
+        ])
+        fake_snapshot = mock.MagicMock()
+        fake_snapshot.spot = 500.0
+        fake_snapshot.iv30 = 20.0
+        fake_snapshot.price_change_pct = -0.5
+        fake_snapshot.as_of = None
+        fake_snapshot.chains = fake_df
+
+        with mock.patch.object(compute_mod, "load_chain", return_value=fake_snapshot), \
+             mock.patch.object(compute_mod, "add_greeks", return_value=fake_df), \
+             mock.patch.object(compute_mod, "compute_gex", return_value=fake_df), \
+             mock.patch.object(compute_mod, "strike_gex", return_value=fake_s_df), \
+             mock.patch.object(compute_mod, "strike_oi", return_value=fake_oi_df), \
+             mock.patch.object(compute_mod, "_get_risk_free_rate", return_value=0.05), \
+             mock.patch.object(compute_mod, "gamma_profile", return_value=fake_p_df), \
+             mock.patch.object(compute_mod, "vol_surface_data", return_value=fake_surface_df), \
+             mock.patch.object(compute_mod, "compute_skew", return_value=fake_skew_df), \
+             mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()):
+            result = compute_mod.compute_ticker("SPY")
+
+        assert result["summary"]["oi_call_wall"] == 510.0
