@@ -1,6 +1,6 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-05-31 — Phase 9 complete; surface-evolution engine built (ΔIV scalars at 5/10/20-day horizons, non-blocking daily pass, backfill CLI), accumulating from cold-start; advancing to Phase 10 dashboard restructure*
+*Last updated: 2026-06-01 — Phase 10 complete; local dashboard restructured to 4 tabs (Surface / Calculus+VRP / Evolution / Positioning), Skew+Term merged into the surface calculus, carry/RR-history/strike-GEX charts removed, two-date stored-vs-stored Compare + evolution small-multiples added on a restrained PALETTE; Positioning is OI-led with real call/put open interest (CR-01 fixed); advancing to Phase 11 richer daily report*
 
 ## Current Milestone: v3.3 — Surface Evolution & Daily Intelligence
 
@@ -90,6 +90,15 @@ Given today's dealer positioning across SPY/QQQ/IWM — should a PM pay up for p
 - ✓ INFRA-01 — `gex/vol_metrics.py` with compute_skew_25d, compute_term_structure, compute_rv20, compute_vrp — Phase 6
 - ✓ INFRA-02 — Parquet schema extended with rv20 + vrp columns; old snapshots load safely — Phase 6
 - ✓ SURF-CLEAN — Vol surface stripped of GEX overlays (no meridians, no spot plane), Viridis colorscale — Phase 6
+
+### Validated / Implemented (v3.3 Phase 10 — Dashboard Restructure)
+
+- ✓ VIEW-01/02 — Local dashboard collapsed 5→4 tabs (Surface / Calculus+VRP / Evolution / Positioning); Skew + Term merged into the surface-calculus tab — Phase 10
+- ✓ VIEW-03 — Two stored dates comparable via relative-horizon dropdowns (live/1d/5d/10d/20d/30d/60d) resolved through `nth_trading_day_back` — Phase 10
+- ✓ VIEW-04 — Evolution tab: horizon radio (5/10/20) + 4 small-multiple panels (level/rms/skew_change/term_change) overlaying SPY/QQQ/IWM — Phase 10
+- ✓ VIEW-05 — Restrained `config.PALETTE` token set (single source of truth, shared with Phase 11 email); honest convex-hull coverage holes; interactive 3D surface retained — Phase 10
+- ✓ Carry/VRP block, 25Δ RR-history chart, and strike-GEX bar charts removed; Positioning tab is OI-led (`plot_oi_by_strike` with real call/put OI from `strike_oi`, gamma profile demoted to expander) — Phase 10
+- ✓ Headless `vrp_headline` / `evolution_5d_summary` / `positioning_levels` in `gex/vol_metrics.py` as Phase 11 email plug-in points — Phase 10
 
 ### Active (v3.2 Phase 7)
 
