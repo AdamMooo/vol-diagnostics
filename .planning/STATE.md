@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.3 — Surface Evolution & Daily Intelligence
 milestone_name: Surface Evolution & Daily Intelligence
-status: ready_to_plan
-stopped_at: Phase 09 complete (3/3) — ready to discuss Phase 10
-last_updated: 2026-05-31T19:11:49.278Z
-last_activity: 2026-05-31 -- Phase 09 execution started
+status: executing
+stopped_at: Phase 10 context gathered
+last_updated: "2026-06-01T02:43:51.988Z"
+last_activity: 2026-06-01
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 10
-  completed_plans: 25
-  percent: 40
+  completed_phases: 3
+  total_plans: 12
+  completed_plans: 11
+  percent: 60
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 10 — dashboard restructure (local only)
+**Current focus:** Phase 10 — dashboard-restructure-local-only
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
+Phase: 10 (dashboard-restructure-local-only) — EXECUTING
+Plan: 2 of 2
 Next: Phase 9 — Surface Evolution Engine (not yet planned)
-Status: Ready to plan
-Last activity: 2026-05-31
+Status: Ready to execute
+Last activity: 2026-06-01
 
-Progress: [█████████░] 90%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [█████████░] 90%
 **Recent Trend:** v3.2 closed (Phase 7 complete). v3.3 roadmapped — foundation-first surface validation gate, evolution engine, dashboard restructure, richer report.
 | Phase 09-surface-evolution-engine P01 | 8 | 2 tasks | 3 files |
 | Phase 09 P02 | 5 | 2 tasks | 2 files |
+| Phase 10 P01 | 12 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Progress: [█████████░] 90%
 - 2026-05-22: Two-phase v3.2 structure — computation before rendering; cuts before additions
 - [Phase ?]: 09-02: compute_evolution_scalars pure function; update_evolution owns 8-step algorithm; grid axes loop-invariant
 - [Phase ?]: 09-02: save_evolution_row idempotent on (date, ticker, horizon) — read-filter-concat-write pattern with 3-key mask, mirroring validation.py
+- [Phase ?]: palette token choice
+- [Phase ?]: OI chart fallback
 
 ### Pending Todos
 
@@ -94,8 +97,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-31T04:28:54.364Z
-Stopped at: 09-02 complete: surface_evolution.py engine + 14 passing tests (107 total passed)
+Last session: 2026-06-01T02:43:51.968Z
+Stopped at: Phase 10 context gathered
 Resume file: None
 
 **Next action:** restart Claude Code (GSD updated to 1.42.3), then `/gsd-discuss-phase 9` (or `/gsd-plan-phase 9`) for the Surface Evolution Engine — build with the locked {5,10,20} horizons + rolling-mean baseline. SDK is healthy, so the normal parallel-executor flow works (no more inline workaround).

@@ -161,7 +161,12 @@ Plans:
 
 **Plans**: 2 plans
 Plans:
-- [ ] 10-01-PLAN.md — Palette tokens + headless analysis functions + analytics.py cleanup (foundation)
+**Wave 1**
+
+- [x] 10-01-PLAN.md — Palette tokens + headless analysis functions + analytics.py cleanup (foundation)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 10-02-PLAN.md — streamlit_app.py full tab restructure (Surface / Calculus+VRP / Evolution / Positioning)
 
 **Status**: ○ Ready to execute

@@ -32,11 +32,11 @@ Turn the vol surface into an accumulating, trustworthy daily diagnostic: prove t
 
 ### Dashboard Restructure (Phase 10 — local only)
 
-- [ ] **VIEW-01** — Tabs collapse from 5 to 4; Skew and Term Structure merge into a single tab reframed around the surface calculus.
-- [ ] **VIEW-02** — The carry/VRP block, the 25Δ risk-reversal history chart, and the strike-GEX bar charts are removed (data over bar charts).
+- [x] **VIEW-01** — Tabs collapse from 5 to 4; Skew and Term Structure merge into a single tab reframed around the surface calculus.
+- [x] **VIEW-02** — The carry/VRP block, the 25Δ risk-reversal history chart, and the strike-GEX bar charts are removed (data over bar charts).
 - [ ] **VIEW-03** — The surface comparison view can compare two stored dates (not only today-live vs a stored date), so the dashboard is useful on accumulated history without a live fetch.
 - [ ] **VIEW-04** — A surface-evolution view charts level / rms / skew-change / term-change over time, selectable by horizon.
-- [ ] **VIEW-05** — The dashboard uses a restrained, professional palette (no garish colours); coverage holes are shown honestly; the interactive 3D surface is retained here.
+- [x] **VIEW-05** — The dashboard uses a restrained, professional palette (no garish colours); coverage holes are shown honestly; the interactive 3D surface is retained here.
 
 ### Richer Daily Report (Phase 11)
 
@@ -88,11 +88,11 @@ All 22 v1 requirements mapped to exactly one phase. No orphans, no duplicates.
 | EVOL-04 | Phase 9 | Pending |
 | EVOL-05 | Phase 9 | Complete |
 | EVOL-06 | Phase 9 | Pending |
-| VIEW-01 | Phase 10 | Pending |
-| VIEW-02 | Phase 10 | Pending |
+| VIEW-01 | Phase 10 | Complete |
+| VIEW-02 | Phase 10 | Complete |
 | VIEW-03 | Phase 10 | Pending |
 | VIEW-04 | Phase 10 | Pending |
-| VIEW-05 | Phase 10 | Pending |
+| VIEW-05 | Phase 10 | Complete |
 | RPT-01 | Phase 11 | Pending |
 | RPT-02 | Phase 11 | Pending |
 | RPT-03 | Phase 11 | Pending |
