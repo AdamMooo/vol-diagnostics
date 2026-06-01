@@ -12,8 +12,7 @@ from gex.compute import compute_ticker
 from gex.analytics import (
     plot_strike_gex, plot_gamma_profile,
     plot_vol_surface, plot_iv_change_surface,
-    plot_skew_cross_ticker, plot_skew_term_structure,
-    plot_skew_25d_current, plot_term_structure, plot_carry_vrp,
+    plot_oi_by_strike,
 )
 from scipy.stats import percentileofscore
 from gex.surface_history import load_surface_snapshot, list_available_dates

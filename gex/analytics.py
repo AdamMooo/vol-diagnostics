@@ -487,214 +487,87 @@ def plot_iv_change_surface(
     return fig
 
 
-def plot_skew_cross_ticker(skew_by_ticker: dict) -> go.Figure:
-    """
-    Grouped bar chart comparing 25Δ risk reversal across tickers.
+def plot_oi_by_strike(chain_df: pd.DataFrame, spot: float, ticker: str,
+                      summary: dict) -> go.Figure:
+    """Bar chart of open interest by strike — assumption-free observable.
 
-    skew_by_ticker: {ticker: {"front_month": {...}, "second_month": {...}}}
-    Each inner dict has keys "skew" (pp) and "dte" (days). Missing buckets
-    produce no bar for that ticker/expiry combination.
+    chain_df: strike-level DataFrame. Preferred columns: call_oi, put_oi (split by
+    side). Falls back to total 'oi' column (neutral color). If neither is present,
+    uses abs(gex) as a proportional proxy — see comment below.
+    summary: dict from summarise() — used for call_wall, put_wall annotations.
     """
-    COLORS = {"SPY": "#60a5fa", "QQQ": "#f59e0b", "IWM": "#34d399"}
-    DEFAULT_COLOR = "#a78bfa"
+    width = _bar_width(chain_df)
 
     fig = go.Figure()
-    for ticker, skew_data in skew_by_ticker.items():
-        color = COLORS.get(ticker, DEFAULT_COLOR)
-        front = skew_data.get("front_month")
-        second = skew_data.get("second_month")
-        x_vals, y_vals = [], []
-        if front:
-            x_vals.append(f"Front (~{front['dte']:.0f}d)")
-            y_vals.append(front["skew"])
-        if second:
-            x_vals.append(f"2nd (~{second['dte']:.0f}d)")
-            y_vals.append(second["skew"])
-        if x_vals:
-            fig.add_trace(go.Bar(
-                name=ticker,
-                x=x_vals,
-                y=y_vals,
-                marker_color=color,
-                hovertemplate=f"{ticker} %{{x}}<br>Skew: %{{y:+.2f}}pp<extra></extra>",
-            ))
 
-    fig.add_hline(y=0, line_color="rgba(255,255,255,0.2)", line_width=0.8)
+    if "call_oi" in chain_df.columns and "put_oi" in chain_df.columns:
+        fig.add_trace(go.Bar(
+            x=chain_df["strike"],
+            y=chain_df["call_oi"],
+            name="Call OI",
+            marker_color=config.PALETTE["call"],
+            marker_line_width=0,
+            width=width,
+            hovertemplate="Strike: %{x:.0f}<br>Call OI: %{y:,.0f}<extra></extra>",
+        ))
+        fig.add_trace(go.Bar(
+            x=chain_df["strike"],
+            y=chain_df["put_oi"],
+            name="Put OI",
+            marker_color=config.PALETTE["put"],
+            marker_line_width=0,
+            width=width,
+            hovertemplate="Strike: %{x:.0f}<br>Put OI: %{y:,.0f}<extra></extra>",
+        ))
+        fig.update_layout(barmode="overlay", showlegend=True)
+    elif "oi" in chain_df.columns:
+        fig.add_trace(go.Bar(
+            x=chain_df["strike"],
+            y=chain_df["oi"],
+            marker_color=config.PALETTE["neutral"],
+            marker_line_width=0,
+            width=width,
+            hovertemplate="Strike: %{x:.0f}<br>OI: %{y:,.0f}<extra></extra>",
+        ))
+        fig.update_layout(showlegend=False)
+    else:
+        # oi column absent — use abs(gex) as a proportional stand-in for OI shape;
+        # this is approximate (GEX folds in gamma and spot^2) but preserves the
+        # visual pattern until a split-OI column is wired in.
+        from gex.exposure_engine import MULTIPLIER
+        proxy = chain_df["gex"].abs()
+        fig.add_trace(go.Bar(
+            x=chain_df["strike"],
+            y=proxy,
+            marker_color=config.PALETTE["neutral"],
+            marker_line_width=0,
+            width=width,
+            hovertemplate="Strike: %{x:.0f}<br>|GEX| proxy: %{y:.3f}B<extra></extra>",
+        ))
+        fig.update_layout(showlegend=False)
+
+    fig.add_vline(x=spot, line_dash="dash", line_color="white", line_width=1.5,
+                  annotation_text=f"Spot {spot:.0f}", annotation_position="top right",
+                  annotation_font_size=11)
+    if summary.get("call_wall"):
+        fig.add_vline(x=summary["call_wall"], line_dash="dot",
+                      line_color=config.PALETTE["call"], line_width=1,
+                      annotation_text=f"call wall · model {summary['call_wall']:.0f}",
+                      annotation_font_size=10)
+    if summary.get("put_wall"):
+        fig.add_vline(x=summary["put_wall"], line_dash="dot",
+                      line_color=config.PALETTE["put"], line_width=1,
+                      annotation_text=f"put wall · model {summary['put_wall']:.0f}",
+                      annotation_font_size=10)
+
     fig.update_layout(
         template="plotly_dark",
-        title=dict(text="25Δ Risk Reversal — cross-ticker comparison", font_size=13),
-        yaxis_title="Skew (pp)",
-        yaxis_ticksuffix="pp",
-        barmode="group",
-        height=300,
-        margin=dict(t=45, b=30, l=60, r=20),
-        legend=dict(orientation="h", y=1.12, x=0),
-    )
-    return fig
-
-
-def plot_skew_term_structure(skew_df: pd.DataFrame, ticker: str) -> go.Figure:
-    """Term structure of IV skew (25Δ put − 25Δ call) across expirations."""
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=skew_df["dte"], y=skew_df["skew_pp"],
-        mode="lines+markers",
-        line=dict(color="#f59e0b", width=2),
-        marker=dict(size=6),
-        hovertemplate="DTE: %{x:.0f}<br>Skew: %{y:.1f}pp<extra></extra>",
-        name="Skew (25Δ put − 25Δ call)",
-    ))
-    fig.add_hline(y=0, line_color="rgba(255,255,255,0.2)", line_width=0.8)
-    fig.update_layout(
-        template="plotly_dark",
-        title=dict(text=f"IV Skew Term Structure — {ticker}  ·  25Δ put − 25Δ call", font_size=13),
-        xaxis_title="DTE",
-        yaxis_title="Skew (pp)",
-        yaxis_ticksuffix="pp",
-        showlegend=False,
-        height=240,
-        margin=dict(t=50, b=40, l=65, r=20),
-    )
-    return fig
-
-
-def plot_skew_25d_current(skew: dict, ticker: str) -> go.Figure:
-    """Bar chart of 25Δ put-call skew for front and second month expiries.
-
-    Args:
-        skew: dict with keys "front_month" and "second_month", each either None
-              or {"put_iv": float, "call_iv": float, "skew": float, "dte": float}
-        ticker: underlying ticker symbol
-    """
-    front = skew.get("front_month")
-    second = skew.get("second_month")
-
-    if front is None and second is None:
-        fig = go.Figure()
-        fig.update_layout(
-            template="plotly_dark",
-            title=f"25Δ Put-Call Skew — {ticker}: no data",
-            height=240,
-            margin=dict(t=50, b=40, l=65, r=20),
-        )
-        return fig
-
-    x_labels = []
-    y_values = []
-    if front is not None:
-        x_labels.append(f"Front ({front['dte']:.0f}d)")
-        y_values.append(front["skew"])
-    if second is not None:
-        x_labels.append(f"2nd ({second['dte']:.0f}d)")
-        y_values.append(second["skew"])
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=x_labels,
-        y=y_values,
-        marker_color="#f59e0b",
-        hovertemplate="%{x}<br>Skew: %{y:+.1f}pp<extra></extra>",
-    ))
-    fig.add_hline(y=0, line_color="rgba(255,255,255,0.2)", line_width=0.8)
-    fig.update_layout(
-        template="plotly_dark",
-        title=dict(text=f"25Δ Put-Call Skew — {ticker}", font_size=13),
-        yaxis_title="Skew (pp)",
-        yaxis_ticksuffix="pp",
-        showlegend=False,
-        height=240,
-        margin=dict(t=50, b=40, l=65, r=20),
-    )
-    return fig
-
-
-def plot_term_structure(ts: dict, ticker: str) -> go.Figure:
-    """ATM IV line chart with curve classification in title.
-
-    Args:
-        ts: dict with keys "points" (list of {"dte": float, "atm_iv": float})
-            and "classification" (str: "normal" | "flat" | "inverted" | "humped")
-        ticker: underlying ticker symbol
-
-    CRITICAL label constraint: classification is a descriptor only — no interpretive
-    suffix, no trade signals. Injected verbatim from vol_metrics.compute_term_structure().
-    """
-    points = ts.get("points", [])
-    classification = ts.get("classification", "normal")
-
-    if not points:
-        fig = go.Figure()
-        fig.update_layout(
-            template="plotly_dark",
-            title=f"ATM IV Term Structure — {ticker}: no data",
-            height=300,
-            margin=dict(t=50, b=40, l=65, r=20),
-        )
-        return fig
-
-    x = [p["dte"] for p in points]
-    y = [p["atm_iv"] for p in points]
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=x,
-        y=y,
-        mode="lines+markers",
-        line=dict(color="#60a5fa", width=2),
-        marker=dict(size=6),
-        hovertemplate="DTE: %{x:.0f}<br>ATM IV: %{y:.1f}%<extra></extra>",
-    ))
-    fig.update_layout(
-        template="plotly_dark",
-        title=dict(
-            text=f"ATM IV Term Structure — {ticker}  ·  {classification}",
-            font_size=13,
-        ),
-        xaxis_title="DTE",
-        yaxis_title="ATM IV (%)",
-        yaxis_ticksuffix="%",
-        height=300,
-        margin=dict(t=50, b=40, l=65, r=20),
-    )
-    return fig
-
-
-def plot_carry_vrp(
-    iv30_pct: float | None,
-    rv20_pct: float | None,
-    vrp_pp: float | None,
-    ticker: str,
-) -> go.Figure:
-    """Grouped bar chart of IV30 vs RV20 with VRP spread in title.
-
-    UNIT CONSTRAINT: iv30_pct must already be in percent (e.g. 18.0), rv20_pct must
-    already be multiplied by 100 (e.g. 15.8), vrp_pp must already be multiplied by 100
-    (e.g. 2.2). The caller (streamlit_app.py) is responsible for the conversion.
-    This function does NOT convert — it renders what it receives.
-    """
-    fig = go.Figure()
-    labels = ["IV30", "RV20"]
-    values = [iv30_pct or 0.0, rv20_pct or 0.0]
-    colors = ["#f59e0b", "#60a5fa"]
-    fig.add_trace(go.Bar(
-        x=labels,
-        y=values,
-        marker_color=colors,
-        width=0.5,
-        hovertemplate="%{x}: %{y:.1f}%<extra></extra>",
-    ))
-    vrp_label = f"VRP: {vrp_pp:+.1f}pp" if vrp_pp is not None else "VRP: n/a (cold start)"
-    fig.update_layout(
-        template="plotly_dark",
-        title=dict(
-            text=f"Vol Carry / VRP — {ticker}  ·  {vrp_label}",
-            font_size=13,
-        ),
-        yaxis_title="Vol (%)",
-        yaxis_ticksuffix="%",
-        showlegend=False,
-        height=280,
-        margin=dict(t=50, b=40, l=65, r=20),
+        title=dict(text=f"{ticker}  ·  OI by Strike", font_size=13),
+        xaxis_title="Strike",
+        yaxis_title="OI (contracts)",
+        height=380,
+        margin=dict(t=50, b=45, l=65, r=20),
+        bargap=0.05,
     )
     return fig
 
