@@ -23,8 +23,8 @@ No new vol computation, no new signals, no new chart types beyond the existing `
 
 ### Email Theme (RPT-04)
 - **D-01:** Set an explicit `background:#ffffff` on the `<body>` tag. The current email inherits the client theme (no body background); adding an explicit white ensures the email is always rendered on a white background regardless of email-client dark-mode settings. Clean business document.
-- **D-02:** Keep all current sign colors unchanged — `config.PALETTE["positive"]` (green), `config.PALETTE["negative"]` (red), amber accent bar. Zero code change needed; tokens already shared via `gex/config.py`.
-- **D-03:** No outer gray wrapper. Keep the existing centered-720px layout with white body.
+- **D-02 [informational]:** Keep all current sign colors unchanged — `config.PALETTE["positive"]` (green), `config.PALETTE["negative"]` (red), amber accent bar. Zero code change needed; tokens already shared via `gex/config.py`.
+- **D-03 [informational]:** No outer gray wrapper. Keep the existing centered-720px layout with white body.
 
 ### PNG Attachment Scope (RPT-01, RPT-02)
 - **D-04:** 4 PNG attachments per email: 3 × 3D vol surface (SPY, QQQ, IWM — `plot_vol_surface()`) + 1 × SPY ΔIV surface (`plot_iv_change_surface()`). Camera angle pinned (Claude's discretion for specific azimuth/elevation — a readable isometric-style 3D view). Phase opens with a kaleido smoke-test spike before embedding is committed.
@@ -131,4 +131,13 @@ None — discussion stayed within phase scope.
 <!-- LINKS:AUTO -->
 ## Related
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Phase siblings:**
+- [[_planning/gamma-omm/phases/11-richer-daily-report/11-01-PLAN|11-01-PLAN]]
+- [[_planning/gamma-omm/phases/11-richer-daily-report/11-02-PLAN|11-02-PLAN]]
+- [[_planning/gamma-omm/phases/11-richer-daily-report/11-03-PLAN|11-03-PLAN]]
+- [[_planning/gamma-omm/phases/11-richer-daily-report/11-04-PLAN|11-04-PLAN]]
+- [[_planning/gamma-omm/phases/11-richer-daily-report/11-DISCUSSION-LOG|11-DISCUSSION-LOG]]
+- [[_planning/gamma-omm/phases/11-richer-daily-report/11-PATTERNS|11-PATTERNS]]
+- [[_planning/gamma-omm/phases/11-richer-daily-report/11-RESEARCH|11-RESEARCH]]
+
 <!-- LINKS:END -->

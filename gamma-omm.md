@@ -48,9 +48,9 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-01 03:12 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-01 16:42 UTC
 
-**Milestone:** v3.3 — Surface Evolution & Daily Intelligence · **Status:** ready_to_plan · **STATE last_updated:** 2026-06-01T03:11:05.858Z
+**Milestone:** v3.3 — Surface Evolution & Daily Intelligence · **Status:** planning · **STATE last_updated:** 2026-06-01T03:58:24.165Z
 
 ### Current Position
 - **Phase:** 11
@@ -70,7 +70,21 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 
 ### Operator notes (handwritten — survives hub-sync)
 
-Last hand-updated: 2026-05-14 | **Vol surface rebuilt on OTM convention + GEX overlays**
+Last hand-updated: 2026-06-01 | **Review fix pass — 11 findings resolved across 10 files**
+
+**Review fixes (2026-06-01, commit `543cfe2`):** Applied all findings from two code reviews (phase-11 standard + deep review). 126/126 tests green after all changes.
+
+- **CR-01 (test fixtures):** `surface_diagnostics`, `compute_skew_25d`, `compute_term_structure` were not mocked in any of the 3 test fixtures — the real implementations ran against minimal fake DataFrames missing required columns, injecting NaN silently into `summary["coverage_pct"]` etc. Tests passed only because nothing asserted those keys. All 3 fixtures now mock all three functions.
+- **IN-01 (test fixtures):** `fake_skew_df` used stale column `"call_50d_iv"` — real schema is `"call_25d_iv"` (from `compute_skew()`). Renamed in all 3 fixtures.
+- **WR-01 (report.py):** `pct_chg = r.get("price_change_pct") or 0.0` caused a flat day (0.0%) to render as "—". Changed to `is not None` guard.
+- **WR-02 (vol_metrics.py):** `evolution_5d_summary` was stringifying `as_of` → `str(date_val)`. The `hasattr(as_of, "strftime")` guard in `report.py` was therefore dead in production. Now returns the date object; formatting lives in the caller as intended.
+- **WR-03 (requirements.txt):** `pytz` was used in `run_daily.py` but not pinned — only present as a transitive dep. Added `pytz>=2024.1`.
+- **WR-04 (compute.py):** `yf.Ticker("^IRX").fast_info.get("lastPrice")` silently returned None when yfinance changed the key to `"last_price"` (camelCase vs snake_case varies by version). Now tries both; adds a print when falling back silently.
+- **IN-02 (exposure_engine.py):** Deleted dead `compute_surface_slopes()` function — no callers.
+- **IN-03 (compute.py):** VRP was stored in `summary` as a decimal fraction (e.g. 0.027) while `iv30` is in percentage points (e.g. 18.5). `vrp_headline()` in vol_metrics.py expects pp. Now converts: `vrp = vrp_decimal * 100`.
+- **review2-WR-02 (validation.py + run_daily.py):** `save_snapshot` used `datetime.date.today()` (local clock) while `save_surface_snapshot` used the ET-derived `today` date. On any non-ET machine the two parquet stores would land under different dates for the same session. `save_snapshot` now accepts an explicit `date` param; `run_daily` passes `today`.
+- **review2-IN-02 (surface_evolution.py):** Added explicit `if front_atm.size > 0` guards before `nanmean` calls for `term_change` front/back slices — avoids relying solely on RuntimeWarning suppression for empty-array edge case.
+- **review2-IN-03 (analytics.py):** `_find_zero_crossing` checked `vals[i] == 0.0` before `vals[i] * vals[i+1] < 0`. If the first grid point was exactly zero it returned early without checking for a cleaner sign-change further along. Swapped order: product-sign check first, exact-zero check second.
 
 **Recent changes (2026-05-14):** Five commits — carry-over (skew history) + vol surface philosophical refactor (OI×vega → OTM convention) + GEX cross-product overlays + cleanup pass.
 
