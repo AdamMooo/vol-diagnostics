@@ -161,3 +161,15 @@ append-only and only changes once a day when run_daily fires."""
 HISTORY_DAYS: int = 30
 """Rolling lookback (days) for the History tab charts (γ-flip vs spot, skew).
 Long enough to see regime shifts; short enough to fit in one screen."""
+
+# Single source of truth for all chart and email colors — dashboard and Phase 11 email read the same tokens.
+# ── Palette tokens (D-14) ────────────────────────────────────────────────────────
+
+PALETTE = {
+    "accent":   "#d97706",  # restrained terminal amber (step darker than neon #f59e0b)
+    "positive": "#16a34a",  # green-600
+    "negative": "#dc2626",  # red-600
+    "neutral":  "#64748b",  # slate-500
+    "call":     "#3b82f6",  # blue-500
+    "put":      "#ef4444",  # red-400
+}

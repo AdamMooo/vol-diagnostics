@@ -12,11 +12,13 @@ from __future__ import annotations
 
 import datetime
 
-# Sign-of-net-gex visual cue for the accent bar.
+from gex import config
+
+# Sign-of-net-gex visual cue for the accent bar — reads from shared palette.
 REGIME_COLOR = {
-    "positive": "#16a34a",  # green-600
-    "negative": "#dc2626",  # red-600
-    "zero":     "#64748b",  # slate-500 — consistent with analytics._sign_color()
+    "positive": config.PALETTE["positive"],
+    "negative": config.PALETTE["negative"],
+    "zero":     config.PALETTE["neutral"],
 }
 
 # Badge backgrounds (solid color with white text — survive theme inversion).
@@ -29,8 +31,8 @@ TICKER_LABEL = {
 # Muted gray for labels & secondary text — reads on both #ffffff and #1f2937 backgrounds.
 LABEL_GRAY  = "#94a3b8"
 RULE_COLOR  = "#cbd5e1"  # thin divider rule — barely visible in dark mode (fine)
-POS_GREEN   = "#16a34a"
-NEG_RED     = "#dc2626"
+POS_GREEN   = config.PALETTE["positive"]
+NEG_RED     = config.PALETTE["negative"]
 
 _SANS = "font-family:Arial,Helvetica,sans-serif;"
 _MONO = "font-family:Consolas,'SF Mono',Menlo,monospace;"
@@ -82,7 +84,7 @@ def _pct_from_spot(spot: float | None, level: float | None) -> float | None:
 def _signed_color(val: float | None) -> str:
     if val is None or val == 0:
         return LABEL_GRAY
-    return POS_GREEN if val >= 0 else NEG_RED
+    return config.PALETTE["positive"] if val >= 0 else config.PALETTE["negative"]
 
 
 # ── Badges ────────────────────────────────────────────────────────────
