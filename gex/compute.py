@@ -91,6 +91,20 @@ def compute_ticker(ticker: str) -> dict:
     summary["coherence_butterfly"] = surface_diag["coherence_butterfly"]
     summary["coherence_violations"] = surface_diag["coherence_violations"]
 
+    # OI walls — strike with highest call or put open interest, None-safe
+    oi_call_wall = None
+    oi_put_wall = None
+    if "call_oi" in s_df.columns:
+        call_oi = s_df["call_oi"].fillna(0)
+        if call_oi.gt(0).any():
+            oi_call_wall = float(s_df.loc[call_oi.idxmax(), "strike"])
+    if "put_oi" in s_df.columns:
+        put_oi = s_df["put_oi"].fillna(0)
+        if put_oi.gt(0).any():
+            oi_put_wall = float(s_df.loc[put_oi.idxmax(), "strike"])
+    summary["oi_call_wall"] = oi_call_wall
+    summary["oi_put_wall"] = oi_put_wall
+
     skew_25d = compute_skew_25d(df, spot=snapshot.spot)
     term_structure = compute_term_structure(df, spot=snapshot.spot)
     hist = load_history(ticker)
