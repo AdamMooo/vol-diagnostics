@@ -1,43 +1,42 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.3 — Surface Evolution & Daily Intelligence
-milestone_name: Surface Evolution & Daily Intelligence
-status: milestone_complete
-stopped_at: Milestone complete (Phase 11 was final phase)
-last_updated: 2026-06-01T17:46:35.068Z
+milestone: v3.4
+milestone_name: Email-First Daily Report Polish
+status: executing
+stopped_at: Completed 12-01-PLAN.md — card_model.py + load_prior_snapshot
+last_updated: "2026-06-01T20:43:11.555Z"
 last_activity: 2026-06-01
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 16
-  completed_plans: 31
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-21)
+See: .planning/PROJECT.md (updated 2026-06-01)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Milestone complete
+**Current focus:** Phase 12 — Canonical Card
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
-Next: Phase 9 — Surface Evolution Engine (not yet planned)
-Status: Milestone complete
+Phase: 12 (Canonical Card) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-06-01
 
-Progress: [██████████] 100%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 18 (v3.1 Phase 5 × 3 + v3.2 Phase 6 × 4 + v3.2 Phase 7 × 2)
+- Total plans completed: 29 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11)
 - Average duration: ~7 min per plan
 - Current test count: 66
 
@@ -48,79 +47,50 @@ Progress: [██████████] 100%
 | 5. UAT Sign-Off & Cleanup | 3 | ~21 min | ~7 min |
 | 6. Whole-Chain Computation Engine | 4 | ~35 min | ~9 min |
 | 7. Institutional Dashboard Rendering | 2 | ~4 min | ~2 min |
-| 09 | 3 | - | - |
-| 10 | 2 | - | - |
-| 11 | 4 | - | - |
-
-**Recent Trend:** v3.2 closed (Phase 7 complete). v3.3 roadmapped — foundation-first surface validation gate, evolution engine, dashboard restructure, richer report.
-| Phase 09-surface-evolution-engine P01 | 8 | 2 tasks | 3 files |
-| Phase 09 P02 | 5 | 2 tasks | 2 files |
-| Phase 10 P01 | 12 | 3 tasks | 6 files |
-| Phase 10 P02 | 8 | 3 tasks | 1 files |
-| Phase 11-richer-daily-report P01 | 15 min | 2 tasks | 3 files |
-| Phase 11-richer-daily-report P04 | 20 | 2 tasks | 1 files |
+| 9. Surface Evolution Engine | 3 | - | - |
+| 10. Dashboard Restructure | 2 | - | - |
+| 11. Richer Daily Report | 4 | - | - |
+| Phase 12-canonical-card P01 | 15 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
 ### Decisions
 
-- 2026-05-30: GSD SDK was broken (Phase 8 ran inline) then REPAIRED — `gsd-sdk` on PATH was the wrong pkg (`@gsd-build/sdk@0.1.0`, an autonomous runner with no `query`). Fix: `npm uninstall -g @gsd-build/sdk && npm install -g get-shit-done-cc@latest` (the real pkg ships the query-capable `gsd-sdk`/`gsd-tools` bins). `gsd-sdk query init.execute-phase` returns JSON. Then ran `/gsd-update` → content + sdk + agents all synced to **1.42.3** (4 user-modified hooks backed up to `gsd-local-patches/`; restart Claude Code to pick up the refreshed skills). Do NOT use the old `gsd-tools.cjs state` mutators (they corrupted STATE.md); use `gsd-sdk query state.*`.
-- 2026-05-30: ΔIV horizons locked {5,10,20} (drop noisy 1d, add 10d), headline baseline = N-day rolling mean (mask-intersected) — REQUIREMENTS EVOL-01/02, RPT-05.
-- 2026-05-30: Coverage mask switched kNN-radius → CONVEX HULL (reverses D-01/D-03). The kNN radius (median-NN, dominated by dense strike spacing) wrongly holed legitimate between-expiry interpolation → only ~22% coverage; convex-hull support (interpolation inside the quote cloud is honest, only extrapolation holed) gives 92.9% SPY / 92.4% QQQ / 88.6% IWM. COVERAGE_KNN_K + the k-sweep removed (now parameter-free — fits no-hand-tuned-cutoffs rule). VALID-01 wording already allowed "convex-hull / kNN".
-- 2026-05-30: Smoothing kept at 1.5 (D-12) despite cv mildly favouring less on one clean SPY day — exact-interpolation (smoothing=0) reintroduces ringing risk; revisit as more days accumulate.
-- 2026-05-29: v3.3 foundation-first gate — Phase 8 coverage mask is the single source of truth; no downstream phase computes/displays/emails a value in an uncovered grid cell
-- 2026-05-29: Cut (not deferred) — PCA (first 3 factors are level/skew/term, already measured directly) and SVI/SABR calibration (verify the surface, don't re-calibrate)
-- 2026-05-29: `kaleido>=1.0,<2.0` + one-time `get_chrome` for PNG export; `kaleido==0.2.1` hangs on Windows/plotly 6.7, do not downgrade plotly to 5.x; HTML-attachment is the documented fallback
-- 2026-05-29: "Remove Carry" = delete the carry/VRP block inside the Term tab — there is no standalone Carry tab
-- 2026-05-29: Report narrative leads with the 5-day horizon; 1-day ΔIV is mostly expiry-roll + quote noise (same hazard that retired the v3.1 vs-yesterday badge)
-- 2026-05-26: Full strategic reframe — observable prices first, GEX secondary; build institutional vol diagnostics not a GEX monitor
-- 2026-05-26: plot_vol_surface() stripped of all GEX overlays; Viridis colorscale
-- 2026-05-22: VRP (IV30 − RV20) as hedging cost context; RV20 from parquet history (not yfinance)
-- 2026-05-22: Two-phase v3.2 structure — computation before rendering; cuts before additions
-- [Phase ?]: 09-02: compute_evolution_scalars pure function; update_evolution owns 8-step algorithm; grid axes loop-invariant
-- [Phase ?]: 09-02: save_evolution_row idempotent on (date, ticker, horizon) — read-filter-concat-write pattern with 3-key mask, mirroring validation.py
-- [Phase ?]: palette token choice
-- [Phase ?]: OI chart fallback
-- [Phase ?]: kaleido 1.3.0 smoke-tested on Windows — PNG export working; OI walls use call_oi/put_oi pivot columns from strike_oi(), not type filter
+- 2026-06-01: v3.4 1d-change framing — the 1-day ΔIV surface in the email is a DESCRIPTIVE daily glance, NOT a signal in the evolution engine. Does not reverse the 2026-05-30 "no 1d in evolution horizons" decision. Resolved via `nth_trading_day_back(ticker, today, 1)`.
+- 2026-06-01: Scheduler IS firing — Task Scheduler "GEX Daily Report" runs weekdays 4:30pm ET. SETUP FLAW: `DisallowStartIfOnBatteries=True` caused silent skips on battery. Fix: elevated PowerShell to set both battery flags false + RestartCount=2/PT5M. PENDING: Adam to run.
+- 2026-05-30: ΔIV horizons locked {5,10,20}; 1-day excluded from evolution engine.
+- 2026-05-30: Coverage mask = convex hull (not kNN) — parameter-free, 92%+ coverage.
+- [Phase ?]: CardField + build_card_fields() is single source of truth for card fields; both renderers iterate the list
+- [Phase ?]: iv30 already in _FLOAT_COLS/save_snapshot — no schema change; load_prior_snapshot was the missing piece
+- [Phase ?]: _wall_value in card_model.py is renderer-agnostic plain text; report.py adds HTML span in plan 02
 
 ### Pending Todos
 
-None.
+- Battery-flag fix for Task Scheduler needs an elevated PowerShell one-liner (Adam to run).
 
 ### Blockers/Concerns
 
-- Phase 11 kaleido PNG export on the target Windows machine is the highest-risk integration point — gated by a smoke-test spike at the top of the phase, with an HTML-attachment fallback.
+None.
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
 | v4.x | Inline `cid:` email images (vs attachments) | Requires Outlook COM PropertyAccessor plumbing | 2026-05-29 |
-| v4.x | SVI/SSVI/SABR calibration | Cut for v3.3 — descriptive tool, verify don't calibrate | 2026-05-29 |
-| (cut) | PCA / factor decomposition of surface change | Cut, not deferred — redundant with level/skew/term scalars | 2026-05-29 |
-| v3.1 → backlog | 999.1 Charm by DTE | Parked; awaiting research | 2026-05-12 |
-| v4.x | Bloomberg data swap | One-class change | 2026-05-05 |
+| v4.x | Bloomberg data swap | One-class change in data_loader.py | 2026-05-05 |
+| v3.x | Large OI blocks expiring soon | Needs parameter-free design (no hand-tuned cutoff) | 2026-06-01 |
+| backlog | 999.1 Charm by DTE | Parked; awaiting research | 2026-05-12 |
 
 ## Session Continuity
 
-Last session: 2026-06-01T18:00:00.000Z
-Stopped at: Milestone v3.3 complete — all review findings resolved, repo clean
+Last session: 2026-06-01T20:43:11.543Z
+Stopped at: Completed 12-01-PLAN.md — card_model.py + load_prior_snapshot
 Resume file: None
 
 ---
----
----
----
----
----
----
----
----
----
----
----
----
 <!-- LINKS:AUTO -->
+
 ## Related
+
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
