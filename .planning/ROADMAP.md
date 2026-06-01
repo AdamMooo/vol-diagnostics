@@ -59,7 +59,7 @@
 
 Plans:
 - [x] 12-01-PLAN.md — Shared card-model layer: CardField + build_card_fields(), iv30 schema, load_prior_snapshot
-- [ ] 12-02-PLAN.md — Email renderer integration: _ticker_card() consumes build_card_fields()
+- [x] 12-02-PLAN.md — Email renderer integration: _ticker_card() consumes build_card_fields()
 - [ ] 12-03-PLAN.md — Dashboard renderer integration: render_regime_card() consumes build_card_fields()
 
 ---
@@ -91,7 +91,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 12-01-PLAN.md — Shared card-model layer: CardField + build_card_fields(), iv30 schema, load_prior_snapshot
+- [x] 12-01-PLAN.md — Shared card-model layer: CardField + build_card_fields(), iv30 schema, load_prior_snapshot
 - [ ] 12-02-PLAN.md — Email renderer integration: _ticker_card() consumes build_card_fields()
 - [ ] 12-03-PLAN.md — Dashboard renderer integration: render_regime_card() consumes build_card_fields()
 
@@ -112,7 +112,7 @@ Plans:
 | 9. Surface Evolution Engine | v3.3 | 3/3 | Complete | 2026-05-30 |
 | 10. Dashboard Restructure | v3.3 | 2/2 | Complete | 2026-06-01 |
 | 11. Richer Daily Report | v3.3 | 4/4 | Complete | 2026-06-01 |
-| 12. Canonical Card | v3.4 | 1/3 | In Progress|  |
+| 12. Canonical Card | v3.4 | 2/3 | In Progress|  |
 | 13. 1-Day ΔIV Email PNGs | v3.4 | 0/TBD | Not started | - |
 | 14. Accumulation Gating | v3.4 | 0/TBD | Not started | - |
 
