@@ -197,7 +197,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 11-04-PLAN.md — run_daily.py wiring + human dry-run checkpoint
+- [x] 11-04-PLAN.md — run_daily.py wiring + human dry-run checkpoint
 
 **Status**: ○ Pending
 
