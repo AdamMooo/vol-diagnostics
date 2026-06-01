@@ -80,7 +80,10 @@ def run(dry_run: bool = False) -> None:
             print(f"  [WARN] {ticker} evolution failed (non-blocking): {exc}")
 
     index_results = [d["summary"] for d in all_data if d["summary"]["ticker"] in INDEX_TICKERS]
-    good          = [d for d in all_data if not d["summary"].get("error")]
+    good = [d for d in all_data if not d["summary"].get("error")]
+    if not good:
+        print("[run_daily] All tickers failed — skipping email.")
+        return
 
     subject = f"GEX Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
     html = rpt.build_email(
