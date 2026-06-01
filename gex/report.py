@@ -13,6 +13,13 @@ from __future__ import annotations
 import datetime
 
 from gex import config
+from gex.card_model import (
+    CardField, build_card_fields,
+    _fmt_b, _fmt_price, _fmt_pct, _fmt_skew,
+    _fmt_hedge_shares, _pct_from_spot, _wall_value,
+    _expected_1d_range_pct, _pin_location, _signed_color,
+)
+from gex.validation import load_prior_snapshot
 
 # Sign-of-net-gex visual cue for the accent bar — reads from shared palette.
 REGIME_COLOR = {
@@ -36,55 +43,6 @@ NEG_RED     = config.PALETTE["negative"]
 
 _SANS = "font-family:Arial,Helvetica,sans-serif;"
 _MONO = "font-family:Consolas,'SF Mono',Menlo,monospace;"
-
-
-# ── Formatting helpers ────────────────────────────────────────────────
-
-def _fmt_b(val: float | None) -> str:
-    if val is None:
-        return "—"
-    b = val / 1e9
-    return f"{'+' if b >= 0 else ''}{b:.2f}B"
-
-
-def _fmt_price(val: float | None, dp: int = 2) -> str:
-    return f"{val:,.{dp}f}" if val is not None else "—"
-
-
-def _fmt_pct(val: float | None, signed: bool = True, dp: int = 1) -> str:
-    if val is None:
-        return "—"
-    sign = "+" if signed and val >= 0 else ""
-    return f"{sign}{val:.{dp}f}%"
-
-
-def _fmt_skew(val: float | None) -> str:
-    if val is None:
-        return "—"
-    return f"{val:+.1f}pp"
-
-
-def _fmt_hedge_shares(val: float | None) -> str:
-    if val is None:
-        return "—"
-    v = abs(val)
-    if v >= 1e6:
-        return f"{v / 1e6:.1f}M sh/$1"
-    elif v >= 1e3:
-        return f"{v / 1e3:.0f}K sh/$1"
-    return f"{v:.0f} sh/$1"
-
-
-def _pct_from_spot(spot: float | None, level: float | None) -> float | None:
-    if not spot or level is None:
-        return None
-    return (level - spot) / spot * 100
-
-
-def _signed_color(val: float | None) -> str:
-    if val is None or val == 0:
-        return LABEL_GRAY
-    return config.PALETTE["positive"] if val >= 0 else config.PALETTE["negative"]
 
 
 # ── Badges ────────────────────────────────────────────────────────────
@@ -115,42 +73,6 @@ def _kv_table(rows_html: str) -> str:
     )
 
 
-# ── Wall insight ──────────────────────────────────────────────────────
-
-def _wall_value(level: float | None, pct_from_spot: float | None) -> str:
-    """Format a wall as: '740  +0.3%' (anchor strike, distance from spot).
-
-    Concentration % was removed intentionally — it changes daily with OI rotation
-    and measures noise, not structural support. The strike itself is the signal.
-    """
-    if level is None:
-        return "—"
-    parts = [f"{level:,.0f}"]
-    if pct_from_spot is not None:
-        parts.append(
-            f'<span style="font-weight:600;margin-left:10px;font-size:13px;">'
-            f'{_fmt_pct(pct_from_spot)}</span>'
-        )
-    return "".join(parts)
-
-
-def _expected_1d_range_pct(iv30: float | None) -> float | None:
-    """1-sigma 1-day expected move in % of spot, from IV30 (annualized vol in %)."""
-    if not iv30:
-        return None
-    return iv30 / (252 ** 0.5)
-
-
-def _pin_location(spot: float | None, pw: float | None, cw: float | None) -> str:
-    """How close is spot to call wall vs put wall, as a percentage of the range."""
-    if spot is None or pw is None or cw is None or cw <= pw:
-        return "—"
-    pct = (spot - pw) / (cw - pw) * 100
-    pct = max(0.0, min(100.0, pct))
-    direction = "→ CW" if pct >= 50 else "← PW"
-    return f"{pct:.0f}% {direction}"
-
-
 # ── Per-ticker card ───────────────────────────────────────────────────
 
 def _ticker_card(r: dict) -> str:
@@ -168,8 +90,6 @@ def _ticker_card(r: dict) -> str:
             f'</td></tr></table>'
         )
 
-    # Accent bar color is driven purely by the *sign* of net gex — no hand-tuned
-    # neutral-floor label, since the value below already shows sign and magnitude.
     net_gex_for_color = r.get("net_gex") or 0
     if net_gex_for_color > 0:
         accent = REGIME_COLOR["positive"]
@@ -178,59 +98,14 @@ def _ticker_card(r: dict) -> str:
     else:
         accent = "#64748b"
 
-    spot = r.get("spot")
-    pct_chg = r.get("price_change_pct")
-    net_gex = r.get("net_gex")
+    prior_row = load_prior_snapshot(ticker=r["ticker"], before_date=datetime.date.today())
+    fields = build_card_fields(today_summary=r, prior_summary=prior_row)
 
-    iv30 = r.get("iv30") or 0.0
-    iv30_str = f"{iv30:.1f}%" if iv30 else "—"
+    left_fields = fields[:5]
+    right_fields = fields[5:]
 
-    zgl = r.get("zero_gamma_level")
-    vs_zgl = _pct_from_spot(spot, zgl)
-    # vs_zgl is (zgl - spot)/spot; we want spot-vs-ZGL i.e. (spot-zgl)/spot.
-    vs_zgl_spot = (-vs_zgl) if vs_zgl is not None else None
-
-    # Walls — single max one-sided GEX strike. Empirically observable, no smoothing.
-    # We deliberately do NOT show the GEX-weighted cluster center: the ±2% / top-3
-    # band parameters are arbitrary and add estimation noise the reader cannot audit.
-    cw = r.get("call_wall")
-    pw = r.get("put_wall")
-    cw_pct = _pct_from_spot(spot, cw)
-    pw_pct = _pct_from_spot(spot, pw)
-    range_width_pct = (
-        (cw - pw) / spot * 100 if (cw is not None and pw is not None and spot) else None
-    )
-
-    expected_1d = _expected_1d_range_pct(iv30)
-    expected_str = f"±{expected_1d:.2f}%" if expected_1d else "—"
-
-    # Left column: spot/price-action + structural levels (the "where am I" lens)
-    left_rows = (
-        _kv_cell("Spot",   _fmt_price(spot))
-        + _kv_cell("Day %", _fmt_pct(pct_chg) if pct_chg is not None else "—",
-                   value_color=_signed_color(pct_chg) if pct_chg is not None else None)
-        + _kv_cell("IV30 / 1d σ", f"{iv30_str} &middot; {expected_str}", mono=False)
-        + _kv_cell("γ-flip", _fmt_price(zgl, dp=1) if zgl is not None else "—")
-        + _kv_cell("vs γ-flip",
-                   _fmt_pct(vs_zgl_spot) if vs_zgl_spot is not None else "—",
-                   value_color=_signed_color(vs_zgl_spot))
-    )
-
-    # Right column: dealer positioning + wall context (the "what's holding it" lens)
-    oi_cw = r.get("oi_call_wall")
-    oi_pw = r.get("oi_put_wall")
-    right_rows = (
-        _kv_cell("Net GEX", _fmt_b(net_gex), value_color=_signed_color(net_gex))
-        + _kv_cell("Hedge Shares/$1", _fmt_hedge_shares(r.get("delta_hedge_flow")))
-        + _kv_cell("Skew (25Δ)", _fmt_skew(r.get("front_skew")))
-        + _kv_cell("Call Wall", _wall_value(cw, cw_pct))
-        + _kv_cell("Put Wall",  _wall_value(pw, pw_pct))
-        + _kv_cell("Range",
-                   f"{range_width_pct:.1f}% &middot; {_pin_location(spot, pw, cw)}"
-                   if range_width_pct is not None else "—")
-        + _kv_cell("OI Call Wall", _wall_value(oi_cw, _pct_from_spot(spot, oi_cw)))
-        + _kv_cell("OI Put Wall",  _wall_value(oi_pw, _pct_from_spot(spot, oi_pw)))
-    )
+    left_rows = "".join(_kv_cell(f.label, f.value) for f in left_fields)
+    right_rows = "".join(_kv_cell(f.label, f.value) for f in right_fields)
 
     header = (
         f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
