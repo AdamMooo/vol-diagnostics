@@ -44,6 +44,24 @@ def strike_gex(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def strike_oi(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate open interest by strike, split into call/put sides.
+
+    Returns columns: strike, call_oi, put_oi, oi (total). Observable — no
+    dealer assumption, unlike GEX.
+    """
+    pivot = df.pivot_table(
+        index="strike", columns="type", values="oi", aggfunc="sum", fill_value=0
+    )
+    for side in ("call", "put"):
+        if side not in pivot.columns:
+            pivot[side] = 0
+    out = pivot.reset_index()[["strike", "call", "put"]]
+    out = out.rename(columns={"call": "call_oi", "put": "put_oi"})
+    out["oi"] = out["call_oi"] + out["put_oi"]
+    return out.sort_values("strike").reset_index(drop=True)
+
+
 
 def vol_surface_data(df: pd.DataFrame, spot: float,
                      dte_max: int = config.SURFACE_DTE_MAX,

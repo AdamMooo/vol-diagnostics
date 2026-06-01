@@ -11,7 +11,7 @@ from gex import config
 from gex.data_loader import load_chain
 from gex.greeks_engine import add_greeks
 from gex.exposure_engine import (
-    compute_gex, strike_gex, gamma_profile, vol_surface_data, compute_skew,
+    compute_gex, strike_gex, strike_oi, gamma_profile, vol_surface_data, compute_skew,
     surface_diagnostics,
 )
 from gex.analytics import summarise
@@ -54,6 +54,7 @@ def compute_ticker(ticker: str) -> dict:
     df = compute_gex(df, spot=snapshot.spot)
 
     s_df = strike_gex(df)
+    s_df = s_df.merge(strike_oi(df), on="strike", how="left")
 
     r = _get_risk_free_rate()
     p_df = gamma_profile(df, spot=snapshot.spot, r=r)
