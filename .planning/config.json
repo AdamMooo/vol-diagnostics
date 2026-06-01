@@ -12,7 +12,8 @@
     "auto_advance": false,
     "ui_phase": false,
     "ui_safety_gate": false,
-    "skip_discuss": false
+    "skip_discuss": false,
+    "_auto_chain_active": false
   },
   "git": {
     "branching_strategy": "none"

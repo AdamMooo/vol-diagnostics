@@ -48,14 +48,22 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-05-31 02:24 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-01 03:12 UTC
 
-**Milestone:** v3.3 — Surface Evolution & Daily Intelligence (Phases 8–11) · **Status:** unknown · **STATE last_updated:** ?
+**Milestone:** v3.3 — Surface Evolution & Daily Intelligence · **Status:** ready_to_plan · **STATE last_updated:** 2026-06-01T03:11:05.858Z
 
 ### Current Position
-- **Phase:** Phase 8 of 11 — Surface Validation (the gate) — ✅ COMPLETE (verified 2026-05-30, PASSED)
-- **Status:** Phase 8 verified PASSED — all 6 VALID reqs met; ready to plan Phase 9
-- **Last activity:** 2026-05-30 — Phase 8 executed inline (4 plans, all SUMMARY+VERIFICATION written), 92 tests pass; rbf_grid + coverage_mask + surface_diagnostics + sweep + trust readout shipped
+- **Phase:** 11
+- **Plan:** Not started
+- **Status:** Ready to plan
+- **Last activity:** 2026-06-01
+
+### Blockers
+- Phase 11 kaleido PNG export on the target Windows machine is the highest-risk integration point — gated by a smoke-test spike at the top of the phase, with an HTML-attachment fallback.
+
+### Roadmap (current milestone)
+- ✅ Phase 5: UAT Sign-Off & Cleanup (all 4 scenarios pass, docs updated)
+- ✅ Out-of-Phase Refactor (2026-05-11): VEX/CHEX/regime labels removed; expected-1d-sigma added; methodology footer rewritten
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->

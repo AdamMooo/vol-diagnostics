@@ -169,7 +169,7 @@ Plans:
 
 - [x] 10-02-PLAN.md — streamlit_app.py full tab restructure (Surface / Calculus+VRP / Evolution / Positioning)
 
-**Status**: ○ Ready to execute
+**Status**: ✅ COMPLETE (2026-06-01) — verified 5/5; CR-01 OI-vs-GEX gap closed inline (commit 00969c8)
 
 ### Phase 11: Richer Daily Report
 
@@ -213,8 +213,6 @@ Plans:
 ---
 ---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
