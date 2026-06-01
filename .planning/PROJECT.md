@@ -1,6 +1,6 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-01 — Phase 10 complete; local dashboard restructured to 4 tabs (Surface / Calculus+VRP / Evolution / Positioning), Skew+Term merged into the surface calculus, carry/RR-history/strike-GEX charts removed, two-date stored-vs-stored Compare + evolution small-multiples added on a restrained PALETTE; Positioning is OI-led with real call/put open interest (CR-01 fixed); advancing to Phase 11 richer daily report*
+*Last updated: 2026-06-01 — Phase 11 complete; v3.3 milestone fully delivered. Daily email now sends 3 PNG surface attachments (kaleido 1.3.0), OI call/put wall rows in each ticker card, cold-start-safe evolution section, explicit #ffffff body background. Code review flagged 1 critical (NaN propagation from unmocked surface_diagnostics in tests), 4 warnings (pytz missing from requirements.txt, 0% change displays as dash, as_of type mismatch, quiet None fallback) — address in v3.4 design review.*
 
 ## Current Milestone: v3.3 — Surface Evolution & Daily Intelligence
 
