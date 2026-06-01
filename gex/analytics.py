@@ -48,11 +48,13 @@ def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
 
 
 def _find_zero_crossing(profile_df: pd.DataFrame) -> float | None:
-    signs = np.sign(profile_df["net_gex"].to_numpy())
-    for i in range(len(signs) - 1):
-        if signs[i] != signs[i + 1]:
-            x0, y0 = profile_df["spot_level"].iloc[i], profile_df["net_gex"].iloc[i]
-            x1, y1 = profile_df["spot_level"].iloc[i + 1], profile_df["net_gex"].iloc[i + 1]
+    vals = profile_df["net_gex"].to_numpy()
+    for i in range(len(vals) - 1):
+        if vals[i] == 0.0:
+            return float(profile_df["spot_level"].iloc[i])
+        if vals[i] * vals[i + 1] < 0:
+            x0, y0 = profile_df["spot_level"].iloc[i], vals[i]
+            x1, y1 = profile_df["spot_level"].iloc[i + 1], vals[i + 1]
             return float(x0 - y0 * (x1 - x0) / (y1 - y0))
     return None
 
@@ -536,7 +538,6 @@ def plot_oi_by_strike(chain_df: pd.DataFrame, spot: float, ticker: str,
         # oi column absent — use abs(gex) as a proportional stand-in for OI shape;
         # this is approximate (GEX folds in gamma and spot^2) but preserves the
         # visual pattern until a split-OI column is wired in.
-        from gex.exposure_engine import MULTIPLIER
         proxy = chain_df["gex"].abs()
         fig.add_trace(go.Bar(
             x=chain_df["strike"],

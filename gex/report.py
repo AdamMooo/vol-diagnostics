@@ -310,7 +310,7 @@ def build_email(
         '<b>Hedge Shares/$1</b>: shares dealers must trade per $1 spot move to stay delta-neutral '
         '(= Net GEX ÷ (spot² × 0.01) = Γ_net × OI × 100). Positive = buy demand on up-moves; '
         'negative = sell pressure on up-moves. Prior label "Δ-flow" used an incorrect formula.<br>'
-        '<b>Skew (25Δ)</b>: IV(25Δ put) − IV(50Δ call) for the nearest expiry ≥7 DTE, '
+        '<b>Skew (25Δ)</b>: IV(25Δ put) − IV(25Δ call) for the nearest expiry ≥7 DTE, '
         'in percentage points. Relative cost of downside protection vs upside exposure. '
         'Xing, Zhang & Zhao (2010, JFQA) found steeper skew predicts subsequent '
         'underperformance (10.9% annual alpha). Higher = puts more expensive = elevated fear.<br>'

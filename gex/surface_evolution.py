@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import datetime
 import pathlib
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -110,21 +111,26 @@ def compute_evolution_scalars(
     # rms — total movement magnitude regardless of direction
     rms = float(np.sqrt(np.nanmean(IV_diff_masked ** 2)))
 
-    # skew_change — put-wing minus call-wing mean ΔIV
-    put_wing_idx = otm_grid < config.SURFACE_EVOLUTION_PUT_WING_CLIP
-    call_wing_idx = otm_grid > config.SURFACE_EVOLUTION_CALL_WING_CLIP
-    skew_change = float(
-        np.nanmean(IV_diff_masked[put_wing_idx, :])
-        - np.nanmean(IV_diff_masked[call_wing_idx, :])
-    )
+    # skew_change / term_change — regional nanmeans may operate on all-NaN slices
+    # when coverage is sparse; RuntimeWarning is expected and NaN propagation is correct.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
 
-    # term_change — front-ATM minus back-ATM mean ΔIV
-    dte_front_idx = dte_grid <= config.SURFACE_EVOLUTION_DTE_FRONT_MAX
-    dte_back_idx = dte_grid >= config.SURFACE_EVOLUTION_DTE_BACK_MIN
-    atm_idx = np.abs(otm_grid) <= config.SURFACE_EVOLUTION_ATM_CLIP
-    front_atm = IV_diff_masked[np.ix_(atm_idx, dte_front_idx)]
-    back_atm = IV_diff_masked[np.ix_(atm_idx, dte_back_idx)]
-    term_change = float(np.nanmean(front_atm) - np.nanmean(back_atm))
+        # skew_change — put-wing minus call-wing mean ΔIV
+        put_wing_idx = otm_grid < config.SURFACE_EVOLUTION_PUT_WING_CLIP
+        call_wing_idx = otm_grid > config.SURFACE_EVOLUTION_CALL_WING_CLIP
+        skew_change = float(
+            np.nanmean(IV_diff_masked[put_wing_idx, :])
+            - np.nanmean(IV_diff_masked[call_wing_idx, :])
+        )
+
+        # term_change — front-ATM minus back-ATM mean ΔIV
+        dte_front_idx = dte_grid <= config.SURFACE_EVOLUTION_DTE_FRONT_MAX
+        dte_back_idx = dte_grid >= config.SURFACE_EVOLUTION_DTE_BACK_MIN
+        atm_idx = np.abs(otm_grid) <= config.SURFACE_EVOLUTION_ATM_CLIP
+        front_atm = IV_diff_masked[np.ix_(atm_idx, dte_front_idx)]
+        back_atm = IV_diff_masked[np.ix_(atm_idx, dte_back_idx)]
+        term_change = float(np.nanmean(front_atm) - np.nanmean(back_atm))
 
     # coverage — fraction of grid cells included in the intersection mask
     coverage = float(np.sum(~np.isnan(IV_diff_masked))) / IV_diff_masked.size
