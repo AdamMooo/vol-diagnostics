@@ -1,6 +1,54 @@
 from __future__ import annotations
 
 import pytest
+from unittest import mock
+
+
+def _minimal_summary(**overrides):
+    base = {
+        "ticker": "SPY",
+        "spot": 500.0,
+        "net_gex": 1e9,
+        "zero_gamma_level": 495.0,
+        "call_wall": 510.0,
+        "put_wall": 490.0,
+        "oi_call_wall": 512.0,
+        "oi_put_wall": 488.0,
+        "iv30": 18.0,
+        "price_change_pct": 0.5,
+        "front_skew": 3.2,
+        "delta_hedge_flow": None,
+        "rv20": 0.15,
+        "vrp": 2.7,
+    }
+    base.update(overrides)
+    return base
+
+
+def _render_regime_card_html(summary_overrides=None, prior_row=None):
+    pytest.importorskip("streamlit")
+    import streamlit
+    summary = _minimal_summary(**(summary_overrides or {}))
+    captured = {}
+
+    def _capture_markdown(html, **kwargs):
+        captured["html"] = html
+
+    with mock.patch.object(streamlit, "markdown", side_effect=_capture_markdown):
+        with mock.patch("gex.validation.load_prior_snapshot", return_value=prior_row):
+            from streamlit_app import render_regime_card
+            render_regime_card(col=mock.MagicMock(), summary=summary, spot=500.0)
+
+    return captured.get("html", "")
+
+
+def test_render_regime_card_uses_build_card_fields():
+    """Task 1 RED: render_regime_card must delegate to build_card_fields (imports present)."""
+    pytest.importorskip("streamlit")
+    import streamlit_app
+    import inspect
+    src = inspect.getsource(streamlit_app.render_regime_card)
+    assert "build_card_fields" in src
 
 
 def test_import_no_emailer_bleed():

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime
+from datetime import datetime, date
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
 from gex import config
+from gex.card_model import CardField, build_card_fields
+from gex.validation import load_prior_snapshot
 from gex.compute import compute_ticker
 from gex.analytics import (
     plot_gamma_profile,
@@ -148,36 +150,25 @@ def _sign_key(net_gex: float | None) -> str:
 
 
 def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
-    """Card content — only outputs we can defend with our lives. Accent bar /
-    background reflect the sign of net gex; no categorical regime label."""
+    """Accent bar / background reflect the sign of net gex; no categorical regime label."""
     ticker = summary["ticker"]
     sign = _sign_key(summary.get("net_gex"))
     _palette_sign = {"positive": config.PALETTE["positive"], "negative": config.PALETTE["negative"], "zero": config.PALETTE["neutral"]}
     color = _palette_sign[sign]
     bg = _SIGN_RGBA.get(sign, "rgba(127,140,141,0.12)")
-    net_gex_b = (summary.get("net_gex") or 0) / _B
-    zgl = summary.get("zero_gamma_level")
-    zgl_str = f"{zgl:.1f}" if zgl is not None else "—"
-    spot_str = f"{spot:,.2f}" if spot else "—"
-    iv30 = summary.get("iv30")
-    iv30_str = f"{iv30:.1f}%" if iv30 else "—"
-    skew = summary.get("front_skew")
-    skew_str = f"{skew:+.1f}pp" if skew is not None else "—"
 
-    obs = _derive_observations(summary, spot or 0)
-    obs_html = "".join(f"<div>{o}</div>" for o in obs)
+    prior_row = load_prior_snapshot(ticker=ticker, before_date=date.today())
+    fields = build_card_fields(today_summary=summary, prior_summary=prior_row)
+    grid_html = "".join(
+        f'<span class="rc-k">{f.label}</span>'
+        f'<span class="rc-v">{f.value}</span>'
+        for f in fields
+    )
 
     col.markdown(f"""
 <div class="rc" style="background:{bg};border-left-color:{color};">
   <div class="rc-ticker" style="color:{color};">{ticker}</div>
-  <div class="rc-grid">
-    <span class="rc-k">Spot</span>           <span class="rc-v">{spot_str}</span>
-    <span class="rc-k">Net GEX</span>        <span class="rc-v">{net_gex_b:+.2f}B</span>
-    <span class="rc-k">&gamma;-flip</span>  <span class="rc-v">{zgl_str}</span>
-    <span class="rc-k">Skew 25&Delta;</span>  <span class="rc-v">{skew_str}</span>
-    <span class="rc-k">IV30</span>           <span class="rc-v">{iv30_str}</span>
-  </div>
-  <div class="rc-obs">{obs_html}</div>
+  <div class="rc-grid">{grid_html}</div>
 </div>
 """, unsafe_allow_html=True)
 
