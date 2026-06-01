@@ -173,3 +173,11 @@ PALETTE = {
     "call":     "#3b82f6",  # blue-500
     "put":      "#ef4444",  # red-400
 }
+
+# ── PNG export (kaleido) ───────────────────────────────────────────────────────
+
+KALEIDO_CAMERA_EYE: dict[str, float] = {"x": 1.5, "y": -1.5, "z": 0.8}
+"""Pinned isometric-style camera for 3D vol surface PNG exports.
+Applied before every write_image() call so all attachments look consistent.
+eye=(1.5, -1.5, 0.8) gives a readable perspective: moderate elevation, slight
+front-right offset that shows both the skew gradient and the DTE term structure."""
