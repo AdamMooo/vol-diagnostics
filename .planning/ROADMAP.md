@@ -1,6 +1,6 @@
 # Roadmap: Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-05-31 · v3.1 SHIPPED · v3.3 active (Phase 10 planned)*
+*Last updated: 2026-06-01 · v3.1 SHIPPED · v3.3 active (Phase 11 planned)*
 
 ## Milestones
 
@@ -183,6 +183,21 @@ Plans:
   3. Content prioritised surfaces > put/call walls > OI > gamma; OI surfaced as data
   4. Reads as a clean, formal business document; restrained palette; no decorative noise
   5. Evolution scalars present; narrative leads with the 5-day rolling read; 1-day excluded
+
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+
+- [ ] 11-01-PLAN.md — kaleido smoke-test spike + OI wall computation in compute_ticker()
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 11-02-PLAN.md — gex/png_export.py module (export_png utility, pinned camera, non-blocking)
+- [ ] 11-03-PLAN.md — report.py enrichment (OI rows, evolution section, #ffffff body, png_note slot)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 11-04-PLAN.md — run_daily.py wiring + human dry-run checkpoint
 
 **Status**: ○ Pending
 
