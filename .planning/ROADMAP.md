@@ -167,7 +167,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 10-02-PLAN.md — streamlit_app.py full tab restructure (Surface / Calculus+VRP / Evolution / Positioning)
+- [x] 10-02-PLAN.md — streamlit_app.py full tab restructure (Surface / Calculus+VRP / Evolution / Positioning)
 
 **Status**: ○ Ready to execute
 
