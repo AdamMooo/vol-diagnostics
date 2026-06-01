@@ -91,6 +91,30 @@ def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = Non
     print(f"[gex] Snapshot saved ({len(hist)} rows total): {STORE}")
 
 
+def load_prior_snapshot(
+    ticker: str,
+    before_date: datetime.date,
+    store: pathlib.Path | None = None,
+) -> "pd.Series | None":
+    """Return the most-recent snapshot row strictly before before_date, or None.
+
+    store: override for testing; defaults to module-level STORE.
+    """
+    path = store if store is not None else STORE
+    if not path.exists():
+        return None
+    try:
+        hist = pd.read_parquet(path)
+        hist["date"] = pd.to_datetime(hist["date"]).dt.date
+        mask = (hist["ticker"] == ticker) & (hist["date"] < before_date)
+        subset = hist[mask].sort_values("date", ascending=False)
+        if subset.empty:
+            return None
+        return subset.iloc[0]
+    except Exception:
+        return None
+
+
 def load_history(ticker: str, days: int = 30) -> pd.DataFrame:
     if not STORE.exists():
         return pd.DataFrame()
