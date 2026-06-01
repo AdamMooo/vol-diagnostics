@@ -1,0 +1,220 @@
+"""Behavioral tests for gex/card_model.py — CardField + build_card_fields()."""
+from __future__ import annotations
+
+import math
+import pytest
+
+from gex.card_model import CardField, build_card_fields
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+FULL_SUMMARY = {
+    "spot": 530.0,
+    "price_change_pct": 0.8,
+    "iv30": 18.5,
+    "zero_gamma_level": 525.0,
+    "net_gex": 1.20e9,
+    "delta_hedge_flow": 2_500_000.0,
+    "front_skew": 3.8,
+    "vrp": 2.7,
+    "call_wall": 545.0,
+    "put_wall": 515.0,
+    "oi_call_wall": 550.0,
+    "oi_put_wall": 510.0,
+    "rv20": 15.8,
+}
+
+PRIOR_SUMMARY = {
+    "spot": 525.0,
+    "price_change_pct": -0.2,
+    "iv30": 18.0,
+    "zero_gamma_level": 520.0,
+    "net_gex": 1.05e9,
+    "delta_hedge_flow": 2_200_000.0,
+    "front_skew": 3.0,
+    "vrp": 2.3,
+    "call_wall": 540.0,
+    "put_wall": 510.0,
+    "oi_call_wall": 545.0,
+    "oi_put_wall": 505.0,
+    "rv20": 15.0,
+}
+
+EXPECTED_LABELS = [
+    "Spot",
+    "Day %",
+    "IV30 / 1d σ",
+    "γ-flip",
+    "vs γ-flip",
+    "Net GEX",
+    "Hedge Shares/$1",
+    "Skew (25Δ)",
+    "VRP",
+    "Call Wall (model)",
+    "Put Wall (model)",
+    "Range",
+    "OI Call Wall (raw OI)",
+    "OI Put Wall (raw OI)",
+]
+
+
+# ---------------------------------------------------------------------------
+# CardField dataclass
+# ---------------------------------------------------------------------------
+
+class TestCardField:
+    def test_has_label_value_sign(self):
+        f = CardField(label="Spot", value="530.00", sign="neutral")
+        assert f.label == "Spot"
+        assert f.value == "530.00"
+        assert f.sign == "neutral"
+
+    def test_sign_values(self):
+        for s in ("positive", "negative", "neutral"):
+            CardField(label="x", value="y", sign=s)
+
+
+# ---------------------------------------------------------------------------
+# No-prior branch: no delta suffixes, no crashes
+# ---------------------------------------------------------------------------
+
+class TestBuildCardFieldsNoPrior:
+    def setup_method(self):
+        self.fields = build_card_fields(FULL_SUMMARY, None)
+        self.by_label = {f.label: f for f in self.fields}
+
+    def test_returns_list_of_card_fields(self):
+        assert isinstance(self.fields, list)
+        assert all(isinstance(f, CardField) for f in self.fields)
+
+    def test_field_count(self):
+        assert len(self.fields) == len(EXPECTED_LABELS)
+
+    def test_field_order(self):
+        labels = [f.label for f in self.fields]
+        assert labels == EXPECTED_LABELS
+
+    def test_iv30_no_delta_suffix(self):
+        v = self.by_label["IV30 / 1d σ"].value
+        assert "(+" not in v and "(-" not in v
+
+    def test_net_gex_no_delta_suffix(self):
+        v = self.by_label["Net GEX"].value
+        assert "(" not in v
+
+    def test_front_skew_no_delta_suffix(self):
+        v = self.by_label["Skew (25Δ)"].value
+        assert "(" not in v
+
+    def test_vrp_formatted_value(self):
+        v = self.by_label["VRP"].value
+        assert "pp" in v
+        assert "2.7" in v
+
+    def test_call_wall_label_contains_model(self):
+        assert "model" in self.by_label["Call Wall (model)"].label
+
+    def test_put_wall_label_contains_model(self):
+        assert "model" in self.by_label["Put Wall (model)"].label
+
+    def test_oi_call_wall_label_contains_raw_oi(self):
+        assert "raw OI" in self.by_label["OI Call Wall (raw OI)"].label
+
+    def test_oi_put_wall_label_contains_raw_oi(self):
+        assert "raw OI" in self.by_label["OI Put Wall (raw OI)"].label
+
+
+# ---------------------------------------------------------------------------
+# With-prior branch: delta suffixes appear on net_gex, front_skew, iv30
+# ---------------------------------------------------------------------------
+
+class TestBuildCardFieldsWithPrior:
+    def setup_method(self):
+        self.fields = build_card_fields(FULL_SUMMARY, PRIOR_SUMMARY)
+        self.by_label = {f.label: f for f in self.fields}
+
+    def test_net_gex_delta_positive(self):
+        v = self.by_label["Net GEX"].value
+        # delta = 1.20B - 1.05B = +0.15B
+        assert "(+" in v
+        assert "0.15" in v
+
+    def test_front_skew_delta_positive(self):
+        v = self.by_label["Skew (25Δ)"].value
+        # delta = 3.8 - 3.0 = +0.8
+        assert "(+0.8)" in v
+
+    def test_iv30_delta_positive(self):
+        v = self.by_label["IV30 / 1d σ"].value
+        # delta = 18.5 - 18.0 = +0.5
+        assert "(+0.5)" in v
+
+    def test_field_order_unchanged_with_prior(self):
+        labels = [f.label for f in self.fields]
+        assert labels == EXPECTED_LABELS
+
+
+# ---------------------------------------------------------------------------
+# NaN / absent prior values — delta omitted, no fabricated zero
+# ---------------------------------------------------------------------------
+
+class TestDeltaSuffixNaNGuard:
+    def test_iv30_nan_prior_no_delta(self):
+        prior = dict(PRIOR_SUMMARY)
+        prior["iv30"] = float("nan")
+        fields = build_card_fields(FULL_SUMMARY, prior)
+        iv30_field = next(f for f in fields if f.label == "IV30 / 1d σ")
+        assert "(+" not in iv30_field.value
+        assert "(-" not in iv30_field.value
+
+    def test_iv30_missing_key_prior_no_delta(self):
+        prior = {k: v for k, v in PRIOR_SUMMARY.items() if k != "iv30"}
+        fields = build_card_fields(FULL_SUMMARY, prior)
+        iv30_field = next(f for f in fields if f.label == "IV30 / 1d σ")
+        assert "(+" not in iv30_field.value
+
+    def test_no_fabricated_zero_delta(self):
+        prior = dict(PRIOR_SUMMARY)
+        prior["iv30"] = None
+        fields = build_card_fields(FULL_SUMMARY, prior)
+        iv30_field = next(f for f in fields if f.label == "IV30 / 1d σ")
+        assert "(+0.0)" not in iv30_field.value
+        assert "(+" not in iv30_field.value
+
+
+# ---------------------------------------------------------------------------
+# Sign hints
+# ---------------------------------------------------------------------------
+
+class TestCardFieldSigns:
+    def test_day_pct_positive_sign(self):
+        fields = build_card_fields(FULL_SUMMARY, None)
+        day_field = next(f for f in fields if f.label == "Day %")
+        assert day_field.sign == "positive"
+
+    def test_day_pct_negative_sign(self):
+        summary = dict(FULL_SUMMARY)
+        summary["price_change_pct"] = -0.5
+        fields = build_card_fields(summary, None)
+        day_field = next(f for f in fields if f.label == "Day %")
+        assert day_field.sign == "negative"
+
+    def test_net_gex_positive_sign(self):
+        fields = build_card_fields(FULL_SUMMARY, None)
+        f = next(x for x in fields if x.label == "Net GEX")
+        assert f.sign == "positive"
+
+    def test_net_gex_negative_sign(self):
+        summary = dict(FULL_SUMMARY)
+        summary["net_gex"] = -0.5e9
+        fields = build_card_fields(summary, None)
+        f = next(x for x in fields if x.label == "Net GEX")
+        assert f.sign == "negative"
+
+    def test_spot_neutral(self):
+        fields = build_card_fields(FULL_SUMMARY, None)
+        f = next(x for x in fields if x.label == "Spot")
+        assert f.sign == "neutral"
