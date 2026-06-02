@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Email-First Daily Report Polish
-status: verifying
+status: executing
 stopped_at: Completed 12-03-PLAN.md — dashboard render_regime_card canonical
-last_updated: "2026-06-01T20:54:16.303Z"
-last_activity: 2026-06-01
+last_updated: "2026-06-02T00:38:59.982Z"
+last_activity: 2026-06-02 -- Phase 13 planning complete
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
+  total_plans: 4
   completed_plans: 3
   percent: 33
 ---
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-01)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 12 — Canonical Card
+**Current focus:** Phase 13 — 1-Day ΔIV Email PNGs
 
 ## Current Position
 
-Phase: 12 (Canonical Card) — COMPLETE ✓ (verified passed)
-Plan: 3 of 3 complete
-Status: Phase 12 done; Phase 13 (1-Day ΔIV Email PNGs) next — not yet planned
-Last activity: 2026-06-01
+Phase: 13 (1-Day ΔIV Email PNGs) — PLANNED ✓ (1 plan, verification passed)
+Plan: 0 of 1 executed
+Status: Ready to execute
+Last activity: 2026-06-02 -- Phase 13 planning complete
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -59,7 +59,7 @@ Progress: [██████████] 100%
 ### Decisions
 
 - 2026-06-01: v3.4 1d-change framing — the 1-day ΔIV surface in the email is a DESCRIPTIVE daily glance, NOT a signal in the evolution engine. Does not reverse the 2026-05-30 "no 1d in evolution horizons" decision. Resolved via `nth_trading_day_back(ticker, today, 1)`.
-- 2026-06-01: Scheduler IS firing — Task Scheduler "GEX Daily Report" runs weekdays 4:30pm ET. SETUP FLAW: `DisallowStartIfOnBatteries=True` caused silent skips on battery. Fix: elevated PowerShell to set both battery flags false + RestartCount=2/PT5M. PENDING: Adam to run.
+- 2026-06-01: Scheduler IS firing — Task Scheduler "GEX Daily Report" runs weekdays 4:30pm ET. SETUP FLAW: `DisallowStartIfOnBatteries=True` caused silent skips on battery. Fix: elevated PowerShell set both battery flags false + RestartCount=2/PT5M. RESOLVED 2026-06-01 (Adam ran it).
 - 2026-05-30: ΔIV horizons locked {5,10,20}; 1-day excluded from evolution engine.
 - 2026-05-30: Coverage mask = convex hull (not kNN) — parameter-free, 92%+ coverage.
 - [Phase ?]: CardField + build_card_fields() is single source of truth for card fields; both renderers iterate the list
@@ -71,7 +71,7 @@ Progress: [██████████] 100%
 
 ### Pending Todos
 
-- Battery-flag fix for Task Scheduler needs an elevated PowerShell one-liner (Adam to run).
+- None.
 
 ### Blockers/Concerns
 

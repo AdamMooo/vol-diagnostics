@@ -48,18 +48,22 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-01 21:00 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-02 00:39 UTC
 
-**Milestone:** v3.4 · **Status:** verifying · **STATE last_updated:** 2026-06-01T20:54:16.303Z
+**Milestone:** v3.4 · **Status:** executing · **STATE last_updated:** 2026-06-02T00:38:59.982Z
 
 ### Current Position
-- **Phase:** 12 (Canonical Card) — COMPLETE ✓ (verified passed)
-- **Plan:** 3 of 3 complete
-- **Status:** Phase 12 done; Phase 13 (1-Day ΔIV Email PNGs) next — not yet planned
-- **Last activity:** 2026-06-01
+- **Phase:** 13 (1-Day ΔIV Email PNGs) — PLANNED ✓ (1 plan, verification passed)
+- **Plan:** 0 of 1 executed
+- **Status:** Ready to execute
+- **Last activity:** 2026-06-02 -- Phase 13 planning complete
 
 ### Pending Todos
-- Battery-flag fix for Task Scheduler needs an elevated PowerShell one-liner (Adam to run).
+- None.
+
+### Roadmap (current milestone)
+- ⬜ **Phase 13: 1-Day ΔIV Email PNGs** — Replace static surface + 5d ΔIV PNGs with one 1d ΔIV surface PNG per ticker
+- ⬜ **Phase 14: Accumulation Gating** — Gate history-dependent UI elements behind session-count guards; cold-start safe email
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
