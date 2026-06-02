@@ -182,7 +182,7 @@ class TestOneDayDeltaIVPngs:
 
     def test_evolution_store_untouched(self) -> None:
         """The PNG block in run_daily.py must not call update_evolution."""
-        src = pathlib.Path("gex/run_daily.py").read_text(encoding="utf-8")
+        src = (pathlib.Path(__file__).resolve().parent.parent / "run_daily.py").read_text(encoding="utf-8")
         # Find the PNG block: from the "Generate PNG attachments" comment to
         # the print statement showing attachment count.
         start = src.find("# Generate PNG attachments")

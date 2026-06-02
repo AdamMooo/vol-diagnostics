@@ -56,8 +56,9 @@ def _build_png_attachments(
     out_dir: pathlib.Path,
 ) -> list:
     attachments: list = []
+    data_by_ticker = {d["summary"]["ticker"]: d for d in all_data}
     try:
-        for ticker_idx, ticker in enumerate(INDEX_TICKERS):
+        for ticker in INDEX_TICKERS:
             try:
                 prior_date = nth_trading_day_back(ticker, today, 1)
                 if prior_date is None:
@@ -65,7 +66,7 @@ def _build_png_attachments(
                 prior_surface_df, prior_spot = load_surface_snapshot(ticker, prior_date)
                 if prior_surface_df.empty:
                     continue
-                data = all_data[ticker_idx]
+                data = data_by_ticker.get(ticker, {})
                 today_surface_df = data.get("surface_df")
                 today_spot = data["summary"].get("spot")
                 if today_surface_df is None or today_spot is None:
