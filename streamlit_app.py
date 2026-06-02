@@ -486,10 +486,14 @@ if sel_index:
 
             c1, c2 = st.columns([3, 2])
             with c1:
-                st.plotly_chart(
-                    plot_oi_by_strike(data["s_df"], spot, ticker, s),
-                    width='stretch',
-                )
+                s_df = data.get("s_df")
+                if s_df is not None:
+                    st.plotly_chart(
+                        plot_oi_by_strike(s_df, spot, ticker, s),
+                        width='stretch',
+                    )
+                else:
+                    st.caption(f"{ticker}: OI data unavailable.")
                 st.caption(
                     "Call OI = blue, Put OI = red. "
                     "Call wall / put wall are GEX-defined (model · assumes dealers net short)."
@@ -559,10 +563,12 @@ if sel_index:
                     )
 
             with st.expander("γ-flip & walls — model derivation", expanded=False):
-                st.plotly_chart(
-                    plot_gamma_profile(data["p_df"], spot, ticker, s),
-                    width='stretch',
-                )
+                p_df = data.get("p_df")
+                if p_df is not None:
+                    st.plotly_chart(
+                        plot_gamma_profile(p_df, spot, ticker, s),
+                        width='stretch',
+                    )
                 st.markdown(
                     "**Gamma profile.** Net GEX swept across ±15% spot range in 200 steps "
                     "(Black-Scholes gamma, dealer net-short assumption). The profile shows "

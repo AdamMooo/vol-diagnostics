@@ -129,7 +129,7 @@ def build_email(results: list[dict], date: datetime.date) -> str:
   <td style="{_MONO}padding:8px 12px;font-size:12px;color:{pct_color};border-bottom:1px solid #e2e8f0;">{pct_str}</td>
   <td style="{_MONO}padding:8px 12px;font-size:12px;border-bottom:1px solid #e2e8f0;">{_fmt(s.get('iv30'), suffix='%')}</td>
   <td style="{_MONO}padding:8px 12px;font-size:12px;border-bottom:1px solid #e2e8f0;">{_fmt_rr(front_rr)}</td>
-  <td style="{_MONO}padding:8px 12px;font-size:12px;border-bottom:1px solid #e2e8f0;">{_fmt(rv20 * 100 if rv20 else None, suffix='%')}</td>
+  <td style="{_MONO}padding:8px 12px;font-size:12px;border-bottom:1px solid #e2e8f0;">{_fmt(rv20 * 100 if rv20 is not None else None, suffix='%')}</td>
   <td style="{_MONO}padding:8px 12px;font-size:12px;color:{_GRAY};border-bottom:1px solid #e2e8f0;">{_fmt(cov, suffix='%', prec=0)}</td>
 </tr>"""
 

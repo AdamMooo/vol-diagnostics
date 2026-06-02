@@ -105,11 +105,11 @@ def compute_evolution_scalars(
     dict with keys: level, rms, skew_change, term_change, coverage — all floats.
     NaN is never replaced with 0.
     """
-    # level — parallel shift; positive = IV rose on average
-    level = float(np.nanmean(IV_diff_masked))
-
-    # rms — total movement magnitude regardless of direction
-    rms = float(np.sqrt(np.nanmean(IV_diff_masked ** 2)))
+    # level / rms — may be all-NaN when hull overlap is zero (e.g. ticker restart, sparse chain)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        level = float(np.nanmean(IV_diff_masked))
+        rms = float(np.sqrt(np.nanmean(IV_diff_masked ** 2)))
 
     # skew_change / term_change — regional nanmeans may operate on all-NaN slices
     # when coverage is sparse; RuntimeWarning is expected and NaN propagation is correct.

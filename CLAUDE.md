@@ -1,5 +1,5 @@
 # CLAUDE — Gamma OMM — Sleeve Allocation Framework
-Last updated: 2026-05-06 | Status: active milestone v3.1 — UAT signed off
+Last updated: 2026-06-02 | Status: active milestone v3.4
 
 ## Repo Card
 
@@ -62,10 +62,13 @@ python -m gex.run_daily              # all 3 tickers → HTML email
 | `gex/analytics.py` | `summarise()` → net GEX, zero-γ level, call/put walls, δ-flow; plotly charts |
 | `gex/compute.py` | Shared pipeline `compute_ticker(ticker)` — single source of truth for daily + streamlit |
 | `gex/run_gex.py` | Single-ticker CLI — fetch → compute → print summary → save PNGs |
-| `gex/run_daily.py` | Daily orchestrator — 3 tickers, parquet snapshot, HTML email, append observation block |
+| `gex/run_daily.py` | Daily orchestrator — SPY/QQQ/IWM, parquet snapshot, HTML email with ΔIV surface PNGs |
+| `gex/run_daily_yield.py` | Purpose Yield ETF daily email — 16 single-name underlyings, email-only (no dashboard) |
 | `gex/validation.py` | Parquet snapshot store: `save_snapshot()` + `load_history()` (drives 30-day ZGL chart) |
-| `gex/report.py` | HTML email builder — sign-accent cards, glossary, data-limitations footer |
-| `streamlit_app.py` | Browser dashboard — same pipeline, plotly bar/profile charts + 30-day ZGL history |
+| `gex/surface_history.py` | Surface snapshot store: per-ticker chain parquet, `list_available_dates`, `nth_trading_day_back` |
+| `gex/surface_evolution.py` | ΔIV scalar engine — level, rms, skew_change, term_change vs rolling-mean baseline |
+| `gex/report.py` | HTML email builder — sign-accent cards, ΔIV surface PNG attachments, glossary |
+| `streamlit_app.py` | Browser dashboard (SPY/QQQ/IWM only) — cards, ΔIV surface, evolution, positioning tabs |
 
 Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color.
 

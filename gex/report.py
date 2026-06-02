@@ -212,7 +212,10 @@ def evolution_section_html(evolution_data: dict) -> str | None:
     )
 
     def _pp(v: float | None) -> str:
-        return f"{v:+.2f}pp" if v is not None else "—"
+        import math
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            return "—"
+        return f"{v:+.2f}pp"
 
     ticker_rows = ""
     for ticker in ("SPY", "QQQ", "IWM"):

@@ -37,6 +37,7 @@ Scheduled / repeatable scripts. Edit in place; manage via Windows Task Scheduler
 | File | Purpose | Schedule | Manage |
 |------|---------|----------|--------|
 | [[runners/gex_daily.ps1\|gex_daily.ps1]] | Registers / inspects the GEX Daily Report task. Runs `python -m gex.run_daily` → SPY/QQQ/IWM chains → HTML email via Outlook COM, parquet snapshot, observation block appended to today's daily note. | Mon–Fri 16:30 local (NYSE trading days only — `is_trading_day()` gates internally) | `gex_daily.ps1 activate \| deactivate \| status` (admin shell required for first registration) |
+| [[runners/yield_daily.ps1\|yield_daily.ps1]] | Runs `python -m gex.run_daily_yield` → 16 Purpose Yield ETF underlyings → HTML email only. No Streamlit app — data is too thin to warrant a dashboard. | Mon–Fri 16:35 local | Run directly: `python -m gex.run_daily_yield --send` |
 
 Project-internal runners only. Cross-project runners live under each project's own `runners/` folder (e.g. `selenium/runners/allocation_report.ps1`). Vault-wide config scripts are in `.config-vault/_meta/`.
 
