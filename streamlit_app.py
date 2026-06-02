@@ -238,8 +238,8 @@ if not all_data:
 if sel_index:
     render_regime_cards(sel_index, all_data)
 
-    tab_surface, tab_calculus, tab_evolution, tab_positioning = st.tabs(
-        ["Surface", "Calculus+VRP", "Evolution", "Positioning"]
+    tab_surface, tab_evolution, tab_positioning = st.tabs(
+        ["Surface", "Evolution", "Positioning"]
     )
 
     # ── Surface ──────────────────────────────────────────────────────────────
@@ -366,8 +366,8 @@ if sel_index:
                 else:
                     st.caption(f"{ticker}: insufficient data for comparison.")
 
-    # ── Calculus+VRP ──────────────────────────────────────────────────────────
-    with tab_calculus:
+    # ── Evolution ─────────────────────────────────────────────────────────────
+    with tab_evolution:
         for ticker in selected_all:
             if ticker not in all_data:
                 continue
@@ -462,45 +462,7 @@ if sel_index:
                     help="Front-month ATM IV minus back-month ATM IV.",
                 )
 
-            # Cross-ticker 25Δ RR grouped bar — only once, gated on first ticker
-            if ticker == selected_all[0]:
-                rr_tickers = []
-                rr_values = []
-                for t in INDEX_TICKERS:
-                    if t in all_data:
-                        rr_val = all_data[t]["summary"].get("front_skew")
-                        if rr_val is not None:
-                            rr_tickers.append(t)
-                            rr_values.append(rr_val)
-
-                if rr_tickers:
-                    _ticker_colors = {
-                        "SPY": config.PALETTE["call"],
-                        "QQQ": config.PALETTE["accent"],
-                        "IWM": config.PALETTE["positive"],
-                    }
-                    bar_colors = [_ticker_colors.get(t, config.PALETTE["neutral"]) for t in rr_tickers]
-                    rr_fig = go.Figure()
-                    rr_fig.add_trace(go.Bar(
-                        x=rr_tickers,
-                        y=rr_values,
-                        marker_color=bar_colors,
-                        hovertemplate="%{x}<br>25Δ RR: %{y:+.2f}pp<extra></extra>",
-                    ))
-                    rr_fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
-                    rr_fig.update_layout(
-                        template="plotly_dark",
-                        title="Cross-ticker 25Δ RR",
-                        barmode="group",
-                        height=220,
-                        margin=dict(t=40, b=30, l=60, r=20),
-                        yaxis_title="Skew (pp)",
-                        showlegend=False,
-                    )
-                    st.plotly_chart(rr_fig, use_container_width=True)
-
-    # ── Evolution ─────────────────────────────────────────────────────────────
-    with tab_evolution:
+        st.markdown('<div class="sec">Surface Evolution</div>', unsafe_allow_html=True)
         selected_horizon = st.radio(
             "Horizon", options=[5, 10, 20], index=0, horizontal=True, key="evol_horizon",
         )
