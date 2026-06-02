@@ -37,7 +37,7 @@
 **Milestone Goal:** Curate the daily email into a tight single-snapshot diagnostic, unify the email and dashboard around one canonical card, replace the static surface PNGs with 1-day ΔIV surfaces, and gate accumulation-dependent UI until enough sessions exist. Every scope item is single-snapshot or near-it.
 
 - [x] **Phase 12: Canonical Card** — Single source-of-truth card shared by email + dashboard; VRP, scalar deltas, wall labels (completed 2026-06-01)
-- [ ] **Phase 13: 1-Day ΔIV Email PNGs** — Replace static surface + 5d ΔIV PNGs with one 1d ΔIV surface PNG per ticker
+- [x] **Phase 13: 1-Day ΔIV Email PNGs** — Replace static surface + 5d ΔIV PNGs with one 1d ΔIV surface PNG per ticker (completed 2026-06-02)
 - [ ] **Phase 14: Accumulation Gating** — Gate history-dependent UI elements behind session-count guards; cold-start safe email
 
 ---
@@ -77,7 +77,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 13-01-PLAN.md — Swap PNG block: 1-day ΔIV per ticker, delete static surface + 5d ΔIV PNGs, add tests
+- [x] 13-01-PLAN.md — Swap PNG block: 1-day ΔIV per ticker, delete static surface + 5d ΔIV PNGs, add tests
 
 ---
 
@@ -116,7 +116,7 @@ Plans:
 | 10. Dashboard Restructure | v3.3 | 2/2 | Complete | 2026-06-01 |
 | 11. Richer Daily Report | v3.3 | 4/4 | Complete | 2026-06-01 |
 | 12. Canonical Card | v3.4 | 3/3 | Complete   | 2026-06-01 |
-| 13. 1-Day ΔIV Email PNGs | v3.4 | 0/TBD | Not started | - |
+| 13. 1-Day ΔIV Email PNGs | v3.4 | 1/1 | Complete   | 2026-06-02 |
 | 14. Accumulation Gating | v3.4 | 0/TBD | Not started | - |
 
 ---
