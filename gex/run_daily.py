@@ -23,7 +23,7 @@ from gex import report as rpt
 from gex import emailer
 from gex import observation
 from gex.png_export import export_png
-from gex.analytics import plot_iv_change_surface
+from gex.analytics import plot_iv_change_heatmap
 from gex.surface_evolution import load_evolution
 from gex.vol_metrics import evolution_5d_summary
 
@@ -73,10 +73,12 @@ def _build_png_attachments(
                     continue
                 prior_spot = prior_spot if prior_spot is not None else today_spot
                 label_prior = prior_date.strftime("%b %d")
-                fig = plot_iv_change_surface(
+                label_today = today.strftime("%b %d")
+                fig = plot_iv_change_heatmap(
                     today_surface_df, prior_surface_df,
                     ticker, today_spot, prior_spot,
                     label_prior=label_prior,
+                    label_today=label_today,
                 )
                 path = export_png(fig, ticker, "div_surface", today, out_dir)
                 if path is not None:

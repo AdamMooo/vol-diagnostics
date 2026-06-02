@@ -326,6 +326,7 @@ def plot_iv_change_surface(
     spot_today: float,
     spot_prior: float,
     label_prior: str,
+    label_today: str = "today",
 ) -> go.Figure:
     """
     ∆IV surface: IV_today − IV_prior on a common fixed ln(K/S) / DTE grid.
@@ -405,7 +406,7 @@ def plot_iv_change_surface(
     fig.update_layout(
         template="plotly_dark",
         title=dict(
-            text=f"∆IV Surface — {ticker}  (today − {label_prior})",
+            text=f"∆IV Surface — {ticker}  ({label_today} − {label_prior})",
             font_size=13,
         ),
         scene=dict(
@@ -433,6 +434,99 @@ def plot_iv_change_surface(
         ),
         height=540,
         margin=dict(t=50, b=10, l=10, r=10),
+    )
+    return fig
+
+
+def plot_iv_change_heatmap(
+    df_today: pd.DataFrame,
+    df_prior: pd.DataFrame,
+    ticker: str,
+    spot_today: float,
+    spot_prior: float,
+    label_prior: str,
+    label_today: str = "today",
+) -> go.Figure:
+    """2D heatmap version of the ΔIV surface — for email PNG export.
+
+    Same computation as plot_iv_change_surface; renders as go.Heatmap so
+    kaleido produces a clean flat image. The 3D interactive surface stays
+    in Streamlit.
+    """
+    _DTE_FLOOR = 5
+
+    def _empty(reason: str) -> go.Figure:
+        fig = go.Figure()
+        fig.update_layout(
+            title=f"∆IV Heatmap — {ticker}: {reason}",
+            height=400,
+            margin=dict(t=50, b=60, l=80, r=20),
+        )
+        return fig
+
+    if df_today.empty or df_prior.empty:
+        return _empty("missing data for one or both dates")
+
+    clip = config.SURFACE_PLOT_OTM_CLIP
+
+    dte_min = max(float(df_today["dte"].min()), float(df_prior["dte"].min()), float(_DTE_FLOOR))
+    dte_max = min(
+        min(float(df_today["dte"].max()), float(df_prior["dte"].max())),
+        float(config.SURFACE_DTE_MAX),
+    )
+    if dte_min >= dte_max:
+        return _empty("DTE ranges do not overlap")
+
+    dte_grid = np.linspace(dte_min, dte_max, config.SURFACE_GRID_DTE)
+    otm_grid = np.linspace(-clip, clip, config.SURFACE_GRID_LM)
+
+    IV_today = rbf_grid(df_today, spot_today, dte_grid, otm_grid,
+                        dte_floor=_DTE_FLOOR, clip=clip)
+    IV_prior = rbf_grid(df_prior, spot_prior, dte_grid, otm_grid,
+                        dte_floor=_DTE_FLOOR, clip=clip)
+    IV_diff = IV_today - IV_prior
+
+    abs_max = float(np.nanpercentile(np.abs(IV_diff), 97)) if not np.all(np.isnan(IV_diff)) else 1.0
+    if abs_max < 0.5:
+        abs_max = 0.5
+
+    otm_ticks = [np.log(k) for k in config.PLOT_KS_ANCHORS if -clip <= np.log(k) <= clip]
+    otm_tick_labels = [f"{k:.2f}" for k in config.PLOT_KS_ANCHORS if -clip <= np.log(k) <= clip]
+    dte_ticks = [d for d in config.PLOT_DTE_ANCHORS if dte_min <= d <= dte_max]
+
+    fig = go.Figure()
+    fig.add_trace(go.Heatmap(
+        x=dte_grid,
+        y=otm_grid,
+        z=IV_diff,
+        zmin=-abs_max,
+        zmax=abs_max,
+        colorscale="RdBu_r",
+        colorbar=dict(
+            title=dict(text="∆IV (pp)", side="right"),
+            thickness=14,
+            ticksuffix="pp",
+        ),
+        hovertemplate="DTE: %{x:.0f}<br>K/S: %{customdata:.3f}<br>∆IV: %{z:+.1f}pp<extra></extra>",
+    ))
+
+    fig.update_layout(
+        template="plotly_white",
+        title=dict(
+            text=f"∆IV Heatmap — {ticker}  ({label_today} − {label_prior})  red=vol up  blue=vol down",
+            font_size=12,
+        ),
+        height=380,
+        margin=dict(t=50, b=60, l=80, r=20),
+        xaxis=dict(
+            title="DTE",
+            tickmode="array", tickvals=dte_ticks,
+            ticktext=[str(d) for d in dte_ticks],
+        ),
+        yaxis=dict(
+            title="K/S",
+            tickmode="array", tickvals=otm_ticks, ticktext=otm_tick_labels,
+        ),
     )
     return fig
 

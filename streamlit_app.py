@@ -319,7 +319,7 @@ if sel_index:
                 if sel_a == "live":
                     surface_df_a = surface_df_today
                     spot_a = spot_today
-                    label_a = "live"
+                    label_a = anchor.strftime("%b %d") + " (live)"
                 else:
                     n_a = _horizon_options[sel_a]
                     date_a = nth_trading_day_back(ticker, anchor, n_a)
@@ -353,6 +353,7 @@ if sel_index:
                             surface_df_a, surface_df_b,
                             ticker, spot_a, spot_b,
                             label_prior=label_b,
+                            label_today=label_a,
                         ),
                         width='stretch',
                     )
