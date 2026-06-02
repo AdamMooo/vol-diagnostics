@@ -37,7 +37,7 @@ class ChainSnapshot:
 
 def _parse_symbol(sym: str, ticker: str) -> tuple[datetime.date, str, float] | None:
     """Parse OPRA symbol e.g. 'SPY260506C00640000' → (expiry, 'call'/'put', strike)."""
-    rest = sym[len(ticker):]
+    rest = sym[len(ticker.replace(".", "")):]
     if len(rest) < 15:
         return None
     try:

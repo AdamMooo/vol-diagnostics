@@ -35,7 +35,7 @@ YIELD_TICKERS: dict[str, str] = {
     "AAPL":  "Apple (AAPL) Yield Shares Purpose ETF",
     "AMZN":  "Amazon (AMZN) Yield Shares Purpose ETF",
     "TSLA":  "Tesla (TSLA) Yield Shares Purpose ETF",
-    "BRK":   "Berkshire Hathaway (BRK) Yield Shares Purpose ETF",
+    "BRK.B": "Berkshire Hathaway (BRK.B) Yield Shares Purpose ETF",
     "GOOGL": "Alphabet (GOOGL) Yield Shares Purpose ETF",
     "MSFT":  "Microsoft (MSFT) Yield Shares Purpose ETF",
     "NVDA":  "NVIDIA (NVDA) Yield Shares Purpose ETF",
