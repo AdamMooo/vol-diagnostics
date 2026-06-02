@@ -218,7 +218,7 @@ def run(dry_run: bool = False) -> None:
         print("[yield-daily] All tickers failed — skipping email.")
         return
 
-    subject = f"Purpose Yield Vol — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
+    subject = f"Purpose Yield - Underlying Volatility — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
     html = build_email(all_data, today)
 
     if dry_run:

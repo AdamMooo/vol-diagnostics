@@ -151,7 +151,7 @@ def run(dry_run: bool = False) -> None:
         print("[run_daily] All tickers failed — skipping email.")
         return
 
-    subject = f"GEX Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
+    subject = f"Index Volatility Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
     html = rpt.build_email(
         index_results=index_results,
         date=today,
