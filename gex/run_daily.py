@@ -152,7 +152,6 @@ def run(dry_run: bool = False) -> None:
     subject = f"GEX Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
     html = rpt.build_email(
         index_results=index_results,
-        purpose_results=[],
         date=today,
         evolution_data=evolution_data,
         png_note=png_note,

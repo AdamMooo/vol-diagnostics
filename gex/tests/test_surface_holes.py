@@ -48,9 +48,9 @@ def test_wing_extrapolation_creates_nan_holes():
     z = _z(fig)
     assert np.isnan(z).any()
 
-    otm_grid = np.linspace(-config.SURFACE_PLOT_OTM_CLIP * 100.0,
-                           config.SURFACE_PLOT_OTM_CLIP * 100.0, config.SURFACE_GRID_LM)
-    wing_idx = int(np.argmin(np.abs(otm_grid - 14.0)))   # beyond +/-8% quotes
+    otm_grid = np.linspace(-config.SURFACE_PLOT_OTM_CLIP,
+                           config.SURFACE_PLOT_OTM_CLIP, config.SURFACE_GRID_LM)
+    wing_idx = int(np.argmin(np.abs(otm_grid - np.log(1.14))))   # beyond +/-8% quotes
     atm_idx = int(np.argmin(np.abs(otm_grid - 0.0)))
     assert np.isnan(z[wing_idx, :]).mean() > 0.5         # deep wing mostly NaN
     assert (~np.isnan(z[atm_idx, :])).any()              # ATM column retains real values

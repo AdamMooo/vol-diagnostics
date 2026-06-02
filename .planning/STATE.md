@@ -95,8 +95,6 @@ Resume file: .planning/phases/14-accumulation-gating/14-CONTEXT.md
 
 ---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->

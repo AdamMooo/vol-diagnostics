@@ -182,18 +182,18 @@ def surface_diagnostics(surface_df, spot) -> dict:
             or not {"strike", "dte", "iv_pct"}.issubset(surface_df.columns)):
         return nan_result
 
-    clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
+    clip = config.SURFACE_PLOT_OTM_CLIP
     dte_floor = 5
-    pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
+    log_m = np.log(surface_df["strike"].to_numpy() / spot)
     dte_v = surface_df["dte"].to_numpy()
     iv_v = surface_df["iv_pct"].to_numpy()
-    in_band = (np.abs(pct_otm) <= clip_pct) & (dte_v >= dte_floor)
-    pct_otm, dte_v, iv_v = pct_otm[in_band], dte_v[in_band], iv_v[in_band]
+    in_band = (np.abs(log_m) <= clip) & (dte_v >= dte_floor)
+    log_m, dte_v, iv_v = log_m[in_band], dte_v[in_band], iv_v[in_band]
     if len(iv_v) < 6 or len(np.unique(dte_v)) < 2:
         return nan_result
 
     # Fit residuals: RBF evaluated AT the real quote locations vs their actual IV.
-    pts = np.column_stack([dte_v, pct_otm])
+    pts = np.column_stack([dte_v, log_m])
     pts_std = pts.std(axis=0)
     pts_std[pts_std < 1e-6] = 1.0
     rbf = RBFInterpolator(pts / pts_std, iv_v, kernel="thin_plate_spline",
@@ -210,29 +210,29 @@ def surface_diagnostics(surface_df, spot) -> dict:
         train = ~hold
         if train.sum() < 4 or len(np.unique(dte_v[train])) < 2:
             continue
-        tp = np.column_stack([dte_v[train], pct_otm[train]])
+        tp = np.column_stack([dte_v[train], log_m[train]])
         ts = tp.std(axis=0)
         ts[ts < 1e-6] = 1.0
         rbf_cv = RBFInterpolator(tp / ts, iv_v[train], kernel="thin_plate_spline",
                                  smoothing=config.SURFACE_SMOOTHING)
-        hp = np.column_stack([dte_v[hold], pct_otm[hold]])
+        hp = np.column_stack([dte_v[hold], log_m[hold]])
         cv_sq.extend(((rbf_cv(hp / ts) - iv_v[hold]) ** 2).tolist())
     cv_rmse = float(np.sqrt(np.mean(cv_sq))) if cv_sq else float("nan")
 
     # Coverage % on the standard grid (reuses the Plan-01 gate artifact).
     dte_max = min(float(dte_v.max()), float(config.SURFACE_DTE_MAX))
     dte_grid = np.linspace(dte_floor, max(dte_max, dte_floor + 1.0), config.SURFACE_GRID_DTE)
-    otm_grid = np.linspace(-clip_pct, clip_pct, config.SURFACE_GRID_LM)
+    otm_grid = np.linspace(-clip, clip, config.SURFACE_GRID_LM)
     coverage_pct = 100.0 * float(coverage_mask(
-        surface_df, spot, dte_grid, otm_grid, dte_floor=dte_floor, clip_pct=clip_pct).mean())
+        surface_df, spot, dte_grid, otm_grid, dte_floor=dte_floor, clip=clip).mean())
 
     # --- coherence (fit-QA only; flag + count + log, NEVER repair the surface) ---
     violations = 0
 
-    # Calendar: per ~5% moneyness bucket, total variance IV^2*T must not fall as DTE rises.
+    # Calendar: per ~0.05 ln(K/S) bucket, total variance IV^2*T must not fall as DTE rises.
     cal_ok = True
-    band = pd.DataFrame({"dte": dte_v, "p": pct_otm, "iv": iv_v})
-    band["bucket"] = (band["p"] / 5.0).round() * 5.0
+    band = pd.DataFrame({"dte": dte_v, "p": log_m, "iv": iv_v})
+    band["bucket"] = (band["p"] / 0.05).round() * 0.05
     for bucket, grp in band.groupby("bucket"):
         agg = grp.groupby("dte")["iv"].mean().sort_index()
         if len(agg) < 2:
@@ -242,7 +242,7 @@ def surface_diagnostics(surface_df, spot) -> dict:
         for i in np.where(np.diff(w) < -1e-6)[0]:
             cal_ok = False
             violations += 1
-            print(f"[coherence] calendar variance drop at {bucket:+.0f}%OTM "
+            print(f"[coherence] calendar variance drop at ln(K/S)={bucket:+.2f} "
                   f"DTE {d[i]:.0f}->{d[i + 1]:.0f}")
 
     # Butterfly: within each expiry, 2nd difference of IV across sorted strikes >= -tol
@@ -253,13 +253,13 @@ def surface_diagnostics(surface_df, spot) -> dict:
         m = dte_v == e
         if m.sum() < 3:
             continue
-        order = np.argsort(pct_otm[m])
+        order = np.argsort(log_m[m])
         ivs = iv_v[m][order]
-        ps = pct_otm[m][order]
+        ps = log_m[m][order]
         for i in np.where(np.diff(ivs, n=2) < -tol)[0]:
             bf_ok = False
             violations += 1
-            print(f"[coherence] butterfly concavity at DTE={e:.0f} %OTM~{ps[i + 1]:+.1f}")
+            print(f"[coherence] butterfly concavity at DTE={e:.0f} ln(K/S)~{ps[i + 1]:+.3f}")
 
     print(f"[coherence] calendar={'PASS' if cal_ok else 'FAIL'} "
           f"butterfly={'PASS' if bf_ok else 'FAIL'} violations={violations}")

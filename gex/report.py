@@ -245,12 +245,10 @@ def evolution_section_html(evolution_data: dict) -> str | None:
 
 def build_email(
     index_results: list[dict],
-    purpose_results: list[dict] | None = None,
     date: datetime.date | None = None,
     evolution_data: dict | None = None,
     png_note: str | None = None,
 ) -> str:
-    """purpose_results retained for signature compat; ignored (3-ticker focus)."""
     date = date or datetime.date.today()
 
     cards = "\n".join(_ticker_card(r) for r in index_results)

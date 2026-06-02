@@ -9,7 +9,7 @@ import pandas as pd
 from gex import config
 from gex.analytics import coverage_mask
 
-CLIP = config.SURFACE_PLOT_OTM_CLIP * 100.0
+CLIP = config.SURFACE_PLOT_OTM_CLIP
 
 
 def _chain(dtes, pct_otms, spot=500.0):
@@ -61,7 +61,7 @@ def test_extrapolation_outside_hull_is_holed():
     atm = int(np.argmin(np.abs(otm_grid - 0.0)))
     assert mask[atm, int(np.argmin(np.abs(dte_grid - 40.0)))]          # interior -> supported
     assert not mask[atm, int(np.argmin(np.abs(dte_grid - 85.0)))]     # beyond max expiry -> holed
-    assert not mask[int(np.argmin(np.abs(otm_grid - 14.0))),
+    assert not mask[int(np.argmin(np.abs(otm_grid - np.log(1.14)))),
                     int(np.argmin(np.abs(dte_grid - 40.0)))]          # deep wing -> holed
     assert not mask.all()
 

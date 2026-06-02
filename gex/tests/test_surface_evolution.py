@@ -57,7 +57,7 @@ def _build_grid(surface_df: pd.DataFrame, spot: float = 500.0):
     """Return (IV_grid, mask, dte_grid, otm_grid) for the given surface."""
     from gex.analytics import rbf_grid, coverage_mask
 
-    clip = config.SURFACE_PLOT_OTM_CLIP * 100.0
+    clip = config.SURFACE_PLOT_OTM_CLIP
     dte_max = min(float(surface_df["dte"].max()), float(config.SURFACE_DTE_MAX))
     dte_grid = np.linspace(5.0, dte_max, config.SURFACE_GRID_DTE)
     otm_grid = np.linspace(-clip, clip, config.SURFACE_GRID_LM)
@@ -161,7 +161,7 @@ def test_scalars_rms_ignores_nan():
 
     result = compute_evolution_scalars(
         IV_diff_masked,
-        np.linspace(-15.0, 15.0, config.SURFACE_GRID_LM),
+        np.linspace(-0.15, 0.15, config.SURFACE_GRID_LM),
         np.linspace(5.0, 120.0, config.SURFACE_GRID_DTE),
     )
 
@@ -199,14 +199,14 @@ def test_skew_change_wing_split():
 
     # Config constant assertions BEFORE the scalar call so a config change
     # produces a named assertion error before the scalar logic runs.
-    assert config.SURFACE_EVOLUTION_PUT_WING_CLIP == -5.0, (
-        f"expected PUT_WING_CLIP=-5.0, got {config.SURFACE_EVOLUTION_PUT_WING_CLIP}"
+    assert config.SURFACE_EVOLUTION_PUT_WING_CLIP == -0.05, (
+        f"expected PUT_WING_CLIP=-0.05, got {config.SURFACE_EVOLUTION_PUT_WING_CLIP}"
     )
-    assert config.SURFACE_EVOLUTION_CALL_WING_CLIP == 5.0, (
-        f"expected CALL_WING_CLIP=5.0, got {config.SURFACE_EVOLUTION_CALL_WING_CLIP}"
+    assert config.SURFACE_EVOLUTION_CALL_WING_CLIP == 0.05, (
+        f"expected CALL_WING_CLIP=0.05, got {config.SURFACE_EVOLUTION_CALL_WING_CLIP}"
     )
 
-    otm_grid = np.linspace(-15.0, 15.0, config.SURFACE_GRID_LM)
+    otm_grid = np.linspace(-0.15, 0.15, config.SURFACE_GRID_LM)
     dte_grid = np.linspace(5.0, 120.0, config.SURFACE_GRID_DTE)
 
     # Build IV_diff_masked: put-wing = +4.0, call-wing = +1.0, rest = 0.0
@@ -236,11 +236,11 @@ def test_term_change_front_back():
     assert config.SURFACE_EVOLUTION_DTE_BACK_MIN == 90, (
         f"expected DTE_BACK_MIN=90, got {config.SURFACE_EVOLUTION_DTE_BACK_MIN}"
     )
-    assert config.SURFACE_EVOLUTION_ATM_CLIP == 2.0, (
-        f"expected ATM_CLIP=2.0, got {config.SURFACE_EVOLUTION_ATM_CLIP}"
+    assert config.SURFACE_EVOLUTION_ATM_CLIP == 0.02, (
+        f"expected ATM_CLIP=0.02, got {config.SURFACE_EVOLUTION_ATM_CLIP}"
     )
 
-    otm_grid = np.linspace(-15.0, 15.0, config.SURFACE_GRID_LM)
+    otm_grid = np.linspace(-0.15, 0.15, config.SURFACE_GRID_LM)
     dte_grid = np.linspace(5.0, 180.0, config.SURFACE_GRID_DTE)
 
     shape = (config.SURFACE_GRID_LM, config.SURFACE_GRID_DTE)
@@ -354,7 +354,7 @@ def test_mask_intersection_excludes_extrapolated_cells():
     from gex.analytics import coverage_mask, rbf_grid
 
     spot = 500.0
-    clip = config.SURFACE_PLOT_OTM_CLIP * 100.0
+    clip = config.SURFACE_PLOT_OTM_CLIP
 
     # Surface A: full expiry range (5–120 DTE), full OTM band
     def _chain(dtes, pct_otms):

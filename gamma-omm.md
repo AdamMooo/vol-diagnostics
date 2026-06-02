@@ -48,21 +48,21 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-02 00:39 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-02 16:56 UTC
 
-**Milestone:** v3.4 · **Status:** executing · **STATE last_updated:** 2026-06-02T00:38:59.982Z
+**Milestone:** v3.4 · **Status:** planning · **STATE last_updated:** 2026-06-02T01:37:07.784Z
 
 ### Current Position
-- **Phase:** 13 (1-Day ΔIV Email PNGs) — PLANNED ✓ (1 plan, verification passed)
-- **Plan:** 0 of 1 executed
-- **Status:** Ready to execute
-- **Last activity:** 2026-06-02 -- Phase 13 planning complete
+- **Phase:** 14
+- **Plan:** Not started
+- **Status:** Ready to plan
+- **Last activity:** 2026-06-02
 
 ### Pending Todos
 - None.
 
 ### Roadmap (current milestone)
-- ⬜ **Phase 13: 1-Day ΔIV Email PNGs** — Replace static surface + 5d ΔIV PNGs with one 1d ΔIV surface PNG per ticker
+- ✅ **Phase 13: 1-Day ΔIV Email PNGs** — Replace static surface + 5d ΔIV PNGs with one 1d ΔIV surface PNG per ticker (completed 2026-06-02)
 - ⬜ **Phase 14: Accumulation Gating** — Gate history-dependent UI elements behind session-count guards; cold-start safe email
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
@@ -70,7 +70,7 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 
 ### Operator notes (handwritten — survives hub-sync)
 
-Last hand-updated: 2026-06-01 | **Review fix pass — 11 findings resolved across 10 files**
+Last hand-updated: 2026-06-01 | **Tab merge — "Calculus+VRP" + "Evolution" → single "Evolution" tab; killed cross-ticker RR bar. Commit `9a60254`. Phase 14 (email ΔIV surfaces) ready to plan next session.**
 
 **Review fixes (2026-06-01, commit `543cfe2`):** Applied all findings from two code reviews (phase-11 standard + deep review). 126/126 tests green after all changes.
 

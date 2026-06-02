@@ -70,8 +70,8 @@ SURFACE_GRID_LM: int = 30
 """Number of grid points along the moneyness axis (% OTM) for surface interpolation."""
 
 SURFACE_PLOT_OTM_CLIP: float = 0.15
-"""Max |% OTM| shown on the surface. Data collection uses SURFACE_MONEYNESS_BAND (±22%)
-but deep-wing quotes are too noisy to plot — clip to ±15% for a clean surface."""
+"""Max |ln(K/S)| shown on the surface. ±0.15 ≈ ±16% OTM. Data collection uses
+SURFACE_MONEYNESS_BAND (±22%) but deep-wing quotes are too noisy to plot."""
 
 SURFACE_Z_CAP_PERCENTILE: float = 99.5
 """Clip the z-axis (IV %) at this percentile of the interpolated surface.
@@ -95,15 +95,15 @@ See gex/surface_sweep.py (run `python -m gex.surface_sweep`)."""
 
 # ── Surface evolution scalar region definitions ──────────────────────────────────
 
-SURFACE_EVOLUTION_PUT_WING_CLIP: float = -5.0
-"""Put-wing region threshold (% OTM) for the skew_change scalar.
-Cells with %OTM below this value are classified as the put wing; symmetric with
-the call wing at +5% so both wings have equal width relative to ATM."""
+SURFACE_EVOLUTION_PUT_WING_CLIP: float = -0.05
+"""Put-wing region threshold (ln(K/S)) for the skew_change scalar.
+Cells with ln(K/S) below this value are classified as the put wing; symmetric with
+the call wing at +0.05 so both wings have equal width relative to ATM (≈ ±5% OTM)."""
 
-SURFACE_EVOLUTION_CALL_WING_CLIP: float = 5.0
-"""Call-wing region threshold (% OTM) for the skew_change scalar.
-Cells with %OTM above this value are classified as the call wing; symmetric with
-the put wing at -5% so put-call skew is measured on equal-width bands."""
+SURFACE_EVOLUTION_CALL_WING_CLIP: float = 0.05
+"""Call-wing region threshold (ln(K/S)) for the skew_change scalar.
+Cells with ln(K/S) above this value are classified as the call wing; symmetric with
+the put wing at -0.05 so put-call skew is measured on equal-width bands."""
 
 SURFACE_EVOLUTION_DTE_FRONT_MAX: int = 30
 """DTE ceiling for the front-month region used in the term_change scalar.
@@ -116,11 +116,11 @@ Back region = [this value, SURFACE_DTE_MAX=180]. Long-dated contracts carry
 the structural vol level; three months of gap between front and back avoids
 mixing the volatile monthly roll zone (30-90 DTE)."""
 
-SURFACE_EVOLUTION_ATM_CLIP: float = 2.0
-"""ATM band half-width (% OTM) for the term_change scalar.
-ATM region = [−this value, +this value]. At ±2% the band is narrow enough to
+SURFACE_EVOLUTION_ATM_CLIP: float = 0.02
+"""ATM band half-width (ln(K/S)) for the term_change scalar.
+ATM region = [−this value, +this value]. At ±0.02 the band is narrow enough to
 isolate at-the-money while still capturing several cells of the 30-point
-moneyness grid (grid spans ±15% → cell width ≈ 1%), keeping the scalar
+moneyness grid (grid spans ±0.15 → cell width ≈ 0.01), keeping the scalar
 meaningful even when coverage is thin."""
 
 # ── IV skew (Xing, Zhang & Zhao 2010, JFQA) ────────────────────────────────────

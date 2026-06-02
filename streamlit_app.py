@@ -25,8 +25,6 @@ from gex.vol_metrics import vrp_headline
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 
-_B = 1e9
-
 st.set_page_config(
     page_title="Vol Diagnostics",
     page_icon="assets/gamma-icon-lg.png",
@@ -258,7 +256,7 @@ if sel_index:
                     st.markdown(f"**{ticker}**  ·  {cov}  ·  {rms}  ·  {mx}")
                     st.plotly_chart(
                         plot_vol_surface(surface_df, ticker, spot=spot),
-                        use_container_width=True,
+                        width='stretch',
                     )
                 else:
                     st.caption(f"{ticker}: insufficient data for surface.")
@@ -356,7 +354,7 @@ if sel_index:
                             ticker, spot_a, spot_b,
                             label_prior=label_b,
                         ),
-                        use_container_width=True,
+                        width='stretch',
                     )
                     st.caption(
                         f"DTE range is bounded by the intersection of {label_a}'s and "
@@ -428,7 +426,7 @@ if sel_index:
                         yaxis_title="VRP (pp)",
                         showlegend=False,
                     )
-                    st.plotly_chart(vrp_fig, use_container_width=True)
+                    st.plotly_chart(vrp_fig, width='stretch')
 
             # Scalar strip
             front_skew_val = s.get("front_skew")
@@ -512,7 +510,7 @@ if sel_index:
                         yaxis_title=f"{metric} (pp)",
                         legend=dict(orientation="h", y=1.15),
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
 
             # Per-ticker cold-start captions for tickers with no data
             for ticker in INDEX_TICKERS:
@@ -541,7 +539,7 @@ if sel_index:
             with c1:
                 st.plotly_chart(
                     plot_oi_by_strike(data["s_df"], spot, ticker, s),
-                    use_container_width=True,
+                    width='stretch',
                 )
                 st.caption(
                     "Call OI = blue, Put OI = red. "
@@ -604,7 +602,7 @@ if sel_index:
                         margin=dict(t=40, b=30, l=60, r=20),
                         legend=dict(orientation="h", y=1.15),
                     )
-                    st.plotly_chart(levels_fig, use_container_width=True)
+                    st.plotly_chart(levels_fig, width='stretch')
                 else:
                     st.caption(
                         f"{ticker}: no history yet — "
@@ -614,7 +612,7 @@ if sel_index:
             with st.expander("γ-flip & walls — model derivation", expanded=False):
                 st.plotly_chart(
                     plot_gamma_profile(data["p_df"], spot, ticker, s),
-                    use_container_width=True,
+                    width='stretch',
                 )
                 st.markdown(
                     "**Gamma profile.** Net GEX swept across ±15% spot range in 200 steps "

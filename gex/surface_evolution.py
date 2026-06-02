@@ -70,8 +70,8 @@ def _construct_grid_axes(surface_df: pd.DataFrame) -> tuple[np.ndarray, np.ndarr
     dte_max = min(float(surface_df["dte"].max()), float(config.SURFACE_DTE_MAX))
     dte_grid = np.linspace(5.0, dte_max, config.SURFACE_GRID_DTE)
     otm_grid = np.linspace(
-        -config.SURFACE_PLOT_OTM_CLIP * 100.0,
-        config.SURFACE_PLOT_OTM_CLIP * 100.0,
+        -config.SURFACE_PLOT_OTM_CLIP,
+        config.SURFACE_PLOT_OTM_CLIP,
         config.SURFACE_GRID_LM,
     )
     return dte_grid, otm_grid

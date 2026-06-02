@@ -28,21 +28,21 @@ _DTE_FLOOR = 5
 
 
 def _in_band(surface_df, spot):
-    clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
-    pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
+    clip = config.SURFACE_PLOT_OTM_CLIP
+    log_m = np.log(surface_df["strike"].to_numpy() / spot)
     dte_v = surface_df["dte"].to_numpy()
     iv_v = surface_df["iv_pct"].to_numpy()
-    m = (np.abs(pct_otm) <= clip_pct) & (dte_v >= _DTE_FLOOR)
-    return dte_v[m], pct_otm[m], iv_v[m]
+    m = (np.abs(log_m) <= clip) & (dte_v >= _DTE_FLOOR)
+    return dte_v[m], log_m[m], iv_v[m]
 
 
 def _residuals(surface_df, spot, smoothing):
     """fit_rmse, max_resid, cv_rmse (pp) at a given smoothing; None if too sparse."""
     from scipy.interpolate import RBFInterpolator
-    dte_v, pct_otm, iv_v = _in_band(surface_df, spot)
+    dte_v, log_m, iv_v = _in_band(surface_df, spot)
     if len(iv_v) < 6 or len(np.unique(dte_v)) < 2:
         return None
-    pts = np.column_stack([dte_v, pct_otm])
+    pts = np.column_stack([dte_v, log_m])
     std = pts.std(axis=0)
     std[std < 1e-6] = 1.0
     rbf = RBFInterpolator(pts / std, iv_v, kernel="thin_plate_spline", smoothing=smoothing)
@@ -55,23 +55,23 @@ def _residuals(surface_df, spot, smoothing):
         train = ~hold
         if train.sum() < 4 or len(np.unique(dte_v[train])) < 2:
             continue
-        tp = np.column_stack([dte_v[train], pct_otm[train]])
+        tp = np.column_stack([dte_v[train], log_m[train]])
         ts = tp.std(axis=0)
         ts[ts < 1e-6] = 1.0
         rbf_cv = RBFInterpolator(tp / ts, iv_v[train], kernel="thin_plate_spline", smoothing=smoothing)
-        hp = np.column_stack([dte_v[hold], pct_otm[hold]])
+        hp = np.column_stack([dte_v[hold], log_m[hold]])
         cv_sq.extend(((rbf_cv(hp / ts) - iv_v[hold]) ** 2).tolist())
     cv_rmse = float(np.sqrt(np.mean(cv_sq))) if cv_sq else float("nan")
     return {"fit_rmse": fit_rmse, "max_resid": max_resid, "cv_rmse": cv_rmse}
 
 
 def _standard_grid(surface_df, spot):
-    clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
+    clip = config.SURFACE_PLOT_OTM_CLIP
     dte_v, _, _ = _in_band(surface_df, spot)
     dte_max = (min(float(dte_v.max()), float(config.SURFACE_DTE_MAX))
                if len(dte_v) else _DTE_FLOOR + 1.0)
     dte_grid = np.linspace(_DTE_FLOOR, max(dte_max, _DTE_FLOOR + 1.0), config.SURFACE_GRID_DTE)
-    otm_grid = np.linspace(-clip_pct, clip_pct, config.SURFACE_GRID_LM)
+    otm_grid = np.linspace(-clip, clip, config.SURFACE_GRID_LM)
     return dte_grid, otm_grid
 
 

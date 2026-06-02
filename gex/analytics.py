@@ -59,59 +59,6 @@ def _find_zero_crossing(profile_df: pd.DataFrame) -> float | None:
     return None
 
 
-def _sign_color(net_gex: float | None) -> str:
-    if net_gex is None or net_gex == 0:
-        return "#64748b"
-    return "#16a34a" if net_gex > 0 else "#dc2626"
-
-
-def plot_strike_gex(gex_df: pd.DataFrame, spot: float, ticker: str,
-                    summary: dict) -> go.Figure:
-    """Interactive bar chart of GEX by strike."""
-    colors = ["#3b82f6" if v >= 0 else "#ef4444" for v in gex_df["gex"]]
-    width = _bar_width(gex_df)
-    net_b = summary.get("net_gex", 0) / 1e9
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=gex_df["strike"],
-        y=gex_df["gex"] / 1e9,
-        marker_color=colors,
-        marker_line_width=0,
-        width=width,
-        hovertemplate="Strike: %{x:.0f}<br>GEX: %{y:.3f}B<extra></extra>",
-    ))
-
-    fig.add_vline(x=spot, line_dash="dash", line_color="white", line_width=1.5,
-                  annotation_text=f"Spot {spot:.0f}", annotation_position="top right",
-                  annotation_font_size=11)
-    if summary.get("call_wall"):
-        fig.add_vline(x=summary["call_wall"], line_dash="dot", line_color="#3b82f6",
-                      line_width=1, annotation_text=f"CW {summary['call_wall']:.0f}",
-                      annotation_font_size=10)
-    if summary.get("put_wall"):
-        fig.add_vline(x=summary["put_wall"], line_dash="dot", line_color="#ef4444",
-                      line_width=1, annotation_text=f"PW {summary['put_wall']:.0f}",
-                      annotation_font_size=10)
-    if summary.get("zero_gamma_level"):
-        fig.add_vline(x=summary["zero_gamma_level"], line_color="#f59e0b", line_width=1.5,
-                      annotation_text=f"ZGL {summary['zero_gamma_level']:.0f}",
-                      annotation_font_size=10)
-
-    fig.update_layout(
-        template="plotly_dark",
-        title=dict(text=f"{ticker}  ·  GEX by Strike  ·  Net {net_b:+.2f}B",
-                   font_size=13),
-        xaxis_title="Strike",
-        yaxis_title="GEX ($B)",
-        yaxis_ticksuffix="B",
-        showlegend=False,
-        height=380,
-        margin=dict(t=50, b=45, l=65, r=20),
-        bargap=0.05,
-    )
-    return fig
-
 
 def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
                        summary: dict) -> go.Figure:
@@ -159,25 +106,25 @@ def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
 
 
 def rbf_grid(surface_df, spot, dte_grid, otm_grid, *,
-             dte_floor=5, clip_pct=None):
-    """Interpolate the OTM IV scatter onto a (DTE, %OTM) grid via TPS RBF.
+             dte_floor=5, clip=None):
+    """Interpolate the vol surface onto a (DTE, ln(K/S)) grid via TPS RBF.
 
     Single source of truth for the surface interpolation — consumed by plot_vol_surface,
     plot_iv_change_surface, the fit diagnostics, and (Phase 9) the evolution engine.
-    Axes are std-normalized before RBF so DTE (~5-180) doesn't dominate %OTM (~±15).
+    Axes are std-normalized before RBF so DTE (~5-180) doesn't dominate ln(K/S) (~±0.15).
     Returns IV array shaped (len(otm_grid), len(dte_grid)); NaN-filled when <6 in-band points.
     """
     from scipy.interpolate import RBFInterpolator
-    if clip_pct is None:
-        clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
-    pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
+    if clip is None:
+        clip = config.SURFACE_PLOT_OTM_CLIP
+    log_m = np.log(surface_df["strike"].to_numpy() / spot)
     dte_v = surface_df["dte"].to_numpy()
     iv_v = surface_df["iv_pct"].to_numpy()
-    in_band = (np.abs(pct_otm) <= clip_pct) & (dte_v >= dte_floor)
-    pct_otm, dte_v, iv_v = pct_otm[in_band], dte_v[in_band], iv_v[in_band]
+    in_band = (np.abs(log_m) <= clip) & (dte_v >= dte_floor)
+    log_m, dte_v, iv_v = log_m[in_band], dte_v[in_band], iv_v[in_band]
     if len(iv_v) < 6:
         return np.full((len(otm_grid), len(dte_grid)), np.nan)
-    pts = np.column_stack([dte_v, pct_otm])
+    pts = np.column_stack([dte_v, log_m])
     pts_std = pts.std(axis=0)
     pts_std[pts_std < 1e-6] = 1.0
     rbf = RBFInterpolator(pts / pts_std, iv_v, kernel="thin_plate_spline",
@@ -189,8 +136,8 @@ def rbf_grid(surface_df, spot, dte_grid, otm_grid, *,
 
 
 def coverage_mask(surface_df, spot, dte_grid, otm_grid, *,
-                  dte_floor=5, clip_pct=None):
-    """Boolean support mask over the (DTE, %OTM) grid — True where the cell is an
+                  dte_floor=5, clip=None):
+    """Boolean support mask over the (DTE, ln(K/S)) grid — True where the cell is an
     INTERPOLATION of real quotes, False where it would be EXTRAPOLATION.
 
     Support = inside the convex hull of the real quote locations. Interpolating between
@@ -205,17 +152,17 @@ def coverage_mask(surface_df, spot, dte_grid, otm_grid, *,
     coverage vs ~90% here on liquid SPY/QQQ/IWM. See 08-VERIFICATION.md.)
     """
     from scipy.spatial import Delaunay, QhullError
-    if clip_pct is None:
-        clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
-    pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
+    if clip is None:
+        clip = config.SURFACE_PLOT_OTM_CLIP
+    log_m = np.log(surface_df["strike"].to_numpy() / spot)
     dte_v = surface_df["dte"].to_numpy()
-    in_band = (np.abs(pct_otm) <= clip_pct) & (dte_v >= dte_floor)
-    pct_otm, dte_v = pct_otm[in_band], dte_v[in_band]
+    in_band = (np.abs(log_m) <= clip) & (dte_v >= dte_floor)
+    log_m, dte_v = log_m[in_band], dte_v[in_band]
     n_cells = (len(otm_grid), len(dte_grid))
     # need >=6 quotes across >=2 expiries; one expiry is collinear (no 2D hull)
     if len(dte_v) < 6 or len(np.unique(dte_v)) < 2:
         return np.zeros(n_cells, dtype=bool)
-    pts = np.column_stack([dte_v, pct_otm])
+    pts = np.column_stack([dte_v, log_m])
     pts_std = pts.std(axis=0)
     pts_std[pts_std < 1e-6] = 1.0  # per-axis scaling is affine: hull membership invariant, aids Qhull
     try:
@@ -229,14 +176,14 @@ def coverage_mask(surface_df, spot, dte_grid, otm_grid, *,
 
 def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.Figure:
     """
-    3D implied vol surface from the CBOE chain, OTM convention.
+    3D implied vol surface from the CBOE chain, log-moneyness convention.
 
-    Coordinate system: x=DTE, y=% OTM (K/S−1)×100, z=IV%.
+    Coordinate system: x=DTE, y=ln(K/S), z=IV%.
     Grid 40×30; RBF thin-plate-spline interpolation fills the full grid
     without NaN cliffs at convex-hull boundaries. Axes are fixed-range so
     the visual footprint is stable across sessions. DTE floor=5 suppresses
     near-expiry microstructure spikes. Colorscale: Plasma (dark=low IV,
-    bright/yellow=high wing vol).
+    bright/yellow=high wing vol). Y-axis ticks show K/S ratios for readability.
     """
     _DTE_FLOOR = 5
 
@@ -253,14 +200,14 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
     if surface_df.empty or len(surface_df) < 6:
         return _empty("insufficient data")
 
-    clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
+    clip = config.SURFACE_PLOT_OTM_CLIP
 
-    pct_otm = (surface_df["strike"].to_numpy() / spot - 1.0) * 100.0
+    log_m = np.log(surface_df["strike"].to_numpy() / spot)
     dte_vals = surface_df["dte"].to_numpy()
     iv_vals = surface_df["iv_pct"].to_numpy()
 
-    in_band = (np.abs(pct_otm) <= clip_pct) & (dte_vals >= _DTE_FLOOR)
-    pct_otm = pct_otm[in_band]
+    in_band = (np.abs(log_m) <= clip) & (dte_vals >= _DTE_FLOOR)
+    log_m = log_m[in_band]
     dte_vals = dte_vals[in_band]
     iv_vals = iv_vals[in_band]
 
@@ -273,16 +220,16 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
         return _empty("single expiry — surface requires ≥2 expirations")
 
     dte_grid = np.linspace(dte_min, dte_max, config.SURFACE_GRID_DTE)
-    otm_grid = np.linspace(-clip_pct, clip_pct, config.SURFACE_GRID_LM)
+    otm_grid = np.linspace(-clip, clip, config.SURFACE_GRID_LM)
 
     # Single shared interpolation (in-band clip + std-normalization live inside rbf_grid).
     IV = rbf_grid(surface_df, spot, dte_grid, otm_grid,
-                  dte_floor=_DTE_FLOOR, clip_pct=clip_pct)
+                  dte_floor=_DTE_FLOOR, clip=clip)
 
     # Coverage gate (VALID-01): NaN out cells with no nearby real quote so Plotly draws
     # honest holes instead of TPS-extrapolated fabrication — the mask is the gate artifact.
     mask = coverage_mask(surface_df, spot, dte_grid, otm_grid,
-                         dte_floor=_DTE_FLOOR, clip_pct=clip_pct)
+                         dte_floor=_DTE_FLOOR, clip=clip)
     IV = np.where(mask, IV, np.nan)
     if np.isnan(IV).all():
         return _empty("no supported cells")
@@ -293,10 +240,11 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
     iv_floor = float(np.nanmin(IV))
     iv_cap = float(np.nanpercentile(IV, config.SURFACE_Z_CAP_PERCENTILE))
 
-    otm_ticks = [(k - 1.0) * 100.0 for k in config.PLOT_KS_ANCHORS
-                 if -clip_pct <= (k - 1.0) * 100.0 <= clip_pct]
-    otm_tick_labels = [f"{(k - 1.0) * 100:+.0f}%" for k in config.PLOT_KS_ANCHORS
-                       if -clip_pct <= (k - 1.0) * 100.0 <= clip_pct]
+    # Ticks: positions in ln(K/S), labels as K/S ratios for readability
+    otm_ticks = [np.log(k) for k in config.PLOT_KS_ANCHORS
+                 if -clip <= np.log(k) <= clip]
+    otm_tick_labels = [f"{k:.2f}" for k in config.PLOT_KS_ANCHORS
+                       if -clip <= np.log(k) <= clip]
     dte_ticks = [d for d in config.PLOT_DTE_ANCHORS if dte_min <= d <= dte_max]
 
     fig = go.Figure()
@@ -322,7 +270,7 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
         ),
         hovertemplate=(
             "DTE: %{x:.0f}<br>"
-            "% OTM: %{y:.1f}%<br>"
+            "ln(K/S): %{y:.3f}<br>"
             "IV: %{z:.1f}%<extra></extra>"
         ),
         showlegend=False,
@@ -331,12 +279,12 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
     fig.update_layout(
         template="plotly_dark",
         title=dict(
-            text=f"IV Surface — {ticker}  (CBOE chain, OTM convention)",
+            text=f"IV Surface — {ticker}  (CBOE chain, log-moneyness)",
             font_size=13,
         ),
         scene=dict(
             xaxis_title="DTE",
-            yaxis_title="% OTM",
+            yaxis_title="K/S",
             zaxis_title="IV (%)",
             camera=dict(eye=dict(x=2.0, y=-1.2, z=0.8)),
             aspectmode="manual",
@@ -356,7 +304,7 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
                 tickmode="array",
                 tickvals=otm_ticks,
                 ticktext=otm_tick_labels,
-                range=[-clip_pct, clip_pct],
+                range=[-clip, clip],
             ),
             zaxis=dict(
                 showgrid=True,
@@ -380,12 +328,12 @@ def plot_iv_change_surface(
     label_prior: str,
 ) -> go.Figure:
     """
-    ∆IV surface: IV_today − IV_prior on a common fixed % OTM / DTE grid.
+    ∆IV surface: IV_today − IV_prior on a common fixed ln(K/S) / DTE grid.
 
     Both surfaces are interpolated independently with RBF on the same grid,
     then differenced. Colorscale RdBu_r centred at 0 — red = vol up,
     blue = vol down. Each day's strikes are normalised by that day's spot
-    so the % OTM axis is comparable across sessions.
+    so the ln(K/S) axis is comparable across sessions.
     """
     _DTE_FLOOR = 5
 
@@ -402,7 +350,7 @@ def plot_iv_change_surface(
     if df_today.empty or df_prior.empty:
         return _empty("missing data for one or both dates")
 
-    clip_pct = config.SURFACE_PLOT_OTM_CLIP * 100.0
+    clip = config.SURFACE_PLOT_OTM_CLIP
 
     # Shared grid bounded by the intersection of both datasets
     dte_min = max(float(df_today["dte"].min()), float(df_prior["dte"].min()), float(_DTE_FLOOR))
@@ -414,22 +362,22 @@ def plot_iv_change_surface(
         return _empty("DTE ranges do not overlap")
 
     dte_grid = np.linspace(dte_min, dte_max, config.SURFACE_GRID_DTE)
-    otm_grid = np.linspace(-clip_pct, clip_pct, config.SURFACE_GRID_LM)
+    otm_grid = np.linspace(-clip, clip, config.SURFACE_GRID_LM)
 
     IV_today = rbf_grid(df_today, spot_today, dte_grid, otm_grid,
-                        dte_floor=_DTE_FLOOR, clip_pct=clip_pct)
+                        dte_floor=_DTE_FLOOR, clip=clip)
     IV_prior = rbf_grid(df_prior, spot_prior, dte_grid, otm_grid,
-                        dte_floor=_DTE_FLOOR, clip_pct=clip_pct)
+                        dte_floor=_DTE_FLOOR, clip=clip)
     IV_diff = IV_today - IV_prior
 
     abs_max = float(np.nanpercentile(np.abs(IV_diff), 97)) if not np.all(np.isnan(IV_diff)) else 1.0
     if abs_max < 0.5:
         abs_max = 0.5  # keep scale readable when vol barely moved
 
-    otm_ticks = [(k - 1.0) * 100.0 for k in config.PLOT_KS_ANCHORS
-                 if -clip_pct <= (k - 1.0) * 100.0 <= clip_pct]
-    otm_tick_labels = [f"{(k - 1.0) * 100:+.0f}%" for k in config.PLOT_KS_ANCHORS
-                       if -clip_pct <= (k - 1.0) * 100.0 <= clip_pct]
+    otm_ticks = [np.log(k) for k in config.PLOT_KS_ANCHORS
+                 if -clip <= np.log(k) <= clip]
+    otm_tick_labels = [f"{k:.2f}" for k in config.PLOT_KS_ANCHORS
+                       if -clip <= np.log(k) <= clip]
     dte_ticks = [d for d in config.PLOT_DTE_ANCHORS if dte_min <= d <= dte_max]
 
     fig = go.Figure()
@@ -448,7 +396,7 @@ def plot_iv_change_surface(
         ),
         hovertemplate=(
             "DTE: %{x:.0f}<br>"
-            "% OTM: %{y:.1f}%<br>"
+            "ln(K/S): %{y:.3f}<br>"
             "∆IV: %{z:+.1f}pp<extra></extra>"
         ),
         showlegend=False,
@@ -462,7 +410,7 @@ def plot_iv_change_surface(
         ),
         scene=dict(
             xaxis_title="DTE",
-            yaxis_title="% OTM",
+            yaxis_title="K/S",
             zaxis_title="∆IV (pp)",
             camera=dict(eye=dict(x=2.0, y=-1.2, z=0.8)),
             aspectmode="manual",
@@ -476,7 +424,7 @@ def plot_iv_change_surface(
             yaxis=dict(
                 showgrid=True, gridcolor="rgba(255,255,255,0.06)",
                 tickmode="array", tickvals=otm_ticks, ticktext=otm_tick_labels,
-                range=[-clip_pct, clip_pct],
+                range=[-clip, clip],
             ),
             zaxis=dict(
                 showgrid=True, gridcolor="rgba(255,255,255,0.06)",

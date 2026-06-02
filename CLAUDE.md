@@ -105,4 +105,4 @@ Use GSD commands for all phase work:
 
 ---
 
-**Hub:** [[gamma-omm/gamma-omm|Gamma OMM]] · **Planning:** [[.planning/planning|.planning/]]
+**Hub:** [[gamma-omm/gamma-omm|Gamma OMM]] · **Planning:** [[_planning/gamma-omm/STATE|.planning/]]
