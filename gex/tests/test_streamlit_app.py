@@ -97,6 +97,11 @@ def test_import_no_emailer_bleed():
     import importlib
     import sys
     pytest.importorskip("streamlit")
+    # Purge any prior-test pollution so we test a clean import of streamlit_app,
+    # not the accumulated session state (test ordering can load gex.run_daily earlier).
+    for mod in list(sys.modules):
+        if mod in ("gex.emailer", "gex.run_daily", "streamlit_app"):
+            del sys.modules[mod]
     importlib.import_module("streamlit_app")
     assert "gex.emailer" not in sys.modules
     assert "gex.run_daily" not in sys.modules

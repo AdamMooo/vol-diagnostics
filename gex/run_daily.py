@@ -23,7 +23,7 @@ from gex import report as rpt
 from gex import emailer
 from gex import observation
 from gex.png_export import export_png
-from gex.analytics import plot_vol_surface, plot_iv_change_surface
+from gex.analytics import plot_iv_change_surface
 from gex.surface_evolution import load_evolution
 from gex.vol_metrics import evolution_5d_summary
 
@@ -48,6 +48,44 @@ def process_ticker(ticker: str) -> dict:
     except Exception as exc:
         print(f"  [WARN] {ticker}: {exc}")
         return {"summary": {"ticker": ticker, "error": str(exc)}}
+
+
+def _build_png_attachments(
+    all_data: list[dict],
+    today: datetime.date,
+    out_dir: pathlib.Path,
+) -> list:
+    attachments: list = []
+    try:
+        for ticker_idx, ticker in enumerate(INDEX_TICKERS):
+            try:
+                prior_date = nth_trading_day_back(ticker, today, 1)
+                if prior_date is None:
+                    continue
+                prior_surface_df, prior_spot = load_surface_snapshot(ticker, prior_date)
+                if prior_surface_df.empty:
+                    continue
+                data = all_data[ticker_idx]
+                today_surface_df = data.get("surface_df")
+                today_spot = data["summary"].get("spot")
+                if today_surface_df is None or today_spot is None:
+                    continue
+                prior_spot = prior_spot if prior_spot is not None else today_spot
+                label_prior = prior_date.strftime("%b %d")
+                fig = plot_iv_change_surface(
+                    today_surface_df, prior_surface_df,
+                    ticker, today_spot, prior_spot,
+                    label_prior=label_prior,
+                )
+                path = export_png(fig, ticker, "div_surface", today, out_dir)
+                if path is not None:
+                    attachments.append(path)
+            except Exception as exc:
+                print(f"  [WARN] PNG for {ticker} failed (non-blocking): {exc}")
+    except Exception as exc:
+        print(f"[WARN] PNG generation failed (non-blocking): {exc}")
+        return []
+    return attachments
 
 
 def run(dry_run: bool = False) -> None:
@@ -97,42 +135,10 @@ def run(dry_run: bool = False) -> None:
             }
 
     # Generate PNG attachments (non-blocking — kaleido failure sends email without PNGs)
-    attachments: list = []
     png_note: str | None = None
-    try:
-        for ticker_idx, ticker in enumerate(INDEX_TICKERS):
-            data = all_data[ticker_idx]
-            surface_df = data.get("surface_df")
-            spot = data["summary"].get("spot")
-            if surface_df is not None and spot:
-                fig = plot_vol_surface(surface_df, ticker, spot)
-                path = export_png(fig, ticker, "surface", today, OUT_DIR)
-                if path:
-                    attachments.append(path)
-
-        # SPY ΔIV surface — live vs 5-day rolling mean baseline (D-06)
-        spy_data = all_data[0]
-        spy_surface_df = spy_data.get("surface_df")
-        spy_spot = spy_data["summary"].get("spot")
-        if spy_surface_df is not None and spy_spot:
-            baseline_date = nth_trading_day_back("SPY", today, 5)
-            if baseline_date:
-                baseline_surface_df, baseline_spot = load_surface_snapshot("SPY", baseline_date)
-                if not baseline_surface_df.empty:
-                    # Fall back to today's spot if baseline spot not recorded
-                    baseline_spot = baseline_spot if baseline_spot else spy_spot
-                    fig = plot_iv_change_surface(
-                        spy_surface_df, baseline_surface_df,
-                        "SPY", spy_spot, baseline_spot,
-                        label_prior=baseline_date.strftime("%b %d"),
-                    )
-                    path = export_png(fig, "SPY", "div_surface", today, OUT_DIR)
-                    if path:
-                        attachments.append(path)
-    except Exception as exc:
-        print(f"[WARN] PNG generation failed (non-blocking): {exc}")
+    attachments = _build_png_attachments(all_data, today, OUT_DIR)
+    if not attachments and any(d.get("surface_df") is not None for d in all_data):
         png_note = "Surface charts unavailable — kaleido not installed or PNG export failed."
-        attachments = []
 
     print(f"[run_daily] {len(attachments)} PNG attachment(s) ready.")
 

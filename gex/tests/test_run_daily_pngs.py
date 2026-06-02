@@ -13,7 +13,9 @@ from unittest.mock import MagicMock, call, patch
 import pandas as pd
 import pytest
 
-from gex.run_daily import INDEX_TICKERS
+# Defined here to avoid importing gex.run_daily at module level (which would bleed
+# gex.emailer into sys.modules and break test_import_no_emailer_bleed isolation).
+INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 
 
 # ---------------------------------------------------------------------------
