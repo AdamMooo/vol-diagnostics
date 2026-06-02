@@ -21,8 +21,8 @@ Stop building accumulation-dependent features and instead show off the parts alr
 
 ### Daily Report PNG (email)
 
-- [ ] **RPT-06** — The daily email attaches exactly one PNG type: a 1-day ΔIV surface render per index (SPY, QQQ, IWM) showing the surface change versus the last trading session with a stored snapshot. This replaces — 1:1 — the 3 static surface PNGs and the old SPY-only 5-day ΔIV PNG. If no prior snapshot exists for a ticker, that ticker's PNG is omitted gracefully (email still sends).
-- [ ] **RPT-07** — The 1-day ΔIV render is framed as a descriptive "vs last session" view: it is labelled with the real prior date and resolved via `nth_trading_day_back(ticker, today, 1)` (gap-safe — "last session with a snapshot", not a calendar day). It does not feed or alter the evolution engine.
+- [x] **RPT-06** — The daily email attaches exactly one PNG type: a 1-day ΔIV surface render per index (SPY, QQQ, IWM) showing the surface change versus the last trading session with a stored snapshot. This replaces — 1:1 — the 3 static surface PNGs and the old SPY-only 5-day ΔIV PNG. If no prior snapshot exists for a ticker, that ticker's PNG is omitted gracefully (email still sends).
+- [x] **RPT-07** — The 1-day ΔIV render is framed as a descriptive "vs last session" view: it is labelled with the real prior date and resolved via `nth_trading_day_back(ticker, today, 1)` (gap-safe — "last session with a snapshot", not a calendar day). It does not feed or alter the evolution engine.
 
 ### Accumulation Gating
 
@@ -59,8 +59,8 @@ Stop building accumulation-dependent features and instead show off the parts alr
 | CARD-02 | Phase 12 | Complete |
 | CARD-03 | Phase 12 | Complete |
 | CARD-04 | Phase 12 | Complete |
-| RPT-06 | Phase 13 | Pending |
-| RPT-07 | Phase 13 | Pending |
+| RPT-06 | Phase 13 | Complete |
+| RPT-07 | Phase 13 | Complete |
 | GATE-01 | Phase 14 | Pending |
 | GATE-02 | Phase 14 | Pending |
 

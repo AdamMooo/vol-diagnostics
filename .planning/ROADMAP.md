@@ -116,7 +116,7 @@ Plans:
 | 10. Dashboard Restructure | v3.3 | 2/2 | Complete | 2026-06-01 |
 | 11. Richer Daily Report | v3.3 | 4/4 | Complete | 2026-06-01 |
 | 12. Canonical Card | v3.4 | 3/3 | Complete   | 2026-06-01 |
-| 13. 1-Day ΔIV Email PNGs | v3.4 | 1/1 | Complete   | 2026-06-02 |
+| 13. 1-Day ΔIV Email PNGs | v3.4 | 1/1 | Complete    | 2026-06-02 |
 | 14. Accumulation Gating | v3.4 | 0/TBD | Not started | - |
 
 ---
