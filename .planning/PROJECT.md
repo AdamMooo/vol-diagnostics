@@ -1,20 +1,24 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-01 — Phase 11 complete; v3.3 milestone fully delivered. Daily email now sends 3 PNG surface attachments (kaleido 1.3.0), OI call/put wall rows in each ticker card, cold-start-safe evolution section, explicit #ffffff body background. Code review flagged 1 critical (NaN propagation from unmocked surface_diagnostics in tests), 4 warnings (pytz missing from requirements.txt, 0% change displays as dash, as_of type mismatch, quiet None fallback) — address in v3.4 design review.*
+*Last updated: 2026-06-01 — v3.4 milestone started. Email-first daily report polish: VRP into the email card, scalar vs-yesterday deltas, OI-vs-GEX wall clarity, 1-day ΔIV surface PNGs (one per index, replacing the static surface PNGs 1:1), a single canonical card shared by email + dashboard, and gating of accumulation-dependent UI until data fills in. Scheduler confirmed firing (Task Scheduler "GEX Daily Report", weekdays 4:30pm ET); battery-restriction setup flaw identified (needs an elevated one-line fix to stop missing unplugged days).*
 
-## Current Milestone: v3.3 — Surface Evolution & Daily Intelligence
+## Current Milestone: v3.4 — Email-First Daily Report Polish
 
-**Goal:** Turn the vol surface into an accumulating, trustworthy daily diagnostic — prove it isn't overfit, build the calculus of how it moves over time, surface that in a restructured local dashboard, and deliver it in a clean formal daily report.
+**Goal:** Stop building accumulation-dependent features and instead show off the parts we already have — curate the daily email into a tight, single-snapshot diagnostic, and make the local dashboard render the same canonical card so the two stop drifting.
 
-**Streamlit is LOCAL-only** (removed from the live server). Foundation-first: a surface coverage mask gates every downstream metric.
+**Email is the product; the dashboard mirrors it.** Every scope item is single-snapshot or near-it — favouring metrics computable from today's chain over ones that need a long history.
 
 **Target features:**
-- Surface validation — coverage mask (honest NaN holes), fit residuals, no-arb checks, documented smoothing; the mask is the single source of truth
-- Surface evolution — ΔIV decomposed into level/rms/skew/term over 1/5/20 trading-day horizons, persisted daily and accumulating
-- Dashboard restructure — 5→4 tabs, merge Skew+Term around the surface calculus, remove carry/RR-history/bar charts, stored-vs-stored compare + evolution time-series
-- Richer daily report — 3D surface + ΔIV PNG attachments (kaleido v1, pinned camera), content priority surfaces>walls>OI>gamma, clean formal palette
+- VRP into the email card — already computed, currently absent from email; one of the two "solid secondary" metrics (with GEX)
+- Scalar vs-yesterday deltas on iv30 / skew / net GEX — raw signed numbers from the 15-day store, NOT the retired categorical regime badge
+- OI-vs-GEX wall clarity — label GEX walls "(model)" and OI walls "(raw OI)" with a one-line inline distinction, in both surfaces
+- 1-day ΔIV surface PNGs — one per index (SPY/QQQ/IWM) showing the change vs the last trading day, replacing the 3 static surface PNGs (and the old SPY-only 5d ΔIV PNG) 1:1; the 1d ΔIV becomes the only PNG type in the email
+- Unified card layout — one canonical card (the richer email card) ported to the dashboard, single source of truth
+- Gate accumulation-dependent UI — hide evolution tab / sparklines / percentiles / history charts behind "needs ≥N sessions" guards; engines untouched
 
-**Cut:** PCA, SVI/SABR calibration (verify the surface, don't re-calibrate it).
+**1-day framing:** the 1d change is a DESCRIPTIVE daily glance in the report, NOT a signal in the evolution engine — this does not reverse the locked 2026-05-30 "no 1d in evolution horizons" decision. Resolved via `nth_trading_day_back(ticker, today, 1)` so it means "last session with a snapshot" (gap-safe).
+
+**Deferred (not in scope):** "large OI blocks expiring soon" flag — parked; methodology needs a parameter-free design (no hand-tuned "large" cutoff).
 
 ## What This Is
 
@@ -162,6 +166,9 @@ Given today's dealer positioning across SPY/QQQ/IWM — should a PM pay up for p
 ---
 
 ## Previous Milestones
+
+### v3.3 — Surface Evolution & Daily Intelligence (shipped 2026-06-01)
+Foundation-first surface validation: convex-hull coverage mask as the single source of truth (honest NaN holes), fit residuals. Surface evolution engine — ΔIV decomposed into level/rms/skew/term over 5/10/20 trading-day horizons, persisted daily. Dashboard restructured 5→4 tabs (Surface / Calculus+VRP / Evolution / Positioning). Richer daily email — surface + ΔIV PNG attachments (kaleido 1.3.0), OI call/put wall rows. 12 plans across phases 8–11. Accumulation note: surface_history began 2026-05-28, so evolution/percentile features are cold-started until ~5–20 trading days accrue — the gap that motivated v3.4's single-snapshot pivot.
 
 ### v3.0 — GEX Interactive Dashboard (shipped 2026-05-06)
 Second-order Greeks (Vanna, Charm), VEX/CHEX exposure, delta-hedge flow, vs-yesterday labels, Streamlit dashboard (Live + Historical tabs). 10 plans, 77 tests, 2 days.

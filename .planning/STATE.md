@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-01)
 
 ## Current Position
 
-Phase: 12 (Canonical Card) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 12 (Canonical Card) — COMPLETE ✓ (verified passed)
+Plan: 3 of 3 complete
+Status: Phase 12 done; Phase 13 (1-Day ΔIV Email PNGs) next — not yet planned
 Last activity: 2026-06-01
 
 Progress: [██████████] 100%
@@ -94,8 +94,6 @@ Resume file: None
 
 ---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->

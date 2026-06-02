@@ -48,22 +48,18 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-01 18:43 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-01 21:00 UTC
 
-**Milestone:** v3.3 — Surface Evolution & Daily Intelligence · **Status:** milestone_complete · **STATE last_updated:** 2026-06-01T17:46:35.068Z
+**Milestone:** v3.4 · **Status:** verifying · **STATE last_updated:** 2026-06-01T20:54:16.303Z
 
 ### Current Position
-- **Phase:** 11
-- **Plan:** Not started
-- **Status:** Milestone complete
+- **Phase:** 12 (Canonical Card) — COMPLETE ✓ (verified passed)
+- **Plan:** 3 of 3 complete
+- **Status:** Phase 12 done; Phase 13 (1-Day ΔIV Email PNGs) next — not yet planned
 - **Last activity:** 2026-06-01
 
-### Blockers
-- Phase 11 kaleido PNG export on the target Windows machine is the highest-risk integration point — gated by a smoke-test spike at the top of the phase, with an HTML-attachment fallback.
-
-### Roadmap (current milestone)
-- ✅ Phase 5: UAT Sign-Off & Cleanup (all 4 scenarios pass, docs updated)
-- ✅ Out-of-Phase Refactor (2026-05-11): VEX/CHEX/regime labels removed; expected-1d-sigma added; methodology footer rewritten
+### Pending Todos
+- Battery-flag fix for Task Scheduler needs an elevated PowerShell one-liner (Adam to run).
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
