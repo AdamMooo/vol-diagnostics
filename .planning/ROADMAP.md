@@ -74,7 +74,10 @@ Plans:
   2. Each PNG shows the 1-day ΔIV surface labelled with the real prior-session date, resolved via `nth_trading_day_back(ticker, today, 1)` (gap-safe).
   3. When no prior snapshot exists for a ticker, that ticker's PNG is omitted and the email still sends successfully.
   4. The evolution engine's `surface_evolution.parquet` and its {5,10,20} horizon computations are unchanged.
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 13-01-PLAN.md — Swap PNG block: 1-day ΔIV per ticker, delete static surface + 5d ΔIV PNGs, add tests
 
 ---
 
