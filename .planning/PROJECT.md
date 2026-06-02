@@ -1,6 +1,6 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-01 — v3.4 milestone started. Email-first daily report polish: VRP into the email card, scalar vs-yesterday deltas, OI-vs-GEX wall clarity, 1-day ΔIV surface PNGs (one per index, replacing the static surface PNGs 1:1), a single canonical card shared by email + dashboard, and gating of accumulation-dependent UI until data fills in. Scheduler confirmed firing (Task Scheduler "GEX Daily Report", weekdays 4:30pm ET); battery-restriction setup flaw identified (needs an elevated one-line fix to stop missing unplugged days).*
+*Last updated: 2026-06-01 — Phase 13 complete. Per-ticker 1-day ΔIV PNG loop live in run_daily.py: each of SPY/QQQ/IWM resolves its prior session via nth_trading_day_back, skips gracefully when no snapshot exists, attaches ΔIV surface PNG. Static surface block fully removed. 181 tests pass. Next: Phase 14 accumulation gating.*
 
 ## Current Milestone: v3.4 — Email-First Daily Report Polish
 
