@@ -171,7 +171,6 @@ def build_card_fields(
     net_gex = s.get("net_gex")
     delta_hedge_flow = s.get("delta_hedge_flow")
     front_skew = s.get("front_skew")
-    vrp = s.get("vrp")
     call_wall = s.get("call_wall")
     put_wall = s.get("put_wall")
     oi_call_wall = s.get("oi_call_wall")
@@ -242,11 +241,6 @@ def build_card_fields(
             label="Skew (25Δ)",
             value=_fmt_skew(front_skew) + _delta_suffix_pp(front_skew, p_front_skew),
             sign="neutral",
-        ),
-        CardField(
-            label="VRP",
-            value=f"{vrp:+.1f}pp" if vrp is not None else "—",
-            sign=_get_sign(vrp),
         ),
         CardField(
             label="Call Wall (model)",
