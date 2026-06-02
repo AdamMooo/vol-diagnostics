@@ -114,7 +114,6 @@ surface_df = data.get("surface_df")
 surface_diag = data.get("surface_diag") or {}
 skew = data.get("skew")
 rv20 = data.get("rv20")
-vrp = data.get("vrp")
 
 # ── Header metrics ─────────────────────────────────────────────────────────────
 
@@ -132,7 +131,6 @@ metrics_html = (
     + _metric("IV30", _fmt_iv(iv30))
     + _metric("25Δ RR (front)", _fmt_rr(front_rr))
     + _metric("RV20", _fmt_iv(rv20 * 100 if rv20 else None))
-    + _metric("VRP", _fmt_rr(vrp))
     + "</div>"
 )
 

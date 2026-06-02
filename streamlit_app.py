@@ -21,7 +21,7 @@ from gex.surface_history import (
     load_surface_snapshot, list_available_dates, nth_trading_day_back,
 )
 from gex.surface_evolution import load_evolution
-from gex.vol_metrics import vrp_headline
+
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 
@@ -373,60 +373,9 @@ if sel_index:
             s = data["summary"]
             spot = data.get("spot")
 
-            st.markdown(f'<div class="sec">{ticker} · VRP · Skew · Term</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="sec">{ticker} · Skew · Term</div>', unsafe_allow_html=True)
 
             hist = _load_history_cached(ticker, days=config.HISTORY_DAYS)
-
-            # VRP headline
-            iv30_summary = s.get("iv30")  # percentage points (e.g. 18.5)
-            rv20_raw = data.get("rv20")   # decimal fraction (e.g. 0.158)
-            vrp_raw = data.get("vrp")     # decimal fraction (e.g. 0.027)
-
-            iv30_pct_val = iv30_summary
-            rv20_pct_val = (rv20_raw * 100) if rv20_raw is not None else None
-            vrp_pp_val = (vrp_raw * 100) if vrp_raw is not None else None
-
-            # Compute percentile from history
-            vrp_percentile = None
-            if not hist.empty and "vrp" in hist.columns and vrp_pp_val is not None:
-                vrp_hist_series = hist.dropna(subset=["vrp"])["vrp"] * 100
-                if len(vrp_hist_series) >= 5:
-                    vrp_percentile = int(percentileofscore(vrp_hist_series.tolist(), vrp_pp_val))
-
-            vrp_plain = vrp_headline(iv30_pct_val, rv20_pct_val, vrp_pp_val, vrp_percentile)
-
-            vrp_display = f"{vrp_pp_val:+.1f}pp" if vrp_pp_val is not None else "—"
-            m_col, _ = st.columns([1, 2])
-            with m_col:
-                st.metric(
-                    label="VRP (IV30 − RV20)",
-                    value=vrp_display,
-                    help="Volatility risk premium: implied minus realized vol. Positive = options pricing more vol than realized.",
-                )
-            st.caption(vrp_plain)
-
-            # VRP sparkline
-            if not hist.empty and "vrp" in hist.columns:
-                vrp_chart_df = hist.dropna(subset=["vrp"]).sort_values("date")
-                if not vrp_chart_df.empty:
-                    vrp_fig = go.Figure()
-                    vrp_fig.add_trace(go.Scatter(
-                        x=vrp_chart_df["date"],
-                        y=vrp_chart_df["vrp"] * 100,
-                        mode="lines",
-                        line=dict(color=config.PALETTE["accent"], width=1.5),
-                        hovertemplate="%{x|%b %d}<br>VRP: %{y:+.2f}pp<extra></extra>",
-                    ))
-                    vrp_fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
-                    vrp_fig.update_layout(
-                        template="plotly_dark",
-                        title=f"{ticker} · VRP — {config.HISTORY_DAYS}-session",
-                        height=160,
-                        margin=dict(t=30, b=20, l=50, r=10),
-                        yaxis_title="VRP (pp)",
-                        showlegend=False,
-                    )
-                    st.plotly_chart(vrp_fig, width='stretch')
 
             # Scalar strip
             front_skew_val = s.get("front_skew")

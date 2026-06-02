@@ -120,7 +120,6 @@ def build_email(results: list[dict], date: datetime.date) -> str:
         pct_str = f"{pct:+.2f}%" if pct is not None else "—"
 
         rv20 = data.get("rv20")
-        vrp = data.get("vrp")
         cov = s.get("coverage_pct")
 
         rows_html += f"""
@@ -131,7 +130,6 @@ def build_email(results: list[dict], date: datetime.date) -> str:
   <td style="{_MONO}padding:8px 12px;font-size:12px;border-bottom:1px solid #e2e8f0;">{_fmt(s.get('iv30'), suffix='%')}</td>
   <td style="{_MONO}padding:8px 12px;font-size:12px;border-bottom:1px solid #e2e8f0;">{_fmt_rr(front_rr)}</td>
   <td style="{_MONO}padding:8px 12px;font-size:12px;border-bottom:1px solid #e2e8f0;">{_fmt(rv20 * 100 if rv20 else None, suffix='%')}</td>
-  <td style="{_MONO}padding:8px 12px;font-size:12px;border-bottom:1px solid #e2e8f0;">{_fmt_rr(vrp)}</td>
   <td style="{_MONO}padding:8px 12px;font-size:12px;color:{_GRAY};border-bottom:1px solid #e2e8f0;">{_fmt(cov, suffix='%', prec=0)}</td>
 </tr>"""
 
@@ -167,7 +165,6 @@ def build_email(results: list[dict], date: datetime.date) -> str:
             <th {header_cell}>IV30</th>
             <th {header_cell}>25Δ RR</th>
             <th {header_cell}>RV20</th>
-            <th {header_cell}>VRP</th>
             <th {header_cell}>Surface Cov</th>
           </tr>
         </thead>
@@ -180,7 +177,7 @@ def build_email(results: list[dict], date: datetime.date) -> str:
   <tr>
     <td style="{_SANS}padding:20px 12px 8px;font-size:10px;color:{_GRAY};line-height:1.6;">
       25Δ RR = 25-delta put IV − 25-delta call IV (front month, ≤45 DTE). Positive = put skew.
-      VRP = IV30 − RV20. RV20 and VRP require ~20 trading days of history to appear.
+      RV20 requires ~20 trading days of history to appear.
       Surface coverage reflects fraction of the ±15% log-moneyness / 5–365 DTE grid with nearby real quotes.
     </td>
   </tr>
