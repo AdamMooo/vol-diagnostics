@@ -333,7 +333,12 @@ def _fig_div(fig) -> str:
 
 
 def _plotly_js_tag() -> str:
-    return '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
+    try:
+        import plotly.offline
+        js = plotly.offline.get_plotlyjs()
+        return f"<script>{js}</script>"
+    except Exception:
+        return '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
 
 
 def _chart_wrap(content: str, wrap_id: str) -> str:
