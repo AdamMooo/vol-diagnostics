@@ -60,7 +60,7 @@ YIELD_TICKERS: dict[str, str] = {
     "UNH":   "UnitedHealth Group (UNH) Yield Shares Purpose ETF",
 }
 
-OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out"
+OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "yield"
 ET = pytz.timezone("America/New_York")
 
 _SANS = "font-family:Arial,Helvetica,sans-serif;"
@@ -265,6 +265,7 @@ def build_email(results: list[dict], date: datetime.date,
         f'</div>'
     )
 
+    logo_email = _logo_tag(height="32px")
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
@@ -274,11 +275,16 @@ def build_email(results: list[dict], date: datetime.date,
     <table width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:640px;">
       <tr><td>
 
-        <div style="{_SANS}font-size:11px;font-weight:700;letter-spacing:1.6px;
-             text-transform:uppercase;color:#000000;border-bottom:2px solid #000000;
-             padding-bottom:8px;margin:0 0 6px;">
-          Purpose Yield ETF Underlying Volatility Monitor
-        </div>
+        <table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-bottom:2px solid #000000;padding-bottom:8px;margin:0 0 6px;">
+          <tr>
+            <td style="vertical-align:bottom;">
+              <div style="{_SANS}font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#000000;">
+                Purpose Yield ETF &mdash; Underlying Volatility Diagnostics
+              </div>
+            </td>
+            <td style="text-align:right;vertical-align:bottom;padding-left:12px;">{logo_email}</td>
+          </tr>
+        </table>
         <div style="{_SANS}font-size:11px;color:{_GRAY};margin:0 0 20px;">{date_str}</div>
 
         <p style="{_SANS}font-size:12px;color:#333333;margin:0 0 18px;line-height:1.6;">
@@ -302,7 +308,7 @@ def build_email(results: list[dict], date: datetime.date,
 
 # ── HTML report builder (interactive Plotly) ──────────────────────────────────
 
-def _logo_tag() -> str:
+def _logo_tag(height: str = "125px") -> str:
     """Inline the Yield Shares SVG as a base64 img tag. Silent no-op if file missing."""
     import base64
     svg_path = pathlib.Path(__file__).resolve().parents[1] / "assets" / "yieldsharesheadermobile-v1-5.svg"
@@ -311,7 +317,7 @@ def _logo_tag() -> str:
     b64 = base64.b64encode(svg_path.read_bytes()).decode()
     return (
         f'<img src="data:image/svg+xml;base64,{b64}" '
-        f'style="height:36px;width:auto;display:block;opacity:0.9;" '
+        f'style="height:{height};width:auto;display:block;" '
         f'alt="Yield Shares Purpose ETF">'
     )
 
@@ -350,12 +356,12 @@ def _ticker_section_html(m: dict, surface_div: str, div_iv: str,
     tk = m["ticker"].replace(".", "_")
     summary_line = (
         f'<span style="font-weight:700;font-size:15px;color:#e2e2e2;">{m["ticker"]}</span>'
-        f'<span style="font-size:13px;color:#555555;margin-left:10px;">{m["label"].split("(")[0].strip()}</span>'
+        f'<span style="font-size:13px;color:#888888;margin-left:10px;">{m["label"].split("(")[0].strip()}</span>'
         f'<span style="font-family:Consolas,monospace;margin-left:14px;font-size:13px;color:#cccccc;">'
         f'{_fmt(m["spot"], prefix="$", prec=2)}'
         f'<span style="color:{pct_color};margin-left:8px;">{pct_str}</span>'
         f'</span>'
-        f'<span style="font-family:Consolas,monospace;margin-left:14px;font-size:12px;color:#555555;">'
+        f'<span style="font-family:Consolas,monospace;margin-left:14px;font-size:12px;color:#a0a0a0;">'
         f'IV30 {_fmt(m["iv30"], suffix="%")} &nbsp;·&nbsp; '
         f'RV20 {_fmt(m["rv20"], suffix="%")} &nbsp;·&nbsp; '
         f'VRP {_fmt_signed(m["vrp"])} &nbsp;·&nbsp; '
@@ -486,19 +492,19 @@ def build_html_report(results: list[dict], date: datetime.date) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Purpose Yield &mdash; Vol Diagnostics {date_str}</title>
+<title>Purpose Yield ETF &mdash; Underlying Volatility Diagnostics {date_str}</title>
 {plotly_script}
 <style>
   * {{ box-sizing: border-box; }}
   body {{
     background: #0d0d0d;
     color: #e2e2e2;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
     margin: 0;
     padding: 24px 20px;
   }}
   .container {{ max-width: 1200px; margin: 0 auto; }}
-  h1 {{ font-size: 20px; font-weight: 700; margin: 0 0 3px; letter-spacing: -0.2px; }}
+  h1 {{ font-size: 20px; font-weight: 600; margin: 0 0 3px; letter-spacing: -0.3px; }}
   .subtitle {{ font-size: 11px; color: #555555; margin: 0 0 22px; }}
   .section-label {{
     font-size: 10px; font-weight: 700; letter-spacing: 1.6px;
@@ -553,7 +559,7 @@ function toggleFS(id) {{
 <div class="container">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;">
     <div>
-      <h1>Purpose Yield ETFs &mdash; Vol Diagnostics</h1>
+      <h1>Purpose Yield ETF Suite &mdash; Underlying Volatility Diagnostics</h1>
       <p class="subtitle">{date_str} &nbsp;&middot;&nbsp; {n_ok}/{len(metrics_list)} tickers &nbsp;&middot;&nbsp; CBOE delayed</p>
     </div>
     <div style="flex-shrink:0;margin-left:20px;margin-top:2px;">{logo}</div>
@@ -600,11 +606,11 @@ def run(dry_run: bool = False) -> None:
         print("[yield-daily] All tickers failed — skipping output.")
         return
 
-    subject = f"Purpose Yield - Underlying Volatility — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
+    subject = f"Purpose Yield ETF — Volatility Diagnostics, {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
 
     # Always save the rich HTML report locally
     html_report = build_html_report(all_data, today)
-    out_path = OUT_DIR / f"yield_{today.strftime('%Y%m%d')}.html"
+    out_path = OUT_DIR / f"purpose_yield_vol_report_{today.strftime('%Y%m%d')}.html"
     out_path.write_text(html_report, encoding="utf-8")
     print(f"[yield-daily] HTML report saved: {out_path}")
 

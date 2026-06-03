@@ -30,7 +30,7 @@ from gex.vol_metrics import evolution_5d_summary
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ALL_TICKERS = INDEX_TICKERS
 
-OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out"
+OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex"
 ET = pytz.timezone("America/New_York")
 
 
