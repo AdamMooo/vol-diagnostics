@@ -323,18 +323,17 @@ def _logo_tag(height: str = "125px") -> str:
 
 
 def _fig_div(fig) -> str:
-    return fig.to_html(full_html=False, include_plotlyjs=False,
-                       config={"responsive": True, "displayModeBar": True})
+    import uuid as _uuid
+    div_id = "plt-" + _uuid.uuid4().hex[:8]
+    fig_json = fig.to_json()
+    return (
+        f'<div id="{div_id}" class="lazy-plot plotly-graph-div" style="height:450px;width:100%;"></div>'
+        f'<script type="application/json" data-for="{div_id}">{fig_json}</script>'
+    )
 
 
 def _plotly_js_tag() -> str:
-    """Inline the full plotly.js bundle so the file works offline / as email attachment."""
-    try:
-        import plotly.offline
-        js = plotly.offline.get_plotlyjs()
-        return f"<script>{js}</script>"
-    except Exception:
-        return '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
+    return '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
 
 
 def _chart_wrap(content: str, wrap_id: str) -> str:
@@ -553,6 +552,25 @@ function toggleFS(id) {{
     if (ex) ex.call(document);
   }}
 }}
+function renderLazyPlots(container) {{
+  container.querySelectorAll('.lazy-plot:not([data-rendered])').forEach(function(el) {{
+    var s = document.querySelector('script[data-for="' + el.id + '"]');
+    if (!s) return;
+    var fig = JSON.parse(s.textContent);
+    Plotly.newPlot(el, fig.data, fig.layout, {{responsive: true, displayModeBar: true}});
+    el.setAttribute('data-rendered', '1');
+  }});
+}}
+document.addEventListener('DOMContentLoaded', function() {{
+  document.querySelectorAll('details[open]').forEach(function(d) {{
+    renderLazyPlots(d);
+  }});
+  document.querySelectorAll('details').forEach(function(d) {{
+    d.addEventListener('toggle', function() {{
+      if (this.open) renderLazyPlots(this);
+    }});
+  }});
+}});
 </script>
 </head>
 <body>
