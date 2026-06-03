@@ -150,6 +150,23 @@ def _accent_color(price_change_pct: float | None) -> str:
     return _NEUTRAL
 
 
+def _fmt_gex(v: float | None) -> str:
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return "—"
+    sign = "+" if v >= 0 else ""
+    if abs(v) >= 1e9:
+        return f"{sign}{v / 1e9:.2f}B"
+    return f"{sign}{v / 1e6:.0f}M"
+
+
+def _fmt_pct_from_spot(level: float | None, spot: float | None) -> str:
+    if level is None or not spot:
+        return "—"
+    pct = (level - spot) / spot * 100
+    sign = "+" if pct >= 0 else ""
+    return f"{sign}{pct:.1f}%"
+
+
 def _extract_metrics(data: dict) -> dict:
     s = data["summary"]
     skew = data.get("skew")
@@ -172,6 +189,10 @@ def _extract_metrics(data: dict) -> dict:
         "front_rr": front_rr,
         "coverage_pct": s.get("coverage_pct"),
         "error": s.get("error"),
+        "net_gex": s.get("net_gex"),
+        "zero_gamma_level": s.get("zero_gamma_level"),
+        "call_wall": s.get("call_wall"),
+        "put_wall": s.get("put_wall"),
     }
 
 
@@ -196,6 +217,7 @@ def _email_summary_table(metrics_list: list[dict]) -> str:
         f'<th style="{th_s}">VRP</th>'
         f'<th style="{th_s}">25&Delta; RR</th>'
         f'<th style="{th_s}">Daily &plusmn;</th>'
+        f'<th style="{th_s}">Net GEX</th>'
         f'</tr>'
     )
 
@@ -211,6 +233,9 @@ def _email_summary_table(metrics_list: list[dict]) -> str:
         pct_str = f"{pct:+.2f}%" if pct is not None else "—"
         pct_color = _GREEN if (pct is not None and pct > 0) else (_RED if (pct is not None and pct < 0) else "#777777")
         vrp_color = _GREEN if (m["vrp"] is not None and m["vrp"] > 0) else (_RED if (m["vrp"] is not None and m["vrp"] < 0) else "#777777")
+        gex = m["net_gex"]
+        gex_str = _fmt_gex(gex)
+        gex_color = _GREEN if (gex is not None and gex > 0) else (_RED if (gex is not None and gex < 0) else "#777777")
         rows += (
             f'<tr>'
             f'<td style="{td_lbl}">{m["ticker"]}</td>'
@@ -221,6 +246,7 @@ def _email_summary_table(metrics_list: list[dict]) -> str:
             f'<td style="{td_s}color:{vrp_color};">{_fmt_signed(m["vrp"])}</td>'
             f'<td style="{td_s}">{_fmt_signed(m["front_rr"])}</td>'
             f'<td style="{td_s}">{_fmt(m["iv30_daily_dollar"], prefix="$", prec=2)}</td>'
+            f'<td style="{td_s}color:{gex_color};">{gex_str}</td>'
             f'</tr>'
         )
 
@@ -263,6 +289,8 @@ def build_email(results: list[dict], date: datetime.date,
         f'margin-top:20px;padding-top:10px;border-top:1px solid {_RULE};">'
         f'<b>VRP</b>: IV30 &minus; RV20 (pp). Positive = implied vol priced above realized. &nbsp;'
         f'<b>25&Delta; RR</b>: front-month put IV &minus; call IV. Positive = put skew. &nbsp;'
+        f'<b>Net GEX</b>: dealer gamma exposure &mdash; positive = stabilising, negative = amplifying. '
+        f'Single-name GEX is assumption-based; use as directional context only. &nbsp;'
         f'OI is T&minus;1. Quotes ~15-min delayed.'
         f'</div>'
     )
@@ -350,6 +378,13 @@ def _ticker_section_html(m: dict, surface_div: str, div_iv: str,
     pct_color = "#22c55e" if (pct or 0) > 0 else "#ef4444"
     tk = m["ticker"].replace(".", "_")
     daily_move = m.get("iv30_daily_dollar")
+    gex = m["net_gex"]
+    gex_str = _fmt_gex(gex)
+    gex_color = "#22c55e" if (gex is not None and gex > 0) else ("#ef4444" if (gex is not None and gex < 0) else "#666666")
+    zg_str = _fmt_pct_from_spot(m["zero_gamma_level"], m["spot"])
+    cw_str = _fmt(m["call_wall"], prefix="$", prec=0) if m["call_wall"] else "—"
+    pw_str = _fmt(m["put_wall"], prefix="$", prec=0) if m["put_wall"] else "—"
+
     summary_line = (
         f'<span style="font-weight:700;font-size:15px;color:#e2e2e2;">{m["ticker"]}</span>'
         f'<span style="font-size:13px;color:#888888;margin-left:10px;">{m["label"].split("(")[0].strip()}</span>'
@@ -363,6 +398,11 @@ def _ticker_section_html(m: dict, surface_div: str, div_iv: str,
         f'VRP {_fmt_signed(m["vrp"])} &nbsp;·&nbsp; '
         f'25ΔRR {_fmt_signed(m["front_rr"])} &nbsp;·&nbsp; '
         f'Daily&plusmn; {_fmt(daily_move, prefix="$", prec=2)}'
+        f'</span>'
+        f'<span style="font-family:Consolas,monospace;margin-left:14px;font-size:12px;color:#666666;">'
+        f'GEX <span style="color:{gex_color};">{gex_str}</span>'
+        f' &nbsp;·&nbsp; &#947;-flip {zg_str}'
+        f' &nbsp;·&nbsp; C&#x2191; {cw_str} &nbsp; P&#x2193; {pw_str}'
         f'</span>'
     )
 
@@ -475,8 +515,13 @@ def build_html_report(results: list[dict], date: datetime.date) -> str:
         'margin-top:28px;padding-top:12px;border-top:1px solid #1a1a1a;">'
         '<b>VRP</b>: IV30 &minus; RV20 (pp). Positive = options priced rich vs realized vol.<br>'
         '<b>25&Delta; RR</b>: 25&Delta; put IV &minus; 25&Delta; call IV, front month &le;45 DTE. Positive = put skew.<br>'
-        '<b>OI is T&minus;1.</b> CBOE quotes ~15-min delayed. GEX assumes dealers net-short all options '
-        '&mdash; holds in aggregate; apply skepticism to single names with heavy institutional flow.'
+        '<b>Net GEX</b>: gamma exposure in dollars &mdash; positive = dealers net long gamma (stabilising flow), '
+        'negative = net short (amplifying flow). '
+        '<b>&#947;-flip</b>: price level where net GEX crosses zero. '
+        '<b>C&uarr; / P&darr;</b>: strike with peak call / put GEX concentration.<br>'
+        '<i>GEX assumes dealers are net-short all options. This holds in aggregate for indices but is a rough '
+        'approximation for single names where institutional and prop flow can dominate. '
+        'Use as directional context, not a precise signal. OI is T&minus;1. CBOE quotes ~15-min delayed.</i>'
         '</div>'
     )
 
