@@ -4,18 +4,12 @@ Daily vol diagnostics for Purpose Yield ETF underlyings.
 Usage:
     python -m gex.run_daily_yield            # compute + print, saves HTML report to out/
     python -m gex.run_daily_yield --dry-run  # same as above (explicit) — no email
-    python -m gex.run_daily_yield --send     # upload to S3, send email (or set GEX_SEND=1)
+    python -m gex.run_daily_yield --send     # send email (or set GEX_SEND=1)
 
 Workflow:
     1. Compute all 16 tickers, save parquet snapshots.
     2. Build an interactive HTML report (Plotly 3D surfaces, gamma profiles, OI charts).
-    3. If --send: upload HTML to S3 (YIELD_S3_BUCKET in .env), send card-based email
-       with a presigned link to the hosted report. Recipients tap the link — no download.
-
-.env keys:
-    YIELD_S3_BUCKET   S3 bucket name (must exist; upload IAM permissions required)
-    YIELD_S3_PREFIX   Optional key prefix, default "yield/" (e.g. "reports/yield/")
-    YIELD_S3_EXPIRY   Presigned URL expiry in seconds, default 604800 (7 days)
+    3. If --send: email the HTML report as an attachment.
 
 Scheduled via: runners/yield_daily.ps1 (Task Scheduler, 4:35 PM ET on trading days)
 
@@ -87,43 +81,7 @@ def process_ticker(ticker: str) -> dict:
         return {"summary": {"ticker": ticker, "error": str(exc)}}
 
 
-# ── S3 upload ─────────────────────────────────────────────────────────────────
-
 _ENV_PATH = pathlib.Path(__file__).resolve().parents[1] / ".env"
-
-
-def _upload_to_s3(local_path: pathlib.Path, date: datetime.date) -> str | None:
-    """Upload HTML report to S3, return a presigned URL (default 7-day expiry) or None."""
-    import os
-    from dotenv import load_dotenv
-    load_dotenv(_ENV_PATH, encoding="utf-8-sig", override=True)
-    bucket = os.getenv("YIELD_S3_BUCKET", "").strip()
-    if not bucket:
-        print("[yield-daily] YIELD_S3_BUCKET not set — skipping S3 upload.")
-        return None
-    prefix = os.getenv("YIELD_S3_PREFIX", "yield/").strip().rstrip("/") + "/"
-    expiry = int(os.getenv("YIELD_S3_EXPIRY", "604800"))  # 7 days
-    key = f"{prefix}purpose-yield-vol-report-{date.strftime('%Y-%m-%d')}.html"
-    try:
-        import boto3
-        s3 = boto3.client("s3")
-        s3.upload_file(
-            str(local_path),
-            bucket,
-            key,
-            ExtraArgs={"ContentType": "text/html; charset=utf-8"},
-        )
-        url = s3.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": bucket, "Key": key},
-            ExpiresIn=expiry,
-        )
-        print(f"[yield-daily] S3 upload OK: s3://{bucket}/{key}")
-        return url
-    except Exception as exc:
-        print(f"[yield-daily] S3 upload failed (non-blocking): {exc}")
-        return None
-
 
 # ── Shared formatting helpers ─────────────────────────────────────────────────
 
@@ -258,8 +216,7 @@ def _email_summary_table(metrics_list: list[dict]) -> str:
     )
 
 
-def build_email(results: list[dict], date: datetime.date,
-                report_url: str | None = None) -> str:
+def build_email(results: list[dict], date: datetime.date) -> str:
     try:
         date_str = f"{date.strftime('%B')} {date.day}, {date.year}"
     except Exception:
@@ -267,22 +224,6 @@ def build_email(results: list[dict], date: datetime.date,
 
     metrics_list = [_extract_metrics(d) for d in results]
     summary_table = _email_summary_table(metrics_list)
-
-    link_block = ""
-    if report_url:
-        link_block = (
-            f'<table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0;">'
-            f'<tr><td style="background:#111111;border-radius:4px;">'
-            f'<a href="{report_url}" target="_blank" '
-            f'style="{_SANS}display:block;padding:9px 20px;color:#ffffff;font-size:13px;'
-            f'font-weight:700;text-decoration:none;white-space:nowrap;letter-spacing:0.3px;">'
-            f'View Full Interactive Report &rarr;</a>'
-            f'</td></tr>'
-            f'<tr><td style="{_SANS}font-size:10px;color:{_GRAY};padding-top:5px;">'
-            f'Interactive vol surfaces, gamma profiles, and OI charts &mdash; link valid 7 days'
-            f'</td></tr>'
-            f'</table>'
-        )
 
     disclaimer = (
         f'<div style="{_SANS}font-size:10px;color:{_GRAY};line-height:1.7;'
@@ -319,7 +260,6 @@ def build_email(results: list[dict], date: datetime.date,
         </p>
 
         {summary_table}
-        {link_block}
         {disclaimer}
 
       </td></tr>
@@ -659,10 +599,7 @@ def run(dry_run: bool = False) -> None:
     if dry_run:
         return
 
-    # Upload to S3 if configured (optional — only fires when YIELD_S3_BUCKET is set)
-    report_url = _upload_to_s3(out_path, today)
-
-    html_email = build_email(all_data, today, report_url=report_url)
+    html_email = build_email(all_data, today)
     try:
         emailer.send(subject=subject, html_body=html_email, attachments=[out_path], env_key="YIELD_EMAIL_TO")
         print("[yield-daily] Email sent.")
