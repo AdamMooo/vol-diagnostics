@@ -19,6 +19,26 @@ from gex.vol_metrics import compute_skew_25d, compute_term_structure, compute_rv
 from gex.validation import load_history
 
 
+def _fetch_spot_history_yf(ticker: str, days: int = 35) -> "pd.Series | None":
+    """Fetch daily closing prices from yfinance (oldest-first) for RV20 computation.
+
+    Falls back gracefully — never raises. Returns None if data is insufficient.
+    BRK.B is remapped to BRK-B for yfinance compatibility.
+    """
+    try:
+        import yfinance as yf
+        import pandas as pd
+        yf_ticker = ticker.replace(".", "-")
+        hist = yf.Ticker(yf_ticker).history(period=f"{days}d")
+        if hist.empty or "Close" not in hist.columns:
+            return None
+        closes = hist["Close"].dropna().reset_index(drop=True)
+        return closes if len(closes) >= 2 else None
+    except Exception as exc:
+        print(f"[compute] yf history failed for {ticker}: {exc}")
+        return None
+
+
 def _get_risk_free_rate() -> float:
     """3-month T-bill rate from ^IRX; falls back to config.RISK_FREE_FALLBACK on failure."""
     try:
@@ -110,14 +130,20 @@ def compute_ticker(ticker: str) -> dict:
     skew_25d = compute_skew_25d(df, spot=snapshot.spot)
     term_structure = compute_term_structure(df, spot=snapshot.spot)
     hist = load_history(ticker)
-    if hist.empty or "spot" not in hist.columns:
-        rv20, vrp = None, None
+    # Use parquet history if we have 21+ rows; otherwise fall back to yfinance daily closes.
+    if not hist.empty and "spot" in hist.columns and len(hist) >= 21:
+        spot_series = hist["spot"].iloc[::-1].reset_index(drop=True)
     else:
-        spot_series = hist["spot"].iloc[::-1]   # reverse to oldest-first (load_history returns descending)
+        spot_series = _fetch_spot_history_yf(ticker)
+        if spot_series is None and not hist.empty and "spot" in hist.columns:
+            spot_series = hist["spot"].iloc[::-1].reset_index(drop=True)
+    if spot_series is not None:
         rv20 = compute_rv20(spot_series)
         iv30_decimal = (snapshot.iv30 / 100.0) if snapshot.iv30 else None
         vrp_decimal = compute_vrp(iv30_decimal, rv20)
         vrp = vrp_decimal * 100 if vrp_decimal is not None else None
+    else:
+        rv20, vrp = None, None
     summary["rv20"] = rv20
     summary["vrp"] = vrp
 
