@@ -151,7 +151,7 @@ def run(dry_run: bool = False) -> None:
         print("[run_daily] All tickers failed — skipping email.")
         return
 
-    subject = f"Index Volatility Report — {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
+    subject = f"Index Volatility Report — {today.strftime('%B')} {today.day}, {today.year}"
     html = rpt.build_email(
         index_results=index_results,
         date=today,
@@ -160,7 +160,7 @@ def run(dry_run: bool = False) -> None:
     )
 
     if dry_run:
-        out_path = OUT_DIR / f"gex_{today.strftime('%Y%m%d')}.html"
+        out_path = OUT_DIR / f"index-vol-report-{today.strftime('%Y-%m-%d')}.html"
         out_path.write_text(html, encoding="utf-8")
         print(f"[gex-daily] Report saved: {out_path}")
         return

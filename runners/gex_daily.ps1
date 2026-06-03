@@ -1,8 +1,8 @@
 # Register the GEX daily email as a Windows Task Scheduler task.
 # Run once from a normal (non-admin) PowerShell terminal:
-#   C:\dev\options-quant\runners\gex_daily.ps1 activate
-#   C:\dev\options-quant\runners\gex_daily.ps1 deactivate
-#   C:\dev\options-quant\runners\gex_daily.ps1 status
+#   C:\dev\gamma-omm\runners\gex_daily.ps1 activate
+#   C:\dev\gamma-omm\runners\gex_daily.ps1 deactivate
+#   C:\dev\gamma-omm\runners\gex_daily.ps1 status
 param([Parameter(Position=0)][string]$cmd = "activate")
 
 $TaskName   = "GEX Daily Report"

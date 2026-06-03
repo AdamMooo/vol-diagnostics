@@ -11,19 +11,22 @@ from pathlib import Path
 _ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 
 
-def _recipients() -> list[str]:
+def _recipients(env_key: str = "GEX_EMAIL_TO") -> list[str]:
     from dotenv import load_dotenv
     load_dotenv(_ENV_PATH, encoding="utf-8-sig", override=True)
-    return [e.strip() for e in os.getenv("GEX_EMAIL_TO", "").split(",") if e.strip()]
+    raw = os.getenv(env_key, "").strip()
+    if not raw and env_key != "GEX_EMAIL_TO":
+        raw = os.getenv("GEX_EMAIL_TO", "").strip()
+    return [e.strip() for e in raw.split(",") if e.strip()]
 
 
 def send(subject: str, html_body: str, attachments: list[Path] | None = None,
-         to: list[str] | None = None) -> None:
+         to: list[str] | None = None, env_key: str = "GEX_EMAIL_TO") -> None:
     import win32com.client
 
-    recipients = to or _recipients()
+    recipients = to or _recipients(env_key)
     if not recipients:
-        raise ValueError("No recipients — set GEX_EMAIL_TO in .env")
+        raise ValueError(f"No recipients — set {env_key} in .env")
 
     try:
         outlook = win32com.client.GetActiveObject("Outlook.Application")

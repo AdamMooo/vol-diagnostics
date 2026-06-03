@@ -103,7 +103,7 @@ def _upload_to_s3(local_path: pathlib.Path, date: datetime.date) -> str | None:
         return None
     prefix = os.getenv("YIELD_S3_PREFIX", "yield/").strip().rstrip("/") + "/"
     expiry = int(os.getenv("YIELD_S3_EXPIRY", "604800"))  # 7 days
-    key = f"{prefix}yield_{date.strftime('%Y%m%d')}.html"
+    key = f"{prefix}purpose-yield-vol-report-{date.strftime('%Y-%m-%d')}.html"
     try:
         import boto3
         s3 = boto3.client("s3")
@@ -130,7 +130,7 @@ def _upload_to_s3(local_path: pathlib.Path, date: datetime.date) -> str | None:
 def _fmt(v, suffix="", prec=1, prefix="") -> str:
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return "—"
-    return f"{prefix}{v:.{prec}f}{suffix}"
+    return f"{prefix}{v:,.{prec}f}{suffix}"
 
 
 def _fmt_signed(v, suffix="pp", prec=1) -> str:
@@ -603,11 +603,11 @@ def run(dry_run: bool = False) -> None:
         print("[yield-daily] All tickers failed — skipping output.")
         return
 
-    subject = f"Purpose Yield ETF — Volatility Diagnostics, {today.strftime('%b %d, %Y').replace(' 0', ' ')}"
+    subject = f"Purpose Yield ETF — Volatility Diagnostics, {today.strftime('%B')} {today.day}, {today.year}"
 
     # Always save the rich HTML report locally
     html_report = build_html_report(all_data, today)
-    out_path = OUT_DIR / f"purpose_yield_vol_report_{today.strftime('%Y%m%d')}.html"
+    out_path = OUT_DIR / f"purpose-yield-vol-report-{today.strftime('%Y-%m-%d')}.html"
     out_path.write_text(html_report, encoding="utf-8")
     print(f"[yield-daily] HTML report saved: {out_path}")
 
@@ -619,7 +619,7 @@ def run(dry_run: bool = False) -> None:
 
     html_email = build_email(all_data, today, report_url=report_url)
     try:
-        emailer.send(subject=subject, html_body=html_email, attachments=[out_path])
+        emailer.send(subject=subject, html_body=html_email, attachments=[out_path], env_key="YIELD_EMAIL_TO")
         print("[yield-daily] Email sent.")
     except Exception as exc:
         print(f"[yield-daily] Email failed: {exc}")
