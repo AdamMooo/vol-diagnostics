@@ -267,7 +267,6 @@ def build_email(results: list[dict], date: datetime.date,
         f'</div>'
     )
 
-    logo_email = _logo_tag(height="32px")
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
@@ -277,16 +276,11 @@ def build_email(results: list[dict], date: datetime.date,
     <table width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:640px;">
       <tr><td>
 
-        <table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-bottom:2px solid #000000;padding-bottom:8px;margin:0 0 6px;">
-          <tr>
-            <td style="vertical-align:bottom;">
-              <div style="{_SANS}font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#000000;">
-                Purpose Yield ETF &mdash; Underlying Volatility Diagnostics
-              </div>
-            </td>
-            <td style="text-align:right;vertical-align:bottom;padding-left:12px;">{logo_email}</td>
-          </tr>
-        </table>
+        <div style="{_SANS}font-size:11px;font-weight:700;letter-spacing:1.6px;
+             text-transform:uppercase;color:#000000;border-bottom:2px solid #000000;
+             padding-bottom:8px;margin:0 0 6px;">
+          Purpose Yield ETF &mdash; Underlying Volatility Diagnostics
+        </div>
         <div style="{_SANS}font-size:11px;color:{_GRAY};margin:0 0 20px;">{date_str}</div>
 
         <p style="{_SANS}font-size:12px;color:#333333;margin:0 0 18px;line-height:1.6;">
@@ -325,13 +319,8 @@ def _logo_tag(height: str = "125px") -> str:
 
 
 def _fig_div(fig) -> str:
-    import uuid as _uuid
-    div_id = "plt-" + _uuid.uuid4().hex[:8]
-    fig_json = fig.to_json()
-    return (
-        f'<div id="{div_id}" class="lazy-plot plotly-graph-div" style="height:450px;width:100%;"></div>'
-        f'<script type="application/json" data-for="{div_id}">{fig_json}</script>'
-    )
+    return fig.to_html(full_html=False, include_plotlyjs=False,
+                       config={"responsive": True, "displayModeBar": True})
 
 
 def _plotly_js_tag() -> str:
@@ -352,7 +341,9 @@ def _chart_wrap(content: str, wrap_id: str) -> str:
     )
 
 
-def _ticker_section_html(m: dict, div_iv: str, is_first: bool = False) -> str:
+def _ticker_section_html(m: dict, surface_div: str, div_iv: str,
+                         profile_div: str, oi_div: str,
+                         is_first: bool = False) -> str:
     pct = m["price_change_pct"]
     pct_str = f" {pct:+.2f}%" if pct is not None else ""
     accent = _accent_color(pct)
@@ -377,6 +368,12 @@ def _ticker_section_html(m: dict, div_iv: str, is_first: bool = False) -> str:
 
     open_attr = " open" if is_first else ""
     dv_wrap = _chart_wrap(div_iv, f"cw-{tk}-dv")
+    sf_wrap = _chart_wrap(surface_div, f"cw-{tk}-sf")
+    pos_wrap = _chart_wrap(
+        f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+        f'<div>{profile_div}</div><div>{oi_div}</div></div>',
+        f"cw-{tk}-pos",
+    )
 
     return f"""
 <details{open_attr} style="margin-bottom:4px;border-left:2px solid {accent};padding-left:12px;">
@@ -384,8 +381,12 @@ def _ticker_section_html(m: dict, div_iv: str, is_first: bool = False) -> str:
     <span style="display:inline-flex;align-items:center;gap:0;flex-wrap:wrap;">{summary_line}</span>
   </summary>
   <div style="padding:10px 0 18px;">
-    <div class="chart-label">&#916;IV Surface &mdash; today vs prior session</div>
-    <div>{dv_wrap}</div>
+    <div class="chart-label">&#916;IV &mdash; today vs prior session</div>
+    <div style="margin-bottom:16px;">{dv_wrap}</div>
+    <div class="chart-label">IV Surface &mdash; today</div>
+    <div style="margin-bottom:16px;">{sf_wrap}</div>
+    <div class="chart-label">Positioning</div>
+    {pos_wrap}
   </div>
 </details>"""
 
@@ -407,7 +408,10 @@ _NO_PRIOR = (
 
 
 def build_html_report(results: list[dict], date: datetime.date) -> str:
-    from gex.analytics import plot_iv_change_surface
+    from gex.analytics import (
+        plot_vol_surface, plot_gamma_profile,
+        plot_oi_by_strike, plot_iv_change_surface,
+    )
     from gex.surface_history import nth_trading_day_back, load_surface_snapshot
 
     date_str = f"{date.strftime('%B')} {date.day}, {date.year}"
@@ -422,6 +426,12 @@ def build_html_report(results: list[dict], date: datetime.date) -> str:
 
         ticker = m["ticker"]
         spot = data["spot"]
+
+        try:
+            surface_fig = plot_vol_surface(data["surface_df"], ticker, spot)
+            surface_div = _fig_div(surface_fig)
+        except Exception as exc:
+            surface_div = f'<p style="color:#f87171;font-size:12px;">Vol surface failed: {exc}</p>'
 
         try:
             prior_date = nth_trading_day_back(ticker, date, 1)
@@ -442,7 +452,21 @@ def build_html_report(results: list[dict], date: datetime.date) -> str:
         except Exception as exc:
             div_iv = f'<p style="color:#f87171;font-size:12px;">&#916;IV failed: {exc}</p>'
 
-        sections.append(_ticker_section_html(m, div_iv, is_first=(i == 0)))
+        try:
+            profile_fig = plot_gamma_profile(data["p_df"], spot, ticker, data["summary"])
+            profile_div = _fig_div(profile_fig)
+        except Exception as exc:
+            profile_div = f'<p style="color:#f87171;font-size:12px;">Gamma profile failed: {exc}</p>'
+
+        try:
+            oi_fig = plot_oi_by_strike(data["s_df"], spot, ticker, data["summary"])
+            oi_div = _fig_div(oi_fig)
+        except Exception as exc:
+            oi_div = f'<p style="color:#f87171;font-size:12px;">OI chart failed: {exc}</p>'
+
+        sections.append(_ticker_section_html(
+            m, surface_div, div_iv, profile_div, oi_div, is_first=(i == 0),
+        ))
 
     all_sections = "\n".join(sections)
 
@@ -526,25 +550,6 @@ function toggleFS(id) {{
     if (ex) ex.call(document);
   }}
 }}
-function renderLazyPlots(container) {{
-  container.querySelectorAll('.lazy-plot:not([data-rendered])').forEach(function(el) {{
-    var s = document.querySelector('script[data-for="' + el.id + '"]');
-    if (!s) return;
-    var fig = JSON.parse(s.textContent);
-    Plotly.newPlot(el, fig.data, fig.layout, {{responsive: true, displayModeBar: true}});
-    el.setAttribute('data-rendered', '1');
-  }});
-}}
-document.addEventListener('DOMContentLoaded', function() {{
-  document.querySelectorAll('details[open]').forEach(function(d) {{
-    renderLazyPlots(d);
-  }});
-  document.querySelectorAll('details').forEach(function(d) {{
-    d.addEventListener('toggle', function() {{
-      if (this.open) renderLazyPlots(this);
-    }});
-  }});
-}});
 </script>
 </head>
 <body>
