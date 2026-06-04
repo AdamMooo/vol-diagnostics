@@ -25,8 +25,8 @@ import pathlib
 
 from gex.data_loader import load_chain
 from gex.greeks_engine import add_greeks
-from gex.exposure_engine import compute_gex, strike_gex, gamma_profile
-from gex.analytics import summarise, plot_strike_gex, plot_gamma_profile
+from gex.exposure_engine import compute_gex, strike_gex, strike_oi, gamma_profile
+from gex.analytics import summarise, plot_oi_by_strike, plot_gamma_profile
 
 OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex"
 
@@ -42,6 +42,7 @@ def run(ticker: str = "SPY", save: bool = True) -> dict:
     df = compute_gex(df, spot=snapshot.spot)
 
     strike_df = strike_gex(df)
+    oi_df = strike_oi(df)
     profile_df = gamma_profile(df, spot=snapshot.spot)
     summary = summarise(strike_df, profile_df, spot=snapshot.spot)
 
@@ -51,8 +52,8 @@ def run(ticker: str = "SPY", save: bool = True) -> dict:
         OUT_DIR.mkdir(exist_ok=True)
         date_tag = snapshot.as_of.isoformat()
 
-        fig1 = plot_strike_gex(strike_df, snapshot.spot, ticker, summary)
-        path1 = OUT_DIR / f"gex_strikes_{ticker}_{date_tag}.html"
+        fig1 = plot_oi_by_strike(oi_df, snapshot.spot, ticker, summary)
+        path1 = OUT_DIR / f"gex_oi_{ticker}_{date_tag}.html"
         fig1.write_html(str(path1))
         print(f"[gex] Saved: {path1}")
 
@@ -61,7 +62,7 @@ def run(ticker: str = "SPY", save: bool = True) -> dict:
         fig2.write_html(str(path2))
         print(f"[gex] Saved: {path2}")
     else:
-        fig1 = plot_strike_gex(strike_df, snapshot.spot, ticker, summary)
+        fig1 = plot_oi_by_strike(oi_df, snapshot.spot, ticker, summary)
         fig2 = plot_gamma_profile(profile_df, snapshot.spot, ticker, summary)
         fig1.show()
         fig2.show()
