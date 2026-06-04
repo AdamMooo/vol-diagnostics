@@ -44,7 +44,7 @@ Project-internal runners only. Cross-project runners live under each project's o
 **Sanity checks**
 - `gex_daily.ps1 status` → `State: Ready`, `Last result: 0` (any non-zero is an error code, e.g. `2147942402` = path not found)
 - Manual fire: `Start-ScheduledTask -TaskName "GEX Daily Report"`
-- Dry run without scheduler: `python -m gex.run_daily --dry-run` (writes `out/gex_YYYYMMDD.html`, no email sent)
+- Dry run without scheduler: `python -m gex.run_daily --dry-run` (writes `out/index-vol-report-YYYY-MM-DD.html`, no email sent)
 
 ## Status
 
@@ -71,7 +71,7 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 
 ### Operator notes (handwritten — survives hub-sync)
 
-Last hand-updated: 2026-06-01 | **Tab merge — "Calculus+VRP" + "Evolution" → single "Evolution" tab; killed cross-ticker RR bar. Commit `9a60254`. Phase 14 (email ΔIV surfaces) ready to plan next session.**
+Last hand-updated: 2026-06-03 | **Repo polish + yield report overhaul (out-of-phase, 2026-06-03).** Email config split (`GEX_EMAIL_TO` / `YIELD_EMAIL_TO`), professional HTML filenames, thousands separator fix, GEX context added to yield report (Net GEX email column + γ-flip/walls in HTML with assumption caveat), S3 upload removed. Phase 14 (accumulation gating) is next — context already in `14-CONTEXT.md`.
 
 **Review fixes (2026-06-01, commit `543cfe2`):** Applied all findings from two code reviews (phase-11 standard + deep review). 126/126 tests green after all changes.
 
