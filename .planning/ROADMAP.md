@@ -122,7 +122,11 @@ Plans:
   2. The module exposes a single `load_vol_index(symbol)` function (or equivalent); no downstream metric code imports from `requests` or touches a CSV path directly.
   3. Swapping the data source to Bloomberg requires changes only inside this module — no downstream edits needed (verified by inspection, not runtime).
   4. A smoke test confirms the returned DataFrame has a date index and a closing-price column for each symbol, with no silent all-NaN result on a successful fetch.
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 15-01-PLAN.md — gex/vol_index.py: fetch, parse, persist, load accessor + DEFAULT_VOL_INDICES in config.py
+- [ ] 15-02-PLAN.md — run_daily.py integration + test_vol_index.py (VIDX-01/VIDX-02 coverage)
 
 ---
 
