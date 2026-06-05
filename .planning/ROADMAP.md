@@ -1,6 +1,6 @@
 # Roadmap: Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-01 · v3.3 SHIPPED · v3.4 active (Phases 12–14 planned)*
+*Last updated: 2026-06-04 · v3.3 SHIPPED · v3.4 active (Phases 12–14) · v3.5 planned (Phases 15–18)*
 
 ## Milestones
 
@@ -9,6 +9,7 @@
 - ✅ **v3.2 Vol Surface Reframe** — Phases 6–7 (computation engine + institutional dashboard rendering)
 - ✅ **v3.3 Surface Evolution & Daily Intelligence** — Phases 8–11 (shipped 2026-06-01)
 - 🚧 **v3.4 Email-First Daily Report Polish** — Phases 12–14 (in progress)
+- **v3.5 Index Vol-Context Rebuild** — Phases 15–18 (planned)
 - **Backlog (999.x)** — Charm, test coverage, pre-distribution; awaiting research
 
 ## Phases
@@ -32,13 +33,24 @@
 
 ---
 
-### 🚧 v3.4 Email-First Daily Report Polish (In Progress)
+### v3.4 Email-First Daily Report Polish (Superseded by v3.5 — Phase 14 unexecuted)
 
 **Milestone Goal:** Curate the daily email into a tight single-snapshot diagnostic, unify the email and dashboard around one canonical card, replace the static surface PNGs with 1-day ΔIV surfaces, and gate accumulation-dependent UI until enough sessions exist. Every scope item is single-snapshot or near-it.
 
-- [x] **Phase 12: Canonical Card** — Single source-of-truth card shared by email + dashboard; VRP, scalar deltas, wall labels (completed 2026-06-01)
+- [x] **Phase 12: Canonical Card** — Single source-of-truth card shared by email + dashboard; VRP, scalar deltas, wall labels (completed 2026-06-01)
 - [x] **Phase 13: 1-Day ΔIV Email PNGs** — Replace static surface + 5d ΔIV PNGs with one 1d ΔIV surface PNG per ticker (completed 2026-06-02)
-- [ ] **Phase 14: Accumulation Gating** — Gate history-dependent UI elements behind session-count guards; cold-start safe email
+- [~] **Phase 14: Accumulation Gating** — SUPERSEDED by v3.5 Phase 18. Gating intent (GATE-01/02) carried forward verbatim into Phase 18; not executed standalone.
+
+---
+
+### v3.5 Index Vol-Context Rebuild (Planned)
+
+**Milestone Goal:** Re-aim the dashboard at the index income-sleeve PM — lead with VRP percentile and VIX term-structure regime, reorganize surfaces and GEX beneath them.
+
+- [ ] **Phase 15: Vol-Index Data Layer** — Fetch + cache CBOE vol-index daily CSVs (VIX/VXN/RVX + siblings); Bloomberg-swappable isolated module
+- [ ] **Phase 16: VRP Percentile** — VRP (vol-index − RV20) ranked as a percentile against its own history; internally consistent series, lookback labeled
+- [ ] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
+- [ ] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (VRP+term+snapshot / surfaces / GEX); page-1 snapshot tied to canonical card; accumulation-dependent elements gated
 
 ---
 
@@ -100,6 +112,63 @@ Plans:
 
 ---
 
+### Phase 15: Vol-Index Data Layer
+
+**Goal**: The system can fetch, parse, and cache CBOE vol-index daily history for all index-relevant symbols (VIX/VXN/RVX plus the VIX9D/VIX3M term siblings that CBOE actually publishes) in one isolated module — so VRP and term-structure computations downstream never touch a data source directly.
+**Depends on**: None (foundation phase; Phase 14 superseded, not a dependency)
+**Requirements**: VIDX-01, VIDX-02
+**Success Criteria** (what must be TRUE):
+  1. Running the data-layer module fetches and caches VIX, VXN, RVX, VIX9D, and VIX3M history from the free CBOE CDN CSVs; a second run uses the cache and makes no network call.
+  2. The module exposes a single `load_vol_index(symbol)` function (or equivalent); no downstream metric code imports from `requests` or touches a CSV path directly.
+  3. Swapping the data source to Bloomberg requires changes only inside this module — no downstream edits needed (verified by inspection, not runtime).
+  4. A smoke test confirms the returned DataFrame has a date index and a closing-price column for each symbol, with no silent all-NaN result on a successful fetch.
+**Plans**: TBD
+
+---
+
+### Phase 16: VRP Percentile
+
+**Goal**: The PM can see today's VRP (vol-index implied vol minus RV20 realized vol) for each index together with its percentile rank against its own history, computed from one internally-consistent series and labeled with the lookback window.
+**Depends on**: Phase 15
+**Requirements**: VRP-01, VRP-02, VRP-03
+**Success Criteria** (what must be TRUE):
+  1. The dashboard and email display today's VRP scalar for SPY, QQQ, and IWM (vol-index minus RV20).
+  2. Each VRP value is accompanied by its percentile rank (e.g. "74th percentile, 252-day lookback") with the lookback window explicitly labeled.
+  3. The percentile is computed using only the vol-index series for both the current reading and its history — snapshot IV30 is never mixed into the VRP history (verifiable by reading the computation path).
+  4. When fewer sessions exist than the lookback window, the percentile is either omitted or labeled with the actual available count — never silently computed on a thin sample without disclosure.
+**Plans**: TBD
+
+---
+
+### Phase 17: Term-Structure Regime
+
+**Goal**: The PM can see the SPY VIX term structure (VIX9D/VIX/VIX3M) as raw ratios indicating contango or backwardation, and QQQ/IWM show whatever CBOE actually publishes for them without fabricating a term structure.
+**Depends on**: Phase 15
+**Requirements**: TERM-01, TERM-02
+**Success Criteria** (what must be TRUE):
+  1. The SPY display shows two raw ratios — VIX9D/VIX and VIX/VIX3M — with no categorical label or hidden scoring; the PM reads the number and judges.
+  2. For QQQ and IWM, the display shows whichever term-structure siblings CBOE publishes; if only the 30-day level (VXN/RVX) is available, the term-structure row is omitted or marked "N/A — single point only" rather than fabricated.
+  3. A one-time verification step during the phase confirms which CBOE sibling symbols actually exist for VXN/RVX (e.g. VXN9D, VXST) and documents the finding in CLAUDE.md.
+**Plans**: TBD
+
+---
+
+### Phase 18: 3-Page Reorg + Email Parity + Gating
+
+**Goal**: The dashboard is reorganized into three pages (page 1: VRP + term structure + snapshot; page 2: surfaces; page 3: GEX) with nothing deleted; the page-1 snapshot renders numbers identical to the daily email via the shared canonical card; and all history-dependent UI elements on page 1 are gated behind session-count guards.
+**Depends on**: Phase 16, Phase 17
+**Requirements**: VIEW-06, VIEW-07, CUT-02, PAR-01, GATE-01, GATE-02
+**Success Criteria** (what must be TRUE):
+  1. The dashboard opens to page 1 showing VRP percentile, term-structure ratios, and the snapshot card; pages 2 and 3 contain the vol surface and GEX panels respectively — nothing is deleted, only reorganized.
+  2. The page-1 snapshot card renders the same field values as the daily email for the same session; a single canonical card definition drives both surfaces.
+  3. The 3D vol surface does not appear on page 1; it lives on page 2 alongside other surface content.
+  4. Page-1 elements that require accumulated history (VRP percentile, term-structure percentile) display a clear "needs ≥N sessions" caption rather than NaN or an empty widget when insufficient history exists.
+  5. The email omits history-dependent content rather than rendering empty/NaN rows when required history is absent, and the send never errors on cold-start.
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -117,7 +186,11 @@ Plans:
 | 11. Richer Daily Report | v3.3 | 4/4 | Complete | 2026-06-01 |
 | 12. Canonical Card | v3.4 | 3/3 | Complete   | 2026-06-01 |
 | 13. 1-Day ΔIV Email PNGs | v3.4 | 1/1 | Complete    | 2026-06-02 |
-| 14. Accumulation Gating | v3.4 | 0/TBD | Not started | - |
+| 14. Accumulation Gating | v3.4 | — | Superseded → Phase 18 | - |
+| 15. Vol-Index Data Layer | v3.5 | 0/TBD | Not started | - |
+| 16. VRP Percentile | v3.5 | 0/TBD | Not started | - |
+| 17. Term-Structure Regime | v3.5 | 0/TBD | Not started | - |
+| 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 0/TBD | Not started | - |
 
 ---
 

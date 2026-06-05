@@ -1,24 +1,24 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-01 — Phase 13 complete. Per-ticker 1-day ΔIV PNG loop live in run_daily.py: each of SPY/QQQ/IWM resolves its prior session via nth_trading_day_back, skips gracefully when no snapshot exists, attaches ΔIV surface PNG. Static surface block fully removed. 181 tests pass. Next: Phase 14 accumulation gating.*
+*Last updated: 2026-06-04 — Milestone v3.5 started. Re-aim at the index income-sleeve PM: VRP percentile + VIX term-structure regime lead, 3-page reorg, email-parity snapshot. v3.4 superseded mid-flight (Phase 14 intent folded into v3.5).*
 
-## Current Milestone: v3.4 — Email-First Daily Report Polish
+## Current Milestone: v3.5 — Index Vol-Context Rebuild
 
-**Goal:** Stop building accumulation-dependent features and instead show off the parts we already have — curate the daily email into a tight, single-snapshot diagnostic, and make the local dashboard render the same canonical card so the two stop drifting.
+**Goal:** Re-aim the dashboard at the index income-sleeve PM — lead with the two metrics that actually change an option-writing decision (VRP percentile, VIX term-structure regime), and reorganize surfaces + GEX beneath them.
 
-**Email is the product; the dashboard mirrors it.** Every scope item is single-snapshot or near-it — favouring metrics computable from today's chain over ones that need a long history.
+**Audience & trust line:** The discretionary user is a covered-call / put-write income PM writing **index overlays (SPY/QQQ/IWM, US-listed)**. VIX/VXN/RVX are the gold-standard free implied-vol history → percentile context is trustworthy here. Deliberately NOT extended to single names (no free historical IV; PMs use Bloomberg live for those). Index-overlay decision, full stop.
 
 **Target features:**
-- VRP into the email card — already computed, currently absent from email; one of the two "solid secondary" metrics (with GEX)
-- Scalar vs-yesterday deltas on iv30 / skew / net GEX — raw signed numbers from the 15-day store, NOT the retired categorical regime badge
-- OI-vs-GEX wall clarity — label GEX walls "(model)" and OI walls "(raw OI)" with a one-line inline distinction, in both surfaces
-- 1-day ΔIV surface PNGs — one per index (SPY/QQQ/IWM) showing the change vs the last trading day, replacing the 3 static surface PNGs (and the old SPY-only 5d ΔIV PNG) 1:1; the 1d ΔIV becomes the only PNG type in the email
-- Unified card layout — one canonical card (the richer email card) ported to the dashboard, single source of truth
-- Gate accumulation-dependent UI — hide evolution tab / sparklines / percentiles / history charts behind "needs ≥N sessions" guards; engines untouched
+- CBOE vol-index data layer — fetch + cache VIX/VXN/RVX (+ VIX9D/VIX3M) free historical CSVs; mirrors `data_loader` pattern, Bloomberg-swap-friendly
+- VRP percentile — historical VRP series (vol-index − RV20) ranked via `percentileofscore`; "premium is Nth-percentile rich"
+- VIX term-structure regime — VIX9D/VIX/VIX3M contango vs backwardation; raw ratio + percentile, no hidden scoring (interpretability rule)
+- 3-page reorg — page 1: VRP + term structure + simplified snapshot; page 2: surfaces; page 3: GEX. Nothing deleted, demoted
+- Email parity — page-1 snapshot renders numbers identical to the daily email (extend the Phase 12 canonical card)
+- Accumulation gating (from v3.4 Phase 14) — history-dependent UI behind session-count guards; cold-start safe
 
-**1-day framing:** the 1d change is a DESCRIPTIVE daily glance in the report, NOT a signal in the evolution engine — this does not reverse the locked 2026-05-30 "no 1d in evolution horizons" decision. Resolved via `nth_trading_day_back(ticker, today, 1)` so it means "last session with a snapshot" (gap-safe).
+**Data:** all free — CBOE vol-index CSVs (`cdn.cboe.com/api/global/us_indices/daily_prices/{SYM}_History.csv`) + yfinance underlying closes (RV20, already wired). No vendor, no Bloomberg.
 
-**Deferred (not in scope):** "large OI blocks expiring soon" flag — parked; methodology needs a parameter-free design (no hand-tuned "large" cutoff).
+**Deferred (not in scope):** single-name VRP/percentile (no free IV history); put/call ratios, VVIX, cross-asset vol indices (noise for this user); conditional base-rate framework (v2.x track, pairs with VRP later).
 
 ## What This Is
 

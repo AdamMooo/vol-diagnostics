@@ -49,22 +49,18 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-02 16:56 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-05 15:46 UTC
 
-**Milestone:** v3.4 · **Status:** planning · **STATE last_updated:** 2026-06-02T01:37:07.784Z
+**Milestone:** v3.5 · **Status:** planning · **STATE last_updated:** 2026-06-04T19:50:01.931Z
 
 ### Current Position
-- **Phase:** 14
-- **Plan:** Not started
+- **Phase:** 15 — Vol-Index Data Layer
+- **Plan:** —
 - **Status:** Ready to plan
-- **Last activity:** 2026-06-02
+- **Last activity:** 2026-06-04 — v3.5 roadmap created (Phases 15–18)
 
 ### Pending Todos
-- None.
-
-### Roadmap (current milestone)
-- ✅ **Phase 13: 1-Day ΔIV Email PNGs** — Replace static surface + 5d ΔIV PNGs with one 1d ΔIV surface PNG per ticker (completed 2026-06-02)
-- ⬜ **Phase 14: Accumulation Gating** — Gate history-dependent UI elements behind session-count guards; cold-start safe email
+- None. (Phase 14 was superseded by Phase 18 per the 2026-06-04 roadmap — GATE-01/02 carried forward; it is NOT incomplete work and does not block Phase 15.)
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->

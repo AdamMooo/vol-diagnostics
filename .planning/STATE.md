@@ -1,42 +1,42 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.4
-milestone_name: Email-First Daily Report Polish
+milestone: v3.5
+milestone_name: Index Vol-Context Rebuild
 status: planning
-stopped_at: Phase 14 context gathered
-last_updated: "2026-06-02T01:37:07.784Z"
-last_activity: 2026-06-02
+stopped_at: Phase 15 context gathered
+last_updated: "2026-06-04T19:50:01.931Z"
+last_activity: 2026-06-04 — v3.5 roadmap created (Phases 15–18)
 progress:
-  total_phases: 3
+  total_phases: 7
   completed_phases: 2
   total_plans: 4
   completed_plans: 4
-  percent: 67
+  percent: 29
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-01)
+See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 14 — accumulation gating
+**Current focus:** Phase 15 — vol-index data layer (v3.5 start)
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
+Phase: 15 — Vol-Index Data Layer
+Plan: —
 Status: Ready to plan
-Last activity: 2026-06-02
+Last activity: 2026-06-04 — v3.5 roadmap created (Phases 15–18)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: `[ ] [ ] [ ] [ ]` 0/4 phases
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 30 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11)
+- Total plans completed: 30 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11) + 4 (v3.4 phases 12–13)
 - Average duration: ~7 min per plan
 - Current test count: 66
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Decisions
 
+- 2026-06-04: v3.5 roadmap — 4 phases (15–18). VIDX data layer first (foundation); VRP percentile and term-structure regime are separate phases (distinct deliverables, both depend on VIDX); 3-page reorg + email parity + gating last (presentation layer, depends on both metrics). GATE-01/02 folded into Phase 18 (display-layer safety net for the same page-1 reorg).
 - 2026-06-01: v3.4 1d-change framing — the 1-day ΔIV surface in the email is a DESCRIPTIVE daily glance, NOT a signal in the evolution engine. Does not reverse the 2026-05-30 "no 1d in evolution horizons" decision. Resolved via `nth_trading_day_back(ticker, today, 1)`.
 - 2026-06-01: Scheduler IS firing — Task Scheduler "GEX Daily Report" runs weekdays 4:30pm ET. SETUP FLAW: `DisallowStartIfOnBatteries=True` caused silent skips on battery. Fix: elevated PowerShell set both battery flags false + RestartCount=2/PT5M. RESOLVED 2026-06-01 (Adam ran it).
 - 2026-05-30: ΔIV horizons locked {5,10,20}; 1-day excluded from evolution engine.
@@ -72,7 +73,7 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Pending Todos
 
-- None.
+- None. (Phase 14 was superseded by Phase 18 per the 2026-06-04 roadmap — GATE-01/02 carried forward; it is NOT incomplete work and does not block Phase 15.)
 
 ### Blockers/Concerns
 
@@ -89,9 +90,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-02T01:37:07.770Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-accumulation-gating/14-CONTEXT.md
+Last session: 2026-06-04T19:50:01.902Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-vol-index-data-layer/15-CONTEXT.md
 
 ---
 <!-- LINKS:AUTO -->
