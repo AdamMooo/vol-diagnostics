@@ -26,6 +26,7 @@ from gex.png_export import export_png
 from gex.analytics import plot_iv_change_heatmap
 from gex.surface_evolution import load_evolution
 from gex.vol_metrics import evolution_5d_summary
+from gex.vol_index import refresh_vol_indices
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ALL_TICKERS = INDEX_TICKERS
@@ -100,6 +101,12 @@ def run(dry_run: bool = False) -> None:
 
     print(f"[gex-daily] {today}  tickers: {', '.join(ALL_TICKERS)}")
     OUT_DIR.mkdir(exist_ok=True)
+
+    print("[run_daily] Refreshing vol-index snapshots...")
+    try:
+        refresh_vol_indices()
+    except Exception as exc:
+        print(f"  [WARN] vol-index refresh failed (non-blocking): {exc}")
 
     all_data: list[dict] = []
     for ticker in ALL_TICKERS:
