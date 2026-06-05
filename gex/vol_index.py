@@ -5,7 +5,6 @@ Bloomberg swap: replace _fetch_cboe_vol_index only.
 """
 from __future__ import annotations
 
-import datetime
 import pathlib
 
 import pandas as pd
@@ -57,34 +56,19 @@ def _fetch_cboe_vol_index(symbol: str) -> pd.DataFrame | None:
         return None
 
 
-def save_vol_index_snapshot(
-    df: pd.DataFrame | None,
-    symbol: str,
-    date: datetime.date | None = None,
-) -> None:
-    """Append vol-index daily snapshot to per-symbol parquet store (idempotent on date)."""
+def save_vol_index_snapshot(df: pd.DataFrame | None, symbol: str) -> None:
+    """Write the per-symbol parquet store. CBOE ships full history every fetch, so this
+    is an unconditional overwrite — appending would duplicate every historical row daily."""
     if df is None or df.empty:
         return
-
-    today = date or datetime.date.today()
 
     df_to_store = df[["DATE", "OPEN", "HIGH", "LOW", "CLOSE"]].copy()
     df_to_store.columns = ["date", "open", "high", "low", "close"]
     df_to_store.insert(0, "symbol", symbol)
 
-    path = _store_path(symbol)
     STORE_DIR.mkdir(parents=True, exist_ok=True)
-
-    if path.exists():
-        hist = pd.read_parquet(path)
-        hist["date"] = pd.to_datetime(hist["date"]).dt.date
-        hist = hist[hist["date"] != today]
-        hist = pd.concat([hist, df_to_store], ignore_index=True)
-    else:
-        hist = df_to_store
-
-    hist.to_parquet(path, index=False)
-    print(f"[vol_index] {symbol}: {len(df_to_store)} rows saved for {today} ({len(hist)} total in store)")
+    df_to_store.to_parquet(_store_path(symbol), index=False)
+    print(f"[vol_index] {symbol}: {len(df_to_store)} rows written (replace)")
 
 
 def load_vol_index(symbol: str, days: int | None = None) -> pd.DataFrame:
@@ -110,7 +94,7 @@ def load_vol_index(symbol: str, days: int | None = None) -> pd.DataFrame:
 
 def refresh_vol_indices(symbols: list[str] | None = None) -> None:
     """Fetch and cache vol-index daily snapshots for all symbols. Non-fatal on 403 or network error."""
-    symbols = symbols or list(DEFAULT_VOL_INDICES)
+    symbols = DEFAULT_VOL_INDICES if symbols is None else symbols
     for sym in symbols:
         df = _fetch_cboe_vol_index(sym)
         if df is None:

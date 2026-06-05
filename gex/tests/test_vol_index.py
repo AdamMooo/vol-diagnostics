@@ -117,21 +117,26 @@ class TestSave:
 
         assert (store / "VIX.parquet").exists()
 
-    def test_idempotent_same_date(self, tmp_path):
-        today = datetime.date(2026, 1, 6)
-        # df with a single row dated 'today' — save twice; store must have exactly 1 row
-        single_row_df = pd.DataFrame(
-            {"DATE": [today], "OPEN": [15.0], "HIGH": [16.0], "LOW": [14.5], "CLOSE": [15.5]}
+    def test_overwrite_no_cross_day_duplication(self, tmp_path):
+        # CBOE ships full history each fetch. Saving the same multi-row history on two
+        # different run-days must NOT duplicate historical rows (CR-01 regression guard).
+        hist_df = pd.DataFrame(
+            {
+                "DATE": [datetime.date(2026, 1, 1), datetime.date(2026, 1, 2), datetime.date(2026, 1, 3)],
+                "OPEN": [15.0, 15.2, 15.4],
+                "HIGH": [16.0, 16.2, 16.4],
+                "LOW": [14.5, 14.7, 14.9],
+                "CLOSE": [15.5, 15.7, 15.9],
+            }
         )
         store = tmp_path / "vol_index"
         with patch("gex.vol_index.STORE_DIR", store):
-            save_vol_index_snapshot(single_row_df, "VIX", date=today)
-            save_vol_index_snapshot(single_row_df, "VIX", date=today)
+            save_vol_index_snapshot(hist_df, "VIX")  # day 1 run
+            save_vol_index_snapshot(hist_df, "VIX")  # day 2 run, same full history
 
         stored = pd.read_parquet(store / "VIX.parquet")
-        date_col = pd.to_datetime(stored["date"]).dt.date
-        # The row for 'today' must appear exactly once — idempotency guard works
-        assert (date_col == today).sum() == 1
+        assert len(stored) == len(hist_df)
+        assert pd.to_datetime(stored["date"]).dt.date.nunique() == len(hist_df)
 
     def test_none_df_is_noop(self, tmp_path):
         store = tmp_path / "vol_index"
