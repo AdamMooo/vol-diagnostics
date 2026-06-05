@@ -181,3 +181,8 @@ KALEIDO_CAMERA_EYE: dict[str, float] = {"x": 1.5, "y": -1.5, "z": 0.8}
 Applied before every write_image() call so all attachments look consistent.
 eye=(1.5, -1.5, 0.8) gives a readable perspective: moderate elevation, slight
 front-right offset that shows both the skew gradient and the DTE term structure."""
+
+# ── Vol-index data layer ─────────────────────────────────────────────────────
+
+# Default CBOE vol-index symbols fetched by refresh_vol_indices(). VIX9D/VIX3M are SPY term-structure siblings; VXN/RVX are QQQ/IWM 30-day levels. Add symbols here — not in vol_index.py — per D-02.
+DEFAULT_VOL_INDICES: list[str] = ["VIX", "VXN", "RVX", "VIX9D", "VIX3M"]
