@@ -114,11 +114,6 @@ cssclasses: [is-planning]
 - [[phases/05-uat-sign-off-cleanup/05-P3-SUMMARY.md|05-P3-SUMMARY]]
 - [[phases/05-uat-sign-off-cleanup/05-RESEARCH.md|05-RESEARCH]]
 
-## Related Projects
 
 - [[../PLANNING-HUB|Planning Hub]]
-- [[../marco-quant/marco-quant Planning|marco-quant Planning]]
-- [[../crypto-options/crypto-options Planning|crypto-options Planning]]
-
 ---
-LINKS:AUTO

@@ -16,6 +16,7 @@ from __future__ import annotations
 import datetime
 from dataclasses import dataclass
 
+
 import pandas as pd
 import requests
 
