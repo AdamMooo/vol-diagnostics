@@ -16,8 +16,8 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 
 ### Vol-Index Data Layer (VIDX)
 
-- [ ] **VIDX-01** — System fetches and caches the CBOE vol-index daily history (VIX/VXN/RVX, plus the VIX9D/VIX3M term siblings that exist) from the free `cdn.cboe.com` CSV endpoints. Underlying closes for realized vol continue to come from the existing yfinance path.
-- [ ] **VIDX-02** — Vol-index access is isolated in one module mirroring the `data_loader.py` pattern, so the source is Bloomberg-swappable without touching downstream metric code.
+- [x] **VIDX-01** — System fetches and caches the CBOE vol-index daily history (VIX/VXN/RVX, plus the VIX9D/VIX3M term siblings that exist) from the free `cdn.cboe.com` CSV endpoints. Underlying closes for realized vol continue to come from the existing yfinance path.
+- [x] **VIDX-02** — Vol-index access is isolated in one module mirroring the `data_loader.py` pattern, so the source is Bloomberg-swappable without touching downstream metric code.
 
 ### VRP Percentile (VRP)
 
@@ -72,8 +72,8 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| VIDX-01 | Phase 15 | Pending |
-| VIDX-02 | Phase 15 | Pending |
+| VIDX-01 | Phase 15 | Complete |
+| VIDX-02 | Phase 15 | Complete |
 | VRP-01 | Phase 16 | Pending |
 | VRP-02 | Phase 16 | Pending |
 | VRP-03 | Phase 16 | Pending |

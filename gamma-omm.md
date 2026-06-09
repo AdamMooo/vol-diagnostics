@@ -49,7 +49,7 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-05 15:46 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-05 15:56 UTC
 
 **Milestone:** v3.5 · **Status:** planning · **STATE last_updated:** 2026-06-04T19:50:01.931Z
 

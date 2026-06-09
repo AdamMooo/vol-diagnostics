@@ -47,7 +47,7 @@
 
 **Milestone Goal:** Re-aim the dashboard at the index income-sleeve PM — lead with VRP percentile and VIX term-structure regime, reorganize surfaces and GEX beneath them.
 
-- [ ] **Phase 15: Vol-Index Data Layer** — Fetch + cache CBOE vol-index daily CSVs (VIX/VXN/RVX + siblings); Bloomberg-swappable isolated module
+- [x] **Phase 15: Vol-Index Data Layer** — Fetch + cache CBOE vol-index daily CSVs (VIX/VXN/RVX + siblings); Bloomberg-swappable isolated module (completed 2026-06-05)
 - [ ] **Phase 16: VRP Percentile** — VRP (vol-index − RV20) ranked as a percentile against its own history; internally consistent series, lookback labeled
 - [ ] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
 - [ ] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (VRP+term+snapshot / surfaces / GEX); page-1 snapshot tied to canonical card; accumulation-dependent elements gated
@@ -62,14 +62,17 @@
 **Depends on**: Phase 11
 **Requirements**: CARD-01, CARD-02, CARD-03, CARD-04
 **Success Criteria** (what must be TRUE):
+
   1. The email card and the dashboard regime card render the same fields from the same source; changing the card definition in one place updates both.
   2. VRP (IV30 − RV20) appears as a scalar on the card in both the email and the dashboard.
   3. IV30, front skew (25Δ), and net GEX each show a signed 1-session delta (e.g. `18.5% (+0.8)`); when no prior snapshot exists the delta suffix is absent, not NaN or an error.
   4. GEX walls are labelled "(model)" and OI walls "(raw OI)" consistently in both surfaces, with a one-line inline distinction so the two types are never confused.
+
 **Plans**: 3 plans
 **UI hint**: yes
 
 Plans:
+
 - [x] 12-01-PLAN.md — Shared card-model layer: CardField + build_card_fields(), iv30 schema, load_prior_snapshot
 - [x] 12-02-PLAN.md — Email renderer integration: _ticker_card() consumes build_card_fields()
 - [x] 12-03-PLAN.md — Dashboard renderer integration: render_regime_card() consumes build_card_fields()
@@ -82,13 +85,16 @@ Plans:
 **Depends on**: Phase 12
 **Requirements**: RPT-06, RPT-07
 **Success Criteria** (what must be TRUE):
+
   1. The email attaches up to 3 PNGs (one per ticker); no static surface PNGs or 5-day ΔIV PNGs are attached.
   2. Each PNG shows the 1-day ΔIV surface labelled with the real prior-session date, resolved via `nth_trading_day_back(ticker, today, 1)` (gap-safe).
   3. When no prior snapshot exists for a ticker, that ticker's PNG is omitted and the email still sends successfully.
   4. The evolution engine's `surface_evolution.parquet` and its {5,10,20} horizon computations are unchanged.
+
 **Plans**: 1 plan
 
 Plans:
+
 - [x] 13-01-PLAN.md — Swap PNG block: 1-day ΔIV per ticker, delete static surface + 5d ΔIV PNGs, add tests
 
 ---
@@ -99,13 +105,16 @@ Plans:
 **Depends on**: Phase 12
 **Requirements**: GATE-01, GATE-02
 **Success Criteria** (what must be TRUE):
+
   1. Evolution-tab small-multiples, VRP/skew percentiles, the VRP sparkline, and the 42-session spot-vs-levels chart each display a clear "needs ≥N sessions" caption when insufficient history exists, rather than an empty chart or NaN values.
   2. The underlying engines and parquet stores are untouched — only display is gated.
   3. The email cold-starts cleanly: history-dependent sections (evolution block, ΔIV PNGs) are omitted rather than rendered empty when required history does not exist, and the send completes without error.
+
 **Plans**: 3 plans
 **UI hint**: yes
 
 Plans:
+
 - [x] 12-01-PLAN.md — Shared card-model layer: CardField + build_card_fields(), iv30 schema, load_prior_snapshot
 - [x] 12-02-PLAN.md — Email renderer integration: _ticker_card() consumes build_card_fields()
 - [ ] 12-03-PLAN.md — Dashboard renderer integration: render_regime_card() consumes build_card_fields()
@@ -118,15 +127,22 @@ Plans:
 **Depends on**: None (foundation phase; Phase 14 superseded, not a dependency)
 **Requirements**: VIDX-01, VIDX-02
 **Success Criteria** (what must be TRUE):
+
   1. Running the data-layer module fetches and caches VIX, VXN, RVX, VIX9D, and VIX3M history from the free CBOE CDN CSVs; a second run uses the cache and makes no network call.
   2. The module exposes a single `load_vol_index(symbol)` function (or equivalent); no downstream metric code imports from `requests` or touches a CSV path directly.
   3. Swapping the data source to Bloomberg requires changes only inside this module — no downstream edits needed (verified by inspection, not runtime).
   4. A smoke test confirms the returned DataFrame has a date index and a closing-price column for each symbol, with no silent all-NaN result on a successful fetch.
+
 **Plans**: 2 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — gex/vol_index.py: fetch, parse, persist, load accessor + DEFAULT_VOL_INDICES in config.py
-- [ ] 15-02-PLAN.md — run_daily.py integration + test_vol_index.py (VIDX-01/VIDX-02 coverage)
+**Wave 1**
+
+- [x] 15-01-PLAN.md — gex/vol_index.py: fetch, parse, persist, load accessor + DEFAULT_VOL_INDICES in config.py
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 15-02-PLAN.md — run_daily.py integration + test_vol_index.py (VIDX-01/VIDX-02 coverage)
 
 ---
 
@@ -136,10 +152,12 @@ Plans:
 **Depends on**: Phase 15
 **Requirements**: VRP-01, VRP-02, VRP-03
 **Success Criteria** (what must be TRUE):
+
   1. The dashboard and email display today's VRP scalar for SPY, QQQ, and IWM (vol-index minus RV20).
   2. Each VRP value is accompanied by its percentile rank (e.g. "74th percentile, 252-day lookback") with the lookback window explicitly labeled.
   3. The percentile is computed using only the vol-index series for both the current reading and its history — snapshot IV30 is never mixed into the VRP history (verifiable by reading the computation path).
   4. When fewer sessions exist than the lookback window, the percentile is either omitted or labeled with the actual available count — never silently computed on a thin sample without disclosure.
+
 **Plans**: TBD
 
 ---
@@ -150,9 +168,11 @@ Plans:
 **Depends on**: Phase 15
 **Requirements**: TERM-01, TERM-02
 **Success Criteria** (what must be TRUE):
+
   1. The SPY display shows two raw ratios — VIX9D/VIX and VIX/VIX3M — with no categorical label or hidden scoring; the PM reads the number and judges.
   2. For QQQ and IWM, the display shows whichever term-structure siblings CBOE publishes; if only the 30-day level (VXN/RVX) is available, the term-structure row is omitted or marked "N/A — single point only" rather than fabricated.
   3. A one-time verification step during the phase confirms which CBOE sibling symbols actually exist for VXN/RVX (e.g. VXN9D, VXST) and documents the finding in CLAUDE.md.
+
 **Plans**: TBD
 
 ---
@@ -163,11 +183,13 @@ Plans:
 **Depends on**: Phase 16, Phase 17
 **Requirements**: VIEW-06, VIEW-07, CUT-02, PAR-01, GATE-01, GATE-02
 **Success Criteria** (what must be TRUE):
+
   1. The dashboard opens to page 1 showing VRP percentile, term-structure ratios, and the snapshot card; pages 2 and 3 contain the vol surface and GEX panels respectively — nothing is deleted, only reorganized.
   2. The page-1 snapshot card renders the same field values as the daily email for the same session; a single canonical card definition drives both surfaces.
   3. The 3D vol surface does not appear on page 1; it lives on page 2 alongside other surface content.
   4. Page-1 elements that require accumulated history (VRP percentile, term-structure percentile) display a clear "needs ≥N sessions" caption rather than NaN or an empty widget when insufficient history exists.
   5. The email omits history-dependent content rather than rendering empty/NaN rows when required history is absent, and the send never errors on cold-start.
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -191,7 +213,7 @@ Plans:
 | 12. Canonical Card | v3.4 | 3/3 | Complete   | 2026-06-01 |
 | 13. 1-Day ΔIV Email PNGs | v3.4 | 1/1 | Complete    | 2026-06-02 |
 | 14. Accumulation Gating | v3.4 | — | Superseded → Phase 18 | - |
-| 15. Vol-Index Data Layer | v3.5 | 0/TBD | Not started | - |
+| 15. Vol-Index Data Layer | v3.5 | 2/2 | Complete    | 2026-06-05 |
 | 16. VRP Percentile | v3.5 | 0/TBD | Not started | - |
 | 17. Term-Structure Regime | v3.5 | 0/TBD | Not started | - |
 | 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 0/TBD | Not started | - |
@@ -208,6 +230,8 @@ Plans:
 
 ---
 <!-- LINKS:AUTO -->
+
 ## Related
+
 **Project:** [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->

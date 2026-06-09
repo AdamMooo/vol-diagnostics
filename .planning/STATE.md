@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Index Vol-Context Rebuild
-status: planning
-stopped_at: Phase 15 context gathered
-last_updated: "2026-06-04T19:50:01.931Z"
-last_activity: 2026-06-04 — v3.5 roadmap created (Phases 15–18)
+status: ready_to_plan
+stopped_at: Phase 15 complete (2/2) — ready to discuss Phase 16
+last_updated: 2026-06-05T18:07:17.267Z
+last_activity: 2026-06-05 -- Phase 15 execution started
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 19
   percent: 29
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 15 — vol-index data layer (v3.5 start)
+**Current focus:** Phase 16 — vrp percentile
 
 ## Current Position
 
-Phase: 15 — Vol-Index Data Layer
-Plan: —
+Phase: 16
+Plan: Not started
 Status: Ready to plan
-Last activity: 2026-06-04 — v3.5 roadmap created (Phases 15–18)
+Last activity: 2026-06-05
 
 Progress: `[ ] [ ] [ ] [ ]` 0/4 phases
 
@@ -36,7 +36,7 @@ Progress: `[ ] [ ] [ ] [ ]` 0/4 phases
 
 **Velocity:**
 
-- Total plans completed: 30 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11) + 4 (v3.4 phases 12–13)
+- Total plans completed: 32 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11) + 4 (v3.4 phases 12–13)
 - Average duration: ~7 min per plan
 - Current test count: 66
 
@@ -54,6 +54,7 @@ Progress: `[ ] [ ] [ ] [ ]` 0/4 phases
 | Phase 12-canonical-card P02 | 10 min | 2 tasks | 2 files |
 | Phase 12-canonical-card P03 | 10 min | 2 tasks | 2 files |
 | 13 | 1 | - | - |
+| 15 | 2 | - | - |
 
 ## Accumulated Context
 
@@ -90,12 +91,14 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-04T19:50:01.902Z
-Stopped at: Phase 15 context gathered
+Last session: 2026-06-05
+Stopped at: Session resumed, ready to plan Phase 15
 Resume file: .planning/phases/15-vol-index-data-layer/15-CONTEXT.md
 
 ---
 <!-- LINKS:AUTO -->
+
 ## Related
+
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
