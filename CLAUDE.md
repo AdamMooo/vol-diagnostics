@@ -63,7 +63,6 @@ python -m gex.run_daily              # all 3 tickers → HTML email
 | `gex/compute.py` | Shared pipeline `compute_ticker(ticker)` — single source of truth for daily + streamlit |
 | `gex/run_gex.py` | Single-ticker CLI — fetch → compute → print summary → save PNGs |
 | `gex/run_daily.py` | Daily orchestrator — SPY/QQQ/IWM, parquet snapshot, HTML email with ΔIV surface PNGs |
-| `gex/run_daily_yield.py` | Purpose Yield ETF daily email — 16 single-name underlyings, email-only (no dashboard) |
 | `gex/validation.py` | Parquet snapshot store: `save_snapshot()` + `load_history()` (drives 30-day ZGL chart) |
 | `gex/surface_history.py` | Surface snapshot store: per-ticker chain parquet, `list_available_dates`, `nth_trading_day_back` |
 | `gex/surface_evolution.py` | ΔIV scalar engine — level, rms, skew_change, term_change vs rolling-mean baseline |

@@ -37,7 +37,6 @@ Scheduled / repeatable scripts. Edit in place; manage via Windows Task Scheduler
 | File | Purpose | Schedule | Manage |
 |------|---------|----------|--------|
 | [[runners/gex_daily.ps1\|gex_daily.ps1]] | Registers / inspects the GEX Daily Report task. Runs `python -m gex.run_daily` → SPY/QQQ/IWM chains → HTML email via Outlook COM, parquet snapshot, observation block appended to today's daily note. | Mon–Fri 16:30 local (NYSE trading days only — `is_trading_day()` gates internally) | `gex_daily.ps1 activate \| deactivate \| status` (admin shell required for first registration) |
-| [[runners/yield_daily.ps1\|yield_daily.ps1]] | Runs `python -m gex.run_daily_yield` → 16 Purpose Yield ETF underlyings → HTML email only. No Streamlit app — data is too thin to warrant a dashboard. | Mon–Fri 16:35 local | Run directly: `python -m gex.run_daily_yield --send` |
 
 Project-internal runners only. Cross-project runners live under each project's own `runners/` folder (e.g. `selenium/runners/allocation_report.ps1`). Vault-wide config scripts are in `.config-vault/_meta/`.
 
@@ -67,7 +66,11 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 
 ### Operator notes (handwritten — survives hub-sync)
 
-Last hand-updated: 2026-06-03 | **Repo polish + yield report overhaul (out-of-phase, 2026-06-03).** Email config split (`GEX_EMAIL_TO` / `YIELD_EMAIL_TO`), professional HTML filenames, thousands separator fix, GEX context added to yield report (Net GEX email column + γ-flip/walls in HTML with assumption caveat), S3 upload removed. Phase 14 (accumulation gating) is next — context already in `14-CONTEXT.md`.
+**North star locked (2026-06-12).** gamma-omm is a vol/dealer microstructure dashboard — show what the market is doing and how dealers will behave. No editorial layer, no trade signals, no "write or wait" synthesis. Metrics: VRP rank, term structure, skew, surface evolution, GEX/dealer positioning — observable facts with percentile context. PMs draw their own conclusions. Build planning deferred to next session.
+
+**Yield-share spun out (2026-06-12).** All 16-name Purpose Yield ETF work moved to its own repo `C:\dev\yield-share-strategy` ([[yield-share-strategy/yield-share-strategy|hub]]) — `run_daily_yield.py`, `runners/yield_daily.ps1`, the Yield Shares SVG, `YIELD_EMAIL_TO`, and all 16-name `out/` history (142 snapshot rows + per-name surface parquets). The shared vol engine was duplicated, not moved. gamma-omm is now pure SPY/QQQ/IWM index. (GLD/TLT/XLF snapshot rows predate this and stay — they're macro ETFs, not yield names.)
+
+Last hand-updated: 2026-06-03 | **Repo polish (out-of-phase, 2026-06-03).** Professional HTML filenames, thousands separator fix, S3 upload removed. Phase 14 (accumulation gating) is next — context already in `14-CONTEXT.md`.
 
 **Review fixes (2026-06-01, commit `543cfe2`):** Applied all findings from two code reviews (phase-11 standard + deep review). 126/126 tests green after all changes.
 
