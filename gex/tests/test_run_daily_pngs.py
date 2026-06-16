@@ -68,7 +68,7 @@ class TestOneDayDeltaIVPngs:
         with (
             patch("gex.run_daily.nth_trading_day_back", side_effect=lambda t, d, n: prior_dates[t]),
             patch("gex.run_daily.load_surface_snapshot", return_value=(_SURFACE_DF.copy(), 495.0)),
-            patch("gex.run_daily.plot_iv_change_surface", return_value=_mock_fig()) as mock_plot,
+            patch("gex.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()) as mock_plot,
             patch("gex.run_daily.export_png", return_value=tmp_path / "out.png") as mock_export,
         ):
             attachments = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
@@ -92,7 +92,7 @@ class TestOneDayDeltaIVPngs:
         with (
             patch("gex.run_daily.nth_trading_day_back", side_effect=_nth),
             patch("gex.run_daily.load_surface_snapshot", return_value=(_SURFACE_DF.copy(), 495.0)),
-            patch("gex.run_daily.plot_iv_change_surface", return_value=_mock_fig()),
+            patch("gex.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()),
             patch("gex.run_daily.export_png", side_effect=_export) as mock_export,
         ):
             attachments = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
@@ -115,7 +115,7 @@ class TestOneDayDeltaIVPngs:
         with (
             patch("gex.run_daily.nth_trading_day_back", return_value=_PRIOR_SPY),
             patch("gex.run_daily.load_surface_snapshot", side_effect=_load),
-            patch("gex.run_daily.plot_iv_change_surface", return_value=_mock_fig()),
+            patch("gex.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()),
             patch("gex.run_daily.export_png", return_value=tmp_path / "out.png") as mock_export,
         ):
             attachments = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
@@ -137,7 +137,7 @@ class TestOneDayDeltaIVPngs:
         with (
             patch("gex.run_daily.nth_trading_day_back", return_value=_PRIOR_SPY),
             patch("gex.run_daily.load_surface_snapshot", return_value=(_SURFACE_DF.copy(), 495.0)),
-            patch("gex.run_daily.plot_iv_change_surface", return_value=_mock_fig()),
+            patch("gex.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()),
             patch("gex.run_daily.export_png", side_effect=_export),
         ):
             attachments = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
@@ -146,7 +146,7 @@ class TestOneDayDeltaIVPngs:
         assert len(attachments) == 2
 
     def test_label_prior_format(self, tmp_path: pathlib.Path) -> None:
-        """plot_iv_change_surface is called with label_prior='May 30'."""
+        """plot_iv_change_heatmap is called with label_prior='May 30'."""
         from gex.run_daily import _build_png_attachments
 
         prior_date = datetime.date(2026, 5, 30)
@@ -154,7 +154,7 @@ class TestOneDayDeltaIVPngs:
         with (
             patch("gex.run_daily.nth_trading_day_back", return_value=prior_date),
             patch("gex.run_daily.load_surface_snapshot", return_value=(_SURFACE_DF.copy(), 495.0)),
-            patch("gex.run_daily.plot_iv_change_surface", return_value=_mock_fig()) as mock_plot,
+            patch("gex.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()) as mock_plot,
             patch("gex.run_daily.export_png", return_value=tmp_path / "out.png"),
         ):
             _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
@@ -171,7 +171,7 @@ class TestOneDayDeltaIVPngs:
         with (
             patch("gex.run_daily.nth_trading_day_back", return_value=_PRIOR_SPY),
             patch("gex.run_daily.load_surface_snapshot", return_value=(_SURFACE_DF.copy(), 495.0)),
-            patch("gex.run_daily.plot_iv_change_surface", return_value=_mock_fig()),
+            patch("gex.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()),
             patch("gex.run_daily.export_png", return_value=tmp_path / "out.png") as mock_export,
         ):
             _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
