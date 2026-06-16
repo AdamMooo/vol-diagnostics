@@ -30,6 +30,11 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 - [ ] **TERM-01** — PM sees the SPY term-structure state from VIX9D / VIX / VIX3M as a raw ratio (contango vs backwardation), with no hidden scoring or categorical label.
 - [ ] **TERM-02** — QQQ/IWM display whichever term points CBOE publishes for them, degrading gracefully to the 30-day level (VXN/RVX) when short/long-dated siblings are absent — no fabricated term structure.
 
+### Convexity & Expected Move (EM / SHAPE)
+
+- [ ] **EM-01** — PM sees the front-expiry implied expected move as a ±% (and/or ± price) range, computed from the ATM straddle, with the expiry/DTE explicitly labeled. Descriptive only — no trade prescription.
+- [ ] **SHAPE-01** — PM sees the front-month 25Δ butterfly — ½(25Δput_iv + 25Δcall_iv) − ATM_iv — beside the existing 25Δ risk reversal, labeled, with percentile context vs its own history where enough sessions exist (reusing the Phase 16 percentile + cold-start gating). No realized cone, RND, put/call ratio, or VVIX.
+
 ### Dashboard Reorg (VIEW — continues VIEW-05)
 
 - [ ] **VIEW-06** — The dashboard is organized into three pages: (1) VRP + term structure + snapshot, (2) surfaces, (3) GEX. Surfaces and GEX are retained, only demoted.
@@ -79,6 +84,8 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 | VRP-03 | Phase 16 | Pending |
 | TERM-01 | Phase 17 | Pending |
 | TERM-02 | Phase 17 | Pending |
+| EM-01 | Phase 17.1 | Pending |
+| SHAPE-01 | Phase 17.1 | Pending |
 | VIEW-06 | Phase 18 | Pending |
 | VIEW-07 | Phase 18 | Pending |
 | CUT-02 | Phase 18 | Pending |
@@ -86,6 +93,8 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 | GATE-01 | Phase 18 | Pending |
 | GATE-02 | Phase 18 | Pending |
 
+---
+---
 ---
 <!-- LINKS:AUTO -->
 ## Related
