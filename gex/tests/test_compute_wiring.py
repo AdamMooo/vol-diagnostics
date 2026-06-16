@@ -113,7 +113,9 @@ class TestComputeTickerReturnKeys:
              mock.patch.object(compute_mod, "compute_skew", return_value=fake_skew_df), \
              mock.patch.object(compute_mod, "compute_skew_25d", return_value={"front_month": None, "second_month": None}), \
              mock.patch.object(compute_mod, "compute_term_structure", return_value={"points": [], "classification": "normal", "front_atm_iv": None, "back_atm_iv": None}), \
-             mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()):
+             mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()), \
+             mock.patch.object(compute_mod, "_fetch_spot_history_yf", return_value=None), \
+             mock.patch.object(compute_mod, "vrp_percentile", return_value={"vrp": None, "pct": None, "n": 0}):
             result = compute_mod.compute_ticker("SPY")
 
         return result
@@ -137,11 +139,18 @@ class TestComputeTickerReturnKeys:
         assert "vrp" in mock_result["summary"]
 
     def test_cold_start_rv20_and_vrp_are_none(self, mock_result):
-        """When load_history returns empty DataFrame, rv20 and vrp must be None."""
+        """Cold start: rv20 None (empty history) and vrp None (engine returns None-dict).
+
+        VRP-03: vrp now derives from vrp_percentile (vol_index − RV20), not the
+        spot_series path — so its None-ness comes from the engine, here mocked
+        to the None-dict it returns on empty/failed data.
+        """
         assert mock_result["rv20"] is None
         assert mock_result["vrp"] is None
         assert mock_result["summary"]["rv20"] is None
         assert mock_result["summary"]["vrp"] is None
+        assert mock_result["summary"]["vrp_pct"] is None
+        assert mock_result["summary"]["vrp_pct_n"] == 0
 
     def test_summary_has_oi_call_wall(self, mock_result):
         assert "oi_call_wall" in mock_result["summary"]
@@ -206,7 +215,9 @@ class TestComputeTickerReturnKeys:
              mock.patch.object(compute_mod, "compute_skew", return_value=fake_skew_df), \
              mock.patch.object(compute_mod, "compute_skew_25d", return_value={"front_month": None, "second_month": None}), \
              mock.patch.object(compute_mod, "compute_term_structure", return_value={"points": [], "classification": "normal", "front_atm_iv": None, "back_atm_iv": None}), \
-             mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()):
+             mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()), \
+             mock.patch.object(compute_mod, "_fetch_spot_history_yf", return_value=None), \
+             mock.patch.object(compute_mod, "vrp_percentile", return_value={"vrp": None, "pct": None, "n": 0}):
             result = compute_mod.compute_ticker("SPY")
 
         assert result["summary"]["oi_call_wall"] is None
@@ -268,7 +279,9 @@ class TestComputeTickerReturnKeys:
              mock.patch.object(compute_mod, "compute_skew", return_value=fake_skew_df), \
              mock.patch.object(compute_mod, "compute_skew_25d", return_value={"front_month": None, "second_month": None}), \
              mock.patch.object(compute_mod, "compute_term_structure", return_value={"points": [], "classification": "normal", "front_atm_iv": None, "back_atm_iv": None}), \
-             mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()):
+             mock.patch.object(compute_mod, "load_history", return_value=pd.DataFrame()), \
+             mock.patch.object(compute_mod, "_fetch_spot_history_yf", return_value=None), \
+             mock.patch.object(compute_mod, "vrp_percentile", return_value={"vrp": None, "pct": None, "n": 0}):
             result = compute_mod.compute_ticker("SPY")
 
         assert result["summary"]["oi_call_wall"] == 510.0
