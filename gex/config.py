@@ -186,3 +186,9 @@ front-right offset that shows both the skew gradient and the DTE term structure.
 
 # Default CBOE vol-index symbols fetched by refresh_vol_indices(). VIX9D/VIX3M are SPY term-structure siblings; VXN/RVX are QQQ/IWM 30-day levels. Add symbols here — not in vol_index.py — per D-02.
 DEFAULT_VOL_INDICES: list[str] = ["VIX", "VXN", "RVX", "VIX9D", "VIX3M"]
+
+# Index ETF → CBOE vol-index used as the implied-vol leg of VRP. Only these three have free vol-index history (SPY→VIX, QQQ→VXN, IWM→RVX).
+TICKER_VOL_INDEX: dict[str, str] = {"SPY": "VIX", "QQQ": "VXN", "IWM": "RVX"}
+
+# Rolling-session window for the VRP percentile rank; ~one trading year. Used by vrp_history.vrp_percentile.
+VRP_PERCENTILE_LOOKBACK: int = 252
