@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Index Vol-Context Rebuild
-status: ready_to_plan
-stopped_at: Phase 15 complete (2/2) — ready to discuss Phase 16
-last_updated: 2026-06-05T18:07:17.267Z
-last_activity: 2026-06-05 -- Phase 15 execution started
+status: planning
+stopped_at: Session resumed, ready to plan Phase 15
+last_updated: "2026-06-16T19:55:52.478Z"
+last_activity: 2026-06-05
 progress:
-  total_phases: 7
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 19
-  percent: 29
+  total_phases: 8
+  completed_phases: 3
+  total_plans: 8
+  completed_plans: 7
+  percent: 38
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 ## Current Position
 
 Phase: 16
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-05
+Plan: 16-01 complete (16-02 next)
+Status: Executing
+Last activity: 2026-06-16
 
-Progress: `[ ] [ ] [ ] [ ]` 0/4 phases
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -55,11 +55,13 @@ Progress: `[ ] [ ] [ ] [ ]` 0/4 phases
 | Phase 12-canonical-card P03 | 10 min | 2 tasks | 2 files |
 | 13 | 1 | - | - |
 | 15 | 2 | - | - |
+| 16-vrp-percentile P01 | ~2 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
 ### Decisions
 
+- 2026-06-16: Phase 16-01 — VRP percentile built from one vol-index-based series (`vol_index − RV20×100`, vol points); snapshot-IV30 `vrp` column never enters the history (VRP-03). `percentileofscore(kind="rank")` for uniformity with the skew percentile. Cold-start returns actual count n; failure paths return None-dict, never raise. Engine isolated in `gex/vrp_history.py` so 16-02 only wires it.
 - 2026-06-04: v3.5 roadmap — 4 phases (15–18). VIDX data layer first (foundation); VRP percentile and term-structure regime are separate phases (distinct deliverables, both depend on VIDX); 3-page reorg + email parity + gating last (presentation layer, depends on both metrics). GATE-01/02 folded into Phase 18 (display-layer safety net for the same page-1 reorg).
 - 2026-06-01: v3.4 1d-change framing — the 1-day ΔIV surface in the email is a DESCRIPTIVE daily glance, NOT a signal in the evolution engine. Does not reverse the 2026-05-30 "no 1d in evolution horizons" decision. Resolved via `nth_trading_day_back(ticker, today, 1)`.
 - 2026-06-01: Scheduler IS firing — Task Scheduler "GEX Daily Report" runs weekdays 4:30pm ET. SETUP FLAW: `DisallowStartIfOnBatteries=True` caused silent skips on battery. Fix: elevated PowerShell set both battery flags false + RestartCount=2/PT5M. RESOLVED 2026-06-01 (Adam ran it).
@@ -91,9 +93,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-05
-Stopped at: Session resumed, ready to plan Phase 15
-Resume file: .planning/phases/15-vol-index-data-layer/15-CONTEXT.md
+Last session: 2026-06-16
+Stopped at: Completed 16-01-PLAN.md (VRP percentile engine)
+Resume file: .planning/phases/16-vrp-percentile/16-02-PLAN.md
 
 ---
 ---

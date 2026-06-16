@@ -229,7 +229,7 @@ Plans:
 | 13. 1-Day ΔIV Email PNGs | v3.4 | 1/1 | Complete    | 2026-06-02 |
 | 14. Accumulation Gating | v3.4 | — | Superseded → Phase 18 | - |
 | 15. Vol-Index Data Layer | v3.5 | 2/2 | Complete    | 2026-06-05 |
-| 16. VRP Percentile | v3.5 | 0/TBD | Not started | - |
+| 16. VRP Percentile | v3.5 | 1/2 | In Progress|  |
 | 17. Term-Structure Regime | v3.5 | 0/TBD | Not started | - |
 | 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 0/TBD | Not started | - |
 

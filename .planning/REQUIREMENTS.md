@@ -22,8 +22,8 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 ### VRP Percentile (VRP)
 
 - [ ] **VRP-01** — PM sees today's VRP (vol-index implied vol − RV20 realized) for each index.
-- [ ] **VRP-02** — PM sees today's VRP ranked as a percentile against its own history, with the lookback window explicitly labeled.
-- [ ] **VRP-03** — The percentile is computed from one internally-consistent series (the vol index for both today's reading and the history), never mixing the vol index with the live snapshot IV30.
+- [x] **VRP-02** — PM sees today's VRP ranked as a percentile against its own history, with the lookback window explicitly labeled.
+- [x] **VRP-03** — The percentile is computed from one internally-consistent series (the vol index for both today's reading and the history), never mixing the vol index with the live snapshot IV30.
 
 ### Term-Structure Regime (TERM)
 
@@ -80,8 +80,8 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 | VIDX-01 | Phase 15 | Complete |
 | VIDX-02 | Phase 15 | Complete |
 | VRP-01 | Phase 16 | Pending |
-| VRP-02 | Phase 16 | Pending |
-| VRP-03 | Phase 16 | Pending |
+| VRP-02 | Phase 16 | Complete |
+| VRP-03 | Phase 16 | Complete |
 | TERM-01 | Phase 17 | Pending |
 | TERM-02 | Phase 17 | Pending |
 | EM-01 | Phase 17.1 | Pending |
