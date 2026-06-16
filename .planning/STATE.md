@@ -96,9 +96,8 @@ Stopped at: Session resumed, ready to plan Phase 15
 Resume file: .planning/phases/15-vol-index-data-layer/15-CONTEXT.md
 
 ---
+---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->

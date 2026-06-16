@@ -9,7 +9,7 @@ audience: pre-distribution gate (before sharing GEX email externally)
 # Methodology & Presentation Review — 2026-05-11
 
 Pre-distribution audit for the GEX daily email + dashboard. Builds on the
-[[_audits/gex-prep-audit-2026-05-07|May-7 pre-demo audit]]; folds in changes
+May-7 pre-demo audit; folds in changes
 made 2026-05-10 → 2026-05-11 (email rebuild, scheduled task hardening, send
 guard, and the three enhancement rolls below).
 
