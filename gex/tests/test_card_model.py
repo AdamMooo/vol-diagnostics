@@ -189,6 +189,62 @@ class TestDeltaSuffixNaNGuard:
 # Sign hints
 # ---------------------------------------------------------------------------
 
+class TestVRPCardField:
+    def test_vrp_only_scalar_no_percentile(self):
+        # FULL_SUMMARY has vrp but no vrp_pct -> scalar only, no percentile suffix
+        fields = build_card_fields(FULL_SUMMARY, None)
+        v = next(f for f in fields if f.label == "VRP").value
+        assert "+2.7pp" in v
+        assert "%ile" not in v
+
+    def test_vrp_full_lookback_label(self):
+        s = dict(FULL_SUMMARY)
+        s["vrp_pct"] = 74
+        s["vrp_pct_n"] = 252
+        v = next(f for f in build_card_fields(s, None) if f.label == "VRP").value
+        assert "+2.7pp" in v
+        assert "74th %ile" in v
+        assert "252-session lookback" in v
+        assert "building to" not in v
+
+    def test_vrp_cold_start_label(self):
+        s = dict(FULL_SUMMARY)
+        s["vrp_pct"] = 74
+        s["vrp_pct_n"] = 120
+        v = next(f for f in build_card_fields(s, None) if f.label == "VRP").value
+        assert "74th %ile" in v
+        assert "120 sessions" in v
+        assert "building to 252" in v
+
+    def test_vrp_insufficient_history_fallback(self):
+        s = dict(FULL_SUMMARY)
+        s["vrp"] = None
+        s["vrp_pct"] = None
+        s["vrp_pct_n"] = 0
+        f = next(f for f in build_card_fields(s, None) if f.label == "VRP")
+        assert "insufficient history" in f.value
+        assert "nan" not in f.value.lower()
+
+    def test_vrp_pct_none_with_scalar_fallback(self):
+        s = dict(FULL_SUMMARY)
+        s["vrp"] = 2.7
+        s["vrp_pct"] = None
+        s["vrp_pct_n"] = 0
+        f = next(f for f in build_card_fields(s, None) if f.label == "VRP")
+        assert "insufficient history" in f.value
+        assert "nan" not in f.value.lower()
+
+    def test_vrp_sign_positive(self):
+        f = next(f for f in build_card_fields(FULL_SUMMARY, None) if f.label == "VRP")
+        assert f.sign == "positive"
+
+    def test_vrp_sign_negative(self):
+        s = dict(FULL_SUMMARY)
+        s["vrp"] = -1.5
+        f = next(f for f in build_card_fields(s, None) if f.label == "VRP")
+        assert f.sign == "negative"
+
+
 class TestCardFieldSigns:
     def test_day_pct_positive_sign(self):
         fields = build_card_fields(FULL_SUMMARY, None)
