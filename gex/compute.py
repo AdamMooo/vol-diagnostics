@@ -15,15 +15,20 @@ from gex.exposure_engine import (
     surface_diagnostics,
 )
 from gex.analytics import summarise
-from gex.vol_metrics import compute_skew_25d, compute_term_structure, compute_rv20, compute_vrp
+from gex.vol_metrics import compute_skew_25d, compute_term_structure, compute_rv20
 from gex.validation import load_history
+from gex.vrp_history import vrp_percentile
 
 
-def _fetch_spot_history_yf(ticker: str, days: int = 35) -> "pd.Series | None":
+def _fetch_spot_history_yf(ticker: str, days: int = 400) -> "pd.Series | None":
     """Fetch daily closing prices from yfinance (oldest-first) for RV20 computation.
 
     Falls back gracefully — never raises. Returns None if data is insufficient.
     BRK.B is remapped to BRK-B for yfinance compatibility.
+
+    Window widened to ~400d so a 252-session rolling RV20 series is buildable
+    (the VRP percentile engine fetches its own closes, but this keeps the local
+    rv20 path consistent — CONTEXT 16).
     """
     try:
         import yfinance as yf
@@ -68,7 +73,7 @@ def compute_ticker(ticker: str) -> dict:
           "skew":           dict | None — 25d skew buckets (front_month, second_month)
           "term_structure": dict | None — classification + ATM IV points
           "rv20":           float | None — 20-day annualized realized vol
-          "vrp":            float | None — IV30 − RV20
+          "vrp":            float | None — vol_index − RV20 (vol points, VRP-03)
         }
     """
     snapshot = load_chain(ticker)
@@ -137,15 +142,17 @@ def compute_ticker(ticker: str) -> dict:
         spot_series = _fetch_spot_history_yf(ticker)
         if spot_series is None and not hist.empty and "spot" in hist.columns:
             spot_series = hist["spot"].iloc[::-1].reset_index(drop=True)
-    if spot_series is not None:
-        rv20 = compute_rv20(spot_series)
-        iv30_decimal = (snapshot.iv30 / 100.0) if snapshot.iv30 else None
-        vrp_decimal = compute_vrp(iv30_decimal, rv20)
-        vrp = vrp_decimal * 100 if vrp_decimal is not None else None
-    else:
-        rv20, vrp = None, None
+    rv20 = compute_rv20(spot_series) if spot_series is not None else None
     summary["rv20"] = rv20
+
+    # VRP-03: the displayed VRP scalar AND its percentile share the vol-index series
+    # (vol_index − RV20). snapshot.iv30 is no longer the VRP basis — both numbers come
+    # from one definition so they cannot drift. None-values flow through on fetch failure.
+    vrp_pct_res = vrp_percentile(ticker)
+    vrp = vrp_pct_res["vrp"]
     summary["vrp"] = vrp
+    summary["vrp_pct"] = vrp_pct_res["pct"]
+    summary["vrp_pct_n"] = vrp_pct_res["n"]
 
     return {
         "summary": summary, "s_df": s_df, "p_df": p_df,
