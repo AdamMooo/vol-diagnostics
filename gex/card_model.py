@@ -92,6 +92,26 @@ def _pin_location(spot: float | None, pw: float | None, cw: float | None) -> str
     return f"{pct:.0f}% {direction}"
 
 
+def _fmt_vrp(vrp: float | None, vrp_pct: int | None, vrp_pct_n: int | None) -> str:
+    """VRP card value: scalar (vol points) + labeled percentile, with cold-start/fallback.
+
+    Reads only precomputed values (no I/O). Cases:
+      - vrp/pct present, n >= lookback: '+2.7pp - Nth %ile - <lookback>-session lookback'
+      - cold-start (n < lookback):      '+2.7pp - Nth %ile - <n> sessions (building to <lookback>)'
+      - vrp or pct None:                'insufficient history'
+    Lookback comes from config.VRP_PERCENTILE_LOOKBACK, never hard-coded.
+    """
+    if vrp is None:
+        return "insufficient history"
+    lookback = config.VRP_PERCENTILE_LOOKBACK
+    if vrp_pct is None:
+        return f"{vrp:+.1f}pp · insufficient history"
+    base = f"{vrp:+.1f}pp · {vrp_pct}th %ile"
+    if vrp_pct_n is not None and vrp_pct_n < lookback:
+        return f"{base} · {vrp_pct_n} sessions (building to {lookback})"
+    return f"{base} · {lookback}-session lookback"
+
+
 def _signed_color(val: float | None) -> str:
     if val is None or val == 0:
         return LABEL_GRAY
@@ -171,6 +191,9 @@ def build_card_fields(
     net_gex = s.get("net_gex")
     delta_hedge_flow = s.get("delta_hedge_flow")
     front_skew = s.get("front_skew")
+    vrp = s.get("vrp")
+    vrp_pct = s.get("vrp_pct")
+    vrp_pct_n = s.get("vrp_pct_n")
     call_wall = s.get("call_wall")
     put_wall = s.get("put_wall")
     oi_call_wall = s.get("oi_call_wall")
@@ -241,6 +264,11 @@ def build_card_fields(
             label="Skew (25Δ)",
             value=_fmt_skew(front_skew) + _delta_suffix_pp(front_skew, p_front_skew),
             sign="neutral",
+        ),
+        CardField(
+            label="VRP",
+            value=_fmt_vrp(vrp, vrp_pct, vrp_pct_n),
+            sign=_get_sign(vrp),
         ),
         CardField(
             label="Call Wall (model)",
