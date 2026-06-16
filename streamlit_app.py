@@ -26,7 +26,7 @@ from gex.surface_evolution import load_evolution
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 
 st.set_page_config(
-    page_title="Volatility Diagnostics",
+    page_title="Option Diagnostics",
     page_icon="assets/gamma-icon-lg.png",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -42,7 +42,7 @@ def _check_password() -> bool:
         expected = ""
     if not expected:
         return True  # no password configured — open access
-    st.markdown("## Volatility Dashboard")
+    st.markdown("## Option Diagnostics")
     pwd = st.text_input("Password", type="password", placeholder="Enter password")
     if pwd == expected:
         st.session_state.authenticated = True
