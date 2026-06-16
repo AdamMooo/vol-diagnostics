@@ -48,7 +48,7 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-16 03:54 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-16 19:01 UTC
 
 **Milestone:** Phase 16 — vrp percentile · **Status:** unknown · **STATE last_updated:** ?
 
