@@ -68,7 +68,7 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 
 **North star locked (2026-06-12).** gamma-omm is a vol/dealer microstructure dashboard — show what the market is doing and how dealers will behave. No editorial layer, no trade signals, no "write or wait" synthesis. Metrics: VRP rank, term structure, skew, surface evolution, GEX/dealer positioning — observable facts with percentile context. PMs draw their own conclusions. Build planning deferred to next session.
 
-**Yield-share spun out (2026-06-12).** All 16-name Purpose Yield ETF work moved to its own repo `C:\dev\yield-share-strategy` ([[yield-share-strategy/yield-share-strategy|hub]]) — `run_daily_yield.py`, `runners/yield_daily.ps1`, the Yield Shares SVG, `YIELD_EMAIL_TO`, and all 16-name `out/` history (142 snapshot rows + per-name surface parquets). The shared vol engine was duplicated, not moved. gamma-omm is now pure SPY/QQQ/IWM index. (GLD/TLT/XLF snapshot rows predate this and stay — they're macro ETFs, not yield names.)
+**Yield-share spun out (2026-06-12).** All 16-name Purpose Yield ETF work moved to its own repo `C:\dev\yield-share-strategy` — `run_daily_yield.py`, `runners/yield_daily.ps1`, the Yield Shares SVG, `YIELD_EMAIL_TO`, and all 16-name `out/` history (142 snapshot rows + per-name surface parquets). The shared vol engine was duplicated, not moved. gamma-omm is now pure SPY/QQQ/IWM index. (GLD/TLT/XLF snapshot rows predate this and stay — they're macro ETFs, not yield names.)
 
 Last hand-updated: 2026-06-03 | **Repo polish (out-of-phase, 2026-06-03).** Professional HTML filenames, thousands separator fix, S3 upload removed. Phase 14 (accumulation gating) is next — context already in `14-CONTEXT.md`.
 
