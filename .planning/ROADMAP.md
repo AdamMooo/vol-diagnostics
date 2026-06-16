@@ -48,7 +48,7 @@
 **Milestone Goal:** Re-aim the dashboard at the index income-sleeve PM — lead with VRP percentile and VIX term-structure regime, reorganize surfaces and GEX beneath them.
 
 - [x] **Phase 15: Vol-Index Data Layer** — Fetch + cache CBOE vol-index daily CSVs (VIX/VXN/RVX + siblings); Bloomberg-swappable isolated module (completed 2026-06-05)
-- [ ] **Phase 16: VRP Percentile** — VRP (vol-index − RV20) ranked as a percentile against its own history; internally consistent series, lookback labeled
+- [x] **Phase 16: VRP Percentile** — VRP (vol-index − RV20) ranked as a percentile against its own history; internally consistent series, lookback labeled
 - [ ] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
 - [ ] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only
 - [ ] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (VRP+term+snapshot / surfaces / GEX); page-1 snapshot tied to canonical card; accumulation-dependent elements gated
@@ -229,7 +229,7 @@ Plans:
 | 13. 1-Day ΔIV Email PNGs | v3.4 | 1/1 | Complete    | 2026-06-02 |
 | 14. Accumulation Gating | v3.4 | — | Superseded → Phase 18 | - |
 | 15. Vol-Index Data Layer | v3.5 | 2/2 | Complete    | 2026-06-05 |
-| 16. VRP Percentile | v3.5 | 1/2 | In Progress|  |
+| 16. VRP Percentile | v3.5 | 2/2 | Complete | 2026-06-16 |
 | 17. Term-Structure Regime | v3.5 | 0/TBD | Not started | - |
 | 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 0/TBD | Not started | - |
 
