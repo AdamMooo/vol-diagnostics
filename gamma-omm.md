@@ -7,7 +7,7 @@ GEX monitor for SPY, QQQ, IWM — dealer gamma exposure. Defensible outputs: net
 ```powershell
 cd C:\dev\gamma-omm
 .venv\Scripts\activate
-streamlit run streamlit_app.py
+streamlit run app.py
 ```
 
 Opens at `http://localhost:8501`.

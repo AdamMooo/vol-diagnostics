@@ -2,7 +2,7 @@
 Shared card-model layer for per-ticker GEX cards.
 
 CardField + build_card_fields() are the single source of truth for field set,
-values, formatting, and deltas. Both gex/report.py and streamlit_app.py consume
+values, formatting, and deltas. Both gex/report.py and app.py consume
 this — neither duplicates the field list or format logic.
 
 Formatting helpers moved here from gex/report.py so both renderers import them

@@ -67,7 +67,7 @@ python -m gex.run_daily              # all 3 tickers → HTML email
 | `gex/surface_history.py` | Surface snapshot store: per-ticker chain parquet, `list_available_dates`, `nth_trading_day_back` |
 | `gex/surface_evolution.py` | ΔIV scalar engine — level, rms, skew_change, term_change vs rolling-mean baseline |
 | `gex/report.py` | HTML email builder — sign-accent cards, ΔIV surface PNG attachments, glossary |
-| `streamlit_app.py` | Browser dashboard (SPY/QQQ/IWM only) — cards, ΔIV surface, evolution, positioning tabs |
+| `app.py` | Browser dashboard (SPY/QQQ/IWM only) — cards, ΔIV surface, evolution, positioning tabs |
 
 Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color.
 

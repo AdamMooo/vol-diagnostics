@@ -30,8 +30,8 @@ def _render_regime_card_html(summary_overrides=None, prior_row=None):
     summary = _minimal_summary(**(summary_overrides or {}))
     col = mock.MagicMock()
 
-    with mock.patch("streamlit_app.load_prior_snapshot", return_value=prior_row):
-        from streamlit_app import render_regime_card
+    with mock.patch("app.load_prior_snapshot", return_value=prior_row):
+        from app import render_regime_card
         render_regime_card(col=col, summary=summary, spot=500.0)
 
     calls = col.markdown.call_args_list
@@ -43,9 +43,9 @@ def _render_regime_card_html(summary_overrides=None, prior_row=None):
 def test_render_regime_card_uses_build_card_fields():
     """Task 1 RED: render_regime_card must delegate to build_card_fields (imports present)."""
     pytest.importorskip("streamlit")
-    import streamlit_app
+    import app
     import inspect
-    src = inspect.getsource(streamlit_app.render_regime_card)
+    src = inspect.getsource(app.render_regime_card)
     assert "build_card_fields" in src
 
 
@@ -93,16 +93,16 @@ class TestRegimeCardCanonical:
 
 
 def test_import_no_emailer_bleed():
-    """DASH-01, DASH-06: import streamlit_app does not pull in emailer or run_daily."""
+    """DASH-01, DASH-06: import app does not pull in emailer or run_daily."""
     import importlib
     import sys
     pytest.importorskip("streamlit")
-    # Purge any prior-test pollution so we test a clean import of streamlit_app,
+    # Purge any prior-test pollution so we test a clean import of app,
     # not the accumulated session state (test ordering can load gex.run_daily earlier).
     for mod in list(sys.modules):
-        if mod in ("gex.emailer", "gex.run_daily", "streamlit_app"):
+        if mod in ("gex.emailer", "gex.run_daily", "app"):
             del sys.modules[mod]
-    importlib.import_module("streamlit_app")
+    importlib.import_module("app")
     assert "gex.emailer" not in sys.modules
     assert "gex.run_daily" not in sys.modules
 
@@ -110,14 +110,14 @@ def test_import_no_emailer_bleed():
 def test_fetch_ticker_has_clear():
     """DASH-02: @st.cache_data was applied — fetch_ticker.clear() is callable."""
     pytest.importorskip("streamlit")
-    from streamlit_app import fetch_ticker
+    from app import fetch_ticker
     assert callable(getattr(fetch_ticker, "clear", None))
 
 
 def test_trust_readout_strings_formats_values():
     """08-04 VALID-06: raw-number readout, no badge/threshold."""
     pytest.importorskip("streamlit")
-    from streamlit_app import _trust_readout_strings
+    from app import _trust_readout_strings
     cov, rms, mx = _trust_readout_strings(
         {"coverage_pct": 87.0, "fit_rmse": 0.9, "max_resid": 2.1})
     assert cov == "Coverage 87%"
@@ -127,7 +127,7 @@ def test_trust_readout_strings_formats_values():
 
 def test_trust_readout_strings_handles_missing_and_nan():
     pytest.importorskip("streamlit")
-    from streamlit_app import _trust_readout_strings
+    from app import _trust_readout_strings
     cov, rms, mx = _trust_readout_strings(
         {"coverage_pct": float("nan"), "fit_rmse": None})
     assert cov == "Coverage —"

@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 **Interactive dashboard:**
 ```powershell
-streamlit run streamlit_app.py
+streamlit run app.py
 ```
 Opens at `http://localhost:8501`.
 
@@ -64,7 +64,7 @@ Sidebar lets you filter tickers and refresh the cache (5-min TTL per ticker).
 
 | Module | Purpose |
 |--------|---------|
-| `streamlit_app.py` | Interactive dashboard with tabbed expanders + methodology expander |
+| `app.py` | Interactive dashboard with tabbed expanders + methodology expander |
 | `gex/data_loader.py` | CBOE delayed quotes → `ChainSnapshot` (greeks pre-computed by CBOE's American model) |
 | `gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` sweep |
 | `gex/exposure_engine.py` | GEX aggregation, gamma profile sweep, `vol_surface_data()` (OTM convention), `compute_skew()` (25Δ put − 50Δ call) |

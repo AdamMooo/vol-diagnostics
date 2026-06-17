@@ -1,9 +1,9 @@
 """
-Shared GEX compute pipeline — single source of truth for both run_daily and streamlit_app.
+Shared GEX compute pipeline — single source of truth for both run_daily and app.
 
 Both callers wrap this function:
   - run_daily.process_ticker()  → adds error handling
-  - streamlit_app.fetch_ticker() → adds @st.cache_data
+  - app.fetch_ticker() → adds @st.cache_data
 """
 from __future__ import annotations
 
