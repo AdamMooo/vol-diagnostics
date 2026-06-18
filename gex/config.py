@@ -78,6 +78,16 @@ SURFACE_Z_CAP_PERCENTILE: float = 99.5
 99.5th pctile drops only genuine data errors (bad CBOE quotes) while letting
 real wing vol show — previously 97th was suppressing real far-OTM IV."""
 
+SURFACE_INTERACTIVE_SMOOTHING: float = 0.5
+"""Smoothing for the INTERACTIVE dashboard surface (gex/surface_interactive.py) only.
+Lower than SURFACE_SMOOTHING (1.5) per leave-one-expiry-out CV (cv_rmse 0.63 @0.5 vs 0.79 @1.5)
+— less 'transformed', truer to the quotes. Kept separate so it never shifts the email PNGs or
+evolution baselines that share SURFACE_SMOOTHING. Locked 2026-06-18 (spike/vol-surface-beast)."""
+
+SURFACE_INTERACTIVE_CLIP: float = 0.20
+"""Wing clip (±|ln(K/S)|) for the interactive surface. Wider than SURFACE_PLOT_OTM_CLIP (0.15)
+— raw data reaches ~±0.24 and coverage still holds ~93% at 0.20."""
+
 SURFACE_SMOOTHING: float = 1.5
 """RBF thin-plate-spline smoothing, applied in std-normalized (DTE, %OTM) coords.
 Regularises without over-flattening the skew. Non-stationary: effective strength

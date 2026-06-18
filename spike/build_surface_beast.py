@@ -29,8 +29,8 @@ ROOT = Path(__file__).resolve().parent.parent
 SNAP_DIR = ROOT / "out" / "surface_history"
 OUT_DIR = Path(__file__).resolve().parent / "out"
 
-GRID_DTE = 48
-GRID_LM = 40
+GRID_DTE = 36   # mesh density: lower = lighter hover raycast (was 48; ~44% fewer faces at 36×28)
+GRID_LM = 28
 DTE_MAX = 180
 
 
@@ -190,7 +190,7 @@ Plotly.newPlot('fig3d', [{{
   type:'surface', x:D.dte_grid, y:D.otm_grid, z:D.IV,
   colorscale:'Plasma', cmin:D.z_floor, cmax:D.z_cap,
   colorbar:{{title:'IV %', thickness:12, len:0.6}},
-  contours:{{z:{{show:true, usecolormap:true, project_z:true, width:1}}}},
+  contours:{{z:{{show:true, usecolormap:true, project_z:false, width:1}}}},
   hovertemplate:'DTE %{{x:.0f}}<br>K/S %{{y:.3f}}<br>IV %{{z:.1f}}%<extra></extra>'
 }}], {{
   paper_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:11}}, margin:{{t:10,b:10,l:10,r:10}},
@@ -264,7 +264,7 @@ def render_html(payload: dict) -> str:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ticker", default="SPY")
-    ap.add_argument("--smoothing", type=float, default=0.5)
+    ap.add_argument("--smoothing", type=float, default=0.5)  # locked 2026-06-18
     ap.add_argument("--clip", type=float, default=0.20)
     ap.add_argument("--fit-floor", type=float, default=5.0)
     ap.add_argument("--near-max", type=float, default=5.0,

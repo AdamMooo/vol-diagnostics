@@ -19,7 +19,7 @@ st.markdown("### Vol Surface — interactive (spike)")
 
 c1, c2, c3, c4 = st.columns([1, 2, 2, 1])
 ticker = c1.selectbox("Ticker", ["SPY", "QQQ", "IWM"])
-smoothing = c2.slider("Smoothing", 0.0, 2.0, 0.4, 0.1,
+smoothing = c2.slider("Smoothing", 0.0, 2.0, 0.5, 0.1,
                       help="RBF regularisation. Lower = hugs raw quotes; higher = creamier/flatter. CV favours low.")
 clip = c3.slider("Wing clip (±ln K/S)", 0.10, 0.24, 0.20, 0.01,
                  help="How far into the wings to show. Raw data reaches ~±0.24.")

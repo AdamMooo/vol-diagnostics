@@ -6,8 +6,10 @@ from datetime import datetime, date
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 
 from gex import config
+from gex.surface_interactive import build_surface_payload, render_surface_html
 from gex.card_model import CardField, build_card_fields
 from gex.validation import load_prior_snapshot
 from gex.compute import compute_ticker
@@ -254,10 +256,16 @@ if sel_index:
                 if surface_df is not None and not surface_df.empty:
                     cov, rms, mx = _trust_readout_strings(data.get("surface_diag"))
                     st.markdown(f"**{ticker}**  ·  {cov}  ·  {rms}  ·  {mx}")
-                    st.plotly_chart(
-                        plot_vol_surface(surface_df, ticker, spot=spot),
-                        width='stretch',
-                    )
+                    payload = build_surface_payload(surface_df, spot, ticker=ticker)
+                    if payload is not None:
+                        # Interactive: 3D surface + mouse-driven smile/term slices.
+                        # components.html embeds client-side plotly.js (smooth hover).
+                        components.html(render_surface_html(payload), height=560, scrolling=False)
+                    else:
+                        st.plotly_chart(
+                            plot_vol_surface(surface_df, ticker, spot=spot),
+                            width='stretch',
+                        )
                 else:
                     st.caption(f"{ticker}: insufficient data for surface.")
 

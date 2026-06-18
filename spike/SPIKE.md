@@ -46,7 +46,18 @@ streamlit owns controls + server-side RBF fit (`@st.cache_data`); `build()`→`r
 for `app.py`'s Surface tab.
 - **Productionization to-do:** `st.components.v1.html` is deprecated → swap to `st.iframe` before main.
 
+## GRADUATED TO MAIN (2026-06-18) ✅
+Smoothing locked **0.5**, clip **0.20**, mesh thinned 48×40→36×28 + floor-projected contour off (lag fix).
+- `gex/surface_interactive.py` — `build_surface_payload()` + `render_surface_html()` (reuses
+  `analytics.coverage_mask`; local TPS fit so it's isolated from email/evolution).
+- `gex/config.py` — new `SURFACE_INTERACTIVE_SMOOTHING=0.5` / `SURFACE_INTERACTIVE_CLIP=0.20`
+  (kept SEPARATE from `SURFACE_SMOOTHING=1.5` so email PNGs + evolution baselines are untouched).
+- `app.py` — Surface→Today tab renders the interactive component; static `plot_vol_surface` kept
+  as the fallback when payload is None.
+- Verified: module smoke test + main app boots clean on :8503.
+
 ## Open / next
-- [ ] Lock final smoothing (set generated: 0.2/0.4/0.6/0.8; fit RMSE 0.35/0.44/0.50/0.55pp) — user's eye.
-- [ ] Near-expiry placement (smile panel vs own panel) + proportions.
-- [ ] Graduate to main: which knob changes land in config/analytics, Surface-tab rewrite, st.iframe swap.
+- [ ] User sign-off on the in-app Surface tab.
+- [ ] `components.html` → `st.iframe` (deprecation) before merge to main.
+- [ ] Decide: merge `spike/vol-surface-beast` → main, then delete `spike/` throwaway files.
+- [ ] (Future, out of spike) over-time "moving surface" + predictive track.
