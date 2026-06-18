@@ -147,13 +147,13 @@ def _load_history_cached(ticker: str, days: int = config.HISTORY_DAYS) -> pd.Dat
 
 
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner="Building surface video…")
-def _movie_payload_cached(ticker: str) -> dict | None:
+def _movie_payload_cached(ticker: str, mode: str = "level") -> dict | None:
     snaps = []
     for d in sorted(list_available_dates(ticker)):
         sdf, sp = load_surface_snapshot(ticker, d)
         if sdf is not None and not sdf.empty and sp is not None:
             snaps.append((d.strftime("%b %d"), sdf, sp))
-    return build_movie_payload(snaps, ticker=ticker)
+    return build_movie_payload(snaps, ticker=ticker, mode=mode)
 
 
 def _sign_key(net_gex: float | None) -> str:
@@ -406,10 +406,18 @@ if sel_index:
             "How the surface changes day by day — hit ▶ to play it like a video, "
             "or drag the slider to scrub through stored sessions."
         )
-        evo_tkr = st.radio(
-            "Evolution ticker", selected_all, horizontal=True,
-            key="evo_tkr", label_visibility="collapsed",
-        )
+        ec1, ec2 = st.columns([2, 2])
+        with ec1:
+            evo_tkr = st.radio(
+                "Evolution ticker", selected_all, horizontal=True,
+                key="evo_tkr", label_visibility="collapsed",
+            )
+        with ec2:
+            evo_mode_label = st.radio(
+                "Mode", ["Level", "Change vs start"], horizontal=True,
+                key="evo_mode", label_visibility="collapsed",
+            )
+        evo_mode = "change" if evo_mode_label.startswith("Change") else "level"
 
         # Headline data for the selected ticker (VRP / skew / term).
         if evo_tkr in all_data:
@@ -439,7 +447,7 @@ if sel_index:
             h3.metric("Term spread (front − back)", term_disp)
 
         # The surface video: one frame per stored session, fixed color scale.
-        movie = _movie_payload_cached(evo_tkr)
+        movie = _movie_payload_cached(evo_tkr, evo_mode)
         if movie is not None:
             st.caption(
                 f"{len(movie['frames'])} sessions · "

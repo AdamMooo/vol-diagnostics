@@ -360,17 +360,20 @@ def render_diff_html(payload: dict) -> str:
 def build_movie_payload(
     snapshots: list[tuple[str, pd.DataFrame, float]],
     ticker: str = "",
+    mode: str = "level",
     *,
     smoothing: float = config.SURFACE_INTERACTIVE_SMOOTHING,
     clip: float = config.SURFACE_INTERACTIVE_CLIP,
     fit_floor: float = 5.0,
 ) -> dict | None:
-    """One IV-surface frame per stored session → a play/scrub 'video' of the surface.
+    """One surface frame per stored session → a play/scrub 'video'.
+
+    mode="level": absolute IV surface each day (watch the environment evolve).
+    mode="change": cumulative ΔIV vs the FIRST session, red/blue (watch it drift from start).
 
     snapshots: (date_str, surface_df, spot) ascending by date. All frames share ONE
-    (DTE, ln K/S) grid (intersection of each day's DTE range) and ONE color scale so the
-    surface visibly rises/falls/twists across days. Cells outside a day's hull = NaN holes.
-    Returns None when fewer than 2 usable sessions.
+    (DTE, ln K/S) grid (intersection of each day's DTE range) and ONE color scale so moves
+    are comparable. Cells outside a day's hull = NaN holes. None when <2 usable sessions.
     """
     prepped = []
     for ds, df, spot in snapshots:
@@ -394,7 +397,7 @@ def build_movie_payload(
     DTE, OTM = np.meshgrid(dte_grid, otm_grid)
     grid = np.column_stack([DTE.ravel(), OTM.ravel()])
 
-    frames, all_vals = [], []
+    grids = []  # (date, spot, IV ndarray)
     for ds, d, spot in prepped:
         rbf, std = _fit_rbf(d["dte"].to_numpy(), d["log_moneyness"].to_numpy(), d["iv_pct"].to_numpy(), smoothing)
         IV = np.clip(rbf(grid / std).reshape(DTE.shape), 0.0, None)
@@ -402,19 +405,37 @@ def build_movie_payload(
         IV = np.where(mask, IV, np.nan)
         if np.isnan(IV).all():
             continue
-        all_vals.append(IV[~np.isnan(IV)])
-        frames.append({"date": ds, "spot": round(spot, 2),
-                       "IV": [[None if np.isnan(v) else round(float(v), 2) for v in row] for row in IV]})
-    if len(frames) < 2:
+        grids.append((ds, spot, IV))
+    if len(grids) < 2:
         return None
-    flat = np.concatenate(all_vals)
+
+    ref_date = None
+    if mode == "change":
+        base = grids[0][2]
+        grids = [(ds, sp, IV - base) for ds, sp, IV in grids]
+        ref_date = grids[0][0]
+
+    flat = np.concatenate([g[~np.isnan(g)] for _, _, g in grids])
+    if mode == "change":
+        cap = float(np.nanpercentile(np.abs(flat), 99)) or 1.0
+        z_floor, z_cap = -round(cap, 1), round(cap, 1)
+        colorscale = [[0, "#2166ac"], [0.5, "#f7f7f7"], [1, "#b2182b"]]
+        ztitle, hov = "ΔIV", "ΔIV %{z:.1f}"
+    else:
+        z_floor = round(max(0.0, float(np.nanmin(flat)) - 2), 1)
+        z_cap = round(float(np.nanpercentile(flat, config.SURFACE_Z_CAP_PERCENTILE)), 1)
+        colorscale = "Plasma"
+        ztitle, hov = "IV %", "IV %{z:.1f}%"
+
+    frames = [{"date": ds, "spot": round(sp, 2),
+               "IV": [[None if np.isnan(v) else round(float(v), 2) for v in row] for row in IV]}
+              for ds, sp, IV in grids]
     return {
-        "ticker": ticker,
+        "ticker": ticker, "mode": mode, "ref_date": ref_date,
         "dte_grid": [round(v, 1) for v in dte_grid.tolist()],
         "otm_grid": [round(v, 4) for v in otm_grid.tolist()],
-        "frames": frames,
-        "z_floor": round(max(0.0, float(np.nanmin(flat)) - 2), 1),
-        "z_cap": round(float(np.nanpercentile(flat, config.SURFACE_Z_CAP_PERCENTILE)), 1),
+        "frames": frames, "z_floor": z_floor, "z_cap": z_cap,
+        "colorscale": colorscale, "ztitle": ztitle, "hov": hov,
     }
 
 
@@ -430,22 +451,22 @@ _MOVIE_HTML = """<!DOCTYPE html>
         border-radius:4px; padding:1px 8px; font-size:13px; margin-left:10px; }}
 </style></head>
 <body>
-<div id="hdr"><b>{ticker}</b> surface — <span id="d">play ▶ to watch it move</span>
+<div id="hdr"><b>{ticker}</b> {modelabel} — <span id="d">play ▶ to watch it move</span>
   <span style="float:right"><button id="fs" title="Fullscreen">⛶</button></span></div>
 <div id="fig"></div>
 <script>
 const D = {payload};
 const f0 = D.frames[0];
-const base = {{type:'surface', x:D.dte_grid, y:D.otm_grid, z:f0.IV, colorscale:'Plasma',
-  cmin:D.z_floor, cmax:D.z_cap, colorbar:{{title:'IV %', thickness:12, len:0.6}},
+const base = {{type:'surface', x:D.dte_grid, y:D.otm_grid, z:f0.IV, colorscale:D.colorscale,
+  cmin:D.z_floor, cmax:D.z_cap, colorbar:{{title:D.ztitle, thickness:12, len:0.6}},
   contours:{{z:{{show:true, usecolormap:true, project_z:false, width:1}}}},
-  hovertemplate:'DTE %{{x:.0f}}<br>K/S %{{y:.3f}}<br>IV %{{z:.1f}}%<extra></extra>'}};
+  hovertemplate:'DTE %{{x:.0f}}<br>K/S %{{y:.3f}}<br>'+D.hov+'<extra></extra>'}};
 const frames = D.frames.map(f => ({{name:f.date, data:[{{z:f.IV}}]}}));
 const steps = D.frames.map(f => ({{label:f.date, method:'animate',
   args:[[f.date], {{mode:'immediate', frame:{{duration:0, redraw:true}}, transition:{{duration:0}}}}]}}));
 const layout = {{paper_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:11}}, margin:{{t:8,b:8,l:8,r:8}},
   scene:{{xaxis:{{title:'DTE', gridcolor:'#222'}}, yaxis:{{title:'ln(K/S)', gridcolor:'#222'}},
-    zaxis:{{title:'IV %', gridcolor:'#222', range:[D.z_floor, D.z_cap]}}, camera:{{eye:{{x:1.9,y:-1.3,z:0.7}}}},
+    zaxis:{{title:D.ztitle, gridcolor:'#222', range:[D.z_floor, D.z_cap]}}, camera:{{eye:{{x:1.9,y:-1.3,z:0.7}}}},
     aspectmode:'manual', aspectratio:{{x:1.5,y:1.2,z:0.6}}}},
   updatemenus:[{{type:'buttons', showactive:false, x:0.02, y:0.05, xanchor:'left',
     buttons:[
@@ -471,4 +492,8 @@ document.addEventListener('fullscreenchange',function(){{setTimeout(function(){{
 
 
 def render_movie_html(payload: dict) -> str:
-    return _MOVIE_HTML.format(ticker=payload["ticker"], payload=json.dumps(payload))
+    modelabel = (f"ΔIV vs {payload['ref_date']} (cumulative)"
+                 if payload.get("mode") == "change" else "surface")
+    return _MOVIE_HTML.format(
+        ticker=payload["ticker"], modelabel=modelabel, payload=json.dumps(payload),
+    )
