@@ -355,3 +355,120 @@ def render_diff_html(payload: dict) -> str:
         ticker=payload["ticker"], label_a=payload["label_a"], label_b=payload["label_b"],
         coverage=payload["coverage"], payload=json.dumps(payload),
     )
+
+
+def build_movie_payload(
+    snapshots: list[tuple[str, pd.DataFrame, float]],
+    ticker: str = "",
+    *,
+    smoothing: float = config.SURFACE_INTERACTIVE_SMOOTHING,
+    clip: float = config.SURFACE_INTERACTIVE_CLIP,
+    fit_floor: float = 5.0,
+) -> dict | None:
+    """One IV-surface frame per stored session → a play/scrub 'video' of the surface.
+
+    snapshots: (date_str, surface_df, spot) ascending by date. All frames share ONE
+    (DTE, ln K/S) grid (intersection of each day's DTE range) and ONE color scale so the
+    surface visibly rises/falls/twists across days. Cells outside a day's hull = NaN holes.
+    Returns None when fewer than 2 usable sessions.
+    """
+    prepped = []
+    for ds, df, spot in snapshots:
+        if df is None or df.empty:
+            continue
+        d = df.copy()
+        d = d[np.abs(d["log_moneyness"]) <= clip]
+        d = d[(d["dte"] <= config.SURFACE_DTE_MAX) & (d["dte"] >= fit_floor)]
+        if len(d) < 6 or d["dte"].nunique() < 2:
+            continue
+        prepped.append((ds, d, float(spot)))
+    if len(prepped) < 2:
+        return None
+
+    dte_min = max(fit_floor, max(float(d["dte"].min()) for _, d, _ in prepped))
+    dte_max = min(float(d["dte"].max()) for _, d, _ in prepped)
+    if dte_max <= dte_min + 1:
+        return None
+    dte_grid = np.linspace(dte_min, dte_max, GRID_DTE)
+    otm_grid = np.linspace(-clip, clip, GRID_LM)
+    DTE, OTM = np.meshgrid(dte_grid, otm_grid)
+    grid = np.column_stack([DTE.ravel(), OTM.ravel()])
+
+    frames, all_vals = [], []
+    for ds, d, spot in prepped:
+        rbf, std = _fit_rbf(d["dte"].to_numpy(), d["log_moneyness"].to_numpy(), d["iv_pct"].to_numpy(), smoothing)
+        IV = np.clip(rbf(grid / std).reshape(DTE.shape), 0.0, None)
+        mask = coverage_mask(d, spot, dte_grid, otm_grid, dte_floor=fit_floor, clip=clip)
+        IV = np.where(mask, IV, np.nan)
+        if np.isnan(IV).all():
+            continue
+        all_vals.append(IV[~np.isnan(IV)])
+        frames.append({"date": ds, "spot": round(spot, 2),
+                       "IV": [[None if np.isnan(v) else round(float(v), 2) for v in row] for row in IV]})
+    if len(frames) < 2:
+        return None
+    flat = np.concatenate(all_vals)
+    return {
+        "ticker": ticker,
+        "dte_grid": [round(v, 1) for v in dte_grid.tolist()],
+        "otm_grid": [round(v, 4) for v in otm_grid.tolist()],
+        "frames": frames,
+        "z_floor": round(max(0.0, float(np.nanmin(flat)) - 2), 1),
+        "z_cap": round(float(np.nanpercentile(flat, config.SURFACE_Z_CAP_PERCENTILE)), 1),
+    }
+
+
+_MOVIE_HTML = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  body {{ margin:0; background:#0e1117; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; }}
+  #hdr {{ padding:6px 12px; font-size:12px; border-bottom:1px solid #222; }}
+  #hdr b {{ color:#fff; }} #d {{ color:#ffd24d; }}
+  #fig {{ width:100%; height:calc(100% - 34px); }} html,body {{ height:100%; }}
+  #fs {{ cursor:pointer; background:#1b2230; color:#cfcfcf; border:1px solid #333;
+        border-radius:4px; padding:1px 8px; font-size:13px; margin-left:10px; }}
+</style></head>
+<body>
+<div id="hdr"><b>{ticker}</b> surface — <span id="d">play ▶ to watch it move</span>
+  <span style="float:right"><button id="fs" title="Fullscreen">⛶</button></span></div>
+<div id="fig"></div>
+<script>
+const D = {payload};
+const f0 = D.frames[0];
+const base = {{type:'surface', x:D.dte_grid, y:D.otm_grid, z:f0.IV, colorscale:'Plasma',
+  cmin:D.z_floor, cmax:D.z_cap, colorbar:{{title:'IV %', thickness:12, len:0.6}},
+  contours:{{z:{{show:true, usecolormap:true, project_z:false, width:1}}}},
+  hovertemplate:'DTE %{{x:.0f}}<br>K/S %{{y:.3f}}<br>IV %{{z:.1f}}%<extra></extra>'}};
+const frames = D.frames.map(f => ({{name:f.date, data:[{{z:f.IV}}]}}));
+const steps = D.frames.map(f => ({{label:f.date, method:'animate',
+  args:[[f.date], {{mode:'immediate', frame:{{duration:0, redraw:true}}, transition:{{duration:0}}}}]}}));
+const layout = {{paper_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:11}}, margin:{{t:8,b:8,l:8,r:8}},
+  scene:{{xaxis:{{title:'DTE', gridcolor:'#222'}}, yaxis:{{title:'ln(K/S)', gridcolor:'#222'}},
+    zaxis:{{title:'IV %', gridcolor:'#222', range:[D.z_floor, D.z_cap]}}, camera:{{eye:{{x:1.9,y:-1.3,z:0.7}}}},
+    aspectmode:'manual', aspectratio:{{x:1.5,y:1.2,z:0.6}}}},
+  updatemenus:[{{type:'buttons', showactive:false, x:0.02, y:0.05, xanchor:'left',
+    buttons:[
+      {{label:'▶ Play', method:'animate', args:[null, {{fromcurrent:true, mode:'immediate',
+        frame:{{duration:700, redraw:true}}, transition:{{duration:300, easing:'cubic-in-out'}}}}]}},
+      {{label:'❚❚ Pause', method:'animate', args:[[null], {{mode:'immediate',
+        frame:{{duration:0, redraw:false}}, transition:{{duration:0}}}}]}}
+    ]}}],
+  sliders:[{{active:0, x:0.12, len:0.84, y:0.02, currentvalue:{{visible:false}},
+    pad:{{t:0,b:0}}, steps:steps}}]}};
+Plotly.newPlot('fig', [base], layout, {{responsive:true, displaylogo:false}}).then(function(){{
+  Plotly.addFrames('fig', frames);
+}});
+const dEl = document.getElementById('d');
+document.getElementById('fig').on('plotly_animatingframe', function(e){{
+  if(e && e.name) dEl.textContent = e.name;
+}});
+document.getElementById('fs').onclick=function(){{
+  if(document.fullscreenElement){{document.exitFullscreen();}}
+  else if(document.documentElement.requestFullscreen){{document.documentElement.requestFullscreen().catch(()=>{{}});}}}};
+document.addEventListener('fullscreenchange',function(){{setTimeout(function(){{Plotly.Plots.resize('fig');}},80);}});
+</script></body></html>"""
+
+
+def render_movie_html(payload: dict) -> str:
+    return _MOVIE_HTML.format(ticker=payload["ticker"], payload=json.dumps(payload))

@@ -12,6 +12,7 @@ from gex import config
 from gex.surface_interactive import (
     build_surface_payload, render_surface_html,
     build_diff_payload, render_diff_html,
+    build_movie_payload, render_movie_html,
 )
 from gex.card_model import CardField, build_card_fields
 from gex.validation import load_prior_snapshot
@@ -25,7 +26,6 @@ from scipy.stats import percentileofscore
 from gex.surface_history import (
     load_surface_snapshot, list_available_dates, nth_trading_day_back,
 )
-from gex.surface_evolution import load_evolution
 
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
@@ -144,6 +144,16 @@ def fetch_ticker(ticker: str) -> dict:
 def _load_history_cached(ticker: str, days: int = config.HISTORY_DAYS) -> pd.DataFrame:
     from gex.validation import load_history
     return load_history(ticker, days)
+
+
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner="Building surface video…")
+def _movie_payload_cached(ticker: str) -> dict | None:
+    snaps = []
+    for d in sorted(list_available_dates(ticker)):
+        sdf, sp = load_surface_snapshot(ticker, d)
+        if sdf is not None and not sdf.empty and sp is not None:
+            snaps.append((d.strftime("%b %d"), sdf, sp))
+    return build_movie_payload(snaps, ticker=ticker)
 
 
 def _sign_key(net_gex: float | None) -> str:
@@ -390,89 +400,24 @@ if sel_index:
                 else:
                     st.caption(f"{ticker}: insufficient data for comparison.")
 
-    # ── Evolution ─────────────────────────────────────────────────────────────
+    # ── Evolution — the surface in motion ─────────────────────────────────────
     with tab_evolution:
         st.caption(
-            "How the vol surface has moved over recent sessions — each metric is today's "
-            "surface differenced against its own N-day rolling-mean baseline."
+            "How the surface changes day by day — hit ▶ to play it like a video, "
+            "or drag the slider to scrub through stored sessions."
+        )
+        evo_tkr = st.radio(
+            "Evolution ticker", selected_all, horizontal=True,
+            key="evo_tkr", label_visibility="collapsed",
         )
 
-        _HORIZONS = [5, 10, 20]
-        _evol_cache: dict[tuple[str, int], pd.DataFrame] = {}
-
-        def _evol(t, h):
-            if (t, h) not in _evol_cache:
-                _evol_cache[(t, h)] = load_evolution(t, horizon=h, days=60)
-            return _evol_cache[(t, h)]
-
-        # Only offer horizons that actually have data (longer ones cold-start later).
-        avail_h = [h for h in _HORIZONS if any(not _evol(t, h).empty for t in selected_all)]
-        building_h = [h for h in _HORIZONS if h not in avail_h]
-
-        if not avail_h:
-            st.info("No surface-evolution data yet — accumulates from `run_daily` runs forward.")
-        else:
-            selected_horizon = st.radio(
-                "Horizon", options=avail_h, index=0, horizontal=True, key="evol_horizon",
-                format_func=lambda h: f"{h}d",
-            )
-            if building_h:
-                st.caption(
-                    f"{' / '.join(f'{h}d' for h in building_h)} still building — "
-                    "needs more accumulated sessions."
-                )
-
-            _metric_meta = {
-                "level":       ("Avg IV shift", "Mean ΔIV vs baseline — whole surface drifting up (+) or down (−)."),
-                "rms":         ("Move size",    "Magnitude of the surface move vs baseline (direction-agnostic)."),
-                "skew_change": ("Skew shift",   "Put-wing minus call-wing ΔIV — crash bid building when positive."),
-                "term_change": ("Term shift",   "Front minus back ATM ΔIV — front-end stress when positive."),
-            }
-            _evol_ticker_colors = {
-                "SPY": config.PALETTE["call"],
-                "QQQ": config.PALETTE["accent"],
-                "IWM": config.PALETTE["positive"],
-            }
-
-            grid_cols = st.columns(2)
-            for i, (metric, (title, helptext)) in enumerate(_metric_meta.items()):
-                fig = go.Figure()
-                any_data = False
-                for ticker in selected_all:
-                    df = _evol(ticker, selected_horizon)
-                    if df.empty or metric not in df.columns:
-                        continue
-                    mdf = df.dropna(subset=[metric]).sort_values("date")
-                    if mdf.empty:
-                        continue
-                    any_data = True
-                    fig.add_trace(go.Scatter(
-                        x=mdf["date"], y=mdf[metric], name=ticker, mode="lines",
-                        line=dict(color=_evol_ticker_colors.get(ticker, config.PALETTE["neutral"]), width=1.5),
-                        hovertemplate=f"%{{x|%b %d}}<br>{ticker}: %{{y:+.3f}}pp<extra></extra>",
-                    ))
-                with grid_cols[i % 2]:
-                    if any_data:
-                        fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
-                        fig.update_layout(
-                            template="plotly_dark", title=title, height=240,
-                            margin=dict(t=38, b=28, l=52, r=14),
-                            yaxis_title="pp", legend=dict(orientation="h", y=1.18),
-                        )
-                        st.plotly_chart(fig, width='stretch')
-                        st.caption(helptext)
-                    else:
-                        st.caption(f"{title}: no data at {selected_horizon}d yet.")
-
-        # Current skew / term context (condensed) — where each sits now + percentile.
-        st.markdown('<div class="sec">Current skew · term</div>', unsafe_allow_html=True)
-        for ticker in selected_all:
-            if ticker not in all_data:
-                continue
-            data = all_data[ticker]
+        # Headline data for the selected ticker (VRP / skew / term).
+        if evo_tkr in all_data:
+            data = all_data[evo_tkr]
             s = data["summary"]
-            hist = _load_history_cached(ticker, days=config.HISTORY_DAYS)
+            hist = _load_history_cached(evo_tkr, days=config.HISTORY_DAYS)
 
+            vrp_val, vrp_pct = s.get("vrp"), s.get("vrp_pct")
             front_skew_val = s.get("front_skew")
             ts = data.get("term_structure") or {}
             front_iv, back_iv = ts.get("front_atm_iv"), ts.get("back_atm_iv")
@@ -480,13 +425,31 @@ if sel_index:
 
             skew_series = (hist.dropna(subset=["front_skew"])["front_skew"].tolist()
                            if (not hist.empty and "front_skew" in hist.columns) else [])
+            vrp_disp = f"{vrp_val:+.1f}pp" if vrp_val is not None else "—"
+            if vrp_pct is not None:
+                vrp_disp += f" ({vrp_pct}th %ile)"
             skew_disp = f"{front_skew_val:+.1f}pp" if front_skew_val is not None else "—"
             if len(skew_series) >= 5 and front_skew_val is not None:
                 skew_disp += f" ({int(percentileofscore(skew_series, front_skew_val))}th %ile)"
             term_disp = f"{term_spread_val:+.1f}pp" if term_spread_val is not None else "—"
-            st.markdown(
-                f"**{ticker}**  ·  Front skew (25Δ RR) {skew_disp}  ·  "
-                f"Term spread (front−back ATM) {term_disp}"
+
+            h1, h2, h3 = st.columns(3)
+            h1.metric("VRP (vol − RV20)", vrp_disp)
+            h2.metric("Front skew (25Δ RR)", skew_disp)
+            h3.metric("Term spread (front − back)", term_disp)
+
+        # The surface video: one frame per stored session, fixed color scale.
+        movie = _movie_payload_cached(evo_tkr)
+        if movie is not None:
+            st.caption(
+                f"{len(movie['frames'])} sessions · "
+                f"{movie['frames'][0]['date']} → {movie['frames'][-1]['date']}"
+            )
+            components.html(render_movie_html(movie), height=620, scrolling=False)
+        else:
+            st.info(
+                f"{evo_tkr}: need ≥2 stored sessions to animate — "
+                "accumulates from `run_daily` runs forward."
             )
 
     # ── Positioning ───────────────────────────────────────────────────────────
