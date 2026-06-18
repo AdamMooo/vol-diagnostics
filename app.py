@@ -14,7 +14,8 @@ from gex.surface_interactive import (
     build_diff_payload, render_diff_html,
     build_movie_payload, render_movie_html,
 )
-from gex.card_model import CardField, build_card_fields
+from gex.card_model import CardField, build_card_fields, build_card_read, LABEL_GRAY
+from gex.surface_evolution import load_evolution
 from gex.validation import load_prior_snapshot
 from gex.compute import compute_ticker
 from gex.analytics import (
@@ -178,9 +179,39 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
         for f in fields
     )
 
+    # The "so what" read — skew percentile + 5d surface drift fed in (I/O-free builder).
+    skew_pct = None
+    front_skew = summary.get("front_skew")
+    hist = _load_history_cached(ticker, days=config.HISTORY_DAYS)
+    if front_skew is not None and not hist.empty and "front_skew" in hist.columns:
+        series = hist.dropna(subset=["front_skew"])["front_skew"].tolist()
+        if len(series) >= 5:
+            skew_pct = int(percentileofscore(series, front_skew))
+    move_5d = None
+    evo = load_evolution(ticker, horizon=5, days=60)
+    if not evo.empty and "level" in evo.columns:
+        lvl = evo.dropna(subset=["level"]).sort_values("date")
+        if not lvl.empty:
+            move_5d = float(lvl["level"].iloc[-1])
+
+    read = build_card_read(summary, skew_pct=skew_pct, move_5d=move_5d)
+    _tone = {"positive": config.PALETTE["positive"], "negative": config.PALETTE["negative"],
+             "neutral": LABEL_GRAY}
+    chips_html = "".join(
+        f'<span style="display:inline-block;padding:1px 7px;margin:0 4px 4px 0;border-radius:9px;'
+        f'font-size:0.72rem;background:rgba(127,140,141,0.12);color:{_tone.get(tone, LABEL_GRAY)};'
+        f'border:1px solid {_tone.get(tone, LABEL_GRAY)}33;">{txt}</span>'
+        for txt, tone in read.chips
+    )
+    read_html = (
+        f'<div style="margin:2px 0 8px;">{chips_html}'
+        f'<div style="font-size:0.8rem;color:#c9d1d9;font-style:italic;margin-top:4px;">{read.lean}</div></div>'
+    )
+
     col.markdown(f"""
 <div class="rc" style="background:{bg};border-left-color:{color};">
   <div class="rc-ticker" style="color:{color};">{ticker}</div>
+  {read_html}
   <div class="rc-grid">{grid_html}</div>
 </div>
 """, unsafe_allow_html=True)

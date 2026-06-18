@@ -301,3 +301,88 @@ def build_card_fields(
     ]
 
     return fields
+
+
+# ── Card read (the "so what") ─────────────────────────────────────────────
+
+@dataclasses.dataclass
+class CardRead:
+    """A plain-English synthesis sitting on top of the card fields.
+
+    chips: ordered (text, sign) state tags — each maps ONE number through a labeled
+    band (no hidden score). lean: a soft, hedged write-decision read templated from
+    VRP + skew. Stays inside the 'descriptive, no prescription' rule via 'favors'.
+    """
+    chips: list[tuple[str, str]]
+    lean: str
+
+
+def _lean_text(vrp_pct, skew_pct, vrp, vrp_pct_n) -> str:
+    lookback = config.VRP_PERCENTILE_LOOKBACK
+    if vrp_pct is None:
+        if vrp is not None and vrp_pct_n:
+            return (f"Percentile still building ({vrp_pct_n}/{lookback} sessions) — "
+                    "read the VRP level, not the rank yet.")
+        return "Not enough history yet for a premium read."
+    rich, cheap = vrp_pct >= 67, vrp_pct <= 33
+    steep = skew_pct is not None and skew_pct >= 67
+    if cheap:
+        base = "Premium's cheap — writing is poorly paid; owning protection is relatively attractive."
+    elif rich and steep:
+        base = "Protection's expensive and bid up front — favors writing calls; don't sell downside cheap here."
+    elif rich:
+        base = "Premium's rich — broad premium-selling is favored."
+    else:
+        base = "Premium's middling — no strong write edge today."
+    if vrp_pct_n is not None and vrp_pct_n < lookback:
+        base += f" (history thin — {vrp_pct_n} sessions)"
+    return base
+
+
+def build_card_read(
+    today_summary: dict,
+    *,
+    skew_pct: int | None = None,
+    move_5d: float | None = None,
+) -> CardRead:
+    """Synthesize the per-ticker read. I/O-free: callers pass skew_pct / move_5d.
+
+    Each chip is a deterministic band on one metric — VRP percentile, skew percentile,
+    5-day surface drift, net-GEX sign. Clauses with no data are simply omitted.
+    """
+    s = today_summary
+    vrp, vrp_pct, vrp_pct_n = s.get("vrp"), s.get("vrp_pct"), s.get("vrp_pct_n")
+    net_gex, front_skew = s.get("net_gex"), s.get("front_skew")
+
+    chips: list[tuple[str, str]] = []
+    if vrp_pct is not None:
+        if vrp_pct >= 67:
+            chips.append(("premium rich", "positive"))
+        elif vrp_pct <= 33:
+            chips.append(("premium cheap", "negative"))
+        else:
+            chips.append(("premium fair", "neutral"))
+
+    if skew_pct is not None:
+        if skew_pct >= 67:
+            chips.append(("skew steep", "negative"))
+        elif skew_pct <= 33:
+            chips.append(("skew flat", "positive"))
+        else:
+            chips.append(("skew moderate", "neutral"))
+    elif front_skew is not None:
+        chips.append(("downside skew", "neutral"))
+
+    if move_5d is not None:
+        if move_5d > 0.3:
+            chips.append(("vol lifting (5d)", "negative"))
+        elif move_5d < -0.3:
+            chips.append(("vol easing (5d)", "positive"))
+        else:
+            chips.append(("vol steady (5d)", "neutral"))
+
+    if net_gex is not None:
+        chips.append(("dealers stabilizing", "positive") if net_gex >= 0
+                     else ("dealers amplifying", "negative"))
+
+    return CardRead(chips=chips, lean=_lean_text(vrp_pct, skew_pct, vrp, vrp_pct_n))
