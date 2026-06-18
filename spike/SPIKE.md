@@ -39,6 +39,14 @@ User verdict: "so fucking good, much better, so informative."
 - Production path: client-side plotly.js embedded via `st.components.v1.html` (NOT
   `streamlit-plotly-events` — that round-trips per hover, the lag we just escaped).
 
+## Streamlit integration (PROVEN 2026-06-18) ✅
+`spike/surface_app_demo.py` — `streamlit run spike/surface_app_demo.py`. The production shape:
+streamlit owns controls + server-side RBF fit (`@st.cache_data`); `build()`→`render_html()`→
+`components.html()`. Server-side fit, client-side hover — drag stays smooth. This is the drop-in
+for `app.py`'s Surface tab.
+- **Productionization to-do:** `st.components.v1.html` is deprecated → swap to `st.iframe` before main.
+
 ## Open / next
-- [ ] Tune surface look to taste: final smoothing (0.5 now), 60/40 proportions, near-expiry placement.
-- [ ] Wire into streamlit as a components.html block; decide which knob changes graduate to main.
+- [ ] Lock final smoothing (set generated: 0.2/0.4/0.6/0.8; fit RMSE 0.35/0.44/0.50/0.55pp) — user's eye.
+- [ ] Near-expiry placement (smile panel vs own panel) + proportions.
+- [ ] Graduate to main: which knob changes land in config/analytics, Surface-tab rewrite, st.iframe swap.

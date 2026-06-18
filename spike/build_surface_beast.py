@@ -247,6 +247,20 @@ document.getElementById('fig3d').on('plotly_hover', function(ev){{
 </script></body></html>"""
 
 
+def render_html(payload: dict) -> str:
+    """payload (from build) -> self-contained interactive HTML string.
+
+    Shared by the CLI and the streamlit component embed so both render identically.
+    """
+    return HTML.format(
+        ticker=payload["ticker"], date=payload["date"], spot=payload["spot"],
+        smoothing=payload["smoothing"], clip=payload["clip"], fit_floor=payload["fit_floor"],
+        pinned=(" (pinned)" if payload["pin_floor"] else ""),
+        coverage=payload["coverage"], rmse=payload["rmse"],
+        payload=json.dumps(payload),
+    )
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ticker", default="SPY")
@@ -266,14 +280,7 @@ def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     suffix = f"_{args.tag}" if args.tag else ""
     out = OUT_DIR / f"surface_beast_{args.ticker}{suffix}.html"
-    html = HTML.format(
-        ticker=payload["ticker"], date=payload["date"], spot=payload["spot"],
-        smoothing=payload["smoothing"], clip=payload["clip"], fit_floor=payload["fit_floor"],
-        pinned=(" (pinned)" if payload["pin_floor"] else ""),
-        coverage=payload["coverage"], rmse=payload["rmse"],
-        payload=json.dumps(payload),
-    )
-    out.write_text(html, encoding="utf-8")
+    out.write_text(render_html(payload), encoding="utf-8")
     print(f"[beast] {args.ticker} {payload['date']}  coverage {payload['coverage']}%  "
           f"fit RMSE {payload['rmse']}pp  -> {out}")
 
