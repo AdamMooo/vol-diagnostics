@@ -179,19 +179,21 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
         for f in fields
     )
 
-    # The "so what" read — skew percentile + 5d surface drift fed in (I/O-free builder).
+    # The "so what" read — skew %ile + 5d drift, each shown ONLY if its sample clears the
+    # credibility floor (a thin rank is worse than a blank). VRP is gated inside the builder.
+    _floor = config.CARD_READ_MIN_SESSIONS
     skew_pct = None
     front_skew = summary.get("front_skew")
     hist = _load_history_cached(ticker, days=config.HISTORY_DAYS)
     if front_skew is not None and not hist.empty and "front_skew" in hist.columns:
         series = hist.dropna(subset=["front_skew"])["front_skew"].tolist()
-        if len(series) >= 5:
+        if len(series) >= _floor:
             skew_pct = int(percentileofscore(series, front_skew))
     move_5d = None
-    evo = load_evolution(ticker, horizon=5, days=60)
+    evo = load_evolution(ticker, horizon=5, days=400)
     if not evo.empty and "level" in evo.columns:
         lvl = evo.dropna(subset=["level"]).sort_values("date")
-        if not lvl.empty:
+        if len(lvl) >= _floor:
             move_5d = float(lvl["level"].iloc[-1])
 
     read = build_card_read(summary, skew_pct=skew_pct, move_5d=move_5d)

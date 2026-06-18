@@ -202,3 +202,10 @@ TICKER_VOL_INDEX: dict[str, str] = {"SPY": "VIX", "QQQ": "VXN", "IWM": "RVX"}
 
 # Rolling-session window for the VRP percentile rank; ~one trading year. Used by vrp_history.vrp_percentile.
 VRP_PERCENTILE_LOOKBACK: int = 252
+
+CARD_READ_MIN_SESSIONS: int = 60
+"""Minimum sample before a percentile/history-derived card-read chip is shown at all.
+A rank on a thin sample is worse than no rank — so skew %ile, 5d-motion, etc. are OMITTED
+below this, not shown with a caveat. VRP rides the deep vol-index history (n≈252) and clears
+this trivially; chain-derived metrics (skew/surface) only accrue from our own snapshots and
+appear once they cross it. Raise toward 252 for the same bar as VRP."""

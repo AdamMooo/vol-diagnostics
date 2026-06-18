@@ -317,26 +317,19 @@ class CardRead:
     lean: str
 
 
-def _lean_text(vrp_pct, skew_pct, vrp, vrp_pct_n) -> str:
-    lookback = config.VRP_PERCENTILE_LOOKBACK
+def _lean_text(vrp_pct, skew_pct) -> str:
+    """vrp_pct is None unless it cleared the credibility floor; same for skew_pct."""
     if vrp_pct is None:
-        if vrp is not None and vrp_pct_n:
-            return (f"Percentile still building ({vrp_pct_n}/{lookback} sessions) — "
-                    "read the VRP level, not the rank yet.")
-        return "Not enough history yet for a premium read."
+        return "Premium history still building — no rich/cheap call yet."
     rich, cheap = vrp_pct >= 67, vrp_pct <= 33
     steep = skew_pct is not None and skew_pct >= 67
     if cheap:
-        base = "Premium's cheap — writing is poorly paid; owning protection is relatively attractive."
-    elif rich and steep:
-        base = "Protection's expensive and bid up front — favors writing calls; don't sell downside cheap here."
-    elif rich:
-        base = "Premium's rich — broad premium-selling is favored."
-    else:
-        base = "Premium's middling — no strong write edge today."
-    if vrp_pct_n is not None and vrp_pct_n < lookback:
-        base += f" (history thin — {vrp_pct_n} sessions)"
-    return base
+        return "Premium's cheap — writing is poorly paid; owning protection is relatively attractive."
+    if rich and steep:
+        return "Protection's expensive and bid up front — favors writing calls; don't sell downside cheap here."
+    if rich:
+        return "Premium's rich — broad premium-selling is favored."
+    return "Premium's middling — no strong write edge today."
 
 
 def build_card_read(
@@ -345,17 +338,22 @@ def build_card_read(
     skew_pct: int | None = None,
     move_5d: float | None = None,
 ) -> CardRead:
-    """Synthesize the per-ticker read. I/O-free: callers pass skew_pct / move_5d.
+    """Synthesize the per-ticker read. I/O-free: callers pass skew_pct / move_5d ALREADY
+    gated (None unless their sample cleared config.CARD_READ_MIN_SESSIONS).
 
-    Each chip is a deterministic band on one metric — VRP percentile, skew percentile,
-    5-day surface drift, net-GEX sign. Clauses with no data are simply omitted.
+    Only chips we can stand behind are emitted — a band on a thin sample is omitted, not
+    shown with a caveat. VRP rides the deep vol-index history; net-GEX sign is a present
+    fact (no history). skew/motion appear once their own snapshots accrue.
     """
     s = today_summary
-    vrp, vrp_pct, vrp_pct_n = s.get("vrp"), s.get("vrp_pct"), s.get("vrp_pct_n")
-    net_gex, front_skew = s.get("net_gex"), s.get("front_skew")
+    vrp_pct, vrp_pct_n = s.get("vrp_pct"), s.get("vrp_pct_n")
+    net_gex = s.get("net_gex")
+    floor = config.CARD_READ_MIN_SESSIONS
 
+    vrp_ok = vrp_pct is not None and (vrp_pct_n or 0) >= floor
     chips: list[tuple[str, str]] = []
-    if vrp_pct is not None:
+
+    if vrp_ok:
         if vrp_pct >= 67:
             chips.append(("premium rich", "positive"))
         elif vrp_pct <= 33:
@@ -363,17 +361,15 @@ def build_card_read(
         else:
             chips.append(("premium fair", "neutral"))
 
-    if skew_pct is not None:
+    if skew_pct is not None:  # caller passes only when credible
         if skew_pct >= 67:
             chips.append(("skew steep", "negative"))
         elif skew_pct <= 33:
             chips.append(("skew flat", "positive"))
         else:
             chips.append(("skew moderate", "neutral"))
-    elif front_skew is not None:
-        chips.append(("downside skew", "neutral"))
 
-    if move_5d is not None:
+    if move_5d is not None:  # caller passes only when credible
         if move_5d > 0.3:
             chips.append(("vol lifting (5d)", "negative"))
         elif move_5d < -0.3:
@@ -381,8 +377,8 @@ def build_card_read(
         else:
             chips.append(("vol steady (5d)", "neutral"))
 
-    if net_gex is not None:
+    if net_gex is not None:  # present-tense fact, no history needed
         chips.append(("dealers stabilizing", "positive") if net_gex >= 0
                      else ("dealers amplifying", "negative"))
 
-    return CardRead(chips=chips, lean=_lean_text(vrp_pct, skew_pct, vrp, vrp_pct_n))
+    return CardRead(chips=chips, lean=_lean_text(vrp_pct if vrp_ok else None, skew_pct))
