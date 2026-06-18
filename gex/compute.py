@@ -80,11 +80,16 @@ def compute_ticker(ticker: str) -> dict:
     df = add_greeks(snapshot.chains, spot=snapshot.spot, today=snapshot.as_of)
     df = compute_gex(df, spot=snapshot.spot)
 
-    s_df = strike_gex(df)
-    s_df = s_df.merge(strike_oi(df), on="strike", how="left")
+    # Positioning analysis (GEX, walls, γ-flip, OI walls) is tenor-bounded to where the
+    # dealer-net-short assumption holds: short-to-mid. LEAPS = investor write-flow + tiny
+    # gamma. Surface/skew below stay on the full chain.
+    gex_df = df[(df["T_years"] * 365.0) <= config.GEX_MAX_DTE]
+
+    s_df = strike_gex(gex_df)
+    s_df = s_df.merge(strike_oi(gex_df), on="strike", how="left")
 
     r = _get_risk_free_rate()
-    p_df = gamma_profile(df, spot=snapshot.spot, r=r)
+    p_df = gamma_profile(gex_df, spot=snapshot.spot, r=r)
     surface_df = vol_surface_data(df, spot=snapshot.spot)
     surface_diag = surface_diagnostics(surface_df, snapshot.spot)
     print(f"[diag] {ticker}: coverage {surface_diag['coverage_pct']:.0f}%  "

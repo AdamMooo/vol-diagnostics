@@ -21,6 +21,14 @@ MIN_OI: int = 100
 Below this threshold the strike is illiquid enough that GEX contribution is
 noise — not dealer hedging signal. 100 is the SpotGamma/perfiliev convention."""
 
+GEX_MAX_DTE: int = 90
+"""Upper DTE bound for GEX / positioning analysis (net GEX, walls, γ-flip, OI walls).
+Dealers warehouse and actively hedge short-to-mid-dated flow; LEAPS / long-dated is mostly
+investor write/overwrite flow (covered calls, structured products) with negligible per-contract
+gamma — so it both contributes little and weakens the 'dealers net short' assumption. Capping
+at ~one quarter keeps the dealer-relevant tenor. Surface/skew are NOT bound by this (they want
+the full curve). Tune: tighter (~60) = more front-loaded, looser (~120) = includes more cycles."""
+
 MIN_DTE: int = 1
 """Exclude 0DTE options. BS gamma and charm are mathematically singular at T→0
 ATM; vanna approaches zero cleanly. Mixing 0DTE in would require invented T_min
