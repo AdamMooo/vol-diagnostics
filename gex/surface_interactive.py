@@ -140,6 +140,8 @@ _HTML = """<!DOCTYPE html>
   .lbl {{ padding:4px 12px; font-size:11px; color:#ffd24d; }}
   #figsl {{ flex:1; }}
   html,body,#wrap {{ height:100%; }}
+  #fs {{ cursor:pointer; background:#1b2230; color:#cfcfcf; border:1px solid #333;
+        border-radius:4px; padding:1px 8px; font-size:13px; margin-left:10px; }}
 </style></head>
 <body>
 <div id="hdr">
@@ -147,6 +149,7 @@ _HTML = """<!DOCTYPE html>
   <span style="float:right">
     <span class="tag">smoothing {smoothing}</span><span class="tag">clip ±{clip}</span>
     <span class="tag">coverage {coverage}%</span><span class="tag">fit RMSE {rmse}pp</span>
+    <button id="fs" title="Fullscreen">⛶</button>
   </span>
 </div>
 <div id="wrap">
@@ -195,6 +198,11 @@ document.getElementById('fig3d').on('plotly_hover', function(ev){{
   const di=nIdx(D.dte_grid,p.x), oi=nIdx(D.otm_grid,p.y);
   if(di===lastDi&&oi===lastOi)return; lastDi=di; lastOi=oi; pending={{di,oi}};
   if(!queued){{queued=true; requestAnimationFrame(apply);}}}});
+document.getElementById('fs').onclick=function(){{
+  if(document.fullscreenElement){{document.exitFullscreen();}}
+  else if(document.documentElement.requestFullscreen){{document.documentElement.requestFullscreen().catch(()=>{{}});}}}};
+document.addEventListener('fullscreenchange',function(){{
+  setTimeout(function(){{Plotly.Plots.resize('fig3d'); Plotly.Plots.resize('figsl');}}, 80);}});
 </script></body></html>"""
 
 
@@ -203,4 +211,146 @@ def render_surface_html(payload: dict) -> str:
         ticker=payload["ticker"], date=payload["date"], spot=payload["spot"],
         smoothing=payload["smoothing"], clip=payload["clip"],
         coverage=payload["coverage"], rmse=payload["rmse"], payload=json.dumps(payload),
+    )
+
+
+def _prep(df, clip, fit_floor):
+    d = df.copy()
+    d = d[np.abs(d["log_moneyness"]) <= clip]
+    d = d[(d["dte"] <= config.SURFACE_DTE_MAX) & (d["dte"] >= fit_floor)]
+    return d
+
+
+def build_diff_payload(
+    df_a: pd.DataFrame, spot_a: float,
+    df_b: pd.DataFrame, spot_b: float,
+    ticker: str = "", label_a: str = "A", label_b: str = "B",
+    *,
+    smoothing: float = config.SURFACE_INTERACTIVE_SMOOTHING,
+    clip: float = config.SURFACE_INTERACTIVE_CLIP,
+    fit_floor: float = 5.0,
+) -> dict | None:
+    """ΔIV (A − B) surface + per-slice A/B smile & term overlays. None when too sparse.
+
+    DTE grid = intersection of both dates' ranges (where the diff is defined); coverage
+    = both hulls intersected (honest: only cells real in BOTH days)."""
+    if df_a is None or df_b is None or df_a.empty or df_b.empty:
+        return None
+    da, db = _prep(df_a, clip, fit_floor), _prep(df_b, clip, fit_floor)
+    if len(da) < 6 or len(db) < 6 or da["dte"].nunique() < 2 or db["dte"].nunique() < 2:
+        return None
+    dte_min = max(float(da["dte"].min()), float(db["dte"].min()), float(fit_floor))
+    dte_max = min(float(da["dte"].max()), float(db["dte"].max()))
+    if dte_max <= dte_min + 1:
+        return None
+    dte_grid = np.linspace(dte_min, dte_max, GRID_DTE)
+    otm_grid = np.linspace(-clip, clip, GRID_LM)
+    DTE, OTM = np.meshgrid(dte_grid, otm_grid)
+    grid = np.column_stack([DTE.ravel(), OTM.ravel()])
+
+    rbf_a, sa = _fit_rbf(da["dte"].to_numpy(), da["log_moneyness"].to_numpy(), da["iv_pct"].to_numpy(), smoothing)
+    rbf_b, sb = _fit_rbf(db["dte"].to_numpy(), db["log_moneyness"].to_numpy(), db["iv_pct"].to_numpy(), smoothing)
+    IVa = np.clip(rbf_a(grid / sa).reshape(DTE.shape), 0.0, None)
+    IVb = np.clip(rbf_b(grid / sb).reshape(DTE.shape), 0.0, None)
+
+    mask = (coverage_mask(da, spot_a, dte_grid, otm_grid, dte_floor=fit_floor, clip=clip) &
+            coverage_mask(db, spot_b, dte_grid, otm_grid, dte_floor=fit_floor, clip=clip))
+    IVa = np.where(mask, IVa, np.nan)
+    IVb = np.where(mask, IVb, np.nan)
+    IVd = IVa - IVb
+    if np.isnan(IVd).all():
+        return None
+    cap = float(np.nanpercentile(np.abs(IVd), 99)) or 1.0
+
+    def col(M, i, axis):
+        v = M[:, i] if axis == 0 else M[i, :]
+        return np.where(np.isnan(v), None, v.round(2)).tolist()
+
+    return {
+        "ticker": ticker, "label_a": label_a, "label_b": label_b,
+        "coverage": round(100.0 * float(mask.mean()), 0), "cap": round(cap, 2),
+        "dte_grid": [round(v, 1) for v in dte_grid.tolist()],
+        "otm_grid": [round(v, 4) for v in otm_grid.tolist()],
+        "ks_grid": [round(float(np.exp(v)), 3) for v in otm_grid.tolist()],
+        "IVd": [[None if np.isnan(v) else round(float(v), 2) for v in row] for row in IVd],
+        "smile_a": [col(IVa, i, 0) for i in range(len(dte_grid))],
+        "smile_b": [col(IVb, i, 0) for i in range(len(dte_grid))],
+        "term_a": [col(IVa, j, 1) for j in range(len(otm_grid))],
+        "term_b": [col(IVb, j, 1) for j in range(len(otm_grid))],
+    }
+
+
+_DIFF_HTML = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  body {{ margin:0; background:#0e1117; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; }}
+  #hdr {{ padding:6px 12px; font-size:12px; border-bottom:1px solid #222; }}
+  #hdr b {{ color:#fff; }} .tag {{ color:#8aa; margin-right:12px; }}
+  #wrap {{ display:flex; width:100%; height:calc(100% - 34px); }}
+  #fig3d {{ flex:0 0 60%; height:100%; }}
+  #right {{ flex:1; display:flex; flex-direction:column; }}
+  .lbl {{ padding:4px 12px; font-size:11px; color:#ffd24d; }}
+  #figsl {{ flex:1; }} html,body,#wrap {{ height:100%; }}
+  #fs {{ cursor:pointer; background:#1b2230; color:#cfcfcf; border:1px solid #333;
+        border-radius:4px; padding:1px 8px; font-size:13px; margin-left:10px; }}
+</style></head>
+<body>
+<div id="hdr">
+  <b>{ticker} ΔIV</b> &nbsp; {label_a} − {label_b} &nbsp;
+  <span style="color:#ff5d5d">red = vol up</span> / <span style="color:#5d9bff">blue = down</span>
+  <span style="float:right"><span class="tag">coverage {coverage}%</span>
+    <button id="fs" title="Fullscreen">⛶</button></span>
+</div>
+<div id="wrap">
+  <div id="fig3d"></div>
+  <div id="right"><div class="lbl" id="lbl">smile / term — hover the surface</div><div id="figsl"></div></div>
+</div>
+<script>
+const D = {payload};
+const mid = Math.floor(D.otm_grid.length/2);
+Plotly.newPlot('fig3d', [{{
+  type:'surface', x:D.dte_grid, y:D.otm_grid, z:D.IVd, colorscale:'RdBu', reversescale:true,
+  cmin:-D.cap, cmax:D.cap, colorbar:{{title:'ΔIV', thickness:12, len:0.6}},
+  contours:{{z:{{show:true, usecolormap:true, project_z:false, width:1}}}},
+  hovertemplate:'DTE %{{x:.0f}}<br>K/S %{{y:.3f}}<br>ΔIV %{{z:.1f}}<extra></extra>'
+}}], {{paper_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:11}}, margin:{{t:8,b:8,l:8,r:8}},
+  scene:{{xaxis:{{title:'DTE', gridcolor:'#222'}}, yaxis:{{title:'ln(K/S)', gridcolor:'#222'}},
+    zaxis:{{title:'ΔIV', gridcolor:'#222'}}, camera:{{eye:{{x:1.9,y:-1.3,z:0.7}}}},
+    aspectmode:'manual', aspectratio:{{x:1.5,y:1.2,z:0.6}}}}}}, {{responsive:true, displaylogo:false}});
+Plotly.newPlot('figsl', [
+  {{type:'scatter', mode:'lines', x:D.ks_grid, y:D.smile_a[0], line:{{color:'#ffd24d', width:3}}, name:D.label_a}},
+  {{type:'scatter', mode:'lines', x:D.ks_grid, y:D.smile_b[0], line:{{color:'#9aa7b8', width:2, dash:'dash'}}, name:D.label_b}},
+  {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_a[mid], line:{{color:'#ffd24d', width:3}}, showlegend:false}},
+  {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_b[mid], line:{{color:'#9aa7b8', width:2, dash:'dash'}}, showlegend:false}}
+], {{paper_bgcolor:'#0e1117', plot_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:10}},
+  margin:{{t:8,b:34,l:44,r:8}}, showlegend:true, legend:{{x:0, y:1.0, font:{{size:9}}, orientation:'h'}},
+  xaxis:{{domain:[0,1], anchor:'y', title:'K/S (smile)', gridcolor:'#222'}},
+  yaxis:{{domain:[0.56,1.0], anchor:'x', title:'IV %', gridcolor:'#222'}},
+  xaxis2:{{domain:[0,1], anchor:'y2', title:'DTE (term)', gridcolor:'#222'}},
+  yaxis2:{{domain:[0.0,0.42], anchor:'x2', title:'IV %', gridcolor:'#222'}}}}, {{responsive:true, displaylogo:false}});
+const lbl = document.getElementById('lbl');
+function nIdx(a,v){{let b=0,bd=1e9;for(let i=0;i<a.length;i++){{let d=Math.abs(a[i]-v);if(d<bd){{bd=d;b=i;}}}}return b;}}
+let lastDi=-1,lastOi=-1,pending=null,queued=false;
+function apply(){{queued=false; if(!pending)return; const {{di,oi}}=pending;
+  Plotly.restyle('figsl', {{y:[D.smile_a[di], D.smile_b[di]]}}, [0,1]);
+  Plotly.restyle('figsl', {{y:[D.term_a[oi], D.term_b[oi]]}}, [2,3]);
+  lbl.textContent='smile @ DTE '+D.dte_grid[di]+'   |   term @ K/S '+D.ks_grid[oi].toFixed(3);}}
+document.getElementById('fig3d').on('plotly_hover', function(ev){{
+  const p=ev.points[0]; if(!p||p.data.type!=='surface')return;
+  const di=nIdx(D.dte_grid,p.x), oi=nIdx(D.otm_grid,p.y);
+  if(di===lastDi&&oi===lastOi)return; lastDi=di; lastOi=oi; pending={{di,oi}};
+  if(!queued){{queued=true; requestAnimationFrame(apply);}}}});
+document.getElementById('fs').onclick=function(){{
+  if(document.fullscreenElement){{document.exitFullscreen();}}
+  else if(document.documentElement.requestFullscreen){{document.documentElement.requestFullscreen().catch(()=>{{}});}}}};
+document.addEventListener('fullscreenchange',function(){{
+  setTimeout(function(){{Plotly.Plots.resize('fig3d'); Plotly.Plots.resize('figsl');}}, 80);}});
+</script></body></html>"""
+
+
+def render_diff_html(payload: dict) -> str:
+    return _DIFF_HTML.format(
+        ticker=payload["ticker"], label_a=payload["label_a"], label_b=payload["label_b"],
+        coverage=payload["coverage"], payload=json.dumps(payload),
     )

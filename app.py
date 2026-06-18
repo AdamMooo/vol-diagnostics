@@ -9,7 +9,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from gex import config
-from gex.surface_interactive import build_surface_payload, render_surface_html
+from gex.surface_interactive import (
+    build_surface_payload, render_surface_html,
+    build_diff_payload, render_diff_html,
+)
 from gex.card_model import CardField, build_card_fields
 from gex.validation import load_prior_snapshot
 from gex.compute import compute_ticker
@@ -356,15 +359,21 @@ if sel_index:
                     label_b = date_b.strftime("%b %d")
 
                 if surface_df_a is not None and not surface_df_a.empty:
-                    st.plotly_chart(
-                        plot_iv_change_surface(
-                            surface_df_a, surface_df_b,
-                            ticker, spot_a, spot_b,
-                            label_prior=label_b,
-                            label_today=label_a,
-                        ),
-                        width='stretch',
+                    diff = build_diff_payload(
+                        surface_df_a, spot_a, surface_df_b, spot_b,
+                        ticker=ticker, label_a=label_a, label_b=label_b,
                     )
+                    if diff is not None:
+                        components.html(render_diff_html(diff), height=560, scrolling=False)
+                    else:
+                        st.plotly_chart(
+                            plot_iv_change_surface(
+                                surface_df_a, surface_df_b,
+                                ticker, spot_a, spot_b,
+                                label_prior=label_b, label_today=label_a,
+                            ),
+                            width='stretch',
+                        )
                     st.caption(
                         f"DTE range is bounded by the intersection of {label_a}'s and "
                         f"{label_b}'s data — if the surface is narrower than today's, "
