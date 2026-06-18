@@ -392,105 +392,102 @@ if sel_index:
 
     # ── Evolution ─────────────────────────────────────────────────────────────
     with tab_evolution:
+        st.caption(
+            "How the vol surface has moved over recent sessions — each metric is today's "
+            "surface differenced against its own N-day rolling-mean baseline."
+        )
+
+        _HORIZONS = [5, 10, 20]
+        _evol_cache: dict[tuple[str, int], pd.DataFrame] = {}
+
+        def _evol(t, h):
+            if (t, h) not in _evol_cache:
+                _evol_cache[(t, h)] = load_evolution(t, horizon=h, days=60)
+            return _evol_cache[(t, h)]
+
+        # Only offer horizons that actually have data (longer ones cold-start later).
+        avail_h = [h for h in _HORIZONS if any(not _evol(t, h).empty for t in selected_all)]
+        building_h = [h for h in _HORIZONS if h not in avail_h]
+
+        if not avail_h:
+            st.info("No surface-evolution data yet — accumulates from `run_daily` runs forward.")
+        else:
+            selected_horizon = st.radio(
+                "Horizon", options=avail_h, index=0, horizontal=True, key="evol_horizon",
+                format_func=lambda h: f"{h}d",
+            )
+            if building_h:
+                st.caption(
+                    f"{' / '.join(f'{h}d' for h in building_h)} still building — "
+                    "needs more accumulated sessions."
+                )
+
+            _metric_meta = {
+                "level":       ("Avg IV shift", "Mean ΔIV vs baseline — whole surface drifting up (+) or down (−)."),
+                "rms":         ("Move size",    "Magnitude of the surface move vs baseline (direction-agnostic)."),
+                "skew_change": ("Skew shift",   "Put-wing minus call-wing ΔIV — crash bid building when positive."),
+                "term_change": ("Term shift",   "Front minus back ATM ΔIV — front-end stress when positive."),
+            }
+            _evol_ticker_colors = {
+                "SPY": config.PALETTE["call"],
+                "QQQ": config.PALETTE["accent"],
+                "IWM": config.PALETTE["positive"],
+            }
+
+            grid_cols = st.columns(2)
+            for i, (metric, (title, helptext)) in enumerate(_metric_meta.items()):
+                fig = go.Figure()
+                any_data = False
+                for ticker in selected_all:
+                    df = _evol(ticker, selected_horizon)
+                    if df.empty or metric not in df.columns:
+                        continue
+                    mdf = df.dropna(subset=[metric]).sort_values("date")
+                    if mdf.empty:
+                        continue
+                    any_data = True
+                    fig.add_trace(go.Scatter(
+                        x=mdf["date"], y=mdf[metric], name=ticker, mode="lines",
+                        line=dict(color=_evol_ticker_colors.get(ticker, config.PALETTE["neutral"]), width=1.5),
+                        hovertemplate=f"%{{x|%b %d}}<br>{ticker}: %{{y:+.3f}}pp<extra></extra>",
+                    ))
+                with grid_cols[i % 2]:
+                    if any_data:
+                        fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
+                        fig.update_layout(
+                            template="plotly_dark", title=title, height=240,
+                            margin=dict(t=38, b=28, l=52, r=14),
+                            yaxis_title="pp", legend=dict(orientation="h", y=1.18),
+                        )
+                        st.plotly_chart(fig, width='stretch')
+                        st.caption(helptext)
+                    else:
+                        st.caption(f"{title}: no data at {selected_horizon}d yet.")
+
+        # Current skew / term context (condensed) — where each sits now + percentile.
+        st.markdown('<div class="sec">Current skew · term</div>', unsafe_allow_html=True)
         for ticker in selected_all:
             if ticker not in all_data:
                 continue
             data = all_data[ticker]
             s = data["summary"]
-            spot = data.get("spot")
-
-            st.markdown(f'<div class="sec">{ticker} · Skew · Term</div>', unsafe_allow_html=True)
-
             hist = _load_history_cached(ticker, days=config.HISTORY_DAYS)
 
-            # Scalar strip
             front_skew_val = s.get("front_skew")
             ts = data.get("term_structure") or {}
-            front_iv = ts.get("front_atm_iv")
-            back_iv = ts.get("back_atm_iv")
+            front_iv, back_iv = ts.get("front_atm_iv"), ts.get("back_atm_iv")
             term_spread_val = (front_iv - back_iv) if (front_iv is not None and back_iv is not None) else None
 
-            skew_series = []
-            term_series = []
-            if not hist.empty:
-                if "front_skew" in hist.columns:
-                    skew_series = hist.dropna(subset=["front_skew"])["front_skew"].tolist()
-
-            sc1, sc2 = st.columns(2)
-            with sc1:
-                skew_display = f"{front_skew_val:+.1f}pp" if front_skew_val is not None else "—"
-                st.metric(
-                    label="Front Skew (25Δ RR)",
-                    value=skew_display,
-                    help="25Δ put IV − 25Δ call IV for front expiry ≥7 DTE.",
-                )
-                if len(skew_series) >= 5 and front_skew_val is not None:
-                    skew_pct = int(percentileofscore(skew_series, front_skew_val))
-                    st.caption(f"{skew_pct}th %ile vs {len(skew_series)}-session history")
-            with sc2:
-                term_display = f"{term_spread_val:+.1f}pp" if term_spread_val is not None else "—"
-                st.metric(
-                    label="Term Spread (front − back ATM IV)",
-                    value=term_display,
-                    help="Front-month ATM IV minus back-month ATM IV.",
-                )
-
-        st.markdown('<div class="sec">Surface Evolution</div>', unsafe_allow_html=True)
-        selected_horizon = st.radio(
-            "Horizon", options=[5, 10, 20], index=0, horizontal=True, key="evol_horizon",
-        )
-
-        _evol_ticker_colors = {
-            "SPY": config.PALETTE["call"],
-            "QQQ": config.PALETTE["accent"],
-            "IWM": config.PALETTE["positive"],
-        }
-
-        # Load evolution data for all three tickers
-        evol_by_ticker: dict[str, pd.DataFrame] = {}
-        for ticker in INDEX_TICKERS:
-            evol_by_ticker[ticker] = load_evolution(ticker, horizon=selected_horizon, days=60)
-
-        all_empty = all(df.empty for df in evol_by_ticker.values())
-
-        if all_empty:
-            st.caption("No evolution data yet — accumulates from `run_daily` runs forward.")
-        else:
-            for metric in ["level", "rms", "skew_change", "term_change"]:
-                fig = go.Figure()
-                any_data = False
-                for ticker in INDEX_TICKERS:
-                    df = evol_by_ticker[ticker]
-                    if df.empty or metric not in df.columns:
-                        continue
-                    metric_df = df.dropna(subset=[metric]).sort_values("date")
-                    if metric_df.empty:
-                        continue
-                    any_data = True
-                    fig.add_trace(go.Scatter(
-                        x=metric_df["date"],
-                        y=metric_df[metric],
-                        name=ticker,
-                        mode="lines",
-                        line=dict(color=_evol_ticker_colors.get(ticker, config.PALETTE["neutral"]), width=1.5),
-                        hovertemplate=f"%{{x|%b %d}}<br>{ticker} {metric}: %{{y:+.3f}}<extra></extra>",
-                    ))
-                if any_data:
-                    fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=0.8)
-                    fig.update_layout(
-                        template="plotly_dark",
-                        title=f"{metric} ({selected_horizon}d horizon)",
-                        height=220,
-                        margin=dict(t=40, b=30, l=65, r=20),
-                        yaxis_title=f"{metric} (pp)",
-                        legend=dict(orientation="h", y=1.15),
-                    )
-                    st.plotly_chart(fig, width='stretch')
-
-            # Per-ticker cold-start captions for tickers with no data
-            for ticker in INDEX_TICKERS:
-                if evol_by_ticker[ticker].empty:
-                    st.caption(f"{ticker}: no evolution data yet — accumulates from `run_daily` runs forward.")
+            skew_series = (hist.dropna(subset=["front_skew"])["front_skew"].tolist()
+                           if (not hist.empty and "front_skew" in hist.columns) else [])
+            skew_disp = f"{front_skew_val:+.1f}pp" if front_skew_val is not None else "—"
+            if len(skew_series) >= 5 and front_skew_val is not None:
+                skew_disp += f" ({int(percentileofscore(skew_series, front_skew_val))}th %ile)"
+            term_disp = f"{term_spread_val:+.1f}pp" if term_spread_val is not None else "—"
+            st.markdown(
+                f"**{ticker}**  ·  Front skew (25Δ RR) {skew_disp}  ·  "
+                f"Term spread (front−back ATM) {term_disp}"
+            )
 
     # ── Positioning ───────────────────────────────────────────────────────────
     with tab_positioning:
