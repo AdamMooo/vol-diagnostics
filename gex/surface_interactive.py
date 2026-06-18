@@ -129,7 +129,7 @@ def build_surface_payload(
 
 _HTML = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-gl3d-2.35.2.min.js"></script>
 <style>
   body {{ margin:0; background:#0e1117; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; }}
   #hdr {{ padding:6px 12px; font-size:12px; border-bottom:1px solid #222; }}
@@ -282,7 +282,7 @@ def build_diff_payload(
 
 _DIFF_HTML = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-gl3d-2.35.2.min.js"></script>
 <style>
   body {{ margin:0; background:#0e1117; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; }}
   #hdr {{ padding:6px 12px; font-size:12px; border-bottom:1px solid #222; }}
@@ -399,9 +399,12 @@ def build_movie_payload(
 
     grids = []  # (date, spot, IV ndarray)
     for ds, d, spot in prepped:
-        rbf, std = _fit_rbf(d["dte"].to_numpy(), d["log_moneyness"].to_numpy(), d["iv_pct"].to_numpy(), smoothing)
-        IV = np.clip(rbf(grid / std).reshape(DTE.shape), 0.0, None)
-        mask = coverage_mask(d, spot, dte_grid, otm_grid, dte_floor=fit_floor, clip=clip)
+        try:  # one bad session (singular fit, degenerate hull) must not kill the video
+            rbf, std = _fit_rbf(d["dte"].to_numpy(), d["log_moneyness"].to_numpy(), d["iv_pct"].to_numpy(), smoothing)
+            IV = np.clip(rbf(grid / std).reshape(DTE.shape), 0.0, None)
+            mask = coverage_mask(d, spot, dte_grid, otm_grid, dte_floor=fit_floor, clip=clip)
+        except Exception:
+            continue
         IV = np.where(mask, IV, np.nan)
         if np.isnan(IV).all():
             continue
@@ -427,21 +430,28 @@ def build_movie_payload(
         colorscale = "Plasma"
         ztitle, hov = "IV %", "IV %{z:.1f}%"
 
-    frames = [{"date": ds, "spot": round(sp, 2),
-               "IV": [[None if np.isnan(v) else round(float(v), 2) for v in row] for row in IV]}
-              for ds, sp, IV in grids]
+    mid_o = len(otm_grid) // 2  # ATM column; front DTE = col 0
+    frames = []
+    for ds, sp, IV in grids:
+        atm = IV[mid_o, 0]
+        frames.append({
+            "date": ds, "spot": round(sp, 2),
+            "atm": None if np.isnan(atm) else round(float(atm), 1),
+            "IV": [[None if np.isnan(v) else round(float(v), 2) for v in row] for row in IV],
+        })
     return {
         "ticker": ticker, "mode": mode, "ref_date": ref_date,
         "dte_grid": [round(v, 1) for v in dte_grid.tolist()],
         "otm_grid": [round(v, 4) for v in otm_grid.tolist()],
         "frames": frames, "z_floor": z_floor, "z_cap": z_cap,
         "colorscale": colorscale, "ztitle": ztitle, "hov": hov,
+        "atm_suffix": "pp" if mode == "change" else "%",
     }
 
 
 _MOVIE_HTML = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-gl3d-2.35.2.min.js"></script>
 <style>
   body {{ margin:0; background:#0e1117; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; }}
   #hdr {{ padding:6px 12px; font-size:12px; border-bottom:1px solid #222; }}
@@ -481,8 +491,14 @@ Plotly.newPlot('fig', [base], layout, {{responsive:true, displaylogo:false}}).th
   Plotly.addFrames('fig', frames);
 }});
 const dEl = document.getElementById('d');
+const fmap = {{}}; D.frames.forEach(f => fmap[f.date] = f);
+function setLabel(f){{ if(!f) return;
+  let t = f.date + ' · spot ' + f.spot;
+  if(f.atm !== null) t += ' · ATM ' + ((f.atm>0 && D.atm_suffix==='pp')?'+':'') + f.atm + D.atm_suffix;
+  dEl.textContent = t; }}
+setLabel(f0);
 document.getElementById('fig').on('plotly_animatingframe', function(e){{
-  if(e && e.name) dEl.textContent = e.name;
+  if(e && e.name) setLabel(fmap[e.name]);
 }});
 document.getElementById('fs').onclick=function(){{
   if(document.fullscreenElement){{document.exitFullscreen();}}
