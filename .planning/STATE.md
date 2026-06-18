@@ -95,9 +95,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-16
-Stopped at: Completed 16-02-PLAN.md (VRP percentile wiring) — Phase 16 done
-Resume file: None
+Last session: 2026-06-18
+Stopped at: Surface spike (branch spike/vol-surface-beast) — interactive surface/compare/video shipped into app.py, card "read" layer + credibility gating, GEX capped ≤90 DTE. Paused before launching the UI audit.
+Resume file: spike/SPIKE.md (NEXT section) — start with gsd-ui-auditor, then @st.fragment de-lag, then merge + Phase 17.
 
 ---
 ---

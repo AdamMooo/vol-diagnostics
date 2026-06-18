@@ -56,8 +56,17 @@ Smoothing locked **0.5**, clip **0.20**, mesh thinned 48×40→36×28 + floor-pr
   as the fallback when payload is None.
 - Verified: module smoke test + main app boots clean on :8503.
 
-## Open / next
-- [ ] User sign-off on the in-app Surface tab.
-- [ ] `components.html` → `st.iframe` (deprecation) before merge to main.
-- [ ] Decide: merge `spike/vol-surface-beast` → main, then delete `spike/` throwaway files.
-- [ ] (Future, out of spike) over-time "moving surface" + predictive track.
+## Shipped since graduation (all committed on this branch)
+- Compare → interactive ΔIV; **daily surface video** (Evolution tab) w/ Level↔Change toggle + fullscreen.
+- Lighter plotly **gl3d** bundle; per-frame fit guards.
+- Card **"read" layer** (`build_card_read`, card_model.py): chips + soft-lean, **credibility-gated** via `config.CARD_READ_MIN_SESSIONS=60` (only defensible chips; today = Premium + Dealers).
+- **GEX tenor cap** `config.GEX_MAX_DTE=90` + demoted (LEAPS call tail mis-signed; flipped QQQ +0.57→−0.26B). Lean on OI.
+
+## NEXT — resume here (2026-06-19)
+1. **UI audit** — launch `gsd-ui-auditor` agent on app.py + gex/surface_interactive.py + card_model.py → spike/UI-REVIEW.md. (Prompt was drafted; user paused before launch — this was the immediate next action.)
+2. **`@st.fragment` de-lag** — wrap surface/video/cards so ticker/mode switch reruns only that region, not full script + iframe remount. Reference: the `ui-skill` (streamlit architecture).
+3. **Close the spike**: merge `spike/vol-surface-beast` → main, `components.html`→`st.iframe`, delete throwaway `spike/` files.
+4. **The "where"** — resume Phase 17 (term) → 17.1 (expected-move **cone**, not full RND).
+5. Wire the card read into the **email** (report.py) via the canonical-card seam — the 7am glance.
+
+Why-notes in memory: [[project_dashboard_read_and_gex_tenor]], [[project_interactive_surface_pattern]].
