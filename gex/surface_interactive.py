@@ -178,11 +178,11 @@ Plotly.newPlot('figsl', [
   {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_fit[mid], line:{{color:'#ffd24d', width:3}}, showlegend:false}},
   {{type:'scatter', mode:'markers', xaxis:'x2', yaxis:'y2', x:D.term_raw[mid].x, y:D.term_raw[mid].y, marker:{{color:'#4dd2ff', size:5}}, showlegend:false}}
 ], {{paper_bgcolor:'#0e1117', plot_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:10}},
-  margin:{{t:8,b:34,l:44,r:8}}, showlegend:true, legend:{{x:0, y:1.0, font:{{size:9}}, orientation:'h'}},
+  margin:{{t:8,b:46,l:48,r:8}}, showlegend:true, legend:{{x:0, y:1.0, font:{{size:9}}, orientation:'h'}},
   xaxis:{{domain:[0,1], anchor:'y', title:'K/S (smile)', gridcolor:'#222'}},
   yaxis:{{domain:[0.56,1.0], anchor:'x', title:'IV %', gridcolor:'#222'}},
   xaxis2:{{domain:[0,1], anchor:'y2', title:'DTE (term)', gridcolor:'#222'}},
-  yaxis2:{{domain:[0.0,0.42], anchor:'x2', title:'IV %', gridcolor:'#222'}}}},
+  yaxis2:{{domain:[0.06,0.44], anchor:'x2', title:'IV %', gridcolor:'#222'}}}},
   {{responsive:true, displaylogo:false}});
 const lbl = document.getElementById('lbl');
 function nIdx(a,v){{let b=0,bd=1e9;for(let i=0;i<a.length;i++){{let d=Math.abs(a[i]-v);if(d<bd){{bd=d;b=i;}}}}return b;}}
@@ -310,7 +310,8 @@ _DIFF_HTML = """<!DOCTYPE html>
 const D = {payload};
 const mid = Math.floor(D.otm_grid.length/2);
 Plotly.newPlot('fig3d', [{{
-  type:'surface', x:D.dte_grid, y:D.otm_grid, z:D.IVd, colorscale:'RdBu', reversescale:true,
+  type:'surface', x:D.dte_grid, y:D.otm_grid, z:D.IVd,
+  colorscale:[[0,'#2166ac'],[0.5,'#f7f7f7'],[1,'#b2182b']],
   cmin:-D.cap, cmax:D.cap, colorbar:{{title:'ΔIV', thickness:12, len:0.6}},
   contours:{{z:{{show:true, usecolormap:true, project_z:false, width:1}}}},
   hovertemplate:'DTE %{{x:.0f}}<br>K/S %{{y:.3f}}<br>ΔIV %{{z:.1f}}<extra></extra>'
@@ -324,11 +325,11 @@ Plotly.newPlot('figsl', [
   {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_a[mid], line:{{color:'#ffd24d', width:3}}, showlegend:false}},
   {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_b[mid], line:{{color:'#9aa7b8', width:2, dash:'dash'}}, showlegend:false}}
 ], {{paper_bgcolor:'#0e1117', plot_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:10}},
-  margin:{{t:8,b:34,l:44,r:8}}, showlegend:true, legend:{{x:0, y:1.0, font:{{size:9}}, orientation:'h'}},
+  margin:{{t:8,b:46,l:48,r:8}}, showlegend:true, legend:{{x:0, y:1.0, font:{{size:9}}, orientation:'h'}},
   xaxis:{{domain:[0,1], anchor:'y', title:'K/S (smile)', gridcolor:'#222'}},
   yaxis:{{domain:[0.56,1.0], anchor:'x', title:'IV %', gridcolor:'#222'}},
   xaxis2:{{domain:[0,1], anchor:'y2', title:'DTE (term)', gridcolor:'#222'}},
-  yaxis2:{{domain:[0.0,0.42], anchor:'x2', title:'IV %', gridcolor:'#222'}}}}, {{responsive:true, displaylogo:false}});
+  yaxis2:{{domain:[0.06,0.44], anchor:'x2', title:'IV %', gridcolor:'#222'}}}}, {{responsive:true, displaylogo:false}});
 const lbl = document.getElementById('lbl');
 function nIdx(a,v){{let b=0,bd=1e9;for(let i=0;i<a.length;i++){{let d=Math.abs(a[i]-v);if(d<bd){{bd=d;b=i;}}}}return b;}}
 let lastDi=-1,lastOi=-1,pending=null,queued=false;

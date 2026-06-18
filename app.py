@@ -250,7 +250,11 @@ if sel_index:
         sub_today, sub_compare = st.tabs(["Today", "Compare"])
 
         with sub_today:
-            for ticker in selected_all:
+            surf_today_tkr = st.radio(
+                "Surface ticker", selected_all, horizontal=True,
+                key="surf_today_tkr", label_visibility="collapsed",
+            )
+            for ticker in [surf_today_tkr]:  # one heavy surface at a time (perf)
                 if ticker not in all_data:
                     continue
                 data = all_data[ticker]
@@ -263,7 +267,7 @@ if sel_index:
                     if payload is not None:
                         # Interactive: 3D surface + mouse-driven smile/term slices.
                         # components.html embeds client-side plotly.js (smooth hover).
-                        components.html(render_surface_html(payload), height=560, scrolling=False)
+                        components.html(render_surface_html(payload), height=640, scrolling=False)
                     else:
                         st.plotly_chart(
                             plot_vol_surface(surface_df, ticker, spot=spot),
@@ -282,7 +286,11 @@ if sel_index:
                 "30d": 30,
                 "60d": 60,
             }
-            for ticker in selected_all:
+            surf_cmp_tkr = st.radio(
+                "Compare ticker", selected_all, horizontal=True,
+                key="surf_cmp_tkr", label_visibility="collapsed",
+            )
+            for ticker in [surf_cmp_tkr]:  # one heavy surface at a time (perf)
                 if ticker not in all_data:
                     continue
                 data = all_data[ticker]
@@ -364,7 +372,7 @@ if sel_index:
                         ticker=ticker, label_a=label_a, label_b=label_b,
                     )
                     if diff is not None:
-                        components.html(render_diff_html(diff), height=560, scrolling=False)
+                        components.html(render_diff_html(diff), height=640, scrolling=False)
                     else:
                         st.plotly_chart(
                             plot_iv_change_surface(
