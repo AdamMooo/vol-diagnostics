@@ -150,13 +150,17 @@ def build(ticker, smoothing, clip, fit_floor, pin_floor, near_max):
 
 HTML = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
-<title>Vol Surface Beast — {ticker}</title>
+<title>Vol Surface — {ticker}</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
   body {{ margin:0; background:#0e1117; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; }}
   #hdr {{ padding:10px 16px; font-size:13px; border-bottom:1px solid #222; }}
   #hdr b {{ color:#fff; }} .tag {{ color:#8aa; margin-right:14px; }}
-  #fig {{ width:100vw; height:calc(100vh - 46px); }}
+  #wrap {{ display:flex; width:100vw; height:calc(100vh - 46px); }}
+  #fig3d {{ flex:0 0 60%; height:100%; }}
+  #right {{ flex:1; display:flex; flex-direction:column; }}
+  .lbl {{ padding:4px 12px; font-size:11px; color:#ffd24d; }}
+  #figsl {{ flex:1; }}
 </style></head>
 <body>
 <div id="hdr">
@@ -168,82 +172,77 @@ HTML = """<!DOCTYPE html>
     <span class="tag">coverage {coverage}%</span>
     <span class="tag">fit RMSE {rmse}pp</span>
   </span>
-  &nbsp; — hover/drag the surface; slices follow live.
+  &nbsp; — move the mouse over the surface; slices follow.
 </div>
-<div id="fig"></div>
+<div id="wrap">
+  <div id="fig3d"></div>
+  <div id="right">
+    <div class="lbl" id="lbl">smile / term — hover the surface</div>
+    <div id="figsl"></div>
+  </div>
+</div>
 <script>
 const D = {payload};
+const mid = Math.floor(D.otm_grid.length/2);
 
-const surface = {{
+// ── 3D surface: its OWN figure, never re-rendered on hover ──
+Plotly.newPlot('fig3d', [{{
   type:'surface', x:D.dte_grid, y:D.otm_grid, z:D.IV,
   colorscale:'Plasma', cmin:D.z_floor, cmax:D.z_cap,
-  colorbar:{{title:'IV %', thickness:12, len:0.55, x:0.58}},
-  scene:'scene', showscale:true,
+  colorbar:{{title:'IV %', thickness:12, len:0.6}},
   contours:{{z:{{show:true, usecolormap:true, project_z:true, width:1}}}},
   hovertemplate:'DTE %{{x:.0f}}<br>K/S %{{y:.3f}}<br>IV %{{z:.1f}}%<extra></extra>'
-}};
+}}], {{
+  paper_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:11}}, margin:{{t:10,b:10,l:10,r:10}},
+  scene:{{xaxis:{{title:'DTE', gridcolor:'#222'}}, yaxis:{{title:'ln(K/S)', gridcolor:'#222'}},
+    zaxis:{{title:'IV %', gridcolor:'#222'}}, camera:{{eye:{{x:1.9,y:-1.3,z:0.7}}}},
+    aspectmode:'manual', aspectratio:{{x:1.5,y:1.2,z:0.6}}}}
+}}, {{responsive:true, displaylogo:false}});
 
-// smile panel (xy2): fitted curve + raw nearest-expiry points + isolated near-expiry
-const smileFit = {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2',
-  x:D.ks_grid, y:D.smile_fit[0], line:{{color:'#ffd24d', width:3}}, name:'fit'}};
-const smileRaw = {{type:'scatter', mode:'markers', xaxis:'x2', yaxis:'y2',
-  x:D.smile_raw[0].x.map(Math.exp), y:D.smile_raw[0].y,
-  marker:{{color:'#4dd2ff', size:5}}, name:'raw'}};
-const nearTrace = {{type:'scatter', mode:'lines+markers', xaxis:'x2', yaxis:'y2',
-  x:(D.near?D.near.x.map(Math.exp):[]), y:(D.near?D.near.y:[]),
-  line:{{color:'#ff5d5d', width:1, dash:'dot'}}, marker:{{size:3, color:'#ff5d5d'}},
-  name:(D.near?('near '+D.near.dte+'DTE (excl.)'):'near (none)')}};
+// ── slices: a SEPARATE light 2D figure (smile top, term bottom) ──
+Plotly.newPlot('figsl', [
+  {{type:'scatter', mode:'lines', x:D.ks_grid, y:D.smile_fit[0],
+    line:{{color:'#ffd24d', width:3}}, name:'fit'}},
+  {{type:'scatter', mode:'markers', x:D.smile_raw[0].x.map(Math.exp), y:D.smile_raw[0].y,
+    marker:{{color:'#4dd2ff', size:5}}, name:'raw'}},
+  {{type:'scatter', mode:'lines+markers', x:(D.near?D.near.x.map(Math.exp):[]), y:(D.near?D.near.y:[]),
+    line:{{color:'#ff5d5d', width:1, dash:'dot'}}, marker:{{size:3, color:'#ff5d5d'}},
+    name:(D.near?('near '+D.near.dte+'DTE (excl.)'):'near (none)')}},
+  {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_fit[mid],
+    line:{{color:'#ffd24d', width:3}}, showlegend:false}},
+  {{type:'scatter', mode:'markers', xaxis:'x2', yaxis:'y2',
+    x:D.term_raw[mid].x, y:D.term_raw[mid].y, marker:{{color:'#4dd2ff', size:5}}, showlegend:false}}
+], {{
+  paper_bgcolor:'#0e1117', plot_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:10}},
+  margin:{{t:8,b:34,l:44,r:8}}, showlegend:true, legend:{{x:0, y:1.0, font:{{size:9}}, orientation:'h'}},
+  xaxis:{{domain:[0,1], anchor:'y', title:'K/S (smile)', gridcolor:'#222'}},
+  yaxis:{{domain:[0.56,1.0], anchor:'x', title:'IV %', gridcolor:'#222'}},
+  xaxis2:{{domain:[0,1], anchor:'y2', title:'DTE (term)', gridcolor:'#222'}},
+  yaxis2:{{domain:[0.0,0.42], anchor:'x2', title:'IV %', gridcolor:'#222'}}
+}}, {{responsive:true, displaylogo:false}});
 
-// term panel (xy3): fitted curve + raw band points
-const termFit = {{type:'scatter', mode:'lines', xaxis:'x3', yaxis:'y3',
-  x:D.dte_grid, y:D.term_fit[Math.floor(D.otm_grid.length/2)],
-  line:{{color:'#ffd24d', width:3}}, name:'fit', showlegend:false}};
-const termRaw = {{type:'scatter', mode:'markers', xaxis:'x3', yaxis:'y3',
-  x:D.term_raw[Math.floor(D.otm_grid.length/2)].x, y:D.term_raw[Math.floor(D.otm_grid.length/2)].y,
-  marker:{{color:'#4dd2ff', size:5}}, name:'raw', showlegend:false}};
-
-const layout = {{
-  paper_bgcolor:'#0e1117', plot_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:11}},
-  margin:{{t:30,b:40,l:10,r:10}}, showlegend:true,
-  legend:{{x:0.62, y:0.50, font:{{size:10}}}},
-  scene:{{domain:{{x:[0,0.58], y:[0,1]}},
-    xaxis:{{title:'DTE', gridcolor:'#222'}}, yaxis:{{title:'ln(K/S)', gridcolor:'#222'}},
-    zaxis:{{title:'IV %', gridcolor:'#222'}},
-    camera:{{eye:{{x:1.9,y:-1.3,z:0.7}}}}, aspectmode:'manual', aspectratio:{{x:1.5,y:1.2,z:0.6}}}},
-  xaxis2:{{domain:[0.66,1.0], anchor:'y2', title:'K/S', gridcolor:'#222'}},
-  yaxis2:{{domain:[0.56,1.0], anchor:'x2', title:'IV % (smile)', gridcolor:'#222'}},
-  xaxis3:{{domain:[0.66,1.0], anchor:'y3', title:'DTE', gridcolor:'#222'}},
-  yaxis3:{{domain:[0.04,0.46], anchor:'x3', title:'IV % (term)', gridcolor:'#222'}},
-  annotations:[
-    {{text:'SMILE @ DTE —', x:0.66, y:1.0, xref:'paper', yref:'paper',
-      showarrow:false, font:{{color:'#ffd24d', size:11}}, xanchor:'left'}},
-    {{text:'TERM @ K/S —', x:0.66, y:0.46, xref:'paper', yref:'paper',
-      showarrow:false, font:{{color:'#ffd24d', size:11}}, xanchor:'left'}}
-  ]
-}};
-
-Plotly.newPlot('fig',
-  [surface, smileFit, smileRaw, nearTrace, termFit, termRaw], layout,
-  {{responsive:true, displaylogo:false}});
-
-const gd = document.getElementById('fig');
+// ── hover: only the cheap 2D figure updates; text via plain DOM ──
+const lbl = document.getElementById('lbl');
 function nearestIdx(arr, v){{ let b=0,bd=1e9; for(let i=0;i<arr.length;i++){{let dd=Math.abs(arr[i]-v); if(dd<bd){{bd=dd;b=i;}}}} return b; }}
 
-gd.on('plotly_hover', function(ev){{
+let lastDi=-1, lastOi=-1, pending=null, queued=false;
+function apply(){{
+  queued=false;
+  if(!pending) return;
+  const {{di, oi}} = pending;
+  const raw = D.smile_raw[di], tr = D.term_raw[oi];
+  Plotly.restyle('figsl', {{ y:[D.smile_fit[di], tr.y], x:[D.ks_grid, tr.x] }}, [0,4]);
+  Plotly.restyle('figsl', {{ x:[raw.x.map(Math.exp)], y:[raw.y] }}, [1]);
+  Plotly.restyle('figsl', {{ y:[D.term_fit[oi]] }}, [3]);
+  lbl.textContent = 'smile @ DTE '+D.dte_grid[di]+'  (raw @ '+raw.dte+'DTE)   |   term @ K/S '+D.ks_grid[oi].toFixed(3);
+}}
+document.getElementById('fig3d').on('plotly_hover', function(ev){{
   const p = ev.points[0];
-  if(p.data.type !== 'surface') return;
-  const di = nearestIdx(D.dte_grid, p.x);   // hovered DTE -> smile
-  const oi = nearestIdx(D.otm_grid, p.y);   // hovered ln(K/S) -> term
-  const raw = D.smile_raw[di];
-  const tr = D.term_raw[oi];
-  Plotly.restyle('fig', {{ y:[D.smile_fit[di]] }}, [1]);
-  Plotly.restyle('fig', {{ x:[raw.x.map(Math.exp)], y:[raw.y] }}, [2]);
-  Plotly.restyle('fig', {{ y:[D.term_fit[oi]] }}, [4]);
-  Plotly.restyle('fig', {{ x:[tr.x], y:[tr.y] }}, [5]);
-  Plotly.relayout('fig', {{
-    'annotations[0].text':'SMILE @ DTE '+Math.round(p.x)+'  (raw @ '+raw.dte+'DTE)',
-    'annotations[1].text':'TERM @ K/S '+D.ks_grid[oi].toFixed(3)
-  }});
+  if(!p || p.data.type !== 'surface') return;
+  const di = nearestIdx(D.dte_grid, p.x), oi = nearestIdx(D.otm_grid, p.y);
+  if(di===lastDi && oi===lastOi) return;   // no change → no redraw
+  lastDi=di; lastOi=oi; pending={{di, oi}};
+  if(!queued){{ queued=true; requestAnimationFrame(apply); }}  // throttle to frame rate
 }});
 </script></body></html>"""
 

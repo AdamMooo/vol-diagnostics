@@ -29,9 +29,16 @@ CV sweep (SPY 2026-06-17): cv_rmse 0.0→0.31, 0.5→0.63, 1.5→0.79, 5.0→0.9
 - `spike/out/surface_beast_SPY_before.html` — production knobs (1.5 / ±0.15 / pinned)
 - `spike/out/surface_beast_{SPY,QQQ,IWM}_after.html` — de-transformed (0.5 / ±0.20 / unpinned)
 
+## Interaction architecture (RESOLVED 2026-06-18) ✅
+User verdict: "so fucking good, much better, so informative."
+- **LANDMINE:** 3D surface + frequently-restyled 2D traces in ONE plotly figure → every hover
+  re-renders the heavy WebGL scene → unusable lag. First attempt failed exactly here.
+- **FIX (proven smooth):** two separate canvases — `#fig3d` (surface) and `#figsl` (2D slices).
+  `plotly_hover` on the 3D div restyles ONLY the cheap 2D div. Plus: changed-grid-cell guard +
+  `requestAnimationFrame` throttle + label via `textContent` (never `Plotly.relayout`).
+- Production path: client-side plotly.js embedded via `st.components.v1.html` (NOT
+  `streamlit-plotly-events` — that round-trips per hover, the lag we just escaped).
+
 ## Open / next
-- [ ] User visual verdict on interaction + de-transform (iterating).
-- [ ] Tune smoothing/clip to taste once user reacts.
-- [ ] Decide framework path for production: client-side plotly.js via `st.components.v1.html`
-      (smooth drag, proven here) vs `streamlit-plotly-events` (laggy round-trip). Leaning client-side.
-- [ ] If blessed: which knob changes graduate to main, and the streamlit wiring.
+- [ ] Tune surface look to taste: final smoothing (0.5 now), 60/40 proportions, near-expiry placement.
+- [ ] Wire into streamlit as a components.html block; decide which knob changes graduate to main.
