@@ -97,8 +97,9 @@ None.
 
 Last session: 2026-06-20
 Stopped at: CONSOLIDATION DONE — surface spike merged to main (FF), 243 tests green (+32 for new modules), UI audit done (spike/UI-REVIEW.md) + top-3 fixes (color unify/read-as-hero/how-to-read), CLAUDE.md drift fixed, daily scheduler verified (last run Fri ok, accruing). Repo is in a usable "step back" state.
-Resume file: spike/SPIKE.md NEXT — remaining: UI pass-2 (axis K/S unify, radio labels, row trim), @st.fragment de-lag, email parity (card read → report.py), then roadmap Phase 17 (term) → 17.1 (expected-move cone). st.iframe swap deferred (not a drop-in for inline HTML; needs static-file serving).
+Resume queue (set 2026-06-20): (1) DATA-FRESHNESS BANNER on app.py — latest stored date vs NYSE calendar (reuse run_daily.is_trading_day / pandas_market_calendars; today counts only after ~16:35 ET) → "✓ current through X" / "⚠ N trading days missing"; ensures the daily CBOE collection stall is visible (half-started, no code yet). (2) EMAIL TUNE (KEEP it — Adam likes it; content not visuals): wire build_card_read into report.py for dashboard-accuracy; trim the methodology/glossary; add a yfinance price-chart PNG with dealer (γ-flip/call+put walls, ≤90 DTE) + OI level lines (mirror dashboard Positioning chart). (3) UI pass-2: axis K/S unify, radio labels, trim redundant card rows; @st.fragment de-lag. (4) Roadmap "where": Phase 17 (term) → 17.1 (expected-move cone). Hosting eventual (app.py has _check_password). st.iframe deferred (not a drop-in). See memory [[project_email_vs_hosting]].
 
+---
 ---
 ---
 ---
