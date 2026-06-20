@@ -95,10 +95,11 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-18
-Stopped at: Surface spike (branch spike/vol-surface-beast) — interactive surface/compare/video shipped into app.py, card "read" layer + credibility gating, GEX capped ≤90 DTE. Paused before launching the UI audit.
-Resume file: spike/SPIKE.md (NEXT section) — start with gsd-ui-auditor, then @st.fragment de-lag, then merge + Phase 17.
+Last session: 2026-06-20
+Stopped at: CONSOLIDATION DONE — surface spike merged to main (FF), 243 tests green (+32 for new modules), UI audit done (spike/UI-REVIEW.md) + top-3 fixes (color unify/read-as-hero/how-to-read), CLAUDE.md drift fixed, daily scheduler verified (last run Fri ok, accruing). Repo is in a usable "step back" state.
+Resume file: spike/SPIKE.md NEXT — remaining: UI pass-2 (axis K/S unify, radio labels, row trim), @st.fragment de-lag, email parity (card read → report.py), then roadmap Phase 17 (term) → 17.1 (expected-move cone). st.iframe swap deferred (not a drop-in for inline HTML; needs static-file serving).
 
+---
 ---
 ---
 <!-- LINKS:AUTO -->

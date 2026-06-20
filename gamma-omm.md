@@ -48,18 +48,15 @@ Project-internal runners only. Cross-project runners live under each project's o
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-18 21:04 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-20 22:48 UTC
 
-**Milestone:** v3.5 · **Status:** executing · **STATE last_updated:** 2026-06-16T20:04:21.558Z
+**Milestone:** Phase 16 — vrp percentile · **Status:** unknown · **STATE last_updated:** ?
 
 ### Current Position
 - **Phase:** 16
 - **Plan:** 16-02 complete (Phase 16 done)
 - **Status:** Executing
 - **Last activity:** 2026-06-16
-
-### Pending Todos
-- None. (Phase 14 was superseded by Phase 18 per the 2026-06-04 roadmap — GATE-01/02 carried forward; it is NOT incomplete work and does not block Phase 15.)
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
