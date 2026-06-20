@@ -1,21 +1,30 @@
-# CLAUDE — Gamma OMM — Sleeve Allocation Framework
-Last updated: 2026-06-02 | Status: active milestone v3.4
+# CLAUDE — Gamma OMM — GEX / Vol Diagnostics Dashboard
+Last updated: 2026-06-20 | Status: active milestone v3.5 (Index Vol-Context Rebuild)
 
 ## Repo Card
 
 - **Runtime:** local Python (venv). Bloomberg/Cron2 is a future swap, not the build environment.
-- **Entry points:** `python run.py` (text dashboard to stdout), `python build_report.py` (generates HTML report)
-- **Output artifact:** `out/sleeve_report_YYYYMMDD.html` — single self-contained file, charts embedded as base64
-- **Data:** free public sources (CBOE + FRED). Bloomberg deferred — one-class swap in `local_data.py` if team greenlights.
+- **Entry points:**
+  - `streamlit run app.py` — interactive dashboard (SPY/QQQ/IWM): per-ticker cards + plain-English read, 3D vol surface, surface "video", positioning
+  - `python -m gex.run_daily --send` — daily HTML email (scheduled weekdays via Task Scheduler)
+  - `python -m gex.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
+- **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
+- **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `gex/data_loader.py`.
+- **Tests:** `pytest gex/tests` — 243 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
 
-**v2.1 (current):** Deliver the engine as a quant-readable HTML report. Leads with a conditional summary (today's signal quartiles → historical base rates per sleeve), followed by full signal analysis and statistical context. Ships on free data. Bayesian reframe complete: equity chart removed, Section E carries unconditional bull-market caveat, section order is conditional → A → signal chart → B → C → D → E → G → H.
+Dealer-gamma + implied-vol diagnostics for an **index income-sleeve PM** (covered calls / cash-secured puts on SPY/QQQ/IWM). Per ticker:
+- a plain-English **read** (premium rich/cheap from the VRP percentile, dealer stabilizing/amplifying) sitting on top of the field card, **credibility-gated** — only chips backed by enough history are shown;
+- an **interactive 3D vol surface** with mouse-driven smile/term slices, a day-by-day surface **"video"** (Evolution tab, Level ↔ Change), and a two-date ΔIV **compare**;
+- OI-led **positioning** — GEX demoted, capped ≤90 DTE, labeled a model construct.
 
-**v2.0 (closed):** Engine build — signals, sleeve backtest, decision dashboard, statistical rigor (Holm-Bonferroni, block bootstrap, 74 tests). Archived under `.planning/phases-archive/v2.0-engine/`.
+Descriptive only — no predictive/prescriptive claims.
 
-**v1.0 (legacy):** Single-fund HMM regime diagnostic in `hmm.ipynb` — preserved untouched.
+**Cold-start note:** chain-derived metrics (skew, surface, GEX) only accrue from our own daily snapshots (since ~2026-05-06); the VRP percentile is deep (CBOE vol-index 1990/2009 − yfinance RV20 over a 252-session window). The daily scheduler firing is what compounds the value.
+
+**Removed (commit `663f72f`, archive cleanup):** the v2.x sleeve-allocation framework (`run.py`, `build_report.py`, `signals.py`, `backtest.py`, `data_layer.py`, …) and the v1.0 `hmm.ipynb` — hmm was moved to the **marco-quant** repo. All recoverable from git history.
 
 ## Local Setup
 
@@ -23,8 +32,9 @@ Last updated: 2026-06-02 | Status: active milestone v3.4
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-python run.py          # smoke test — should print text dashboard
-python build_report.py # generates out/sleeve_report_YYYYMMDD.html
+streamlit run app.py                 # interactive dashboard
+python -m gex.run_gex --ticker SPY   # single-ticker smoke test to stdout
+pytest gex/tests                     # 243 tests
 ```
 
 `requirements.txt` tracks the stack. Add packages there when needed.
@@ -66,30 +76,23 @@ python -m gex.run_daily              # all 3 tickers → HTML email
 | `gex/validation.py` | Parquet snapshot store: `save_snapshot()` + `load_history()` (drives 30-day ZGL chart) |
 | `gex/surface_history.py` | Surface snapshot store: per-ticker chain parquet, `list_available_dates`, `nth_trading_day_back` |
 | `gex/surface_evolution.py` | ΔIV scalar engine — level, rms, skew_change, term_change vs rolling-mean baseline |
-| `gex/report.py` | HTML email builder — sign-accent cards, ΔIV surface PNG attachments, glossary |
-| `app.py` | Browser dashboard (SPY/QQQ/IWM only) — cards, ΔIV surface, evolution, positioning tabs |
+| `gex/report.py` | HTML email builder — cards, ΔIV surface PNG attachments, glossary |
+| `gex/card_model.py` | Canonical card: `build_card_fields` (fields) + `build_card_read` (read chips + soft-lean, credibility-gated). Single source for dashboard + email |
+| `gex/surface_interactive.py` | Interactive surface engine: `build_surface_payload`/`build_diff_payload`/`build_movie_payload` + `render_*_html` (client-side plotly.js embedded via `components.html`) |
+| `gex/vol_index.py` | CBOE vol-index CSV store (VIX/VXN/RVX + VIX9D/VIX3M) — deep daily history |
+| `gex/vol_metrics.py` | `compute_rv20`, `compute_vrp`, skew/term helpers |
+| `gex/vrp_history.py` | Deep VRP percentile: `vol_index − RV20×100` over a 252-session window (does NOT touch the chain) |
+| `app.py` | Browser dashboard (SPY/QQQ/IWM only) — cards+read, interactive surface (Today/Compare), surface video (Evolution), positioning |
 
-Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color.
+Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color. **GEX/positioning is capped at ≤90 DTE (`config.GEX_MAX_DTE`)** — the dealer-relevant tenor; the long-dated tail is investor-written call flow (mis-signed by the dealer-short convention) and is excluded. The dashboard surface uses its own `SURFACE_INTERACTIVE_*` smoothing/clip, isolated from the email/evolution path.
 
 **Removed for rigor** (do not reintroduce without methodology audit): VEX/CHEX (vanna/charm exposures), wall cluster + concentration, ZGL flow magnitude, vs-yesterday classifier, event study, early-exercise risk flags, categorical "positive/negative/neutral" regime label, vanna/charm BS computations.
 
 Bloomberg upgrade path: swap `gex/data_loader.py` only — everything else is data-source-agnostic.
 
-## Key Files (v2.1 — parked)
+## v2.x sleeve framework / v1.0 hmm — REMOVED
 
-| File | Purpose |
-|------|---------|
-| `run.py` | Orchestrator — prints text dashboard to stdout |
-| `build_report.py` | HTML report generator — `python build_report.py` → `out/sleeve_report_YYYYMMDD.html` |
-| `local_data.py` | Data dispatch (`FreeCon` for CBOE+FRED free data) |
-| `data_layer.py` | `build_panels()` → `Panels` dataclass |
-| `signals.py` | `build_signals()` → `Signals` dataclass |
-| `backtest.py` | `run_backtest()` → `BacktestResults` |
-| `dashboard.py` | Section helpers including `section_today_conditional`, `section_a_state`, `section_c_buckets`, etc. |
-| `stats_rigor.py` | Holm-Bonferroni, stationary block bootstrap |
-| `sensitivity.py` | TC sensitivity + tail risk metrics |
-| `WALKTHROUGH.md` | Per-section quant team guide |
-| `hmm.ipynb` | v1.0 legacy — DO NOT MODIFY |
+The sleeve-allocation framework (`run.py`, `build_report.py`, `local_data.py`, `data_layer.py`, `signals.py`, `backtest.py`, `dashboard.py`, `stats_rigor.py`, `sensitivity.py`, `WALKTHROUGH.md`) and `hmm.ipynb` were removed in commit `663f72f` (archive cleanup). `hmm.ipynb` lives in the **marco-quant** repo now. Recover any of these from git history if needed — they are not part of this repo's working tree.
 
 ## Workflow
 
@@ -100,9 +103,8 @@ Use GSD commands for all phase work:
 
 ## Do Not Touch
 
-- `hmm.ipynb` — v1.0 legacy artifact, preserved untouched
+- `out/` parquet stores — generated daily snapshots; appended by `run_daily`, not hand-edited
 - `.planning/phases-archive/` — archived phase history
-- `data/` folder contents (source exports)
 - `.planning/` docs (GSD-managed)
 
 ---
