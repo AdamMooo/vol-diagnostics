@@ -60,12 +60,6 @@ def _check_password() -> bool:
 if not _check_password():
     st.stop()
 
-_SIGN_RGBA = {
-    "positive": "rgba(26, 122, 74, 0.18)",
-    "negative": "rgba(192, 57, 43, 0.18)",
-    "zero":     "rgba(127, 140, 141, 0.12)",
-}
-
 _CSS = """
 <style>
 .block-container { padding-top: 2.5rem; padding-bottom: 2rem; max-width: 1500px; }
@@ -81,10 +75,14 @@ _CSS = """
     border-radius: 8px; padding: 14px 16px; margin-bottom: 4px;
     border-left: 5px solid;
 }
-.rc-ticker { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 10px; }
-.rc-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 0.80rem; }
+.rc-ticker { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 8px; }
+/* Grid demoted to supporting detail beneath the read-line: smaller, dimmer, hairline-separated. */
+.rc-grid {
+    display: grid; grid-template-columns: auto 1fr; gap: 3px 16px; font-size: 0.72rem;
+    opacity: 0.78; border-top: 1px solid rgba(148,163,184,0.14); padding-top: 8px;
+}
 .rc-k { opacity: 0.55; }
-.rc-v { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.rc-v { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .rc-obs { font-size: 0.72rem; opacity: 0.70; margin-top: 10px; line-height: 1.6; }
 
 .top-bar {
@@ -157,19 +155,15 @@ def _movie_payload_cached(ticker: str, mode: str = "level") -> dict | None:
     return build_movie_payload(snaps, ticker=ticker, mode=mode)
 
 
-def _sign_key(net_gex: float | None) -> str:
-    if net_gex is None or net_gex == 0:
-        return "zero"
-    return "positive" if net_gex > 0 else "negative"
-
-
 def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
-    """Accent bar / background reflect the sign of net gex; no categorical regime label."""
+    """Restrained card: uniform amber accent; the read-line (chips + lean) is the hero,
+    the field grid is demoted detail. No sign-based color (UI-REVIEW color-conflict fix)."""
     ticker = summary["ticker"]
-    sign = _sign_key(summary.get("net_gex"))
-    _palette_sign = {"positive": config.PALETTE["positive"], "negative": config.PALETTE["negative"], "zero": config.PALETTE["neutral"]}
-    color = _palette_sign[sign]
-    bg = _SIGN_RGBA.get(sign, "rgba(127,140,141,0.12)")
+    # Restrained palette (UI-REVIEW color-conflict fix): uniform amber accent + neutral bg.
+    # Direction/sign no longer colors the card — the read chips carry meaning in WORDS; the
+    # only place a red/blue (up/down) scale survives is the fenced ΔIV chart.
+    color = config.PALETTE["accent"]
+    bg = "rgba(148,163,184,0.05)"
 
     prior_row = load_prior_snapshot(ticker=ticker, before_date=date.today())
     fields = build_card_fields(today_summary=summary, prior_summary=prior_row)
@@ -197,17 +191,20 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
             move_5d = float(lvl["level"].iloc[-1])
 
     read = build_card_read(summary, skew_pct=skew_pct, move_5d=move_5d)
-    _tone = {"positive": config.PALETTE["positive"], "negative": config.PALETTE["negative"],
-             "neutral": LABEL_GRAY}
+    # Restrained: amber = any signal chip, gray = neutral. Color is emphasis, not direction.
+    _amber = config.PALETTE["accent"]
+    _tone = {"positive": _amber, "negative": _amber, "neutral": LABEL_GRAY}
     chips_html = "".join(
-        f'<span style="display:inline-block;padding:1px 7px;margin:0 4px 4px 0;border-radius:9px;'
-        f'font-size:0.72rem;background:rgba(127,140,141,0.12);color:{_tone.get(tone, LABEL_GRAY)};'
-        f'border:1px solid {_tone.get(tone, LABEL_GRAY)}33;">{txt}</span>'
+        f'<span style="display:inline-block;padding:2px 8px;margin:0 5px 5px 0;border-radius:9px;'
+        f'font-size:0.74rem;background:rgba(217,119,6,0.10);color:{_tone.get(tone, LABEL_GRAY)};'
+        f'border:1px solid {_tone.get(tone, LABEL_GRAY)}40;">{txt}</span>'
         for txt, tone in read.chips
     )
+    # Read-line is the hero: larger, brighter, not buried. The field grid is demoted below.
     read_html = (
-        f'<div style="margin:2px 0 8px;">{chips_html}'
-        f'<div style="font-size:0.8rem;color:#c9d1d9;font-style:italic;margin-top:4px;">{read.lean}</div></div>'
+        f'<div style="margin:2px 0 10px;">{chips_html}'
+        f'<div style="font-size:0.98rem;color:#e6edf3;font-weight:500;margin-top:7px;'
+        f'line-height:1.4;">{read.lean}</div></div>'
     )
 
     col.markdown(f"""

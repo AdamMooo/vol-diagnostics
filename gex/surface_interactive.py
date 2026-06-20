@@ -131,17 +131,20 @@ _HTML = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
 <script src="https://cdn.plot.ly/plotly-gl3d-2.35.2.min.js"></script>
 <style>
-  body {{ margin:0; background:#0e1117; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; }}
+  html,body {{ height:100%; }}
+  body {{ margin:0; background:#0e1117; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif;
+         display:flex; flex-direction:column; }}
   #hdr {{ padding:6px 12px; font-size:12px; border-bottom:1px solid #222; }}
   #hdr b {{ color:#fff; }} .tag {{ color:#8aa; margin-right:12px; }}
-  #wrap {{ display:flex; width:100%; height:calc(100% - 34px); }}
+  #howto {{ padding:3px 12px; font-size:10.5px; color:#7d8896; border-bottom:1px solid #181818; }}
+  #howto b {{ color:#9aa7b8; font-weight:600; }}
+  #wrap {{ display:flex; width:100%; flex:1; min-height:0; }}
   #fig3d {{ flex:0 0 60%; height:100%; }}
-  #right {{ flex:1; display:flex; flex-direction:column; }}
-  .lbl {{ padding:4px 12px; font-size:11px; color:#ffd24d; }}
+  #right {{ flex:1; display:flex; flex-direction:column; min-width:0; }}
+  .lbl {{ padding:4px 12px; font-size:11px; color:#d97706; }}
   #figsl {{ flex:1; }}
-  html,body,#wrap {{ height:100%; }}
   #fs {{ cursor:pointer; background:#1b2230; color:#cfcfcf; border:1px solid #333;
-        border-radius:4px; padding:1px 8px; font-size:13px; margin-left:10px; }}
+        border-radius:4px; padding:1px 8px; font-size:12px; margin-left:10px; }}
 </style></head>
 <body>
 <div id="hdr">
@@ -149,9 +152,10 @@ _HTML = """<!DOCTYPE html>
   <span style="float:right">
     <span class="tag">smoothing {smoothing}</span><span class="tag">clip ±{clip}</span>
     <span class="tag">coverage {coverage}%</span><span class="tag">fit RMSE {rmse}pp</span>
-    <button id="fs" title="Fullscreen">⛶</button>
+    <button id="fs" title="Fullscreen (Esc to exit)">⛶ full</button>
   </span>
 </div>
+<div id="howto">how to read — <b>drag</b> to rotate · steep front edge = near-term fear · bright ridge = high IV · <b>hover</b> anywhere → the smile + term slices on the right update live</div>
 <div id="wrap">
   <div id="fig3d"></div>
   <div id="right"><div class="lbl" id="lbl">smile / term — hover the surface</div><div id="figsl"></div></div>
@@ -170,12 +174,12 @@ Plotly.newPlot('fig3d', [{{
     aspectmode:'manual', aspectratio:{{x:1.5,y:1.2,z:0.6}}}}}},
   {{responsive:true, displaylogo:false}});
 Plotly.newPlot('figsl', [
-  {{type:'scatter', mode:'lines', x:D.ks_grid, y:D.smile_fit[0], line:{{color:'#ffd24d', width:3}}, name:'fit'}},
+  {{type:'scatter', mode:'lines', x:D.ks_grid, y:D.smile_fit[0], line:{{color:'#d97706', width:3}}, name:'fit'}},
   {{type:'scatter', mode:'markers', x:D.smile_raw[0].x.map(Math.exp), y:D.smile_raw[0].y, marker:{{color:'#4dd2ff', size:5}}, name:'raw'}},
   {{type:'scatter', mode:'lines+markers', x:(D.near?D.near.x.map(Math.exp):[]), y:(D.near?D.near.y:[]),
     line:{{color:'#ff5d5d', width:1, dash:'dot'}}, marker:{{size:3, color:'#ff5d5d'}},
     name:(D.near?('near '+D.near.dte+'DTE (excl.)'):'near (none)')}},
-  {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_fit[mid], line:{{color:'#ffd24d', width:3}}, showlegend:false}},
+  {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_fit[mid], line:{{color:'#d97706', width:3}}, showlegend:false}},
   {{type:'scatter', mode:'markers', xaxis:'x2', yaxis:'y2', x:D.term_raw[mid].x, y:D.term_raw[mid].y, marker:{{color:'#4dd2ff', size:5}}, showlegend:false}}
 ], {{paper_bgcolor:'#0e1117', plot_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:10}},
   margin:{{t:8,b:46,l:48,r:8}}, showlegend:true, legend:{{x:0, y:1.0, font:{{size:9}}, orientation:'h'}},
@@ -290,7 +294,7 @@ _DIFF_HTML = """<!DOCTYPE html>
   #wrap {{ display:flex; width:100%; height:calc(100% - 34px); }}
   #fig3d {{ flex:0 0 60%; height:100%; }}
   #right {{ flex:1; display:flex; flex-direction:column; }}
-  .lbl {{ padding:4px 12px; font-size:11px; color:#ffd24d; }}
+  .lbl {{ padding:4px 12px; font-size:11px; color:#d97706; }}
   #figsl {{ flex:1; }} html,body,#wrap {{ height:100%; }}
   #fs {{ cursor:pointer; background:#1b2230; color:#cfcfcf; border:1px solid #333;
         border-radius:4px; padding:1px 8px; font-size:13px; margin-left:10px; }}
@@ -320,9 +324,9 @@ Plotly.newPlot('fig3d', [{{
     zaxis:{{title:'ΔIV', gridcolor:'#222'}}, camera:{{eye:{{x:1.9,y:-1.3,z:0.7}}}},
     aspectmode:'manual', aspectratio:{{x:1.5,y:1.2,z:0.6}}}}}}, {{responsive:true, displaylogo:false}});
 Plotly.newPlot('figsl', [
-  {{type:'scatter', mode:'lines', x:D.ks_grid, y:D.smile_a[0], line:{{color:'#ffd24d', width:3}}, name:D.label_a}},
+  {{type:'scatter', mode:'lines', x:D.ks_grid, y:D.smile_a[0], line:{{color:'#d97706', width:3}}, name:D.label_a}},
   {{type:'scatter', mode:'lines', x:D.ks_grid, y:D.smile_b[0], line:{{color:'#9aa7b8', width:2, dash:'dash'}}, name:D.label_b}},
-  {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_a[mid], line:{{color:'#ffd24d', width:3}}, showlegend:false}},
+  {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_a[mid], line:{{color:'#d97706', width:3}}, showlegend:false}},
   {{type:'scatter', mode:'lines', xaxis:'x2', yaxis:'y2', x:D.dte_grid, y:D.term_b[mid], line:{{color:'#9aa7b8', width:2, dash:'dash'}}, showlegend:false}}
 ], {{paper_bgcolor:'#0e1117', plot_bgcolor:'#0e1117', font:{{color:'#cfcfcf', size:10}},
   margin:{{t:8,b:46,l:48,r:8}}, showlegend:true, legend:{{x:0, y:1.0, font:{{size:9}}, orientation:'h'}},
@@ -455,7 +459,7 @@ _MOVIE_HTML = """<!DOCTYPE html>
 <style>
   body {{ margin:0; background:#0e1117; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; }}
   #hdr {{ padding:6px 12px; font-size:12px; border-bottom:1px solid #222; }}
-  #hdr b {{ color:#fff; }} #d {{ color:#ffd24d; }}
+  #hdr b {{ color:#fff; }} #d {{ color:#d97706; }}
   #fig {{ width:100%; height:calc(100% - 34px); }} html,body {{ height:100%; }}
   #fs {{ cursor:pointer; background:#1b2230; color:#cfcfcf; border:1px solid #333;
         border-radius:4px; padding:1px 8px; font-size:13px; margin-left:10px; }}
