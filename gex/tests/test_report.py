@@ -91,6 +91,36 @@ def test_oi_walls_below_gex_walls():
     assert gex_pos < oi_pos, "GEX Call Wall must appear before OI Call Wall in HTML"
 
 
+# ── Read-block tests: email card shows the same read as the dashboard ─────────
+
+def test_read_block_renders_gated_chips_and_lean():
+    # vrp_pct low with deep sample → "premium cheap"; net_gex < 0 → "dealers amplifying"
+    r = _minimal_result(net_gex=-2e9)
+    r["vrp_pct"], r["vrp_pct_n"] = 9, 252
+    html = _ticker_card(r)
+    assert "premium cheap" in html
+    assert "dealers amplifying" in html
+    assert "cheap" in html.lower()  # lean sentence present
+
+
+def test_read_block_omits_ungated_premium_chip():
+    # vrp present but sample below the credibility floor → no premium chip
+    r = _minimal_result(net_gex=1e9)
+    r["vrp_pct"], r["vrp_pct_n"] = 80, 10
+    html = _ticker_card(r)
+    assert "premium rich" not in html and "premium cheap" not in html
+    assert "dealers stabilizing" in html  # present-tense fact still shows
+
+
+def test_read_block_shows_skew_chip_when_seam_provides_it():
+    # read_skew_pct on the summary (the canonical seam) flows into the chip set
+    r = _minimal_result(net_gex=1e9)
+    r["vrp_pct"], r["vrp_pct_n"] = 50, 252
+    r["read_skew_pct"] = 80
+    html = _ticker_card(r)
+    assert "skew steep" in html
+
+
 # ── Task 2 tests: evolution_section_html() + build_email() new params ─────────
 
 def test_evolution_section_cold_start():

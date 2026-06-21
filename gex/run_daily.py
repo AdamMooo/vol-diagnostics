@@ -23,7 +23,7 @@ from gex import report as rpt
 from gex import emailer
 from gex import observation
 from gex.png_export import export_png
-from gex.analytics import plot_iv_change_heatmap
+from gex.analytics import plot_iv_change_heatmap, plot_price_with_levels
 from gex.surface_evolution import load_evolution
 from gex.vol_metrics import evolution_5d_summary
 from gex.vol_index import refresh_vol_indices
@@ -92,6 +92,49 @@ def _build_png_attachments(
     return attachments
 
 
+def _fetch_price_history_yf(ticker: str, period: str = "3mo"):
+    """Dated recent closes for the price-level chart. None on any failure."""
+    try:
+        import yfinance as yf
+        import pandas as pd
+        hist = yf.Ticker(ticker.replace(".", "-")).history(period=period)
+        if hist.empty or "Close" not in hist.columns:
+            return None
+        df = hist.reset_index()[["Date", "Close"]].rename(
+            columns={"Date": "date", "Close": "close"}
+        )
+        df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
+        return df.dropna()
+    except Exception as exc:
+        print(f"  [WARN] price history for {ticker} failed (non-blocking): {exc}")
+        return None
+
+
+def _build_price_level_attachments(
+    all_data: list[dict],
+    today: datetime.date,
+    out_dir: pathlib.Path,
+) -> list:
+    """Per-ticker price-vs-levels PNG (dealer γ-flip/walls + OI walls). Non-blocking."""
+    attachments: list = []
+    data_by_ticker = {d["summary"]["ticker"]: d for d in all_data}
+    for ticker in INDEX_TICKERS:
+        try:
+            data = data_by_ticker.get(ticker, {})
+            summary = data.get("summary", {})
+            spot = summary.get("spot")
+            if summary.get("error") or spot is None:
+                continue
+            price_df = _fetch_price_history_yf(ticker)
+            fig = plot_price_with_levels(price_df, ticker, summary, spot)
+            path = export_png(fig, ticker, "price_levels", today, out_dir)
+            if path is not None:
+                attachments.append(path)
+        except Exception as exc:
+            print(f"  [WARN] price-level PNG for {ticker} failed (non-blocking): {exc}")
+    return attachments
+
+
 def run(dry_run: bool = False) -> None:
     today = datetime.datetime.now(ET).date()
 
@@ -147,6 +190,7 @@ def run(dry_run: bool = False) -> None:
     # Generate PNG attachments (non-blocking — kaleido failure sends email without PNGs)
     png_note: str | None = None
     attachments = _build_png_attachments(all_data, today, OUT_DIR)
+    attachments += _build_price_level_attachments(all_data, today, OUT_DIR)
     if not attachments and any(d.get("surface_df") is not None for d in all_data):
         png_note = "Surface charts unavailable — kaleido not installed or PNG export failed."
 

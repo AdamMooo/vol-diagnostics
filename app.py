@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 import pandas as pd
 import plotly.graph_objects as go
+import pandas_market_calendars as mcal
+import pytz
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -15,7 +17,6 @@ from gex.surface_interactive import (
     build_movie_payload, render_movie_html,
 )
 from gex.card_model import CardField, build_card_fields, build_card_read, LABEL_GRAY
-from gex.surface_evolution import load_evolution
 from gex.validation import load_prior_snapshot
 from gex.compute import compute_ticker
 from gex.analytics import (
@@ -30,6 +31,11 @@ from gex.surface_history import (
 
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
+
+ET = pytz.timezone("America/New_York")
+# Post-close collection fires ~4:30pm ET; today's session only counts as
+# "expected" once that window has passed (small buffer past close).
+DATA_CUTOFF_HOUR, DATA_CUTOFF_MIN = 16, 35
 
 st.set_page_config(
     page_title="Option Diagnostics",
@@ -92,6 +98,14 @@ _CSS = """
     border-bottom: 1px solid rgba(148,163,184,0.15);
 }
 .top-bar-tickers { font-weight: 600; }
+
+.fresh {
+    font-size: 0.74rem; font-weight: 600; letter-spacing: 0.03em;
+    border-radius: 6px; padding: 6px 12px; margin: -12px 0 18px 0;
+    border-left: 4px solid;
+}
+.fresh-ok  { background: rgba(22,163,74,0.10);  border-color: #16a34a; color: #16a34a; }
+.fresh-bad { background: rgba(234,88,12,0.12);   border-color: #ea580c; color: #ea580c; }
 </style>
 """
 
@@ -175,22 +189,13 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
 
     # The "so what" read — skew %ile + 5d drift, each shown ONLY if its sample clears the
     # credibility floor (a thin rank is worse than a blank). VRP is gated inside the builder.
-    _floor = config.CARD_READ_MIN_SESSIONS
-    skew_pct = None
-    front_skew = summary.get("front_skew")
-    hist = _load_history_cached(ticker, days=config.HISTORY_DAYS)
-    if front_skew is not None and not hist.empty and "front_skew" in hist.columns:
-        series = hist.dropna(subset=["front_skew"])["front_skew"].tolist()
-        if len(series) >= _floor:
-            skew_pct = int(percentileofscore(series, front_skew))
-    move_5d = None
-    evo = load_evolution(ticker, horizon=5, days=400)
-    if not evo.empty and "level" in evo.columns:
-        lvl = evo.dropna(subset=["level"]).sort_values("date")
-        if len(lvl) >= _floor:
-            move_5d = float(lvl["level"].iloc[-1])
-
-    read = build_card_read(summary, skew_pct=skew_pct, move_5d=move_5d)
+    # The gated inputs are computed once in compute_ticker (the canonical-card seam) so this
+    # card and the email card stay identical.
+    read = build_card_read(
+        summary,
+        skew_pct=summary.get("read_skew_pct"),
+        move_5d=summary.get("read_move_5d"),
+    )
     # Restrained: amber = any signal chip, gray = neutral. Color is emphasis, not direction.
     _amber = config.PALETTE["accent"]
     _tone = {"positive": _amber, "negative": _amber, "neutral": LABEL_GRAY}
@@ -230,6 +235,72 @@ def render_regime_cards(tickers: list[str], all_data: dict[str, dict],
             render_regime_card(col, data["summary"], spot=data.get("spot"))
 
 
+def _expected_latest_session(now_et: datetime) -> date:
+    """Most recent NYSE session that should already be collected.
+
+    Today's session counts only after the post-close cutoff (~16:35 ET); before
+    that, the latest expected snapshot is the prior trading day."""
+    nyse = mcal.get_calendar("NYSE")
+    today = now_et.date()
+    sched = nyse.schedule(
+        start_date=(today - timedelta(days=12)).strftime("%Y-%m-%d"),
+        end_date=today.strftime("%Y-%m-%d"),
+    )
+    sessions = [d.date() for d in sched.index]
+    if not sessions:
+        return today
+    cutoff = now_et.replace(
+        hour=DATA_CUTOFF_HOUR, minute=DATA_CUTOFF_MIN, second=0, microsecond=0
+    )
+    if sessions[-1] == today and now_et < cutoff:
+        return sessions[-2] if len(sessions) >= 2 else today
+    return sessions[-1]
+
+
+def _sessions_missing(latest: date, expected: date) -> int:
+    """NYSE trading days after `latest` up to and including `expected`."""
+    if expected <= latest:
+        return 0
+    nyse = mcal.get_calendar("NYSE")
+    sched = nyse.schedule(
+        start_date=latest.strftime("%Y-%m-%d"),
+        end_date=expected.strftime("%Y-%m-%d"),
+    )
+    return sum(1 for d in sched.index if d.date() > latest)
+
+
+def _render_freshness_banner() -> None:
+    """A missed daily CBOE collection is lost forever (no historical chain
+    archive), so surface a stall loudly. Latest stored snapshot vs the NYSE
+    calendar — green when current, amber when sessions are missing."""
+    latest_per_ticker = [
+        max(d) for t in INDEX_TICKERS if (d := list_available_dates(t))
+    ]
+    if not latest_per_ticker:
+        st.markdown(
+            '<div class="fresh fresh-bad">⚠ no stored snapshots found — '
+            "daily collection has not run</div>",
+            unsafe_allow_html=True,
+        )
+        return
+    latest = min(latest_per_ticker)  # oldest of the per-ticker latests
+    expected = _expected_latest_session(datetime.now(ET))
+    missing = _sessions_missing(latest, expected)
+    latest_str = latest.strftime("%a %b %d").replace(" 0", " ")
+    if missing <= 0:
+        st.markdown(
+            f'<div class="fresh fresh-ok">✓ data current through {latest_str}</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        plural = "s" if missing != 1 else ""
+        st.markdown(
+            f'<div class="fresh fresh-bad">⚠ last collection {latest_str} · '
+            f"{missing} trading day{plural} missing</div>",
+            unsafe_allow_html=True,
+        )
+
+
 # ── Boot ──────────────────────────────────────────────────────────────────────
 
 st.markdown(_CSS, unsafe_allow_html=True)
@@ -257,6 +328,8 @@ st.markdown(
 </div>""",
     unsafe_allow_html=True,
 )
+
+_render_freshness_banner()
 
 # ── Fetch all tickers ──────────────────────────────────────────────────────────
 all_data: dict[str, dict] = {}

@@ -14,7 +14,7 @@ import datetime
 
 from gex import config
 from gex.card_model import (
-    CardField, build_card_fields,
+    CardField, build_card_fields, build_card_read,
     _fmt_b, _fmt_price, _fmt_pct, _fmt_skew,
     _fmt_hedge_shares, _pct_from_spot, _wall_value,
     _expected_1d_range_pct, _pin_location, _signed_color,
@@ -73,6 +73,32 @@ def _kv_table(rows_html: str) -> str:
     )
 
 
+# ── Read line (the "so what") ─────────────────────────────────────────
+
+def _read_block(r: dict) -> str:
+    """The plain-English read on top of the card — same chips + soft lean as the
+    dashboard, sourced from the canonical build_card_read. Gated inputs ride on the
+    summary (read_skew_pct / read_move_5d) from compute_ticker, so email = dashboard."""
+    read = build_card_read(
+        r, skew_pct=r.get("read_skew_pct"), move_5d=r.get("read_move_5d"),
+    )
+    if not read.chips and not read.lean:
+        return ""
+    amber = config.PALETTE["accent"]
+    tone_color = {"positive": amber, "negative": amber, "neutral": LABEL_GRAY}
+    chips = "".join(
+        f'<span style="{_SANS}display:inline-block;padding:2px 9px;margin:0 6px 6px 0;'
+        f'border-radius:10px;font-size:12px;color:{tone_color.get(t, LABEL_GRAY)};'
+        f'border:1px solid {tone_color.get(t, LABEL_GRAY)};">{txt}</span>'
+        for txt, t in read.chips
+    )
+    lean = (
+        f'<div style="{_SANS}font-size:13px;font-weight:600;margin-top:4px;'
+        f'line-height:1.4;">{read.lean}</div>' if read.lean else ""
+    )
+    return f'<div style="margin:6px 0 10px;">{chips}{lean}</div>'
+
+
 # ── Per-ticker card ───────────────────────────────────────────────────
 
 def _ticker_card(r: dict) -> str:
@@ -127,6 +153,8 @@ def _ticker_card(r: dict) -> str:
         f'</tr></table>'
     )
 
+    read_html = _read_block(r)
+
     # No card background — accent bar on the left is the only visual cue.
     return (
         f'<table width="100%" cellpadding="0" cellspacing="0" '
@@ -134,7 +162,7 @@ def _ticker_card(r: dict) -> str:
         f'border-bottom:1px solid {RULE_COLOR};">'
         f'<tr>'
         f'<td width="4" style="background:{accent};width:4px;"></td>'
-        f'<td style="padding:8px 0 18px 16px;">{header}{body}</td>'
+        f'<td style="padding:8px 0 18px 16px;">{header}{read_html}{body}</td>'
         f'</tr></table>'
     )
 
@@ -266,57 +294,33 @@ def build_email(
         f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.7;'
         f'margin-top:24px;padding-top:14px;border-top:1px solid {RULE_COLOR};">'
         '<b>Glossary</b><br>'
-        '<b>Spot</b>: current underlying price (CBOE, ~15-min delayed).<br>'
-        '<b>Day %</b>: change vs prior session close.<br>'
-        '<b>IV30 / 1d σ</b>: 30-day implied vol, then 1-sigma 1-day move under a lognormal '
-        'assumption (≈ IV30 / √252). Textbook stdev — not a forecast.<br>'
-        '<b>γ-flip</b> (formerly "Zero-γ Level" / ZGL): spot level at which cumulative '
-        'net GEX crosses zero. Linear interpolation of the profile sign change. '
-        'Model construct — no peer-reviewed validation as a price level; interpret as '
-        'the threshold where the gamma-hedging environment flips sign, not a price target.<br>'
-        '<b>vs γ-flip</b>: % distance from spot to γ-flip. Positive = spot above the flip '
-        '(stabilising dealer regime); negative = spot below (destabilising regime).<br>'
-        '<b>Net GEX</b>: sum of strike-level gamma exposure. Calls +, puts −. '
-        'Positive = dealers long gamma. Negative = dealers short gamma. '
-        'The accent bar on the left of each card reflects the sign of this number; '
-        'no categorical "positive/negative/neutral" regime label is shown because the '
-        '$200M neutral cutoff would be hand-tuned and non-stationary.<br>'
-        '<b>Hedge Shares/$1</b>: shares dealers must trade per $1 spot move to stay delta-neutral '
-        '(= Net GEX ÷ (spot² × 0.01) = Γ_net × OI × 100). Positive = buy demand on up-moves; '
-        'negative = sell pressure on up-moves. Prior label "Δ-flow" used an incorrect formula.<br>'
-        '<b>Skew (25Δ)</b>: IV(25Δ put) − IV(25Δ call) for the nearest expiry ≥7 DTE, '
-        'in percentage points. Relative cost of downside protection vs upside exposure. '
-        'Xing, Zhang & Zhao (2010, JFQA) found steeper skew predicts subsequent '
-        'underperformance (10.9% annual alpha). Higher = puts more expensive = elevated fear.<br>'
-        '<b>Call Wall / Put Wall</b>: the single strike with the largest one-sided GEX, with '
-        'distance from spot. Use the <i>strike</i> as a hard level; one-sided magnitude is '
-        'methodology-dependent and not shown.<br>'
-        '<b>Range</b>: width between walls as % of spot &middot; pin location of spot inside the range.<br>'
-        '<b>OI Call Wall / OI Put Wall</b>: strike with the largest call or put open interest '
-        '(assumption-free — no dealer model). Contrast with Call Wall / Put Wall above, which '
-        'are GEX-weighted (dealer positioning model).<br>'
+        '<b>VRP</b>: implied − realized vol (vol points), shown as a percentile vs its own '
+        'history. High = premium rich (selling well paid); low = cheap.<br>'
+        '<b>Skew (25Δ)</b>: IV(25Δ put) − IV(25Δ call), nearest expiry ≥7 DTE, in pp. '
+        'Higher = downside protection more bid. Only metric here with direct peer-reviewed '
+        'predictive validity (Xing-Zhang-Zhao 2010, JFQA).<br>'
+        '<b>Net GEX</b>: strike-level gamma exposure summed (calls +, puts −). Sign drives the '
+        'card accent: positive = dealers long gamma (stabilising), negative = short (amplifying). '
+        'No categorical label — the absolute level is a convention, only the sign is load-bearing.<br>'
+        '<b>γ-flip</b>: spot level where cumulative net GEX crosses zero. Threshold where the '
+        'hedging environment flips sign — a model construct, not a price target.<br>'
+        '<b>Hedge Shares/$1</b>: shares dealers trade per $1 spot move to stay delta-neutral. '
+        'Positive = buy demand on up-moves; negative = sell pressure.<br>'
+        '<b>Call / Put Wall</b>: strike with the largest one-sided GEX (dealer model). '
+        '<b>OI Wall</b>: strike with the largest open interest (assumption-free). Use the '
+        '<i>strikes</i> as levels; one-sided magnitudes are methodology-dependent.<br>'
         '<br>'
-        '<b>Data limitations — read before trading off this</b><br>'
-        '&bull; <b>OI is T-1.</b> Open interest reflects the prior session close. γ-flip and walls '
-        'describe <i>yesterday\'s</i> positioning. Intraday OI drift is not captured.<br>'
-        '&bull; <b>Quotes are ~15-min delayed.</b> Spot, IV, and chain mids are not live.<br>'
-        '&bull; <b>Full-chain ≥ 1 DTE.</b> 0DTE is excluded for math consistency. Absolute GEX '
-        'magnitude is methodology-dependent (other commercial sources publish very different '
-        'numbers on the same chain). Treat the <i>sign</i> and <i>order of magnitude</i> as '
-        'load-bearing; treat absolute levels as conventions.<br>'
-        '&bull; <b>No realized-vol attribution.</b> This is a positioning monitor, not a forecaster. '
-        'No event study, base rate, or backtest is shown — the sample is too short for inference.<br>'
-        '&bull; <b>Dealer positioning assumption.</b> GEX assumes dealers are net short all options '
-        '(retail buys, dealers sell). Holds empirically in aggregate for SPY/QQQ/IWM; can be wrong '
-        'at individual strikes with covered-call, vol-selling, or institutional flow dominant.<br>'
-        '&bull; <b>What is genuinely defensible:</b> Net GEX (Gatheral/Bergomi-derivable; '
-        'dealer positioning per Garleanu-Pedersen-Poteshman 2009, RFS), Hedge Shares/$1 '
-        '(Egebjerg & Kokholm 2024 mechanism), <b>Skew (25Δ)</b> (Xing-Zhang-Zhao 2010, JFQA — '
-        'only metric here with direct peer-reviewed predictive validity), IV30. '
-        'γ-flip and wall strikes are model constructs (zero peer-reviewed papers as price '
-        'levels) — read as descriptive positioning context, not predictions.<br>'
-        '<b>Universe</b>: SPY / QQQ / IWM only — the standard dealer positioning convention '
-        '(long calls, short puts) is empirically defensible for these names.'
+        '<b>Read before trading off this</b><br>'
+        '&bull; <b>OI is T-1, quotes ~15-min delayed</b> — γ-flip and walls describe yesterday\'s '
+        'positioning, not live.<br>'
+        '&bull; <b>Positioning is ≤90 DTE</b> (the dealer-relevant tenor); the long-dated '
+        'call tail is excluded.<br>'
+        '&bull; <b>Sign &amp; order of magnitude are load-bearing; absolute GEX is not</b> — '
+        'other sources publish very different numbers on the same chain.<br>'
+        '&bull; <b>Descriptive, not predictive.</b> Positioning + vol context only — no forecast, '
+        'event study, or backtest (sample too short).<br>'
+        '<b>Universe</b>: SPY / QQQ / IWM — names where the dealer-net-short convention is '
+        'empirically defensible.'
         '</div>'
     )
 

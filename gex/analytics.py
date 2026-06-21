@@ -105,6 +105,58 @@ def plot_gamma_profile(profile_df: pd.DataFrame, spot: float, ticker: str,
     return fig
 
 
+def plot_price_with_levels(price_df: pd.DataFrame, ticker: str,
+                           summary: dict, spot: float) -> go.Figure:
+    """Recent price line with horizontal level lines — dealer-model levels
+    (γ-flip, call/put walls, ≤90 DTE) plus assumption-free OI walls. The email
+    analogue of the dashboard Positioning price+walls read.
+
+    price_df: columns ['date', 'close'] (oldest→newest).
+    """
+    fig = go.Figure()
+    if price_df is not None and not price_df.empty:
+        fig.add_trace(go.Scatter(
+            x=price_df["date"], y=price_df["close"],
+            mode="lines", line=dict(color="#e6edf3", width=1.6),
+            showlegend=False,
+            hovertemplate="%{x|%b %d}<br>%{y:,.2f}<extra></extra>",
+        ))
+
+    P = config.PALETTE
+
+    def _hl(val, color, text, dash):
+        if val is None:
+            return
+        fig.add_hline(
+            y=val, line_color=color, line_width=1.2, line_dash=dash,
+            annotation_text=text, annotation_position="right",
+            annotation_font_size=10, annotation_font_color=color,
+        )
+
+    _hl(spot, "rgba(230,237,243,0.45)", f"spot {spot:.0f}", "dot")
+    _hl(summary.get("zero_gamma_level"), P["accent"],
+        f"γ-flip {summary['zero_gamma_level']:.0f}" if summary.get("zero_gamma_level") else "", "solid")
+    _hl(summary.get("call_wall"), P["call"],
+        f"call wall {summary['call_wall']:.0f}" if summary.get("call_wall") else "", "dash")
+    _hl(summary.get("put_wall"), P["put"],
+        f"put wall {summary['put_wall']:.0f}" if summary.get("put_wall") else "", "dash")
+    _hl(summary.get("oi_call_wall"), P["call"],
+        f"OI call {summary['oi_call_wall']:.0f}" if summary.get("oi_call_wall") else "", "dot")
+    _hl(summary.get("oi_put_wall"), P["put"],
+        f"OI put {summary['oi_put_wall']:.0f}" if summary.get("oi_put_wall") else "", "dot")
+
+    fig.update_layout(
+        template="plotly_dark",
+        title=dict(text=f"{ticker}  ·  Price vs Dealer & OI Levels", font_size=13),
+        xaxis_title=None,
+        yaxis_title="Price",
+        showlegend=False,
+        height=320,
+        margin=dict(t=50, b=35, l=60, r=90),
+    )
+    return fig
+
+
 def rbf_grid(surface_df, spot, dte_grid, otm_grid, *,
              dte_floor=5, clip=None):
     """Interpolate the vol surface onto a (DTE, ln(K/S)) grid via TPS RBF.

@@ -10,7 +10,7 @@ Last updated: 2026-06-20 | Status: active milestone v3.5 (Index Vol-Context Rebu
   - `python -m gex.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `gex/data_loader.py`.
-- **Tests:** `pytest gex/tests` — 243 green.
+- **Tests:** `pytest gex/tests` — 246 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -34,7 +34,7 @@ python -m venv .venv
 pip install -r requirements.txt
 streamlit run app.py                 # interactive dashboard
 python -m gex.run_gex --ticker SPY   # single-ticker smoke test to stdout
-pytest gex/tests                     # 243 tests
+pytest gex/tests                     # 246 tests
 ```
 
 `requirements.txt` tracks the stack. Add packages there when needed.

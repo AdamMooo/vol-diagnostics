@@ -18,6 +18,8 @@ from gex.analytics import summarise
 from gex.vol_metrics import compute_skew_25d, compute_term_structure, compute_rv20
 from gex.validation import load_history
 from gex.vrp_history import vrp_percentile
+from gex.surface_evolution import load_evolution
+from scipy.stats import percentileofscore
 
 
 def _fetch_spot_history_yf(ticker: str, days: int = 400) -> "pd.Series | None":
@@ -158,6 +160,25 @@ def compute_ticker(ticker: str) -> dict:
     summary["vrp"] = vrp
     summary["vrp_pct"] = vrp_pct_res["pct"]
     summary["vrp_pct_n"] = vrp_pct_res["n"]
+
+    # Credibility-gated read inputs — computed ONCE here so the dashboard card and the
+    # email card show the same chips (the canonical-card seam). Each is None unless its
+    # sample clears CARD_READ_MIN_SESSIONS; build_card_read omits ungated chips entirely.
+    # hist (load_history above) uses the same window as the dashboard's HISTORY_DAYS.
+    floor = config.CARD_READ_MIN_SESSIONS
+    read_skew_pct = None
+    if front_skew is not None and not hist.empty and "front_skew" in hist.columns:
+        skew_series = hist.dropna(subset=["front_skew"])["front_skew"].tolist()
+        if len(skew_series) >= floor:
+            read_skew_pct = int(percentileofscore(skew_series, front_skew))
+    read_move_5d = None
+    evo = load_evolution(ticker, horizon=5, days=400)
+    if not evo.empty and "level" in evo.columns:
+        lvl = evo.dropna(subset=["level"]).sort_values("date")
+        if len(lvl) >= floor:
+            read_move_5d = float(lvl["level"].iloc[-1])
+    summary["read_skew_pct"] = read_skew_pct
+    summary["read_move_5d"] = read_move_5d
 
     return {
         "summary": summary, "s_df": s_df, "p_df": p_df,
