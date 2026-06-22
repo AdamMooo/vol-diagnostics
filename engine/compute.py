@@ -11,8 +11,8 @@ from engine import config
 from engine.data.data_loader import load_chain
 from engine.gex.greeks_engine import add_greeks
 from engine.gex.exposure_engine import (
-    compute_gex, strike_gex, strike_oi, gamma_profile, vol_surface_data, compute_skew,
-    surface_diagnostics,
+    compute_gex, strike_gex, strike_oi, expiry_oi, gamma_profile, vol_surface_data,
+    compute_skew, surface_diagnostics,
 )
 from engine.gex.analytics import summarise
 from engine.vol.vol_metrics import compute_skew_25d, compute_term_structure, compute_rv20
@@ -89,6 +89,14 @@ def compute_ticker(ticker: str) -> dict:
 
     s_df = strike_gex(gex_df)
     s_df = s_df.merge(strike_oi(gex_df), on="strike", how="left")
+
+    oi_vals = s_df["oi"].fillna(0)
+    if oi_vals.gt(0).any():
+        s_df["is_top_decile"] = (oi_vals >= oi_vals.quantile(0.9))
+    else:
+        s_df["is_top_decile"] = False
+
+    expiry_oi_df = expiry_oi(gex_df)
 
     r = _get_risk_free_rate()
     p_df = gamma_profile(gex_df, spot=snapshot.spot, r=r)
@@ -185,4 +193,5 @@ def compute_ticker(ticker: str) -> dict:
         "spot": snapshot.spot, "surface_df": surface_df, "skew_df": skew_df,
         "skew": skew_25d, "term_structure": term_structure,
         "rv20": rv20, "vrp": vrp, "surface_diag": surface_diag,
+        "expiry_oi_df": expiry_oi_df,
     }
