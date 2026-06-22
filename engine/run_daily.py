@@ -19,6 +19,7 @@ import pytz
 from engine.compute import compute_ticker
 from engine.data.validation import save_snapshot
 from engine.data.surface_history import save_surface_snapshot, nth_trading_day_back, load_surface_snapshot
+from engine.data.oi_history import save_oi_snapshot
 from engine.report import report as rpt
 from engine.report import emailer
 from engine.report import observation
@@ -160,6 +161,12 @@ def run(dry_run: bool = False) -> None:
         if not s.get("error"):
             save_snapshot(s, ticker, skew_df=data.get("skew_df"), date=today)
             save_surface_snapshot(data.get("surface_df"), ticker, spot=s["spot"], date=today)
+            try:
+                expiry_oi_df = data.get("expiry_oi_df")
+                if expiry_oi_df is not None and not expiry_oi_df.empty:
+                    save_oi_snapshot(expiry_oi_df, ticker, today)
+            except Exception as exc:
+                print(f"  [WARN] OI snapshot for {ticker} failed (non-blocking): {exc}")
             iv30_str = f"  iv30={s['iv30']:.1f}%" if s.get("iv30") else ""
             print(f"spot={s['spot']:.2f}  gex=${s['net_gex']/1e9:.2f}B{iv30_str}")
         else:
@@ -203,11 +210,17 @@ def run(dry_run: bool = False) -> None:
         return
 
     subject = f"Index Volatility Report — {today.strftime('%B')} {today.day}, {today.year}"
+    oi_data = {
+        d["summary"]["ticker"]: d["expiry_oi_df"]
+        for d in all_data
+        if not d["summary"].get("error") and d.get("expiry_oi_df") is not None
+    }
     html = rpt.build_email(
         index_results=index_results,
         date=today,
         evolution_data=evolution_data,
         png_note=png_note,
+        oi_data=oi_data if oi_data else None,
     )
 
     if dry_run:
