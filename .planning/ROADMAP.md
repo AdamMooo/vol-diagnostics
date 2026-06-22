@@ -1,6 +1,6 @@
 # Roadmap: Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-21 · v3.3 SHIPPED · v3.4 SHIPPED · v3.5 active (Phases 15–19; 15–16 done) · v4.0 planned*
+*Last updated: 2026-06-22 · v3.3 SHIPPED · v3.4 SHIPPED · v3.5 active (Phases 15–19; 15–16 done) · v4.0 planned*
 
 ## Milestones
 
@@ -189,7 +189,16 @@ Plans:
   4. Large OI blocks are flagged parameter-free — strikes in the top decile of total OI within 90 DTE — threshold auto-scales to the chain without a hand-tuned absolute cutoff.
   5. The daily email includes a text summary of the top-expiry OI concentration per ticker (top 3 expirations by OI, with put/call split).
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+**Wave 1**
+
+- [ ] 16.5-01-PLAN.md — Engine layer: oi_history.py store, expiry_oi() aggregation, is_top_decile on s_df
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 16.5-02-PLAN.md — Dashboard display: OI by Expiry expander + large-block annotation on OI chart
+- [ ] 16.5-03-PLAN.md — Email OI table, run_daily store write, tests
 
 ---
 
@@ -276,7 +285,7 @@ Plans:
 | 14. Accumulation Gating | v3.4 | — | Superseded → Phase 18 | - |
 | 15. Vol-Index Data Layer | v3.5 | 2/2 | Complete    | 2026-06-05 |
 | 16. VRP Percentile | v3.5 | 2/2 | Complete | 2026-06-16 |
-| 16.5. OI Depth Expansion | v3.5 | 0/TBD | Not started | - |
+| 16.5. OI Depth Expansion | v3.5 | 0/3 | Not started | - |
 | 17. Term-Structure Regime | v3.5 | 0/TBD | Not started | - |
 | 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 0/TBD | Not started | - |
 | 19. Data Health & Continuity | v3.5 | 0/TBD | Not started | - |
