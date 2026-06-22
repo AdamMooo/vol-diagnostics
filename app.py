@@ -517,7 +517,7 @@ if sel_index:
             )
         with ec2:
             evo_mode_label = st.radio(
-                "Mode", ["Level", "Change vs start"], horizontal=True,
+                "Mode", ["Level (IV)", "Change vs ref"], horizontal=True,
                 key="evo_mode", label_visibility="collapsed",
             )
         evo_mode = "change" if evo_mode_label.startswith("Change") else "level"

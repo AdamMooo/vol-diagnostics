@@ -336,7 +336,7 @@ def plot_vol_surface(surface_df: pd.DataFrame, ticker: str, spot: float) -> go.F
         ),
         scene=dict(
             xaxis_title="DTE",
-            yaxis_title="K/S",
+            yaxis_title="ln(K/S)",
             zaxis_title="IV (%)",
             camera=dict(eye=dict(x=2.0, y=-1.2, z=0.8)),
             aspectmode="manual",
@@ -463,7 +463,7 @@ def plot_iv_change_surface(
         ),
         scene=dict(
             xaxis_title="DTE",
-            yaxis_title="K/S",
+            yaxis_title="ln(K/S)",
             zaxis_title="∆IV (pp)",
             camera=dict(eye=dict(x=2.0, y=-1.2, z=0.8)),
             aspectmode="manual",
