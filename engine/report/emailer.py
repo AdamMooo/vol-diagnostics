@@ -8,7 +8,7 @@ import os
 import time
 from pathlib import Path
 
-_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 
 
 def _recipients(env_key: str = "GEX_EMAIL_TO") -> list[str]:

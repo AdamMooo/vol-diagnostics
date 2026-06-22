@@ -25,7 +25,7 @@ import pathlib
 
 import pandas as pd
 
-STORE = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex_snapshots.parquet"
+STORE = pathlib.Path(__file__).resolve().parents[2] / "out" / "gex_snapshots.parquet"
 
 
 _FLOAT_COLS = (

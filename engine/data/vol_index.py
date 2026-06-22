@@ -15,7 +15,7 @@ from engine.config import DEFAULT_VOL_INDICES
 _CBOE_VOL_URL = "https://cdn.cboe.com/api/global/us_indices/daily_prices/{SYM}_History.csv"
 _HEADERS = {"User-Agent": "gamma-omm/3.5"}
 
-STORE_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "vol_index"
+STORE_DIR = pathlib.Path(__file__).resolve().parents[2] / "out" / "vol_index"
 
 
 def _store_path(symbol: str) -> pathlib.Path:

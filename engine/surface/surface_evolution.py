@@ -49,7 +49,7 @@ from engine.data.surface_history import (
 # Module-level constants
 # ---------------------------------------------------------------------------
 
-STORE = pathlib.Path(__file__).resolve().parents[1] / "out" / "surface_evolution.parquet"
+STORE = pathlib.Path(__file__).resolve().parents[2] / "out" / "surface_evolution.parquet"
 
 _FLOAT_COLS = ("level", "rms", "skew_change", "term_change", "coverage")
 

@@ -28,7 +28,7 @@ def export_png(
     Returns:
         Path to saved PNG, or None if export failed.
     """
-    out_dir = out_dir or (Path(__file__).resolve().parents[1] / "out")
+    out_dir = out_dir or (Path(__file__).resolve().parents[2] / "out")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     fig.update_layout(scene=dict(camera=dict(eye=config.KALEIDO_CAMERA_EYE)))

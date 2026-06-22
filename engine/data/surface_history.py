@@ -19,7 +19,7 @@ import pathlib
 
 import pandas as pd
 
-STORE_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "surface_history"
+STORE_DIR = pathlib.Path(__file__).resolve().parents[2] / "out" / "surface_history"
 
 
 def _store_path(ticker: str) -> pathlib.Path:
