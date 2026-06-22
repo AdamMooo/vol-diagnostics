@@ -63,6 +63,48 @@ def strike_oi(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
+def expiry_oi(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate open interest by expiry, split into call/put sides.
+
+    Applies the GEX_MAX_DTE cap internally so callers can pass the full chain
+    or the pre-filtered gex_df — result is consistent either way.
+
+    Returns columns: expiry, dte, call_oi, put_oi, oi, pct_of_total,
+    put_call_ratio. Sorted by oi descending.
+    """
+    filtered = df[(df["T_years"] * 365.0) <= config.GEX_MAX_DTE].copy()
+    if filtered.empty:
+        return pd.DataFrame(
+            columns=["expiry", "dte", "call_oi", "put_oi", "oi", "pct_of_total", "put_call_ratio"]
+        )
+
+    filtered["dte"] = (filtered["T_years"] * 365.0).round(1)
+
+    pivot = filtered.pivot_table(
+        index="expiry", columns="type", values="oi", aggfunc="sum", fill_value=0
+    )
+    for side in ("call", "put"):
+        if side not in pivot.columns:
+            pivot[side] = 0
+
+    out = pivot.reset_index()[["expiry", "call", "put"]]
+    out = out.rename(columns={"call": "call_oi", "put": "put_oi"})
+    out["oi"] = out["call_oi"] + out["put_oi"]
+
+    dte_map = filtered.groupby("expiry")["dte"].first()
+    out["dte"] = out["expiry"].map(dte_map)
+
+    total_oi = out["oi"].sum()
+    out["pct_of_total"] = 100.0 * out["oi"] / total_oi if total_oi > 0 else 0.0
+    out["put_call_ratio"] = out["put_oi"] / out["call_oi"].clip(lower=1e-6)
+
+    return (
+        out[["expiry", "dte", "call_oi", "put_oi", "oi", "pct_of_total", "put_call_ratio"]]
+        .sort_values("oi", ascending=False)
+        .reset_index(drop=True)
+    )
+
+
 def vol_surface_data(df: pd.DataFrame, spot: float,
                      dte_max: int = config.SURFACE_DTE_MAX,
                      moneyness_band: float = config.SURFACE_MONEYNESS_BAND) -> pd.DataFrame:

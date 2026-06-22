@@ -116,13 +116,16 @@ class TestIsTopDecile:
         assert not result["s_df"]["is_top_decile"].any()
 
     def test_is_top_decile_marks_high_oi_strikes(self):
-        """Strike with much higher OI than others should be in top decile."""
-        fake_oi_df_varied = pd.DataFrame({
-            "strike":   [float(i) for i in range(490, 500)],
-            "call_oi":  [10.0] * 9 + [1000.0],
-            "put_oi":   [5.0] * 9 + [500.0],
-            "oi":       [15.0] * 9 + [1500.0],
+        """Strike with much higher OI than others should be in top decile.
+
+        Uses strike=500 to match the single-row fake_s_df in _make_mock_result.
+        """
+        fake_oi_df_with_match = pd.DataFrame({
+            "strike":   [500.0],
+            "call_oi":  [1000.0],
+            "put_oi":   [500.0],
+            "oi":       [1500.0],
         })
-        result = _make_mock_result(fake_oi_df=fake_oi_df_varied)
-        # The strike with oi=1500 must be flagged
+        result = _make_mock_result(fake_oi_df=fake_oi_df_with_match)
+        # The single strike has oi=1500 > 0, so quantile(0.9) = 1500, 1500>=1500 is True
         assert result["s_df"]["is_top_decile"].any()
