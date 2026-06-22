@@ -657,6 +657,25 @@ def plot_oi_by_strike(chain_df: pd.DataFrame, spot: float, ticker: str,
                       annotation_text=f"put wall · model {summary['put_wall']:.0f}",
                       annotation_font_size=10)
 
+    if "is_top_decile" in chain_df.columns:
+        flagged = chain_df[chain_df["is_top_decile"]]
+        if not flagged.empty:
+            y_col = "call_oi" if "call_oi" in chain_df.columns else "oi"
+            fig.add_trace(go.Scatter(
+                x=flagged["strike"],
+                y=flagged[y_col],
+                mode="markers",
+                marker=dict(
+                    symbol="triangle-up",
+                    size=8,
+                    color="rgba(255,215,0,0.8)",
+                    line=dict(color="rgba(255,255,255,0.5)", width=1),
+                ),
+                name="large block (top 10%)",
+                showlegend=True,
+                hovertemplate="Strike: %{x:.0f}<br>Large block<extra></extra>",
+            ))
+
     fig.update_layout(
         template="plotly_dark",
         title=dict(text=f"{ticker}  ·  OI by Strike", font_size=13),

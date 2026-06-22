@@ -18,6 +18,7 @@ from engine.surface.surface_interactive import (
 )
 from engine.report.card_model import CardField, build_card_fields, build_card_read, LABEL_GRAY
 from engine.data.validation import load_prior_snapshot
+from engine.data.oi_history import prior_oi_snapshot
 from engine.compute import compute_ticker
 from engine.gex.analytics import (
     plot_gamma_profile,
@@ -691,6 +692,45 @@ if sel_index:
                     "**Walls:** strikes with maximum one-sided GEX concentration. "
                     "**Model assumption:** dealers net short all options (Garleanu, Pedersen & Poteshman 2009)."
                 )
+
+            with st.expander("OI by Expiry", expanded=False):
+                expiry_oi_df = data.get("expiry_oi_df")
+                if expiry_oi_df is None or expiry_oi_df.empty:
+                    st.caption(f"{ticker}: OI by expiry data unavailable.")
+                else:
+                    prior = prior_oi_snapshot(ticker, date.today())
+                    prior_oi_map = {}
+                    if not prior.empty and "expiry" in prior.columns and "oi" in prior.columns:
+                        for _, row in prior.iterrows():
+                            prior_oi_map[str(row["expiry"])] = row["oi"]
+
+                    display_df = expiry_oi_df[["expiry", "dte", "oi", "call_oi", "put_oi", "put_call_ratio"]].copy()
+
+                    def _fmt_oi(x):
+                        return f"{x/1e3:.0f}K" if x >= 1000 else f"{x:.0f}"
+
+                    def _fmt_delta_oi(current_oi, expiry_key):
+                        prior_val = prior_oi_map.get(str(expiry_key))
+                        if prior_val is None:
+                            return "–"
+                        d = current_oi - prior_val
+                        if abs(d) >= 1000:
+                            return f"+{d/1e3:.0f}K" if d >= 0 else f"{d/1e3:.0f}K"
+                        return f"+{d:.0f}" if d >= 0 else f"{d:.0f}"
+
+                    display_df["Expiry"] = pd.to_datetime(display_df["expiry"]).dt.strftime("%b %d")
+                    display_df["DTE"] = display_df["dte"].round(0).astype(int)
+                    display_df["OI"] = display_df["oi"].apply(_fmt_oi)
+                    display_df["Δ OI"] = [
+                        _fmt_delta_oi(row["oi"], row["expiry"])
+                        for _, row in expiry_oi_df.iterrows()
+                    ]
+                    display_df["Calls"] = display_df["call_oi"].apply(_fmt_oi)
+                    display_df["Puts"] = display_df["put_oi"].apply(_fmt_oi)
+                    display_df["P/C Ratio"] = display_df["put_call_ratio"].apply(lambda x: f"{x:.2f}")
+
+                    display_df = display_df[["Expiry", "DTE", "OI", "Δ OI", "Calls", "Puts", "P/C Ratio"]]
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
         st.caption(
             "IWM: OI data is the more reliable signal — "
