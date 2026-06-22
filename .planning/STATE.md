@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Index Vol-Context Rebuild
-status: executing
-stopped_at: Phase 16 complete — Phase 16.5 (OI Depth Expansion) is next
-last_updated: "2026-06-21T00:00:00.000Z"
+status: planning
+stopped_at: Phase 16.5 context gathered
+last_updated: "2026-06-22T20:07:52.427Z"
 last_activity: 2026-06-21
 progress:
-  total_phases: 8
+  total_phases: 10
   completed_phases: 4
   total_plans: 8
   completed_plans: 8
-  percent: 50
+  percent: 40
 ---
 
 # Project State
@@ -101,8 +101,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-22
-Stopped at: UI PASS-2 POLISH DONE (quick 260621-v8g, 2 commits ec13dc2 + c92ddaf, 246 tests green). (1) analytics.py 3D scenes → ln(K/S) axis (matches surface_interactive.py). (2) Evolution radio → "Level (IV)" / "Change vs ref". (3) render_regime_card drops raw γ-flip row (display-only filter; card_model.py untouched, email parity intact). (4) Three @st.fragment fns (_surface_today_section / _surface_compare_section / _evolution_section) isolate widget reruns so tab-switch + mode-radio no longer re-run the whole script. NOTE: freshness-banner + email-tune work from 2026-06-20 was ALREADY committed (6619308) — prior "NOT committed yet" note was stale.
+Last session: 2026-06-22T20:07:52.415Z
+Stopped at: Phase 16.5 context gathered
 Post-rename hotfixes (2026-06-22): (a) **Store-path regression fixed** — after `gex/→engine/` rename, subpackage modules (`engine/data/*`, `engine/surface/*`, `engine/report/*`) used `Path(__file__).parents[1]` which now resolved to `engine/` not project root → daily run wrote parquet to `engine/out/`. Re-anchored 6 files to `parents[2]` (validation, surface_history, vol_index, surface_evolution, png_export, emailer `.env`). `run_daily`/`run_gex` at engine root keep `parents[1]` (correct). Full path audit done — all 9 anchors verified resolving under `out/`. Deleted stray `engine/out/`; real `out/` history intact. (b) **Scheduler re-pointed** — Task Scheduler "GEX Daily Report" action was still `-m gex.run_daily`; updated in place to `-m engine.run_daily --send` (battery flags/RestartCount preserved via Set-ScheduledTask -Action). 246 tests green.
 Resume queue (updated 2026-06-22): (1) Phase 16.5 OI Depth Expansion is next up the roadmap (no CONTEXT.md yet → discuss-phase first). (2) Roadmap "where": Phase 17 (term) → 17.1 (expected-move cone). Hosting eventual (app.py has _check_password). st.iframe deferred (not a drop-in). See memory [[project_email_vs_hosting]]. Note: skew/motion read chips still gated off (sample <60 sessions, HISTORY_DAYS=30 caps the skew series — latent: with floor=60 the skew chip can never light until HISTORY_DAYS is raised; revisit if skew chip wanted sooner).
 
@@ -118,6 +118,8 @@ Resume queue (updated 2026-06-22): (1) Phase 16.5 OI Depth Expansion is next up 
 ---
 ---
 <!-- LINKS:AUTO -->
+
 ## Related
+
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
