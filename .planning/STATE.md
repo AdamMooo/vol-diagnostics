@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Index Vol-Context Rebuild
 status: executing
-stopped_at: Completed 16-02-PLAN.md (VRP percentile wiring)
-last_updated: "2026-06-16T20:04:21.558Z"
-last_activity: 2026-06-16
+stopped_at: Phase 16 complete — Phase 16.5 (OI Depth Expansion) is next
+last_updated: "2026-06-21T00:00:00.000Z"
+last_activity: 2026-06-21
 progress:
   total_phases: 8
   completed_phases: 4
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 16 — vrp percentile
+**Current focus:** Phase 16.5 — OI Depth Expansion (next)
 
 ## Current Position
 
-Phase: 16
-Plan: 16-02 complete (Phase 16 done)
-Status: Executing
-Last activity: 2026-06-16
+Phase: 16.5
+Plan: Not started (next up)
+Status: Planning
+Last activity: 2026-06-21
 
 Progress: [██████████] 100%
 
@@ -84,6 +84,12 @@ Progress: [██████████] 100%
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260621-v8g | UI pass-2 polish: unify axis K/S labels, fix radio labels, trim redundant card rows, @st.fragment de-lag | 2026-06-22 | c92ddaf | [260621-v8g-ui-pass-2-polish-unify-axis-k-s-labels-f](./quick/260621-v8g-ui-pass-2-polish-unify-axis-k-s-labels-f/) |
+
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
@@ -95,10 +101,17 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-20
-Stopped at: FRESHNESS BANNER + EMAIL TUNE DONE — 246 tests green (+3). (1) Data-freshness banner on app.py (top, under top-bar): _expected_latest_session/_sessions_missing/_render_freshness_banner — min-across-tickers latest stored date vs NYSE calendar, today counts only after 16:35 ET → green "✓ current through X" / amber "⚠ N missing". (2) Email tune: build_card_read wired into report.py (_read_block) via canonical seam — gated read_skew_pct/read_move_5d now computed ONCE in compute.py (consumed by both dashboard + email, so they can't drift); glossary trimmed ~55→~25 lines; new analytics.plot_price_with_levels + run_daily._build_price_level_attachments adds per-ticker price-vs-levels PNG (γ-flip/call+put walls + OI walls). All verified end-to-end with live SPY data (--dry-run no-ops Sat). NOT committed yet.
-Resume queue (set 2026-06-20): (1) UI pass-2: axis K/S unify, radio labels, trim redundant card rows; @st.fragment de-lag. (2) Roadmap "where": Phase 17 (term) → 17.1 (expected-move cone). Hosting eventual (app.py has _check_password). st.iframe deferred (not a drop-in). See memory [[project_email_vs_hosting]]. Note: skew/motion read chips still gated off (sample <60 sessions, HISTORY_DAYS=30 caps the skew series — latent: with floor=60 the skew chip can never light until HISTORY_DAYS is raised; revisit if skew chip wanted sooner).
+Last session: 2026-06-22
+Stopped at: UI PASS-2 POLISH DONE (quick 260621-v8g, 2 commits ec13dc2 + c92ddaf, 246 tests green). (1) analytics.py 3D scenes → ln(K/S) axis (matches surface_interactive.py). (2) Evolution radio → "Level (IV)" / "Change vs ref". (3) render_regime_card drops raw γ-flip row (display-only filter; card_model.py untouched, email parity intact). (4) Three @st.fragment fns (_surface_today_section / _surface_compare_section / _evolution_section) isolate widget reruns so tab-switch + mode-radio no longer re-run the whole script. NOTE: freshness-banner + email-tune work from 2026-06-20 was ALREADY committed (6619308) — prior "NOT committed yet" note was stale.
+Post-rename hotfixes (2026-06-22): (a) **Store-path regression fixed** — after `gex/→engine/` rename, subpackage modules (`engine/data/*`, `engine/surface/*`, `engine/report/*`) used `Path(__file__).parents[1]` which now resolved to `engine/` not project root → daily run wrote parquet to `engine/out/`. Re-anchored 6 files to `parents[2]` (validation, surface_history, vol_index, surface_evolution, png_export, emailer `.env`). `run_daily`/`run_gex` at engine root keep `parents[1]` (correct). Full path audit done — all 9 anchors verified resolving under `out/`. Deleted stray `engine/out/`; real `out/` history intact. (b) **Scheduler re-pointed** — Task Scheduler "GEX Daily Report" action was still `-m gex.run_daily`; updated in place to `-m engine.run_daily --send` (battery flags/RestartCount preserved via Set-ScheduledTask -Action). 246 tests green.
+Resume queue (updated 2026-06-22): (1) Phase 16.5 OI Depth Expansion is next up the roadmap (no CONTEXT.md yet → discuss-phase first). (2) Roadmap "where": Phase 17 (term) → 17.1 (expected-move cone). Hosting eventual (app.py has _check_password). st.iframe deferred (not a drop-in). See memory [[project_email_vs_hosting]]. Note: skew/motion read chips still gated off (sample <60 sessions, HISTORY_DAYS=30 caps the skew series — latent: with floor=60 the skew chip can never light until HISTORY_DAYS is raised; revisit if skew chip wanted sooner).
 
+---
+---
+---
+---
+---
+---
 ---
 ---
 ---

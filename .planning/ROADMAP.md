@@ -1,6 +1,6 @@
 # Roadmap: Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-04 · v3.3 SHIPPED · v3.4 active (Phases 12–14) · v3.5 planned (Phases 15–18)*
+*Last updated: 2026-06-21 · v3.3 SHIPPED · v3.4 SHIPPED · v3.5 active (Phases 15–19; 15–16 done) · v4.0 planned*
 
 ## Milestones
 
@@ -8,8 +8,9 @@
 - ✅ **v3.1 Hardening & Cleanup** — Phase 5 + out-of-phase refactor (shipped 2026-05-06 + 2026-05-11)
 - ✅ **v3.2 Vol Surface Reframe** — Phases 6–7 (computation engine + institutional dashboard rendering)
 - ✅ **v3.3 Surface Evolution & Daily Intelligence** — Phases 8–11 (shipped 2026-06-01)
-- 🚧 **v3.4 Email-First Daily Report Polish** — Phases 12–14 (in progress)
-- **v3.5 Index Vol-Context Rebuild** — Phases 15–18 (planned)
+- ✅ **v3.4 Email-First Daily Report Polish** — Phases 12–14 (shipped 2026-06-02)
+- 🚧 **v3.5 Index Vol-Context Rebuild** — Phases 15–19 (active; 15–16 done)
+- **v4.0 Cloud Hosting** — VPS deploy + git workflow + data migration (planned)
 - **Backlog (999.x)** — Charm, test coverage, pre-distribution; awaiting research
 
 ## Phases
@@ -49,9 +50,21 @@
 
 - [x] **Phase 15: Vol-Index Data Layer** — Fetch + cache CBOE vol-index daily CSVs (VIX/VXN/RVX + siblings); Bloomberg-swappable isolated module (completed 2026-06-05)
 - [x] **Phase 16: VRP Percentile** — VRP (vol-index − RV20) ranked as a percentile against its own history; internally consistent series, lookback labeled
+- [ ] **Phase 16.5: OI Depth Expansion** — Richer open-interest analytics: expiry concentration, day-over-day strike-level OI change, put/call split per expiry, parameter-free large-block flagging; Positioning tab + email summary
 - [ ] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
 - [ ] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only
 - [ ] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (VRP+term+snapshot / surfaces / GEX); page-1 snapshot tied to canonical card; accumulation-dependent elements gated
+- [ ] **Phase 19: Data Health & Continuity** — Health-check CLI for all parquet stores, Task Scheduler re-verify, monthly SOP documented in CLAUDE.md
+
+---
+
+### v4.0 Cloud Hosting (Planned)
+
+**Milestone Goal:** Move the dashboard off the local Windows machine onto a VPS or cloud VM — runs 24/7, accessible from any computer. Code deploys via git pull from personal GitHub; historical parquet data migrated via volume mount; cron replaces Windows Task Scheduler. No code changes required to the app itself.
+
+- [ ] **Phase 20: VPS Setup + Code Deploy Workflow** — Provision server, configure git remote, automated deploy script
+- [ ] **Phase 21: Data Migration + Cron Scheduler** — Migrate `out/` parquet history, wire cron job for daily run
+- [ ] **Phase 22: Multi-Machine Access + Hardening** — Auth layer (password guard already in app.py), HTTPS, stable URL
 
 ---
 
@@ -159,6 +172,23 @@ Plans:
   3. The percentile is computed using only the vol-index series for both the current reading and its history — snapshot IV30 is never mixed into the VRP history (verifiable by reading the computation path).
   4. When fewer sessions exist than the lookback window, the percentile is either omitted or labeled with the actual available count — never silently computed on a thin sample without disclosure.
 
+**Plans**: 2/2 complete (16-01-PLAN.md, 16-02-PLAN.md)
+
+---
+
+### Phase 16.5: OI Depth Expansion
+
+**Goal**: The Positioning tab and daily email surface richer open-interest analytics — concentration by expiry, day-over-day strike-level OI change, put/call OI split per expiry, and parameter-free large-block identification — all raw labeled numbers with no scoring or categorical calls.
+**Depends on**: Phase 16
+**Requirements**: OI-01, OI-02, OI-03, OI-04
+**Success Criteria** (what must be TRUE):
+
+  1. The Positioning tab shows OI concentration by expiry: top expirations ranked by total OI (calls + puts), auto-scaled to the chain, no hand-tuned absolute cutoff.
+  2. Day-over-day OI change by strike is displayed — net change from prior chain snapshot; when no prior snapshot exists, the column shows "–" rather than NaN or an error.
+  3. Put/call OI ratio is shown per expiry (not just overall), labeling which expirations skew protective vs speculative.
+  4. Large OI blocks are flagged parameter-free — strikes in the top decile of total OI within 90 DTE — threshold auto-scales to the chain without a hand-tuned absolute cutoff.
+  5. The daily email includes a text summary of the top-expiry OI concentration per ticker (top 3 expirations by OI, with put/call split).
+
 **Plans**: TBD
 
 ---
@@ -210,6 +240,22 @@ Plans:
 
 ---
 
+### Phase 19: Data Health & Continuity
+
+**Goal**: A single CLI command audits all parquet stores for freshness, row count, date gaps, and schema consistency; the result is clean on a healthy setup. Task Scheduler is re-verified and a monthly SOP is documented in CLAUDE.md so the accumulation engine keeps running reliably.
+**Depends on**: Phase 18
+**Requirements**: HEALTH-01, HEALTH-02
+**Success Criteria** (what must be TRUE):
+
+  1. `python -m gex.health_check` prints a table: store name, row count, first/last date, gap count vs NYSE calendar, and a PASS/WARN flag per store.
+  2. Running it on the current setup produces no WARN flags.
+  3. Task Scheduler re-verified: battery flags off, RestartCount=2, last-result=0 confirmed; any fix committed and documented.
+  4. CLAUDE.md documents the monthly-check SOP: run health_check, verify Task Scheduler last-result, confirm latest parquet date is within 2 trading days.
+
+**Plans**: TBD
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -230,8 +276,10 @@ Plans:
 | 14. Accumulation Gating | v3.4 | — | Superseded → Phase 18 | - |
 | 15. Vol-Index Data Layer | v3.5 | 2/2 | Complete    | 2026-06-05 |
 | 16. VRP Percentile | v3.5 | 2/2 | Complete | 2026-06-16 |
+| 16.5. OI Depth Expansion | v3.5 | 0/TBD | Not started | - |
 | 17. Term-Structure Regime | v3.5 | 0/TBD | Not started | - |
 | 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 0/TBD | Not started | - |
+| 19. Data Health & Continuity | v3.5 | 0/TBD | Not started | - |
 
 ---
 
