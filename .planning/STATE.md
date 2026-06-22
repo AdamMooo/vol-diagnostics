@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Index Vol-Context Rebuild
-status: planning
-stopped_at: Phase 16.5 context gathered
-last_updated: "2026-06-22T20:07:52.427Z"
-last_activity: 2026-06-21
+status: ready_to_plan
+stopped_at: Phase 16.5 complete (3/3) — ready to discuss Phase 17.1
+last_updated: 2026-06-22T21:10:59.076Z
+last_activity: 2026-06-22 -- Phase 16.5 execution started
 progress:
   total_phases: 10
   completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 11
+  completed_plans: 24
   percent: 40
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 16.5 — OI Depth Expansion (next)
+**Current focus:** Phase 17.1 — convexity expected move
 
 ## Current Position
 
-Phase: 16.5
-Plan: Not started (next up)
-Status: Planning
-Last activity: 2026-06-21
+Phase: 17.1
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-22
 
 Progress: [██████████] 100%
 
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 32 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11) + 4 (v3.4 phases 12–13)
+- Total plans completed: 35 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11) + 4 (v3.4 phases 12–13)
 - Average duration: ~7 min per plan
 - Current test count: 66
 
@@ -57,6 +57,7 @@ Progress: [██████████] 100%
 | 15 | 2 | - | - |
 | 16-vrp-percentile P01 | ~2 min | 2 tasks | 3 files |
 | 16-vrp-percentile P02 | ~12 min | 2 tasks | 4 files |
+| 16.5 | 3 | - | - |
 
 ## Accumulated Context
 

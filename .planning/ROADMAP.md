@@ -50,7 +50,7 @@
 
 - [x] **Phase 15: Vol-Index Data Layer** — Fetch + cache CBOE vol-index daily CSVs (VIX/VXN/RVX + siblings); Bloomberg-swappable isolated module (completed 2026-06-05)
 - [x] **Phase 16: VRP Percentile** — VRP (vol-index − RV20) ranked as a percentile against its own history; internally consistent series, lookback labeled
-- [ ] **Phase 16.5: OI Depth Expansion** — Richer open-interest analytics: expiry concentration, day-over-day strike-level OI change, put/call split per expiry, parameter-free large-block flagging; Positioning tab + email summary
+- [x] **Phase 16.5: OI Depth Expansion** — Richer open-interest analytics: expiry concentration, day-over-day strike-level OI change, put/call split per expiry, parameter-free large-block flagging; Positioning tab + email summary (completed 2026-06-22)
 - [ ] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
 - [ ] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only
 - [ ] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (VRP+term+snapshot / surfaces / GEX); page-1 snapshot tied to canonical card; accumulation-dependent elements gated
@@ -193,12 +193,12 @@ Plans:
 
 **Wave 1**
 
-- [ ] 16.5-01-PLAN.md — Engine layer: oi_history.py store, expiry_oi() aggregation, is_top_decile on s_df
+- [x] 16.5-01-PLAN.md — Engine layer: oi_history.py store, expiry_oi() aggregation, is_top_decile on s_df
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 16.5-02-PLAN.md — Dashboard display: OI by Expiry expander + large-block annotation on OI chart
-- [ ] 16.5-03-PLAN.md — Email OI table, run_daily store write, tests
+- [x] 16.5-02-PLAN.md — Dashboard display: OI by Expiry expander + large-block annotation on OI chart
+- [x] 16.5-03-PLAN.md — Email OI table, run_daily store write, tests
 
 ---
 
@@ -285,7 +285,7 @@ Plans:
 | 14. Accumulation Gating | v3.4 | — | Superseded → Phase 18 | - |
 | 15. Vol-Index Data Layer | v3.5 | 2/2 | Complete    | 2026-06-05 |
 | 16. VRP Percentile | v3.5 | 2/2 | Complete | 2026-06-16 |
-| 16.5. OI Depth Expansion | v3.5 | 0/3 | Not started | - |
+| 16.5. OI Depth Expansion | v3.5 | 3/3 | Complete    | 2026-06-22 |
 | 17. Term-Structure Regime | v3.5 | 0/TBD | Not started | - |
 | 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 0/TBD | Not started | - |
 | 19. Data Health & Continuity | v3.5 | 0/TBD | Not started | - |
