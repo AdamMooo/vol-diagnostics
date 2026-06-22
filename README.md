@@ -38,15 +38,15 @@ Opens at `http://localhost:8501`.
 
 **Daily email report (Outlook COM — Windows only):**
 ```powershell
-python -m gex.run_daily --send
-python -m gex.run_daily --dry-run   # writes out/gex_YYYYMMDD.html, no email
+python -m engine.run_daily --send
+python -m engine.run_daily --dry-run   # writes out/gex_YYYYMMDD.html, no email
 ```
 
 **Single-ticker CLI:**
 ```powershell
-python -m gex.run_gex              # SPY
-python -m gex.run_gex --ticker QQQ
-python -m gex.run_gex --ticker IWM
+python -m engine.run_gex              # SPY
+python -m engine.run_gex --ticker QQQ
+python -m engine.run_gex --ticker IWM
 ```
 
 ## Dashboard
@@ -65,19 +65,19 @@ Sidebar lets you filter tickers and refresh the cache (5-min TTL per ticker).
 | Module | Purpose |
 |--------|---------|
 | `app.py` | Interactive dashboard with tabbed expanders + methodology expander |
-| `gex/data_loader.py` | CBOE delayed quotes → `ChainSnapshot` (greeks pre-computed by CBOE's American model) |
-| `gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` sweep |
-| `gex/exposure_engine.py` | GEX aggregation, gamma profile sweep, `vol_surface_data()` (OTM convention), `compute_skew()` (25Δ put − 50Δ call) |
-| `gex/analytics.py` | `summarise()` → Net GEX, γ-flip, walls, Hedge Shares/$1; plotly charts: strike GEX, gamma profile, IV surface (with γ-flip + wall meridians), skew term structure |
-| `gex/compute.py` | Shared pipeline used by daily report and streamlit. `_get_risk_free_rate()` pulls live `^IRX` 3-month T-bill |
-| `gex/validation.py` | Parquet snapshot store: `net_gex`, `zero_gamma_level`, `call_wall`, `put_wall`, `front_skew`, `put_25d_iv`, `call_50d_iv`, `iv30` |
-| `gex/report.py` | HTML email builder |
-| `gex/run_daily.py` | Daily orchestrator (snapshot + email + daily-note observation block). Scheduled Mon–Fri 16:30 ET via Windows Task Scheduler |
+| `engine/data/data_loader.py` | CBOE delayed quotes → `ChainSnapshot` (greeks pre-computed by CBOE's American model) |
+| `engine/gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` sweep |
+| `engine/gex/exposure_engine.py` | GEX aggregation, gamma profile sweep, `vol_surface_data()` (OTM convention), `compute_skew()` (25Δ put − 50Δ call) |
+| `engine/gex/analytics.py` | `summarise()` → Net GEX, γ-flip, walls, Hedge Shares/$1; plotly charts: strike GEX, gamma profile, IV surface (with γ-flip + wall meridians), skew term structure |
+| `engine/compute.py` | Shared pipeline used by daily report and streamlit. `_get_risk_free_rate()` pulls live `^IRX` 3-month T-bill |
+| `engine/data/validation.py` | Parquet snapshot store: `net_gex`, `zero_gamma_level`, `call_wall`, `put_wall`, `front_skew`, `put_25d_iv`, `call_50d_iv`, `iv30` |
+| `engine/report/report.py` | HTML email builder |
+| `engine/run_daily.py` | Daily orchestrator (snapshot + email + daily-note observation block). Scheduled Mon–Fri 16:30 ET via Windows Task Scheduler |
 
 ## Tests
 
 ```powershell
-python -m pytest gex/tests/ -q
+python -m pytest engine/tests/ -q
 ```
 
 23 tests covering data loading, GEX aggregation, gamma profile, analytics, email rendering, snapshot store, and streamlit app boot.

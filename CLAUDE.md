@@ -1,16 +1,16 @@
-# CLAUDE — Gamma OMM — GEX / Vol Diagnostics Dashboard
-Last updated: 2026-06-20 | Status: active milestone v3.5 (Index Vol-Context Rebuild)
+# CLAUDE — Gamma OMM — Vol Diagnostics Dashboard
+Last updated: 2026-06-21 | Status: active milestone v3.5 (Index Vol-Context Rebuild)
 
 ## Repo Card
 
 - **Runtime:** local Python (venv). Bloomberg/Cron2 is a future swap, not the build environment.
 - **Entry points:**
   - `streamlit run app.py` — interactive dashboard (SPY/QQQ/IWM): per-ticker cards + plain-English read, 3D vol surface, surface "video", positioning
-  - `python -m gex.run_daily --send` — daily HTML email (scheduled weekdays via Task Scheduler)
-  - `python -m gex.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
+  - `python -m engine.run_daily --send` — daily HTML email (scheduled weekdays via Task Scheduler)
+  - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
-- **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `gex/data_loader.py`.
-- **Tests:** `pytest gex/tests` — 246 green.
+- **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
+- **Tests:** `pytest engine/tests` — 246 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -32,9 +32,9 @@ Descriptive only — no predictive/prescriptive claims.
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-streamlit run app.py                 # interactive dashboard
-python -m gex.run_gex --ticker SPY   # single-ticker smoke test to stdout
-pytest gex/tests                     # 246 tests
+streamlit run app.py                    # interactive dashboard
+python -m engine.run_gex --ticker SPY   # single-ticker smoke test to stdout
+pytest engine/tests                     # 246 tests
 ```
 
 `requirements.txt` tracks the stack. Add packages there when needed.
@@ -48,7 +48,23 @@ pytest gex/tests                     # 246 tests
 - **Windows paths:** use pathlib or `os.path.join` throughout.
 - **No PDIV / HMM this phase:** locked per scope cap.
 
-## GEX Module (active — v3.0)
+## `engine/` Package (active — v3.0)
+
+The whole diagnostics engine lives in `engine/`. It was renamed from `gex/`
+(2026-06-21) once GEX got demoted to one subdomain — the package now spans data,
+greeks/exposure, vol surface, vol metrics, and reporting. **Orchestration +
+shared config stay at the package root; everything else is grouped by domain:**
+
+```
+engine/
+  config.py  compute.py  run_daily.py  run_gex.py   # root: config + orchestration seam
+  data/      data_loader  vol_index  validation  surface_history
+  gex/       greeks_engine  exposure_engine  analytics       # dealer-gamma subdomain
+  surface/   surface_interactive  surface_evolution  surface_sweep
+  vol/       vol_metrics  vrp_history
+  report/    card_model  report  png_export  emailer  observation
+  tests/     (246 green)
+```
 
 **Tickers: SPY, QQQ, IWM only.** Full chain pulled per ticker — no moneyness filter, no OI cutoff.
 
@@ -59,36 +75,41 @@ pytest gex/tests                     # 246 tests
 | IWM | Russell 2000 | Small-cap risk proxy; divergence from SPY = domestic stress signal |
 
 ```
-python -m gex.run_gex                # SPY, saves charts to out/
-python -m gex.run_gex --ticker QQQ   # QQQ or IWM
-python -m gex.run_daily              # all 3 tickers → HTML email
+python -m engine.run_gex                # SPY, saves charts to out/
+python -m engine.run_gex --ticker QQQ   # QQQ or IWM
+python -m engine.run_daily              # all 3 tickers → HTML email
 ```
 
 | Module | Purpose |
 |--------|---------|
-| `gex/data_loader.py` | CBOE delayed quotes JSON → `ChainSnapshot` (gamma from CBOE) |
-| `gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` to sweep spot |
-| `gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; `strike_gex`, `gamma_profile` |
-| `gex/analytics.py` | `summarise()` → net GEX, zero-γ level, call/put walls, δ-flow; plotly charts |
-| `gex/compute.py` | Shared pipeline `compute_ticker(ticker)` — single source of truth for daily + streamlit |
-| `gex/run_gex.py` | Single-ticker CLI — fetch → compute → print summary → save PNGs |
-| `gex/run_daily.py` | Daily orchestrator — SPY/QQQ/IWM, parquet snapshot, HTML email with ΔIV surface PNGs |
-| `gex/validation.py` | Parquet snapshot store: `save_snapshot()` + `load_history()` (drives 30-day ZGL chart) |
-| `gex/surface_history.py` | Surface snapshot store: per-ticker chain parquet, `list_available_dates`, `nth_trading_day_back` |
-| `gex/surface_evolution.py` | ΔIV scalar engine — level, rms, skew_change, term_change vs rolling-mean baseline |
-| `gex/report.py` | HTML email builder — cards, ΔIV surface PNG attachments, glossary |
-| `gex/card_model.py` | Canonical card: `build_card_fields` (fields) + `build_card_read` (read chips + soft-lean, credibility-gated). Single source for dashboard + email |
-| `gex/surface_interactive.py` | Interactive surface engine: `build_surface_payload`/`build_diff_payload`/`build_movie_payload` + `render_*_html` (client-side plotly.js embedded via `components.html`) |
-| `gex/vol_index.py` | CBOE vol-index CSV store (VIX/VXN/RVX + VIX9D/VIX3M) — deep daily history |
-| `gex/vol_metrics.py` | `compute_rv20`, `compute_vrp`, skew/term helpers |
-| `gex/vrp_history.py` | Deep VRP percentile: `vol_index − RV20×100` over a 252-session window (does NOT touch the chain) |
+| `engine/config.py` | Shared constants (`GEX_MAX_DTE`, surface smoothing/clip, …) |
+| `engine/compute.py` | Shared pipeline `compute_ticker(ticker)` — single source of truth for daily + streamlit |
+| `engine/run_gex.py` | Single-ticker CLI — fetch → compute → print summary → save PNGs |
+| `engine/run_daily.py` | Daily orchestrator — SPY/QQQ/IWM, parquet snapshot, HTML email with ΔIV surface PNGs |
+| `engine/data/data_loader.py` | CBOE delayed quotes JSON → `ChainSnapshot` (gamma from CBOE) |
+| `engine/data/vol_index.py` | CBOE vol-index CSV store (VIX/VXN/RVX + VIX9D/VIX3M) — deep daily history |
+| `engine/data/validation.py` | Parquet snapshot store: `save_snapshot()` + `load_history()` (drives 30-day ZGL chart) |
+| `engine/data/surface_history.py` | Surface snapshot store: per-ticker chain parquet, `list_available_dates`, `nth_trading_day_back` |
+| `engine/gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` to sweep spot |
+| `engine/gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; `strike_gex`, `gamma_profile` |
+| `engine/gex/analytics.py` | `summarise()` → net GEX, zero-γ level, call/put walls, δ-flow; plotly charts |
+| `engine/surface/surface_interactive.py` | Interactive surface engine: `build_surface_payload`/`build_diff_payload`/`build_movie_payload` + `render_*_html` (client-side plotly.js embedded via `components.html`) |
+| `engine/surface/surface_evolution.py` | ΔIV scalar engine — level, rms, skew_change, term_change vs rolling-mean baseline |
+| `engine/surface/surface_sweep.py` | Surface-sweep diagnostic renderer (`python -m engine.surface.surface_sweep`) |
+| `engine/vol/vol_metrics.py` | `compute_rv20`, `compute_vrp`, skew/term helpers |
+| `engine/vol/vrp_history.py` | Deep VRP percentile: `vol_index − RV20×100` over a 252-session window (does NOT touch the chain) |
+| `engine/report/card_model.py` | Canonical card: `build_card_fields` (fields) + `build_card_read` (read chips + soft-lean, credibility-gated). Single source for dashboard + email |
+| `engine/report/report.py` | HTML email builder — cards, ΔIV surface PNG attachments, glossary |
+| `engine/report/png_export.py` | Plotly → PNG (kaleido) for email attachments |
+| `engine/report/emailer.py` | SMTP send |
+| `engine/report/observation.py` | Appends a GEX observation block to today's daily note (idempotent) |
 | `app.py` | Browser dashboard (SPY/QQQ/IWM only) — cards+read, interactive surface (Today/Compare), surface video (Evolution), positioning |
 
 Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color. **GEX/positioning is capped at ≤90 DTE (`config.GEX_MAX_DTE`)** — the dealer-relevant tenor; the long-dated tail is investor-written call flow (mis-signed by the dealer-short convention) and is excluded. The dashboard surface uses its own `SURFACE_INTERACTIVE_*` smoothing/clip, isolated from the email/evolution path.
 
 **Removed for rigor** (do not reintroduce without methodology audit): VEX/CHEX (vanna/charm exposures), wall cluster + concentration, ZGL flow magnitude, vs-yesterday classifier, event study, early-exercise risk flags, categorical "positive/negative/neutral" regime label, vanna/charm BS computations.
 
-Bloomberg upgrade path: swap `gex/data_loader.py` only — everything else is data-source-agnostic.
+Bloomberg upgrade path: swap `engine/data/data_loader.py` only — everything else is data-source-agnostic.
 
 ## v2.x sleeve framework / v1.0 hmm — REMOVED
 

@@ -10,22 +10,22 @@ import pytz
 import streamlit as st
 import streamlit.components.v1 as components
 
-from gex import config
-from gex.surface_interactive import (
+from engine import config
+from engine.surface.surface_interactive import (
     build_surface_payload, render_surface_html,
     build_diff_payload, render_diff_html,
     build_movie_payload, render_movie_html,
 )
-from gex.card_model import CardField, build_card_fields, build_card_read, LABEL_GRAY
-from gex.validation import load_prior_snapshot
-from gex.compute import compute_ticker
-from gex.analytics import (
+from engine.report.card_model import CardField, build_card_fields, build_card_read, LABEL_GRAY
+from engine.data.validation import load_prior_snapshot
+from engine.compute import compute_ticker
+from engine.gex.analytics import (
     plot_gamma_profile,
     plot_vol_surface, plot_iv_change_surface,
     plot_oi_by_strike,
 )
 from scipy.stats import percentileofscore
-from gex.surface_history import (
+from engine.data.surface_history import (
     load_surface_snapshot, list_available_dates, nth_trading_day_back,
 )
 
@@ -155,7 +155,7 @@ def fetch_ticker(ticker: str) -> dict:
 
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
 def _load_history_cached(ticker: str, days: int = config.HISTORY_DAYS) -> pd.DataFrame:
-    from gex.validation import load_history
+    from engine.data.validation import load_history
     return load_history(ticker, days)
 
 

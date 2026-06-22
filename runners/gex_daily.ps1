@@ -8,7 +8,7 @@ param([Parameter(Position=0)][string]$cmd = "activate")
 $TaskName   = "GEX Daily Report"
 $ProjectDir = "C:\dev\gamma-omm"
 $Python     = "$ProjectDir\.venv\Scripts\python.exe"
-$Script     = "-m gex.run_daily --send"
+$Script     = "-m engine.run_daily --send"
 
 if ($cmd -eq "activate") {
     $action   = New-ScheduledTaskAction -Execute $Python -Argument $Script -WorkingDirectory $ProjectDir

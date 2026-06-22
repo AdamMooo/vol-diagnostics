@@ -39,6 +39,3 @@ out/surface_history/*
 # Runtime / local config
 *.local.json
 *.pdf
-
-# spike scratch (generated)
-spike/out/
