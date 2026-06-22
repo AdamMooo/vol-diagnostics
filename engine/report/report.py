@@ -167,6 +167,92 @@ def _ticker_card(r: dict) -> str:
     )
 
 
+# ── OI by expiry table ────────────────────────────────────────────────
+
+def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
+    """Compact top-3 expiry OI table for email insertion after _ticker_card().
+
+    Returns None when expiry_oi_df is None or empty (caller omits silently).
+    T-16.5-08: guard against malformed df via None/empty check + safe head(3).
+    """
+    if expiry_oi_df is None:
+        return None
+    try:
+        if expiry_oi_df.empty:
+            return None
+    except AttributeError:
+        return None
+
+    top3 = expiry_oi_df.head(3)
+
+    call_color = config.PALETTE["call"]
+    put_color = config.PALETTE["put"]
+
+    th_style = (
+        f'style="{_SANS}padding:4px 12px 4px 0;font-size:11px;'
+        f'color:{LABEL_GRAY};letter-spacing:0.5px;text-transform:uppercase;'
+        f'text-align:left;"'
+    )
+    td_style = (
+        f'style="{_MONO}padding:4px 12px 4px 0;font-size:12px;'
+        f'white-space:nowrap;"'
+    )
+
+    header_row = (
+        f'<tr>'
+        f'<th {th_style}>Expiry</th>'
+        f'<th {th_style}>OI</th>'
+        f'<th {th_style} style="color:{call_color};">Calls</th>'
+        f'<th {th_style} style="color:{put_color};">Puts</th>'
+        f'<th {th_style}>P:C Ratio</th>'
+        f'</tr>'
+    )
+
+    def _k(v: float) -> str:
+        return f"{v/1000:.0f}K"
+
+    data_rows = ""
+    for _, row in top3.iterrows():
+        try:
+            import datetime as _dt
+            expiry_raw = row.get("expiry", "")
+            expiry_str = (
+                _dt.datetime.strptime(str(expiry_raw), "%Y-%m-%d").strftime("%b %d")
+                if expiry_raw else str(expiry_raw)
+            )
+        except (ValueError, TypeError):
+            expiry_str = str(row.get("expiry", ""))
+        data_rows += (
+            f'<tr>'
+            f'<td {td_style}>{expiry_str}</td>'
+            f'<td {td_style}>{_k(row["oi"])}</td>'
+            f'<td {td_style} style="color:{call_color};">{_k(row["call_oi"])}</td>'
+            f'<td {td_style} style="color:{put_color};">{_k(row["put_oi"])}</td>'
+            f'<td {td_style}>{row["put_call_ratio"]:.2f}</td>'
+            f'</tr>'
+        )
+
+    table = (
+        f'<table cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;width:100%;">'
+        f'{header_row}{data_rows}'
+        f'</table>'
+    )
+
+    label = (
+        f'<div style="{_SANS}font-size:11px;color:{LABEL_GRAY};'
+        f'letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">'
+        f'OI BY EXPIRY</div>'
+    )
+
+    return (
+        f'<div style="margin-top:12px;margin-bottom:12px;padding-top:12px;'
+        f'border-top:1px solid {RULE_COLOR};">'
+        f'{label}{table}'
+        f'</div>'
+    )
+
+
 # ── Section header ────────────────────────────────────────────────────
 
 def _section_header(label: str) -> str:
@@ -279,10 +365,19 @@ def build_email(
     date: datetime.date | None = None,
     evolution_data: dict | None = None,
     png_note: str | None = None,
+    oi_data: "dict | None" = None,
 ) -> str:
     date = date or datetime.date.today()
 
-    cards = "\n".join(_ticker_card(r) for r in index_results)
+    if oi_data is not None:
+        blocks = []
+        for r in index_results:
+            card_html = _ticker_card(r)
+            oi_table = _oi_summary_table(oi_data.get(r["ticker"]))
+            blocks.append(card_html + (oi_table or ""))
+        cards = "\n".join(blocks)
+    else:
+        cards = "\n".join(_ticker_card(r) for r in index_results)
 
     failed = [r["ticker"] for r in index_results if r.get("error")]
     failed_note = (

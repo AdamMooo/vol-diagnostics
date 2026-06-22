@@ -206,3 +206,55 @@ class TestListOiDates:
         save_oi_snapshot(df, "SPY", date=datetime.date(2024, 6, 1))
         dates = list_oi_dates("SPY")
         assert all(isinstance(d, datetime.date) for d in dates)
+
+
+# ── Named regression tests (plan 03 spec) ─────────────────────────────────────
+
+def test_save_and_load_roundtrip(tmp_path, monkeypatch):
+    """Round-trip: save then load returns original rows with correct column values."""
+    import engine.data.oi_history as mod
+    monkeypatch.setattr(mod, "STORE_DIR", tmp_path / "oi_history")
+    df = _make_expiry_oi_df(3)
+    date = datetime.date(2024, 6, 1)
+    save_oi_snapshot(df, "SPY", date=date)
+    result = load_oi_snapshot("SPY", date)
+    assert len(result) == 3
+    assert set(result.columns) >= {"expiry", "dte", "call_oi", "put_oi", "oi", "pct_of_total", "put_call_ratio"}
+    assert list(result["oi"]) == list(df["oi"])
+
+
+def test_idempotency(tmp_path, monkeypatch):
+    """Saving same date twice results in exactly 3 rows (replace, not append)."""
+    import engine.data.oi_history as mod
+    monkeypatch.setattr(mod, "STORE_DIR", tmp_path / "oi_history")
+    df = _make_expiry_oi_df(3)
+    date = datetime.date(2024, 6, 1)
+    save_oi_snapshot(df, "SPY", date=date)
+    save_oi_snapshot(df, "SPY", date=date)
+    import pandas as pd
+    hist = pd.read_parquet(mod.STORE_DIR / "oi_SPY.parquet")
+    assert len(hist) == 3
+
+
+def test_cold_start_prior(tmp_path, monkeypatch):
+    """prior_oi_snapshot with no store returns empty DataFrame, no exception."""
+    import engine.data.oi_history as mod
+    monkeypatch.setattr(mod, "STORE_DIR", tmp_path / "oi_history")
+    result = prior_oi_snapshot("SPY", datetime.date(2024, 6, 2))
+    import pandas as pd
+    assert isinstance(result, pd.DataFrame)
+    assert result.empty
+
+
+def test_prior_returns_most_recent(tmp_path, monkeypatch):
+    """Two dates in store; prior_oi_snapshot(d2) returns d1 rows."""
+    import engine.data.oi_history as mod
+    monkeypatch.setattr(mod, "STORE_DIR", tmp_path / "oi_history")
+    d1 = datetime.date(2024, 6, 1)
+    d2 = datetime.date(2024, 6, 2)
+    df1 = _make_expiry_oi_df(3)
+    df2 = _make_expiry_oi_df(2)
+    save_oi_snapshot(df1, "SPY", date=d1)
+    save_oi_snapshot(df2, "SPY", date=d2)
+    result = prior_oi_snapshot("SPY", d2)
+    assert len(result) == 3  # d1 has 3 rows
