@@ -17,7 +17,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from engine.report.report import _ticker_card, build_email, evolution_section_html
+from engine.report.report import _ticker_card, build_email, evolution_section_html, _oi_summary_table
 
 
 # ── Shared fixtures ───────────────────────────────────────────────────────────
@@ -273,3 +273,66 @@ class TestCanonicalCardEmail:
     def test_no_delta_nan_when_no_prior(self):
         html = self._render_no_prior()
         assert "nan" not in html.lower(), "NaN leaked into email HTML when no prior row"
+
+
+# ── OI summary table tests (plan 03) ─────────────────────────────────────────
+
+def _make_expiry_oi_df(n: int = 5) -> pd.DataFrame:
+    """Build a minimal expiry_oi_df with the columns _oi_summary_table expects."""
+    import datetime
+    base = datetime.date(2024, 1, 19)
+    return pd.DataFrame({
+        "expiry": [(base + datetime.timedelta(days=i * 30)).strftime("%Y-%m-%d") for i in range(n)],
+        "dte":    [30.0 + i * 30 for i in range(n)],
+        "call_oi": [5000 - i * 200 for i in range(n)],
+        "put_oi":  [4000 - i * 150 for i in range(n)],
+        "oi":      [9000 - i * 350 for i in range(n)],
+        "pct_of_total": [20.0 for _ in range(n)],
+        "put_call_ratio": [0.80 + i * 0.05 for i in range(n)],
+    })
+
+
+def test_oi_summary_table_none_input():
+    assert _oi_summary_table(None) is None
+
+
+def test_oi_summary_table_empty_df():
+    assert _oi_summary_table(pd.DataFrame()) is None
+
+
+def test_oi_summary_table_renders_top3():
+    import datetime
+    df = _make_expiry_oi_df(5)
+    result = _oi_summary_table(df)
+    assert result is not None
+    assert isinstance(result, str)
+    # Only the first 3 expiry dates should appear (rows 0, 1, 2)
+    dates_in_df = [
+        (datetime.date(2024, 1, 19) + datetime.timedelta(days=i * 30)).strftime("%b %d")
+        for i in range(5)
+    ]
+    for d in dates_in_df[:3]:
+        assert d in result, f"Expected expiry {d} in top-3 OI table"
+    for d in dates_in_df[3:]:
+        assert d not in result, f"Expiry {d} (row {dates_in_df.index(d)+1}) must not appear in top-3"
+
+
+def test_oi_summary_table_contains_section_label():
+    df = _make_expiry_oi_df(3)
+    result = _oi_summary_table(df)
+    assert result is not None
+    assert "OI BY EXPIRY" in result
+
+
+def test_build_email_oi_data_omitted():
+    """build_email without oi_data must not include OI BY EXPIRY section."""
+    html = build_email([_minimal_result()])
+    assert "OI BY EXPIRY" not in html
+
+
+def test_build_email_oi_data_included():
+    """build_email with oi_data containing a valid expiry_oi_df includes OI table."""
+    df = _make_expiry_oi_df(5)
+    oi_data = {"SPY": df}
+    html = build_email([_minimal_result()], oi_data=oi_data)
+    assert "OI BY EXPIRY" in html
