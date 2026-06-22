@@ -181,6 +181,7 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
 
     prior_row = load_prior_snapshot(ticker=ticker, before_date=date.today())
     fields = build_card_fields(today_summary=summary, prior_summary=prior_row)
+    fields = [f for f in fields if f.label != "γ-flip"]
     grid_html = "".join(
         f'<span class="rc-k">{f.label}</span>'
         f'<span class="rc-v">{f.value}</span>'
@@ -351,6 +352,212 @@ if not all_data:
     st.warning("No data loaded.")
     st.stop()
 
+@st.fragment
+def _surface_today_section(selected_all: list[str], all_data: dict) -> None:
+    surf_today_tkr = st.radio(
+        "Surface ticker", selected_all, horizontal=True,
+        key="surf_today_tkr", label_visibility="collapsed",
+    )
+    for ticker in [surf_today_tkr]:  # one heavy surface at a time (perf)
+        if ticker not in all_data:
+            continue
+        data = all_data[ticker]
+        surface_df = data.get("surface_df")
+        spot = data.get("spot")
+        if surface_df is not None and not surface_df.empty:
+            cov, rms, mx = _trust_readout_strings(data.get("surface_diag"))
+            st.markdown(f"**{ticker}**  ·  {cov}  ·  {rms}  ·  {mx}")
+            payload = build_surface_payload(surface_df, spot, ticker=ticker)
+            if payload is not None:
+                # Interactive: 3D surface + mouse-driven smile/term slices.
+                # components.html embeds client-side plotly.js (smooth hover).
+                components.html(render_surface_html(payload), height=640, scrolling=False)
+            else:
+                st.plotly_chart(
+                    plot_vol_surface(surface_df, ticker, spot=spot),
+                    width='stretch',
+                )
+        else:
+            st.caption(f"{ticker}: insufficient data for surface.")
+
+
+@st.fragment
+def _surface_compare_section(selected_all: list[str], all_data: dict) -> None:
+    _horizon_options = {
+        "live": 0,
+        "1d": 1,
+        "5d": 5,
+        "10d": 10,
+        "20d": 20,
+        "30d": 30,
+        "60d": 60,
+    }
+    surf_cmp_tkr = st.radio(
+        "Compare ticker", selected_all, horizontal=True,
+        key="surf_cmp_tkr", label_visibility="collapsed",
+    )
+    for ticker in [surf_cmp_tkr]:  # one heavy surface at a time (perf)
+        if ticker not in all_data:
+            continue
+        data = all_data[ticker]
+        surface_df_today = data.get("surface_df")
+        spot_today = data.get("spot")
+
+        available = list_available_dates(ticker)
+        if not available:
+            st.caption(
+                f"{ticker}: no historical snapshots yet — "
+                "accumulates from `run_daily` runs forward."
+            )
+            continue
+
+        # Determine which horizon keys have enough stored history
+        anchor = available[0]
+        available_keys = ["live"]
+        for label, n in _horizon_options.items():
+            if label == "live":
+                continue
+            if nth_trading_day_back(ticker, anchor, n) is not None:
+                available_keys.append(label)
+
+        # Default: live vs 5d (or first available if 5d not ready)
+        default_b = "5d" if "5d" in available_keys else (available_keys[1] if len(available_keys) > 1 else "live")
+
+        col_a, col_b = st.columns([1, 1])
+        with col_a:
+            sel_a = st.selectbox(
+                f"{ticker} — Date A",
+                options=available_keys,
+                index=0,
+                key=f"compare_a_{ticker}",
+            )
+        with col_b:
+            default_b_idx = available_keys.index(default_b) if default_b in available_keys else 0
+            sel_b = st.selectbox(
+                f"{ticker} — Date B",
+                options=available_keys,
+                index=default_b_idx,
+                key=f"compare_b_{ticker}",
+            )
+
+        # Resolve A
+        if sel_a == "live":
+            surface_df_a = surface_df_today
+            spot_a = spot_today
+            label_a = anchor.strftime("%b %d") + " (live)"
+        else:
+            n_a = _horizon_options[sel_a]
+            date_a = nth_trading_day_back(ticker, anchor, n_a)
+            if date_a is None:
+                st.caption(f"{ticker}: insufficient history for {sel_a}")
+                continue
+            surface_df_a, spot_a = load_surface_snapshot(ticker, date_a)
+            if spot_a is None:
+                spot_a = spot_today
+            label_a = date_a.strftime("%b %d")
+
+        # Resolve B
+        if sel_b == "live":
+            surface_df_b = surface_df_today
+            spot_b = spot_today
+            label_b = "live"
+        else:
+            n_b = _horizon_options[sel_b]
+            date_b = nth_trading_day_back(ticker, anchor, n_b)
+            if date_b is None:
+                st.caption(f"{ticker}: insufficient history for {sel_b}")
+                continue
+            surface_df_b, spot_b = load_surface_snapshot(ticker, date_b)
+            if spot_b is None:
+                spot_b = spot_today
+            label_b = date_b.strftime("%b %d")
+
+        if surface_df_a is not None and not surface_df_a.empty:
+            diff = build_diff_payload(
+                surface_df_a, spot_a, surface_df_b, spot_b,
+                ticker=ticker, label_a=label_a, label_b=label_b,
+            )
+            if diff is not None:
+                components.html(render_diff_html(diff), height=640, scrolling=False)
+            else:
+                st.plotly_chart(
+                    plot_iv_change_surface(
+                        surface_df_a, surface_df_b,
+                        ticker, spot_a, spot_b,
+                        label_prior=label_b, label_today=label_a,
+                    ),
+                    width='stretch',
+                )
+            st.caption(
+                f"DTE range is bounded by the intersection of {label_a}'s and "
+                f"{label_b}'s data — if the surface is narrower than today's, "
+                "the prior snapshot's front expiry has rolled off."
+            )
+        else:
+            st.caption(f"{ticker}: insufficient data for comparison.")
+
+
+@st.fragment
+def _evolution_section(selected_all: list[str], all_data: dict) -> None:
+    st.caption(
+        "How the surface changes day by day — hit ▶ to play it like a video, "
+        "or drag the slider to scrub through stored sessions."
+    )
+    ec1, ec2 = st.columns([2, 2])
+    with ec1:
+        evo_tkr = st.radio(
+            "Evolution ticker", selected_all, horizontal=True,
+            key="evo_tkr", label_visibility="collapsed",
+        )
+    with ec2:
+        evo_mode_label = st.radio(
+            "Mode", ["Level (IV)", "Change vs ref"], horizontal=True,
+            key="evo_mode", label_visibility="collapsed",
+        )
+    evo_mode = "change" if evo_mode_label.startswith("Change") else "level"
+
+    # Headline data for the selected ticker (VRP / skew / term).
+    if evo_tkr in all_data:
+        data = all_data[evo_tkr]
+        s = data["summary"]
+        hist = _load_history_cached(evo_tkr, days=config.HISTORY_DAYS)
+
+        vrp_val, vrp_pct = s.get("vrp"), s.get("vrp_pct")
+        front_skew_val = s.get("front_skew")
+        ts = data.get("term_structure") or {}
+        front_iv, back_iv = ts.get("front_atm_iv"), ts.get("back_atm_iv")
+        term_spread_val = (front_iv - back_iv) if (front_iv is not None and back_iv is not None) else None
+
+        skew_series = (hist.dropna(subset=["front_skew"])["front_skew"].tolist()
+                       if (not hist.empty and "front_skew" in hist.columns) else [])
+        vrp_disp = f"{vrp_val:+.1f}pp" if vrp_val is not None else "—"
+        if vrp_pct is not None:
+            vrp_disp += f" ({vrp_pct}th %ile)"
+        skew_disp = f"{front_skew_val:+.1f}pp" if front_skew_val is not None else "—"
+        if len(skew_series) >= 5 and front_skew_val is not None:
+            skew_disp += f" ({int(percentileofscore(skew_series, front_skew_val))}th %ile)"
+        term_disp = f"{term_spread_val:+.1f}pp" if term_spread_val is not None else "—"
+
+        h1, h2, h3 = st.columns(3)
+        h1.metric("VRP (vol − RV20)", vrp_disp)
+        h2.metric("Front skew (25Δ RR)", skew_disp)
+        h3.metric("Term spread (front − back)", term_disp)
+
+    # The surface video: one frame per stored session, fixed color scale.
+    movie = _movie_payload_cached(evo_tkr, evo_mode)
+    if movie is not None:
+        st.caption(
+            f"{len(movie['frames'])} sessions · "
+            f"{movie['frames'][0]['date']} → {movie['frames'][-1]['date']}"
+        )
+        components.html(render_movie_html(movie), height=620, scrolling=False)
+    else:
+        st.info(
+            f"{evo_tkr}: need ≥2 stored sessions to animate — "
+            "accumulates from `run_daily` runs forward."
+        )
+
+
 if sel_index:
     render_regime_cards(sel_index, all_data)
 
@@ -363,205 +570,14 @@ if sel_index:
         sub_today, sub_compare = st.tabs(["Today", "Compare"])
 
         with sub_today:
-            surf_today_tkr = st.radio(
-                "Surface ticker", selected_all, horizontal=True,
-                key="surf_today_tkr", label_visibility="collapsed",
-            )
-            for ticker in [surf_today_tkr]:  # one heavy surface at a time (perf)
-                if ticker not in all_data:
-                    continue
-                data = all_data[ticker]
-                surface_df = data.get("surface_df")
-                spot = data.get("spot")
-                if surface_df is not None and not surface_df.empty:
-                    cov, rms, mx = _trust_readout_strings(data.get("surface_diag"))
-                    st.markdown(f"**{ticker}**  ·  {cov}  ·  {rms}  ·  {mx}")
-                    payload = build_surface_payload(surface_df, spot, ticker=ticker)
-                    if payload is not None:
-                        # Interactive: 3D surface + mouse-driven smile/term slices.
-                        # components.html embeds client-side plotly.js (smooth hover).
-                        components.html(render_surface_html(payload), height=640, scrolling=False)
-                    else:
-                        st.plotly_chart(
-                            plot_vol_surface(surface_df, ticker, spot=spot),
-                            width='stretch',
-                        )
-                else:
-                    st.caption(f"{ticker}: insufficient data for surface.")
+            _surface_today_section(selected_all, all_data)
 
         with sub_compare:
-            _horizon_options = {
-                "live": 0,
-                "1d": 1,
-                "5d": 5,
-                "10d": 10,
-                "20d": 20,
-                "30d": 30,
-                "60d": 60,
-            }
-            surf_cmp_tkr = st.radio(
-                "Compare ticker", selected_all, horizontal=True,
-                key="surf_cmp_tkr", label_visibility="collapsed",
-            )
-            for ticker in [surf_cmp_tkr]:  # one heavy surface at a time (perf)
-                if ticker not in all_data:
-                    continue
-                data = all_data[ticker]
-                surface_df_today = data.get("surface_df")
-                spot_today = data.get("spot")
-
-                available = list_available_dates(ticker)
-                if not available:
-                    st.caption(
-                        f"{ticker}: no historical snapshots yet — "
-                        "accumulates from `run_daily` runs forward."
-                    )
-                    continue
-
-                # Determine which horizon keys have enough stored history
-                anchor = available[0]
-                available_keys = ["live"]
-                for label, n in _horizon_options.items():
-                    if label == "live":
-                        continue
-                    if nth_trading_day_back(ticker, anchor, n) is not None:
-                        available_keys.append(label)
-
-                # Default: live vs 5d (or first available if 5d not ready)
-                default_b = "5d" if "5d" in available_keys else (available_keys[1] if len(available_keys) > 1 else "live")
-
-                col_a, col_b = st.columns([1, 1])
-                with col_a:
-                    sel_a = st.selectbox(
-                        f"{ticker} — Date A",
-                        options=available_keys,
-                        index=0,
-                        key=f"compare_a_{ticker}",
-                    )
-                with col_b:
-                    default_b_idx = available_keys.index(default_b) if default_b in available_keys else 0
-                    sel_b = st.selectbox(
-                        f"{ticker} — Date B",
-                        options=available_keys,
-                        index=default_b_idx,
-                        key=f"compare_b_{ticker}",
-                    )
-
-                # Resolve A
-                if sel_a == "live":
-                    surface_df_a = surface_df_today
-                    spot_a = spot_today
-                    label_a = anchor.strftime("%b %d") + " (live)"
-                else:
-                    n_a = _horizon_options[sel_a]
-                    date_a = nth_trading_day_back(ticker, anchor, n_a)
-                    if date_a is None:
-                        st.caption(f"{ticker}: insufficient history for {sel_a}")
-                        continue
-                    surface_df_a, spot_a = load_surface_snapshot(ticker, date_a)
-                    if spot_a is None:
-                        spot_a = spot_today
-                    label_a = date_a.strftime("%b %d")
-
-                # Resolve B
-                if sel_b == "live":
-                    surface_df_b = surface_df_today
-                    spot_b = spot_today
-                    label_b = "live"
-                else:
-                    n_b = _horizon_options[sel_b]
-                    date_b = nth_trading_day_back(ticker, anchor, n_b)
-                    if date_b is None:
-                        st.caption(f"{ticker}: insufficient history for {sel_b}")
-                        continue
-                    surface_df_b, spot_b = load_surface_snapshot(ticker, date_b)
-                    if spot_b is None:
-                        spot_b = spot_today
-                    label_b = date_b.strftime("%b %d")
-
-                if surface_df_a is not None and not surface_df_a.empty:
-                    diff = build_diff_payload(
-                        surface_df_a, spot_a, surface_df_b, spot_b,
-                        ticker=ticker, label_a=label_a, label_b=label_b,
-                    )
-                    if diff is not None:
-                        components.html(render_diff_html(diff), height=640, scrolling=False)
-                    else:
-                        st.plotly_chart(
-                            plot_iv_change_surface(
-                                surface_df_a, surface_df_b,
-                                ticker, spot_a, spot_b,
-                                label_prior=label_b, label_today=label_a,
-                            ),
-                            width='stretch',
-                        )
-                    st.caption(
-                        f"DTE range is bounded by the intersection of {label_a}'s and "
-                        f"{label_b}'s data — if the surface is narrower than today's, "
-                        "the prior snapshot's front expiry has rolled off."
-                    )
-                else:
-                    st.caption(f"{ticker}: insufficient data for comparison.")
+            _surface_compare_section(selected_all, all_data)
 
     # ── Evolution — the surface in motion ─────────────────────────────────────
     with tab_evolution:
-        st.caption(
-            "How the surface changes day by day — hit ▶ to play it like a video, "
-            "or drag the slider to scrub through stored sessions."
-        )
-        ec1, ec2 = st.columns([2, 2])
-        with ec1:
-            evo_tkr = st.radio(
-                "Evolution ticker", selected_all, horizontal=True,
-                key="evo_tkr", label_visibility="collapsed",
-            )
-        with ec2:
-            evo_mode_label = st.radio(
-                "Mode", ["Level (IV)", "Change vs ref"], horizontal=True,
-                key="evo_mode", label_visibility="collapsed",
-            )
-        evo_mode = "change" if evo_mode_label.startswith("Change") else "level"
-
-        # Headline data for the selected ticker (VRP / skew / term).
-        if evo_tkr in all_data:
-            data = all_data[evo_tkr]
-            s = data["summary"]
-            hist = _load_history_cached(evo_tkr, days=config.HISTORY_DAYS)
-
-            vrp_val, vrp_pct = s.get("vrp"), s.get("vrp_pct")
-            front_skew_val = s.get("front_skew")
-            ts = data.get("term_structure") or {}
-            front_iv, back_iv = ts.get("front_atm_iv"), ts.get("back_atm_iv")
-            term_spread_val = (front_iv - back_iv) if (front_iv is not None and back_iv is not None) else None
-
-            skew_series = (hist.dropna(subset=["front_skew"])["front_skew"].tolist()
-                           if (not hist.empty and "front_skew" in hist.columns) else [])
-            vrp_disp = f"{vrp_val:+.1f}pp" if vrp_val is not None else "—"
-            if vrp_pct is not None:
-                vrp_disp += f" ({vrp_pct}th %ile)"
-            skew_disp = f"{front_skew_val:+.1f}pp" if front_skew_val is not None else "—"
-            if len(skew_series) >= 5 and front_skew_val is not None:
-                skew_disp += f" ({int(percentileofscore(skew_series, front_skew_val))}th %ile)"
-            term_disp = f"{term_spread_val:+.1f}pp" if term_spread_val is not None else "—"
-
-            h1, h2, h3 = st.columns(3)
-            h1.metric("VRP (vol − RV20)", vrp_disp)
-            h2.metric("Front skew (25Δ RR)", skew_disp)
-            h3.metric("Term spread (front − back)", term_disp)
-
-        # The surface video: one frame per stored session, fixed color scale.
-        movie = _movie_payload_cached(evo_tkr, evo_mode)
-        if movie is not None:
-            st.caption(
-                f"{len(movie['frames'])} sessions · "
-                f"{movie['frames'][0]['date']} → {movie['frames'][-1]['date']}"
-            )
-            components.html(render_movie_html(movie), height=620, scrolling=False)
-        else:
-            st.info(
-                f"{evo_tkr}: need ≥2 stored sessions to animate — "
-                "accumulates from `run_daily` runs forward."
-            )
+        _evolution_section(selected_all, all_data)
 
     # ── Positioning ───────────────────────────────────────────────────────────
     with tab_positioning:
