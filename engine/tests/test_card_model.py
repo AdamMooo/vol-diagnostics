@@ -4,7 +4,14 @@ from __future__ import annotations
 import math
 import pytest
 
-from engine.report.card_model import CardField, build_card_fields, build_card_read, CardRead
+from engine.report.card_model import (
+    CardField,
+    CardRead,
+    build_card_fields,
+    build_card_read,
+    compact_primary_fields,
+    split_compact_fields,
+)
 from engine import config
 
 
@@ -395,3 +402,39 @@ class TestExpectedMoveFallback:
         s["em_dte"] = None
         v = next(f for f in build_card_fields(s, None) if f.label == "IV30 / EM").value
         assert v.endswith("· —")
+
+class TestCompactCardContract:
+    def test_compact_primary_fields_exact_six(self):
+        labels = [f.label for f in compact_primary_fields(build_card_fields(FULL_SUMMARY, None))]
+        assert labels == [
+            "Spot",
+            "IV30 / EM",
+            "VRP",
+            "Net GEX",
+            "Skew (25Δ)",
+            "25Δ Fly",
+        ]
+
+    def test_split_compact_fields_returns_primary_then_detail(self):
+        primary, detail = split_compact_fields(build_card_fields(FULL_SUMMARY, None))
+        assert len(primary) == 6
+        assert len(primary) + len(detail) == len(EXPECTED_LABELS)
+
+
+class TestTrustTagContract:
+    def test_market_model_oi_smile_tags(self):
+        by = {f.label: f for f in build_card_fields(FULL_SUMMARY, None)}
+        assert by["Spot"].trust_tag == "market"
+        assert by["Net GEX"].trust_tag == "model"
+        assert by["OI Call Wall (raw OI)"].trust_tag == "oi"
+        assert by["Skew (25Δ)"].trust_tag == "smile"
+
+    def test_vrp_tag_building_when_sample_thin(self):
+        s = dict(FULL_SUMMARY, vrp_pct=70, vrp_pct_n=80)
+        f = next(x for x in build_card_fields(s, None) if x.label == "VRP")
+        assert f.trust_tag == "building"
+
+    def test_vrp_tag_history_when_lookback_met(self):
+        s = dict(FULL_SUMMARY, vrp_pct=70, vrp_pct_n=config.VRP_PERCENTILE_LOOKBACK)
+        f = next(x for x in build_card_fields(s, None) if x.label == "VRP")
+        assert f.trust_tag == "history"
