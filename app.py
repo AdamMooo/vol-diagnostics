@@ -591,9 +591,11 @@ if sel_index:
     # ── Positioning ───────────────────────────────────────────────────────────
     with tab_positioning:
         st.markdown(
-            "OI is assumption-free — no dealer model needed. "
-            "GEX-derived levels (γ-flip, walls) assume dealers net short all options "
-            "(Garleanu et al. 2009) and are labelled as model constructs.",
+            f"Positioning defaults to a **{config.GEX_PRIMARY_DTE} DTE primary dealer-impact lens**. "
+            f"Broader ≤{config.GEX_MAX_DTE} DTE remains secondary context. "
+            "OI is assumption-free (no dealer model needed), while GEX-derived levels "
+            "(γ-flip, walls) are model constructs under the dealer net-short assumption "
+            "(Garleanu et al. 2009).",
             unsafe_allow_html=False,
         )
 
@@ -693,8 +695,10 @@ if sel_index:
                     st.caption(f"{ticker}: OI by expiry data unavailable.")
                 else:
                     st.caption(
-                        "Computed from the filtered options set used for positioning "
-                        "(OI >= 100, DTE <= 90, IV <= 300%, 0DTE excluded). OI is T-1."
+                        f"Table-first OI context from the filtered positioning set "
+                        f"(OI >= 100, DTE <= {config.GEX_MAX_DTE}, IV <= 300%, 0DTE excluded). "
+                        f"Primary narrative lens: first {config.GEX_PRIMARY_DTE} DTE; broader tenor remains secondary context. "
+                        "OI is T-1, and 5d share context is shown when history exists."
                     )
                     prior = prior_oi_snapshot(ticker, date.today())
                     prior_oi_map = {}
@@ -827,5 +831,8 @@ No event study, base rate, or backtest is shown — the live history is too shor
 for inference.
         """
     )
+
+
+
 
 

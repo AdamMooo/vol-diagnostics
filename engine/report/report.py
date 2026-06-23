@@ -20,6 +20,7 @@ from engine.report.card_model import (
     _expected_1d_range_pct, _pin_location, _signed_color, format_oi_impact,
 )
 from engine.data.validation import load_prior_snapshot
+from engine.data.oi_history import load_oi_history
 
 # Sign-of-net-gex visual cue for the accent bar — reads from shared palette.
 REGIME_COLOR = {
@@ -169,6 +170,34 @@ def _ticker_card(r: dict) -> str:
     )
 
 
+
+def _add_oi_history_context(expiry_oi_df: "pd.DataFrame | None", ticker: str) -> "pd.DataFrame | None":
+    """Attach 5d OI-share context columns when history is available."""
+    if expiry_oi_df is None:
+        return None
+    try:
+        if expiry_oi_df.empty:
+            return expiry_oi_df
+    except AttributeError:
+        return expiry_oi_df
+
+    enriched = expiry_oi_df.copy()
+    oi_hist = load_oi_history(ticker, days=5)
+    if oi_hist.empty or not {"expiry", "pct_of_total"}.issubset(set(oi_hist.columns)):
+        return enriched
+
+    avg_share = oi_hist.groupby("expiry", dropna=True)["pct_of_total"].mean()
+    avg_share_map = {str(k): float(v) for k, v in avg_share.items()}
+
+    enriched["avg_pct_of_total_5d"] = [
+        avg_share_map.get(str(expiry))
+        for expiry in enriched["expiry"].tolist()
+    ]
+    enriched["vs_avg_pct_of_total_5d"] = [
+        (float(pct) - avg_share_map[str(expiry)]) if str(expiry) in avg_share_map else None
+        for expiry, pct in zip(enriched["expiry"].tolist(), enriched["pct_of_total"].tolist())
+    ]
+    return enriched
 # ── OI by expiry table ────────────────────────────────────────────────
 
 def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
@@ -187,9 +216,6 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
 
     top3 = expiry_oi_df.head(3)
 
-    call_color = config.PALETTE["call"]
-    put_color = config.PALETTE["put"]
-
     th_style = (
         f'style="{_SANS}padding:4px 12px 4px 0;font-size:11px;'
         f'color:{LABEL_GRAY};letter-spacing:0.5px;text-transform:uppercase;'
@@ -205,6 +231,9 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
         f'<th {th_style}>Expiry</th>'
         f'<th {th_style}>DTE</th>'
         f'<th {th_style}>OI</th>'
+        f'<th {th_style}>OI Share</th>'
+        f'<th {th_style}>5d Avg Share</th>'
+        f'<th {th_style}>vs 5d Avg</th>'
         f'<th {th_style}>P:C Ratio</th>'
         f'<th {th_style}>Impact</th>'
         f'</tr>'
@@ -212,6 +241,20 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
 
     def _k(v: float) -> str:
         return f"{v/1000:.0f}K"
+
+    def _fmt_pct(v) -> str:
+        try:
+            fv = float(v)
+            return f"{fv:.1f}%"
+        except Exception:
+            return "—"
+
+    def _fmt_pp(v) -> str:
+        try:
+            fv = float(v)
+            return f"{fv:+.1f}pp"
+        except Exception:
+            return "—"
 
     data_rows = ""
     for _, row in top3.iterrows():
@@ -231,6 +274,9 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
             f'<td {td_style}>{expiry_str}</td>'
             f'<td {td_style}>{dte}</td>'
             f'<td {td_style}>{_k(row["oi"])}</td>'
+            f'<td {td_style}>{_fmt_pct(row.get("pct_of_total"))}</td>'
+            f'<td {td_style}>{_fmt_pct(row.get("avg_pct_of_total_5d"))}</td>'
+            f'<td {td_style}>{_fmt_pp(row.get("vs_avg_pct_of_total_5d"))}</td>'
             f'<td {td_style}>{row["put_call_ratio"]:.2f}</td>'
             f'<td style="{_SANS}padding:4px 12px 4px 0;font-size:12px;">{impact}</td>'
             f'</tr>'
@@ -246,7 +292,7 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
     label = (
         f'<div style="{_SANS}font-size:11px;color:{LABEL_GRAY};'
         f'letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">'
-        f'OI IMPACT BY EXPIRY</div>'
+        f'OI IMPACT BY EXPIRY · 14 DTE primary (≤{config.GEX_MAX_DTE} DTE context)</div>'
     )
 
     return (
@@ -255,7 +301,6 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
         f'{label}{table}'
         f'</div>'
     )
-
 
 # ── Section header ────────────────────────────────────────────────────
 
@@ -377,7 +422,7 @@ def build_email(
         blocks = []
         for r in index_results:
             card_html = _ticker_card(r)
-            oi_table = _oi_summary_table(oi_data.get(r["ticker"]))
+            oi_table = _oi_summary_table(_add_oi_history_context(oi_data.get(r["ticker"]), r["ticker"]))
             blocks.append(card_html + (oi_table or ""))
         cards = "\n".join(blocks)
     else:
@@ -415,7 +460,7 @@ def build_email(
         'positioning, not live.<br>'
         '&bull; <b>OI views use the filtered positioning set</b> (OI ≥ 100, IV ≤ 300%, DTE ≤ 90, '
         '0DTE excluded).<br>'
-        '&bull; <b>Positioning is ≤90 DTE</b> (the dealer-relevant tenor); the long-dated '
+        '&bull; <b>Positioning read is 14 DTE primary, ≤90 DTE secondary</b>; the long-dated '
         'call tail is excluded.<br>'
         '&bull; <b>Sign &amp; order of magnitude are load-bearing; absolute GEX is not</b> — '
         'other sources publish very different numbers on the same chain.<br>'
@@ -465,6 +510,10 @@ def build_email(
 </table>
 </body></html>
 """
+
+
+
+
 
 
 
