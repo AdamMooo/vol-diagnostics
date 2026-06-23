@@ -111,3 +111,13 @@ class TestExpiryOiTotalZero:
         result = expiry_oi(df)
         if not result.empty:
             assert (result["pct_of_total"] == 0).all()
+
+class TestExpiryOiPrimaryTenor:
+    def test_respects_explicit_max_dte_argument(self):
+        """Caller can request a narrower tenor (e.g., primary 14 DTE lens)."""
+        df = _make_chain_df(3, dte_per_expiry=7.0)  # DTEs: 7, 14, 21
+        result = expiry_oi(df, max_dte=14)
+        assert not result.empty
+        assert (result["dte"] <= 14).all()
+        assert len(result) == 2
+

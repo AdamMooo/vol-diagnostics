@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import unittest.mock as mock
 import pandas as pd
-import pytest
 
 from engine import compute as compute_mod
+from engine import config
 
 
 def _make_mock_result(fake_oi_df=None):
@@ -59,13 +59,25 @@ def _make_mock_result(fake_oi_df=None):
         "pct_of_total": [100.0],
         "put_call_ratio": [0.53],
     })
+    fake_expiry_oi_primary_df = pd.DataFrame({
+        "expiry": ["2024-06-14"],
+        "dte": [10.0],
+        "call_oi": [120.0],
+        "put_oi": [70.0],
+        "oi": [190.0],
+        "pct_of_total": [100.0],
+        "put_call_ratio": [0.58],
+    })
+
+    def _expiry_oi_side_effect(_df, max_dte=None):
+        return fake_expiry_oi_primary_df if max_dte == config.GEX_PRIMARY_DTE else fake_expiry_oi_df
 
     with mock.patch.object(compute_mod, "load_chain", return_value=fake_snapshot), \
          mock.patch.object(compute_mod, "add_greeks", return_value=fake_df), \
          mock.patch.object(compute_mod, "compute_gex", return_value=fake_df), \
          mock.patch.object(compute_mod, "strike_gex", return_value=fake_s_df), \
          mock.patch.object(compute_mod, "strike_oi", return_value=fake_oi_df), \
-         mock.patch.object(compute_mod, "expiry_oi", return_value=fake_expiry_oi_df), \
+         mock.patch.object(compute_mod, "expiry_oi", side_effect=_expiry_oi_side_effect), \
          mock.patch.object(compute_mod, "_get_risk_free_rate", return_value=0.05), \
          mock.patch.object(compute_mod, "gamma_profile", return_value=fake_p_df), \
          mock.patch.object(compute_mod, "vol_surface_data", return_value=fake_surface_df), \
@@ -129,3 +141,15 @@ class TestIsTopDecile:
         result = _make_mock_result(fake_oi_df=fake_oi_df_with_match)
         # The single strike has oi=1500 > 0, so quantile(0.9) = 1500, 1500>=1500 is True
         assert result["s_df"]["is_top_decile"].any()
+
+
+class TestPrimaryTenorWiring:
+    def test_return_dict_has_expiry_oi_primary_df_key(self):
+        result = _make_mock_result()
+        assert "expiry_oi_primary_df" in result
+
+    def test_summary_includes_primary_and_secondary_tenor_caps(self):
+        result = _make_mock_result()
+        summary = result["summary"]
+        assert summary["positioning_primary_dte_max"] == config.GEX_PRIMARY_DTE
+        assert summary["positioning_secondary_dte_max"] == config.GEX_MAX_DTE
