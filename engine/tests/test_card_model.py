@@ -16,10 +16,16 @@ FULL_SUMMARY = {
     "spot": 530.0,
     "price_change_pct": 0.8,
     "iv30": 18.5,
+    "expected_move_pct": 2.1,
+    "em_expiry": "2026-06-27",
+    "em_dte": 5,
     "zero_gamma_level": 525.0,
     "net_gex": 1.20e9,
     "delta_hedge_flow": 2_500_000.0,
     "front_skew": 3.8,
+    "butterfly": 0.8,
+    "butterfly_pct": 74,
+    "butterfly_pct_n": 252,
     "vrp": 2.7,
     "call_wall": 545.0,
     "put_wall": 515.0,
@@ -47,12 +53,13 @@ PRIOR_SUMMARY = {
 EXPECTED_LABELS = [
     "Spot",
     "Day %",
-    "IV30 / 1d σ",
+    "IV30 / EM",
     "γ-flip",
     "vs γ-flip",
     "Net GEX",
     "Hedge Shares/$1",
     "Skew (25Δ)",
+    "25Δ Fly",
     "VRP",
     "Call Wall (model)",
     "Put Wall (model)",
@@ -99,8 +106,12 @@ class TestBuildCardFieldsNoPrior:
         assert labels == EXPECTED_LABELS
 
     def test_iv30_no_delta_suffix(self):
-        v = self.by_label["IV30 / 1d σ"].value
+        v = self.by_label["IV30 / EM"].value
         assert "(+" not in v and "(-" not in v
+
+    def test_iv30_em_contains_expiry_and_dte(self):
+        v = self.by_label["IV30 / EM"].value
+        assert "±2.1% by Jun 27 (5d)" in v
 
     def test_net_gex_no_delta_suffix(self):
         v = self.by_label["Net GEX"].value
@@ -109,6 +120,14 @@ class TestBuildCardFieldsNoPrior:
     def test_front_skew_no_delta_suffix(self):
         v = self.by_label["Skew (25Δ)"].value
         assert "(" not in v
+
+    def test_fly_full_lookback_format(self):
+        v = self.by_label["25Δ Fly"].value
+        assert v == "+0.8pp · 74th %ile"
+
+    def test_range_has_no_arrow_style_cues(self):
+        v = self.by_label["Range"].value
+        assert "→" not in v and "←" not in v
 
     def test_vrp_formatted_value(self):
         v = self.by_label["VRP"].value
@@ -149,7 +168,7 @@ class TestBuildCardFieldsWithPrior:
         assert "(+0.8)" in v
 
     def test_iv30_delta_positive(self):
-        v = self.by_label["IV30 / 1d σ"].value
+        v = self.by_label["IV30 / EM"].value
         # delta = 18.5 - 18.0 = +0.5
         assert "(+0.5)" in v
 
@@ -167,21 +186,21 @@ class TestDeltaSuffixNaNGuard:
         prior = dict(PRIOR_SUMMARY)
         prior["iv30"] = float("nan")
         fields = build_card_fields(FULL_SUMMARY, prior)
-        iv30_field = next(f for f in fields if f.label == "IV30 / 1d σ")
+        iv30_field = next(f for f in fields if f.label == "IV30 / EM")
         assert "(+" not in iv30_field.value
         assert "(-" not in iv30_field.value
 
     def test_iv30_missing_key_prior_no_delta(self):
         prior = {k: v for k, v in PRIOR_SUMMARY.items() if k != "iv30"}
         fields = build_card_fields(FULL_SUMMARY, prior)
-        iv30_field = next(f for f in fields if f.label == "IV30 / 1d σ")
+        iv30_field = next(f for f in fields if f.label == "IV30 / EM")
         assert "(+" not in iv30_field.value
 
     def test_no_fabricated_zero_delta(self):
         prior = dict(PRIOR_SUMMARY)
         prior["iv30"] = None
         fields = build_card_fields(FULL_SUMMARY, prior)
-        iv30_field = next(f for f in fields if f.label == "IV30 / 1d σ")
+        iv30_field = next(f for f in fields if f.label == "IV30 / EM")
         assert "(+0.0)" not in iv30_field.value
         assert "(+" not in iv30_field.value
 
@@ -344,3 +363,35 @@ class TestCardReadOtherChips:
         r = build_card_read(self.BASE)
         assert all(isinstance(t, str) and sgn in ("positive", "negative", "neutral")
                    for t, sgn in r.chips)
+
+
+class TestFlyCardField:
+    def test_fly_cold_start_label(self):
+        s = dict(FULL_SUMMARY)
+        s["butterfly_pct"] = 74
+        s["butterfly_pct_n"] = 42
+        v = next(f for f in build_card_fields(s, None) if f.label == "25Δ Fly").value
+        assert v == "+0.8pp · 74th %ile · 42 sessions (building to 252)"
+
+    def test_fly_below_minimum_hides_percentile(self):
+        s = dict(FULL_SUMMARY)
+        s["butterfly_pct"] = None
+        s["butterfly_pct_n"] = config.BUTTERFLY_PERCENTILE_MIN_SESSIONS - 1
+        v = next(f for f in build_card_fields(s, None) if f.label == "25Δ Fly").value
+        assert v == "+0.8pp"
+
+    def test_fly_missing_scalar_fallback(self):
+        s = dict(FULL_SUMMARY)
+        s["butterfly"] = None
+        v = next(f for f in build_card_fields(s, None) if f.label == "25Δ Fly").value
+        assert v == "—"
+
+
+class TestExpectedMoveFallback:
+    def test_em_missing_fields_shows_dash(self):
+        s = dict(FULL_SUMMARY)
+        s["expected_move_pct"] = None
+        s["em_expiry"] = None
+        s["em_dte"] = None
+        v = next(f for f in build_card_fields(s, None) if f.label == "IV30 / EM").value
+        assert v.endswith("· —")

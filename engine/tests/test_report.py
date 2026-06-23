@@ -321,13 +321,13 @@ def test_oi_summary_table_contains_section_label():
     df = _make_expiry_oi_df(3)
     result = _oi_summary_table(df)
     assert result is not None
-    assert "OI BY EXPIRY" in result
+    assert "OI IMPACT BY EXPIRY" in result
 
 
 def test_build_email_oi_data_omitted():
     """build_email without oi_data must not include OI BY EXPIRY section."""
     html = build_email([_minimal_result()])
-    assert "OI BY EXPIRY" not in html
+    assert "OI IMPACT BY EXPIRY" not in html
 
 
 def test_build_email_oi_data_included():
@@ -335,4 +335,20 @@ def test_build_email_oi_data_included():
     df = _make_expiry_oi_df(5)
     oi_data = {"SPY": df}
     html = build_email([_minimal_result()], oi_data=oi_data)
-    assert "OI BY EXPIRY" in html
+    assert "OI IMPACT BY EXPIRY" in html
+
+
+def test_oi_summary_table_contains_impact_columns():
+    df = _make_expiry_oi_df(3)
+    result = _oi_summary_table(df)
+    assert result is not None
+    for hdr in ("Expiry", "DTE", "OI", "P:C Ratio", "Impact"):
+        assert hdr in result
+
+
+def test_oi_summary_table_impact_language_from_concentration():
+    df = _make_expiry_oi_df(3)
+    df.loc[0, "pct_of_total"] = 45.0
+    result = _oi_summary_table(df)
+    assert result is not None
+    assert "high concentration" in result.lower()
