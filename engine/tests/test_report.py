@@ -352,3 +352,20 @@ def test_oi_summary_table_impact_language_from_concentration():
     result = _oi_summary_table(df)
     assert result is not None
     assert "high concentration" in result.lower()
+
+def test_ticker_card_uses_compact_split_helper():
+    import inspect
+    import engine.report.report as report_mod
+    src = inspect.getsource(report_mod._ticker_card)
+    assert "split_compact_fields" in src
+
+
+def test_ticker_card_shows_trust_tags_for_compact_rows():
+    r = _minimal_result(vrp=2.7)
+    r["vrp_pct"] = 70
+    r["vrp_pct_n"] = 80
+    html = _ticker_card(r)
+    assert "market" in html
+    assert "building" in html
+    assert "model" in html
+    assert "smile" in html
