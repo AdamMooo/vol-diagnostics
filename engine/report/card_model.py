@@ -220,6 +220,43 @@ class CardField:
     label: str
     value: str
     sign: str  # "positive" | "negative" | "neutral"
+    trust_tag: str = "model"
+
+
+COMPACT_PRIMARY_LABELS = (
+    "Spot",
+    "IV30 / EM",
+    "VRP",
+    "Net GEX",
+    "Skew (25Δ)",
+    "25Δ Fly",
+)
+
+
+def resolve_trust_tag(label: str, today_summary: dict | None = None) -> str:
+    summary = today_summary or {}
+    if label in {"Spot", "Day %", "IV30 / EM"}:
+        return "market"
+    if label == "VRP":
+        vrp_n = summary.get("vrp_pct_n") or 0
+        return "history" if vrp_n >= config.VRP_PERCENTILE_LOOKBACK else "building"
+    if "raw OI" in label:
+        return "oi"
+    if label in {"Skew (25Δ)", "25Δ Fly"}:
+        return "smile"
+    return "model"
+
+
+def compact_primary_fields(fields: list[CardField]) -> list[CardField]:
+    by_label = {f.label: f for f in fields}
+    return [by_label[label] for label in COMPACT_PRIMARY_LABELS if label in by_label]
+
+
+def split_compact_fields(fields: list[CardField]) -> tuple[list[CardField], list[CardField]]:
+    primary = compact_primary_fields(fields)
+    primary_labels = {f.label for f in primary}
+    detail = [f for f in fields if f.label not in primary_labels]
+    return primary, detail
 
 
 # ── build_card_fields ─────────────────────────────────────────────────────
@@ -364,8 +401,10 @@ def build_card_fields(
         ),
     ]
 
-    return fields
-
+    return [
+        dataclasses.replace(field, trust_tag=resolve_trust_tag(field.label, s))
+        for field in fields
+    ]
 
 # ── Card read (the "so what") ─────────────────────────────────────────────
 
@@ -446,3 +485,5 @@ def build_card_read(
                      else ("dealers amplifying", "negative"))
 
     return CardRead(chips=chips, lean=_lean_text(vrp_pct if vrp_ok else None, skew_pct))
+
+
