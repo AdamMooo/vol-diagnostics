@@ -108,3 +108,25 @@ def list_oi_dates(ticker: str) -> list[datetime.date]:
     except Exception as exc:
         print(f"[oi_history] list_oi_dates failed for {ticker}: {exc}")
         return []
+
+
+def load_oi_history(ticker: str, days: int | None = None) -> pd.DataFrame:
+    """Load per-expiry OI history for ticker.
+
+    Returns the full store sorted by date descending (then expiry ascending), or only
+    the most recent N sessions when days is provided. Returns empty DataFrame on
+    missing store or any read error.
+    """
+    path = _store_path(ticker)
+    if not path.exists():
+        return pd.DataFrame()
+    try:
+        hist = pd.read_parquet(path)
+        hist["date"] = pd.to_datetime(hist["date"]).dt.date
+        if days is not None:
+            keep_dates = sorted(hist["date"].unique(), reverse=True)[:days]
+            hist = hist[hist["date"].isin(keep_dates)]
+        return hist.sort_values(["date", "expiry"], ascending=[False, True]).reset_index(drop=True)
+    except Exception as exc:
+        print(f"[oi_history] load_oi_history failed for {ticker}: {exc}")
+        return pd.DataFrame()
