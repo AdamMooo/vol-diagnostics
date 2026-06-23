@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-from engine.vol.vol_metrics import compute_skew_25d, compute_term_structure, compute_rv20, compute_vrp
+from engine.vol.vol_metrics import compute_model_free_em, compute_skew_25d, compute_term_structure, compute_rv20, compute_vrp
 
 
 # ---------------------------------------------------------------------------
@@ -145,3 +145,59 @@ class TestComputeVrp:
     def test_vrp_none_propagation(self):
         assert compute_vrp(None, 20.0) is None
         assert compute_vrp(25.0, None) is None
+
+
+class TestComputeModelFreeEm:
+    def test_model_free_em_positive_output(self):
+        rows = [
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "call", "strike": 95.0, "bid": 6.0, "ask": 6.4},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "put", "strike": 95.0, "bid": 0.8, "ask": 1.0},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "call", "strike": 100.0, "bid": 2.8, "ask": 3.2},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "put", "strike": 100.0, "bid": 2.7, "ask": 3.1},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "call", "strike": 105.0, "bid": 0.9, "ask": 1.1},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "put", "strike": 105.0, "bid": 5.5, "ask": 5.9},
+        ]
+        out = compute_model_free_em(pd.DataFrame(rows), spot=100.0, front_expiry="2026-07-17")
+        assert out["expected_move_pct"] is not None
+        assert out["expected_move_abs"] is not None
+        assert out["expected_move_pct"] > 0
+        assert out["expected_move_abs"] > 0
+        assert out["em_expiry"] == "2026-07-17"
+        assert out["em_dte"] == 10
+
+    def test_model_free_em_excludes_invalid_mids(self):
+        rows = [
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "call", "strike": 95.0, "bid": 6.0, "ask": 6.4},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "put", "strike": 95.0, "bid": 0.8, "ask": 1.0},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "call", "strike": 100.0, "bid": 2.8, "ask": 3.2},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "put", "strike": 100.0, "bid": 2.7, "ask": 3.1},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "call", "strike": 105.0, "bid": 0.0, "ask": 0.0},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "put", "strike": 105.0, "bid": 5.5, "ask": 5.9},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "call", "strike": 110.0, "bid": 0.1, "ask": 0.2},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "put", "strike": 110.0, "bid": 10.1, "ask": 10.4},
+        ]
+        out = compute_model_free_em(pd.DataFrame(rows), spot=100.0, front_expiry="2026-07-17")
+        assert out["expected_move_pct"] is not None
+
+    def test_model_free_em_requires_three_valid_strikes(self):
+        rows = [
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "call", "strike": 95.0, "bid": 6.0, "ask": 6.4},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "put", "strike": 95.0, "bid": 0.8, "ask": 1.0},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "call", "strike": 100.0, "bid": 2.8, "ask": 3.2},
+            {"expiry": "2026-07-17", "T_years": 10/365, "type": "put", "strike": 100.0, "bid": 2.7, "ask": 3.1},
+        ]
+        out = compute_model_free_em(pd.DataFrame(rows), spot=100.0, front_expiry="2026-07-17")
+        assert out == {
+            "expected_move_pct": None,
+            "expected_move_abs": None,
+            "em_expiry": "2026-07-17",
+            "em_dte": 10,
+        }
+
+
+class TestSkewAtmAnchor:
+    def test_skew_bucket_includes_atm_iv(self, chain_df):
+        result = compute_skew_25d(chain_df, spot=500.0)
+        assert "atm_iv" in result["front_month"]
+        assert "atm_iv" in result["second_month"]
+        assert result["front_month"]["atm_iv"] == pytest.approx(18.0)
