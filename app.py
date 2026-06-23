@@ -760,10 +760,20 @@ if sel_index:
             "GEX-derived levels may be less reliable due to thinner dealer positioning in small-caps."
         )
 
-# ── Methodology & assumptions (consolidated) ──────────────────────────────────
-with st.expander("Methodology & Assumptions  ·  read before trading off this", expanded=False):
-    st.markdown(
-        """
+# ── Methodology & assumptions (quick/deep) ───────────────────────────────────
+def _methods_quick_bullets() -> list[str]:
+    return [
+        "Quick assumptions (default): descriptive diagnostics only — no forecast or trade signal.",
+        "Data latency: quotes are delayed and OI is prior-session (T-1); positioning is not live tape.",
+        "Positioning lens: 14 DTE primary dealer-impact framing, with ≤90 DTE as secondary context.",
+        "VRP series: CBOE index-vol close minus RV20×100; scalar and percentile use the same history.",
+    ]
+
+
+def _methods_deep_markdown() -> str:
+    return """
+**Deep methodology details**
+
 **Data source.** Free CBOE delayed quotes JSON (no auth, no OPRA tick feed).
 Spot, IV, and chain mids are ~15-min delayed. **OI reflects prior session close**
 (OCC settles contracts end-of-day; this is true for all data vendors including
@@ -829,8 +839,16 @@ revisiting the dealer positioning assumption per ticker.
 **No realized-vol attribution.** This is a positioning monitor, not a forecaster.
 No event study, base rate, or backtest is shown — the live history is too short
 for inference.
-        """
-    )
+    """
+
+
+with st.expander("Methodology & Assumptions", expanded=False):
+    st.markdown("**Quick assumptions (default)**")
+    for bullet in _methods_quick_bullets():
+        st.markdown(f"- {bullet}")
+
+    with st.expander("Deep methodology details", expanded=False):
+        st.markdown(_methods_deep_markdown())
 
 
 
