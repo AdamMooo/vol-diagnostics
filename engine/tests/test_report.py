@@ -369,3 +369,20 @@ def test_ticker_card_shows_trust_tags_for_compact_rows():
     assert "building" in html
     assert "model" in html
     assert "smile" in html
+
+def test_oi_summary_table_shows_history_context_columns_when_present():
+    df = _make_expiry_oi_df(3)
+    df["avg_pct_of_total_5d"] = [18.0, 21.5, 20.0]
+    df["vs_avg_pct_of_total_5d"] = [2.0, -1.5, 0.0]
+    result = _oi_summary_table(df)
+    assert result is not None
+    for hdr in ("OI Share", "5d Avg Share", "vs 5d Avg"):
+        assert hdr in result
+    assert "+2.0pp" in result
+    assert "-1.5pp" in result
+
+
+def test_oi_summary_table_mentions_primary_14dte_lens():
+    result = _oi_summary_table(_make_expiry_oi_df(3))
+    assert result is not None
+    assert "14 DTE primary" in result
