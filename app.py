@@ -28,6 +28,7 @@ from scipy.stats import percentileofscore
 from engine.data.surface_history import (
     load_surface_snapshot, list_available_dates, nth_trading_day_back,
 )
+from engine.surface.surface_evolution import load_evolution
 
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
@@ -171,6 +172,47 @@ def _movie_payload_cached(ticker: str, mode: str = "level") -> dict | None:
         if sdf is not None and not sdf.empty and sp is not None:
             snaps.append((d.strftime("%b %d"), sdf, sp))
     return build_movie_payload(snaps, ticker=ticker, mode=mode)
+
+
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _latest_evolution_row_cached(ticker: str) -> dict | None:
+    evo = load_evolution(ticker, horizon=5, days=400)
+    if evo.empty:
+        return None
+    cols = ["level", "rms", "skew_change", "term_change"]
+    latest = evo.sort_values("date").tail(1)
+    if latest.empty:
+        return None
+    row = latest.iloc[0]
+    out = {k: row[k] if k in latest.columns else None for k in cols}
+    return out
+
+
+def _evolution_largest_move_summary(metrics: dict | None) -> str:
+    import math
+    if not metrics:
+        return "What changed most today: insufficient history yet (need stored sessions)."
+
+    defs = {
+        "level": ("surface level", "rose", "fell"),
+        "rms": ("surface dispersion", "widened", "compressed"),
+        "skew_change": ("front skew", "steepened", "flattened"),
+        "term_change": ("term slope", "steepened", "flattened"),
+    }
+    ranked: list[tuple[float, str, float]] = []
+    for key in ("level", "rms", "skew_change", "term_change"):
+        v = metrics.get(key)
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            continue
+        ranked.append((abs(float(v)), key, float(v)))
+
+    if not ranked:
+        return "What changed most today: insufficient history yet (need stored sessions)."
+
+    _, key, value = max(ranked, key=lambda x: x[0])
+    label, up_word, down_word = defs[key]
+    direction = up_word if value >= 0 else down_word
+    return f"What changed most today: {label} {direction} ({value:+.2f}pp)."
 
 
 def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
@@ -524,6 +566,9 @@ def _evolution_section(selected_all: list[str], all_data: dict) -> None:
             key="evo_mode", label_visibility="collapsed",
         )
     evo_mode = "change" if evo_mode_label.startswith("Change") else "level"
+
+    summary_line = _evolution_largest_move_summary(_latest_evolution_row_cached(evo_tkr))
+    st.caption(summary_line)
 
     # Headline data for the selected ticker (VRP / skew / term).
     if evo_tkr in all_data:

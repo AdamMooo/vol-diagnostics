@@ -314,6 +314,30 @@ def _section_header(label: str) -> str:
 
 # ── Evolution section ─────────────────────────────────────────────────
 
+def _evolution_largest_move_line(ticker: str, metrics: dict) -> str:
+    import math
+    defs = {
+        "level": ("surface level", "rose", "fell"),
+        "rms": ("surface dispersion", "widened", "compressed"),
+        "skew_change": ("front skew", "steepened", "flattened"),
+        "term_change": ("term slope", "steepened", "flattened"),
+    }
+    ranked: list[tuple[float, str, float]] = []
+    for key in ("level", "rms", "skew_change", "term_change"):
+        v = metrics.get(key)
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            continue
+        ranked.append((abs(float(v)), key, float(v)))
+
+    if not ranked:
+        return f"{ticker}: insufficient history yet."
+
+    _, key, value = max(ranked, key=lambda x: x[0])
+    label, up_word, down_word = defs[key]
+    direction = up_word if value >= 0 else down_word
+    return f"{ticker}: {label} {direction} ({value:+.2f}pp)."
+
+
 def evolution_section_html(evolution_data: dict) -> str | None:
     """Build the Surface Evolution cross-ticker table for the email top section.
 
@@ -404,7 +428,16 @@ def evolution_section_html(evolution_data: dict) -> str | None:
         f'<p style="{_SANS}font-size:13px;margin:10px 0 6px;color:{LABEL_GRAY};">{lead}</p>'
     )
 
-    return _section_header("Surface Evolution — 5-day") + lead_html + table
+    move_lines = " ".join(
+        _evolution_largest_move_line(ticker, evolution_data.get(ticker, {}))
+        for ticker in ("SPY", "QQQ", "IWM")
+    )
+    summary_html = (
+        f'<p style="{_SANS}font-size:13px;margin:2px 0 8px;color:{LABEL_GRAY};">'
+        f'<b>What changed most today:</b> {move_lines}</p>'
+    )
+
+    return _section_header("Surface Evolution — 5-day") + lead_html + summary_html + table
 
 
 # ── Main ──────────────────────────────────────────────────────────────
