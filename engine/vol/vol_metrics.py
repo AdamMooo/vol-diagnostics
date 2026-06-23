@@ -10,6 +10,117 @@ import pandas as pd
 from engine import config
 
 
+def _em_none_payload(front_expiry: object, em_dte: int | None) -> dict:
+    return {
+        "expected_move_pct": None,
+        "expected_move_abs": None,
+        "em_expiry": str(front_expiry) if front_expiry is not None else None,
+        "em_dte": em_dte,
+    }
+
+
+def compute_model_free_em(df: pd.DataFrame, spot: float, front_expiry: object) -> dict:
+    """Compute front-expiry expected move using model-free variance (CBOE VIX style)."""
+    if df is None or df.empty or front_expiry is None or spot is None or spot <= 0:
+        return _em_none_payload(front_expiry, None)
+
+    expiry_mask = df["expiry"].astype(str) == str(front_expiry)
+    expiry_df = df.loc[expiry_mask].copy()
+    if expiry_df.empty:
+        return _em_none_payload(front_expiry, None)
+
+    t_years = pd.to_numeric(expiry_df.get("T_years"), errors="coerce").dropna()
+    if t_years.empty:
+        return _em_none_payload(front_expiry, None)
+    t = float(t_years.iloc[0])
+    em_dte = int(round(t * 365))
+    if t <= 0:
+        return _em_none_payload(front_expiry, em_dte)
+
+    expiry_df["strike"] = pd.to_numeric(expiry_df.get("strike"), errors="coerce")
+    expiry_df["bid"] = pd.to_numeric(expiry_df.get("bid"), errors="coerce")
+    expiry_df["ask"] = pd.to_numeric(expiry_df.get("ask"), errors="coerce")
+    expiry_df["mid"] = 0.5 * (expiry_df["bid"] + expiry_df["ask"])
+    expiry_df = expiry_df[
+        expiry_df["strike"].notna()
+        & (expiry_df["strike"] > 0)
+        & expiry_df["type"].isin(["call", "put"])
+    ]
+    if expiry_df.empty:
+        return _em_none_payload(front_expiry, em_dte)
+
+    mids = (
+        expiry_df.pivot_table(index="strike", columns="type", values="mid", aggfunc="mean")
+        .rename(columns={"call": "call_mid", "put": "put_mid"})
+        .sort_index()
+    )
+    if mids.empty:
+        return _em_none_payload(front_expiry, em_dte)
+
+    call_put = mids.dropna(subset=["call_mid", "put_mid"])
+    call_put = call_put[(call_put["call_mid"] > 0) & (call_put["put_mid"] > 0)]
+    if call_put.empty:
+        fwd = float(spot)
+    else:
+        atm_idx = (call_put["call_mid"] - call_put["put_mid"]).abs().idxmin()
+        fwd = float(atm_idx + (call_put.loc[atm_idx, "call_mid"] - call_put.loc[atm_idx, "put_mid"]))
+
+    strikes = mids.index.to_numpy(dtype=float)
+    if strikes.size == 0:
+        return _em_none_payload(front_expiry, em_dte)
+
+    leq = strikes[strikes <= fwd]
+    k0 = float(leq.max()) if leq.size else float(strikes.min())
+
+    q_rows: list[tuple[float, float]] = []
+    for i, k in enumerate(strikes):
+        if i == 0:
+            delta_k = strikes[i + 1] - strikes[i] if strikes.size > 1 else np.nan
+        elif i == strikes.size - 1:
+            delta_k = strikes[i] - strikes[i - 1]
+        else:
+            delta_k = 0.5 * (strikes[i + 1] - strikes[i - 1])
+
+        if not np.isfinite(delta_k) or delta_k <= 0:
+            continue
+
+        row = mids.loc[k]
+        call_mid = row.get("call_mid", np.nan)
+        put_mid = row.get("put_mid", np.nan)
+
+        q_mid = np.nan
+        if k < k0:
+            q_mid = put_mid
+        elif k > k0:
+            q_mid = call_mid
+        else:
+            vals = [v for v in (call_mid, put_mid) if pd.notna(v)]
+            if vals:
+                q_mid = float(sum(vals) / len(vals))
+
+        if pd.isna(q_mid) or not np.isfinite(q_mid) or q_mid <= 0:
+            continue
+        q_rows.append((float(k), float(delta_k), float(q_mid)))
+
+    if len(q_rows) < 3:
+        return _em_none_payload(front_expiry, em_dte)
+
+    integral = sum((dk / (k * k)) * q for k, dk, q in q_rows)
+    variance = (2.0 / t) * integral - (1.0 / t) * ((fwd / k0) - 1.0) ** 2
+    if not np.isfinite(variance) or variance <= 0:
+        return _em_none_payload(front_expiry, em_dte)
+
+    expected_move_pct = float(np.sqrt(variance * t) * 100.0)
+    expected_move_abs = float(spot * expected_move_pct / 100.0)
+
+    return {
+        "expected_move_pct": expected_move_pct,
+        "expected_move_abs": expected_move_abs,
+        "em_expiry": str(front_expiry),
+        "em_dte": em_dte,
+    }
+
+
 def compute_skew_25d(df: pd.DataFrame, spot: float) -> dict:
     """
     Per-expiry 25Δ skew bucketed into front_month (≤45 DTE) and second_month (46–90 DTE).
@@ -57,9 +168,17 @@ def compute_skew_25d(df: pd.DataFrame, spot: float) -> dict:
         put_iv = float(puts.loc[put_idx, "iv"] * 100)
         call_iv = float(calls.loc[call_idx, "iv"] * 100)
 
+        atm_candidates = calls if not calls.empty else grp[grp["type"] == "put"]
+        if atm_candidates.empty:
+            result[bucket] = None
+            continue
+        atm_idx = (atm_candidates["strike"] - spot).abs().idxmin()
+        atm_iv = float(atm_candidates.loc[atm_idx, "iv"] * 100)
+
         result[bucket] = {
             "put_iv": put_iv,
             "call_iv": call_iv,
+            "atm_iv": atm_iv,
             "skew": put_iv - call_iv,
             "dte": float(dte),
         }
