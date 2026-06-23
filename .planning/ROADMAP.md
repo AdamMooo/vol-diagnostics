@@ -50,9 +50,12 @@
 
 - [x] **Phase 15: Vol-Index Data Layer** — Fetch + cache CBOE vol-index daily CSVs (VIX/VXN/RVX + siblings); Bloomberg-swappable isolated module (completed 2026-06-05)
 - [x] **Phase 16: VRP Percentile** — VRP (vol-index − RV20) ranked as a percentile against its own history; internally consistent series, lookback labeled
-- [x] **Phase 16.5: OI Depth Expansion** — Richer open-interest analytics: expiry concentration, day-over-day strike-level OI change, put/call split per expiry, parameter-free large-block flagging; Positioning tab + email summary (completed 2026-06-22)
+- [x] **Phase 16.5: OI Depth Expansion** — Richer open-interest analytics: expiry concentration, day-over-day strike-level OI change, put/call split per expiry, parameter-free large-block flagging; Positioning tab + email summary
+ (completed 2026-06-22)
 - [ ] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
-- [x] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only (completed 2026-06-23)
+- [x] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only
+ (completed 2026-06-23)
+- [ ] **Phase 18.1: Dashboard Trust and Clarity Hardening** (INSERTED) — compact trust-tagged scorecard, table-first OI context, 14-DTE primary dealer-impact framing, methods quick/deep trim, and evolution plain-English summary
 - [ ] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (VRP+term+snapshot / surfaces / GEX); page-1 snapshot tied to canonical card; accumulation-dependent elements gated
 - [ ] **Phase 19: Data Health & Continuity** — Health-check CLI for all parquet stores, Task Scheduler re-verify, monthly SOP documented in CLAUDE.md
 
@@ -254,6 +257,18 @@ Plans:
 
 ---
 
+### Phase 18.1: Dashboard Trust and Clarity Hardening (INSERTED)
+
+**Goal**: Harden dashboard/email trust framing and clarity (compact trust-tagged scorecard, OI table-first context, 14-DTE primary dealer-impact framing, quick/deep methods, and plain-English evolution summary) without adding new signal domains.
+**Requirements**: D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10, D-11, D-12
+**Depends on**: Phase 17.1
+**Plans**: 3 plans
+
+Plans:
+- [x] 18.1-01-PLAN.md
+- [ ] 18.1-02-PLAN.md
+- [ ] 18.1-03-PLAN.md
+
 ### Phase 19: Data Health & Continuity
 
 **Goal**: A single CLI command audits all parquet stores for freshness, row count, date gaps, and schema consistency; the result is clean on a healthy setup. Task Scheduler is re-verified and a monthly SOP is documented in CLAUDE.md so the accumulation engine keeps running reliably.
@@ -310,4 +325,3 @@ Plans:
 ## Related
 **Project:** [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
-
