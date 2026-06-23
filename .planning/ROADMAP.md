@@ -52,7 +52,7 @@
 - [x] **Phase 16: VRP Percentile** — VRP (vol-index − RV20) ranked as a percentile against its own history; internally consistent series, lookback labeled
 - [x] **Phase 16.5: OI Depth Expansion** — Richer open-interest analytics: expiry concentration, day-over-day strike-level OI change, put/call split per expiry, parameter-free large-block flagging; Positioning tab + email summary (completed 2026-06-22)
 - [ ] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
-- [ ] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only
+- [x] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only (completed 2026-06-23)
 - [ ] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (VRP+term+snapshot / surfaces / GEX); page-1 snapshot tied to canonical card; accumulation-dependent elements gated
 - [ ] **Phase 19: Data Health & Continuity** — Health-check CLI for all parquet stores, Task Scheduler re-verify, monthly SOP documented in CLAUDE.md
 
@@ -234,7 +234,7 @@ Plans:
 Plans:
 
 - [x] 17.1-01-PLAN.md — Engine + persistence wiring for model-free EM and 25Δ fly percentile history
-- [ ] 17.1-02-PLAN.md — Canonical card rendering for IV30/EM + 25Δ Fly and 17.1-MATH reference
+- [x] 17.1-02-PLAN.md — Canonical card rendering for IV30/EM + 25Δ Fly and 17.1-MATH reference
 
 ### Phase 18: 3-Page Reorg + Email Parity + Gating
 
