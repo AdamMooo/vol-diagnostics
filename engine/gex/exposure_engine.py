@@ -63,16 +63,18 @@ def strike_oi(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
-def expiry_oi(df: pd.DataFrame) -> pd.DataFrame:
+def expiry_oi(df: pd.DataFrame, max_dte: int | None = None) -> pd.DataFrame:
     """Aggregate open interest by expiry, split into call/put sides.
 
-    Applies the GEX_MAX_DTE cap internally so callers can pass the full chain
-    or the pre-filtered gex_df — result is consistent either way.
+    Applies a DTE cap internally (defaults to config.GEX_MAX_DTE) so callers can pass the
+    full chain or a pre-filtered frame. Set max_dte to a narrower value for primary-lens
+    summaries while preserving the broader context path.
 
     Returns columns: expiry, dte, call_oi, put_oi, oi, pct_of_total,
     put_call_ratio. Sorted by oi descending.
     """
-    filtered = df[(df["T_years"] * 365.0) <= config.GEX_MAX_DTE].copy()
+    dte_cap = config.GEX_MAX_DTE if max_dte is None else int(max_dte)
+    filtered = df[(df["T_years"] * 365.0) <= dte_cap].copy()
     if filtered.empty:
         return pd.DataFrame(
             columns=["expiry", "dte", "call_oi", "put_oi", "oi", "pct_of_total", "put_call_ratio"]
@@ -341,3 +343,5 @@ def gamma_profile(df: pd.DataFrame, spot: float,
         net_gex[i] = (sign * gamma * df["oi"].to_numpy() * MULTIPLIER * s**2 * 0.01).sum()
 
     return pd.DataFrame({"spot_level": spot_grid, "net_gex": net_gex})
+
+

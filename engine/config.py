@@ -29,6 +29,11 @@ gamma — so it both contributes little and weakens the 'dealers net short' assu
 at ~one quarter keeps the dealer-relevant tenor. Surface/skew are NOT bound by this (they want
 the full curve). Tune: tighter (~60) = more front-loaded, looser (~120) = includes more cycles."""
 
+GEX_PRIMARY_DTE: int = 14
+"""Primary dealer-impact lens for PM-facing positioning framing.
+Fourteen days anchors the narrative to the front-tenor where hedging pressure is most immediate.
+The broader GEX_MAX_DTE window remains available as secondary context and table depth."""
+
 MIN_DTE: int = 1
 """Exclude 0DTE options. BS gamma and charm are mathematically singular at T→0
 ATM; vanna approaches zero cleanly. Mixing 0DTE in would require invented T_min
@@ -220,3 +225,5 @@ A rank on a thin sample is worse than no rank — so skew %ile, 5d-motion, etc. 
 below this, not shown with a caveat. VRP rides the deep vol-index history (n≈252) and clears
 this trivially; chain-derived metrics (skew/surface) only accrue from our own snapshots and
 appear once they cross it. Raise toward 252 for the same bar as VRP."""
+
+

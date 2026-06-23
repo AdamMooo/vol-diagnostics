@@ -96,7 +96,8 @@ def compute_ticker(ticker: str) -> dict:
     else:
         s_df["is_top_decile"] = False
 
-    expiry_oi_df = expiry_oi(gex_df)
+    expiry_oi_df = expiry_oi(gex_df, max_dte=config.GEX_MAX_DTE)
+    expiry_oi_primary_df = expiry_oi(gex_df, max_dte=config.GEX_PRIMARY_DTE)
 
     r = _get_risk_free_rate()
     p_df = gamma_profile(gex_df, spot=snapshot.spot, r=r)
@@ -132,6 +133,8 @@ def compute_ticker(ticker: str) -> dict:
     summary["coherence_calendar"] = surface_diag["coherence_calendar"]
     summary["coherence_butterfly"] = surface_diag["coherence_butterfly"]
     summary["coherence_violations"] = surface_diag["coherence_violations"]
+    summary["positioning_primary_dte_max"] = config.GEX_PRIMARY_DTE
+    summary["positioning_secondary_dte_max"] = config.GEX_MAX_DTE
 
     # OI walls — strike with highest call or put open interest, None-safe
     oi_call_wall = None
@@ -222,4 +225,7 @@ def compute_ticker(ticker: str) -> dict:
         "skew": skew_25d, "term_structure": term_structure,
         "rv20": rv20, "vrp": vrp, "surface_diag": surface_diag,
         "expiry_oi_df": expiry_oi_df,
+        "expiry_oi_primary_df": expiry_oi_primary_df,
     }
+
+
