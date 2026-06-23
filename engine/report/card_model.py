@@ -165,6 +165,25 @@ def _fmt_vrp(vrp: float | None, vrp_pct: int | None, vrp_pct_n: int | None) -> s
     return f"{base} · {lookback}-session lookback"
 
 
+def _fmt_term_ratios(r9d30: float | None, r30_3m: float | None) -> str:
+    """Format VIX term-structure ratios for the card field.
+
+    Both None → field will be omitted (QQQ/IWM).
+    Values present → '9D/30: 0.87 (contango) · 30/3M: 1.03 (backwardation)'
+    """
+    if r9d30 is None and r30_3m is None:
+        return ""
+
+    parts = []
+    if r9d30 is not None:
+        shape_9d = "backwardation" if r9d30 > 1.0 else "contango"
+        parts.append(f"9D/30: {r9d30:.3f} ({shape_9d})")
+    if r30_3m is not None:
+        shape_3m = "backwardation" if r30_3m > 1.0 else "contango"
+        parts.append(f"30/3M: {r30_3m:.3f} ({shape_3m})")
+    return " · ".join(parts)
+
+
 def _signed_color(val: float | None) -> str:
     if val is None or val == 0:
         return LABEL_GRAY
@@ -235,7 +254,7 @@ COMPACT_PRIMARY_LABELS = (
 
 def resolve_trust_tag(label: str, today_summary: dict | None = None) -> str:
     summary = today_summary or {}
-    if label in {"Spot", "Day %", "IV30 / EM"}:
+    if label in {"Spot", "Day %", "IV30 / EM", "VIX Term"}:
         return "market"
     if label == "VRP":
         vrp_n = summary.get("vrp_pct_n") or 0
@@ -290,6 +309,8 @@ def build_card_fields(
     vrp = s.get("vrp")
     vrp_pct = s.get("vrp_pct")
     vrp_pct_n = s.get("vrp_pct_n")
+    term_ratio_9d_30d = s.get("term_ratio_9d_30d")
+    term_ratio_30d_3m = s.get("term_ratio_30d_3m")
     call_wall = s.get("call_wall")
     put_wall = s.get("put_wall")
     oi_call_wall = s.get("oi_call_wall")
@@ -371,6 +392,19 @@ def build_card_fields(
             value=_fmt_vrp(vrp, vrp_pct, vrp_pct_n),
             sign=_get_sign(vrp),
         ),
+    ]
+
+    # TERM-01/02: VIX term-structure ratios — only emitted for SPY (where CBOE
+    # publishes 9D/3M siblings). QQQ/IWM have both as None → field omitted entirely.
+    term_str = _fmt_term_ratios(term_ratio_9d_30d, term_ratio_30d_3m)
+    if term_str:
+        fields.append(CardField(
+            label="VIX Term",
+            value=term_str,
+            sign="neutral",
+        ))
+
+    fields += [
         CardField(
             label="Call Wall (model)",
             value=_wall_value(call_wall, cw_pct),

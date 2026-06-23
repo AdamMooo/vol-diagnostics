@@ -10,7 +10,7 @@ Last updated: 2026-06-21 | Status: active milestone v3.5 (Index Vol-Context Rebu
   - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 246 green.
+- **Tests:** `pytest engine/tests` — 324 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -47,6 +47,7 @@ pytest engine/tests                     # 246 tests
 - **No new signals:** six signals + fragility composite locked until team validates current set.
 - **Windows paths:** use pathlib or `os.path.join` throughout.
 - **No PDIV / HMM this phase:** locked per scope cap.
+- **CBOE vol-index term siblings (verified 2026-06-23):** CBOE publishes VIX9D and VIX3M (SPY term-structure siblings). No 9D/3M variants exist for VXN (QQQ) or RVX (IWM) — CDN returns 403 for those symbols. Term-structure ratios are SPY-only; QQQ/IWM gracefully degrade.
 
 ## `engine/` Package (active — v3.0)
 

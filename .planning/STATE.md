@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Index Vol-Context Rebuild
 status: planning
-stopped_at: Phase 18.1 context gathered
+stopped_at: Phase 17 complete, Phase 18 next
 last_updated: "2026-06-23T18:19:43.041Z"
 last_activity: 2026-06-23
 progress:
   total_phases: 11
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 16
-  completed_plans: 16
-  percent: 64
+  completed_plans: 17
+  percent: 73
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 
 ## Current Position
 
-Phase: 18.1
+Phase: 18
 Plan: Not started
-Status: Ready to plan inserted phase 18.1
+Status: Ready to plan Phase 18 (3-Page Reorg + Email Parity + Gating)
 Last activity: 2026-06-23
 
 Progress: [██████████] 100%
@@ -62,6 +62,7 @@ Progress: [██████████] 100%
 | Phase 17.1 P02 | 38min | 2 tasks | 6 files |
 | Phase 18.1 P01 | 1380 | 2 tasks | 6 files |
 | Phase 18.1 P02 | 26min | 2 tasks | 8 files |
+| Phase 17 P01 | 12min | 5 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,7 @@ Progress: [██████████] 100%
 - [Phase 18.1]: VRP trust framing is explicit and sample-aware: building before lookback, history at lookback.
 - [Phase 18.1]: Primary dealer-impact framing centralized as GEX_PRIMARY_DTE=14 and emitted via compute summary keys.
 - [Phase 18.1]: OI interpretation remains table-first with 5d share context shown in dashboard/email when history exists.
+- [Phase 17]: VIX term ratios (VIX9D/VIX, VIX/VIX3M) SPY-only; CBOE does not publish 9D/3M for VXN or RVX. Field conditionally emitted — omitted entirely for QQQ/IWM.
 
 ### Pending Todos
 
@@ -121,10 +123,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-23T18:19:43.014Z
-Stopped at: Phase 18.1 context gathered
+Last session: 2026-06-23T18:41:00.000Z
+Stopped at: Phase 17 complete, Phase 18 next
 Post-rename hotfixes (2026-06-22): (a) **Store-path regression fixed** — after `gex/→engine/` rename, subpackage modules (`engine/data/*`, `engine/surface/*`, `engine/report/*`) used `Path(__file__).parents[1]` which now resolved to `engine/` not project root → daily run wrote parquet to `engine/out/`. Re-anchored 6 files to `parents[2]` (validation, surface_history, vol_index, surface_evolution, png_export, emailer `.env`). `run_daily`/`run_gex` at engine root keep `parents[1]` (correct). Full path audit done — all 9 anchors verified resolving under `out/`. Deleted stray `engine/out/`; real `out/` history intact. (b) **Scheduler re-pointed** — Task Scheduler "GEX Daily Report" action was still `-m gex.run_daily`; updated in place to `-m engine.run_daily --send` (battery flags/RestartCount preserved via Set-ScheduledTask -Action). 246 tests green.
-Resume queue (updated 2026-06-22): (1) Phase 16.5 OI Depth Expansion is next up the roadmap (no CONTEXT.md yet → discuss-phase first). (2) Roadmap "where": Phase 17 (term) → 17.1 (expected-move cone). Hosting eventual (app.py has _check_password). st.iframe deferred (not a drop-in). See memory [[project_email_vs_hosting]]. Note: skew/motion read chips still gated off (sample <60 sessions, HISTORY_DAYS=30 caps the skew series — latent: with floor=60 the skew chip can never light until HISTORY_DAYS is raised; revisit if skew chip wanted sooner).
+Resume queue: (1) **Phase 18: 3-Page Reorg + Email Parity + Gating** — dashboard reorganized to 3 pages (page 1: VRP+term+snapshot, page 2: surfaces, page 3: GEX); page-1 snapshot tied to canonical card; accumulation gating. Depends on Phase 16 + 17 + 17.1 (all done). No CONTEXT.md yet → discuss-phase first. (2) Phase 19: Data Health & Continuity. (3) v4.0 Cloud Hosting. Note: skew/motion read chips still gated off (sample <60 sessions, HISTORY_DAYS=30 caps the skew series — latent: with floor=60 the skew chip can never light until HISTORY_DAYS is raised; revisit if skew chip wanted sooner).
 
 ---
 ---

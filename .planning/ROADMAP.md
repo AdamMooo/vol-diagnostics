@@ -52,7 +52,8 @@
 - [x] **Phase 16: VRP Percentile** — VRP (vol-index − RV20) ranked as a percentile against its own history; internally consistent series, lookback labeled
 - [x] **Phase 16.5: OI Depth Expansion** — Richer open-interest analytics: expiry concentration, day-over-day strike-level OI change, put/call split per expiry, parameter-free large-block flagging; Positioning tab + email summary
  (completed 2026-06-22)
-- [ ] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
+- [x] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
+ (completed 2026-06-23)
 - [x] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only
  (completed 2026-06-23)
 - [x] **Phase 18.1: Dashboard Trust and Clarity Hardening** (INSERTED) — compact trust-tagged scorecard, table-first OI context, 14-DTE primary dealer-impact framing, methods quick/deep trim, and evolution plain-English summary (completed 2026-06-23)
@@ -216,7 +217,11 @@ Plans:
   2. For QQQ and IWM, the display shows whichever term-structure siblings CBOE publishes; if only the 30-day level (VXN/RVX) is available, the term-structure row is omitted or marked "N/A — single point only" rather than fabricated.
   3. A one-time verification step during the phase confirms which CBOE sibling symbols actually exist for VXN/RVX (e.g. VXN9D, VXST) and documents the finding in CLAUDE.md.
 
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+
+- [x] 17-01-PLAN.md — Engine compute_term_ratios + card field + tests + CLAUDE.md documentation
 
 ---
 

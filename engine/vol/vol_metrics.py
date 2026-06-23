@@ -391,6 +391,49 @@ def evolution_5d_summary(evol_df: pd.DataFrame) -> dict:
     }
 
 
+# ── VIX Term-Structure Ratios ─────────────────────────────────────────────
+
+# Ticker → vol-index symbols needed for term ratios.
+# Only SPY has 9D/3M siblings on CBOE; QQQ/IWM have only the 30-day level.
+_TERM_SYMBOLS: dict[str, tuple[str, str, str] | None] = {
+    "SPY": ("VIX9D", "VIX", "VIX3M"),
+    "QQQ": None,
+    "IWM": None,
+}
+
+
+def compute_term_ratios(ticker: str) -> dict:
+    """Compute VIX term-structure ratios from the vol-index store.
+
+    SPY: returns VIX9D/VIX and VIX/VIX3M (latest available close).
+    QQQ/IWM: returns None/None (no CBOE siblings exist).
+
+    Returns {"term_ratio_9d_30d": float|None, "term_ratio_30d_3m": float|None}
+    """
+    from engine.data.vol_index import load_vol_index
+
+    symbols = _TERM_SYMBOLS.get(ticker)
+    if symbols is None:
+        return {"term_ratio_9d_30d": None, "term_ratio_30d_3m": None}
+
+    sym_9d, sym_30d, sym_3m = symbols
+
+    def _latest_close(symbol: str) -> float | None:
+        df = load_vol_index(symbol)
+        if df.empty:
+            return None
+        return float(df.iloc[-1]["close"])
+
+    close_9d = _latest_close(sym_9d)
+    close_30d = _latest_close(sym_30d)
+    close_3m = _latest_close(sym_3m)
+
+    ratio_9d_30d = (close_9d / close_30d) if (close_9d and close_30d) else None
+    ratio_30d_3m = (close_30d / close_3m) if (close_30d and close_3m) else None
+
+    return {"term_ratio_9d_30d": ratio_9d_30d, "term_ratio_30d_3m": ratio_30d_3m}
+
+
 def positioning_levels(summary: dict, hist_df: pd.DataFrame) -> dict:
     """Extract GEX-derived positioning levels and distances from spot.
 

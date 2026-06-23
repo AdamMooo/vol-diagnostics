@@ -27,8 +27,8 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 
 ### Term-Structure Regime (TERM)
 
-- [ ] **TERM-01** — PM sees the SPY term-structure state from VIX9D / VIX / VIX3M as a raw ratio (contango vs backwardation), with no hidden scoring or categorical label.
-- [ ] **TERM-02** — QQQ/IWM display whichever term points CBOE publishes for them, degrading gracefully to the 30-day level (VXN/RVX) when short/long-dated siblings are absent — no fabricated term structure.
+- [x] **TERM-01** — PM sees the SPY term-structure state from VIX9D / VIX / VIX3M as a raw ratio (contango vs backwardation), with no hidden scoring or categorical label.
+- [x] **TERM-02** — QQQ/IWM display whichever term points CBOE publishes for them, degrading gracefully to the 30-day level (VXN/RVX) when short/long-dated siblings are absent — no fabricated term structure.
 
 ### Convexity & Expected Move (EM / SHAPE)
 

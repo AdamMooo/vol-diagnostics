@@ -15,7 +15,7 @@ from engine.gex.exposure_engine import (
     compute_skew, surface_diagnostics,
 )
 from engine.gex.analytics import summarise
-from engine.vol.vol_metrics import compute_model_free_em, compute_skew_25d, compute_term_structure, compute_rv20
+from engine.vol.vol_metrics import compute_model_free_em, compute_skew_25d, compute_term_structure, compute_rv20, compute_term_ratios
 from engine.data.validation import load_history
 from engine.vol.vrp_history import vrp_percentile
 from engine.surface.surface_evolution import load_evolution
@@ -199,6 +199,12 @@ def compute_ticker(ticker: str) -> dict:
     summary["vrp"] = vrp
     summary["vrp_pct"] = vrp_pct_res["pct"]
     summary["vrp_pct_n"] = vrp_pct_res["n"]
+
+    # TERM-01/02: VIX term-structure ratios from vol-index store.
+    # SPY gets VIX9D/VIX and VIX/VIX3M; QQQ/IWM return None (no CBOE siblings).
+    term_ratios = compute_term_ratios(ticker)
+    summary["term_ratio_9d_30d"] = term_ratios["term_ratio_9d_30d"]
+    summary["term_ratio_30d_3m"] = term_ratios["term_ratio_30d_3m"]
 
     # Credibility-gated read inputs — computed ONCE here so the dashboard card and the
     # email card show the same chips (the canonical-card seam). Each is None unless its
