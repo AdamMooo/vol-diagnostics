@@ -175,3 +175,16 @@ def test_render_regime_card_renders_trust_tags_from_card_fields():
 
 
 
+
+def test_methods_panel_exposes_quick_and_deep_layers():
+    app = _import_app_module()
+    assert hasattr(app, "_methods_quick_bullets")
+    assert hasattr(app, "_methods_deep_markdown")
+
+
+def test_methods_copy_mentions_quick_and_deep_sections():
+    app = _import_app_module()
+    quick = app._methods_quick_bullets()
+    deep = app._methods_deep_markdown()
+    assert any("Quick assumptions" in b for b in quick)
+    assert "Deep methodology details" in deep

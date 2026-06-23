@@ -386,3 +386,8 @@ def test_oi_summary_table_mentions_primary_14dte_lens():
     result = _oi_summary_table(_make_expiry_oi_df(3))
     assert result is not None
     assert "14 DTE primary" in result
+
+def test_build_email_includes_quick_and_deep_method_sections():
+    html = build_email([_minimal_result()])
+    assert "Quick assumptions" in html
+    assert "Deep methodology details" in html
