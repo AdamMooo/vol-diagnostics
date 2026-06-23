@@ -27,6 +27,9 @@ class TestFloatColsSchema:
         assert {"coverage_pct", "fit_rmse", "max_resid", "cv_rmse",
                 "coherence_violations"} <= set(_FLOAT_COLS)
 
+    def test_butterfly_in_float_cols(self):
+        assert "butterfly" in _FLOAT_COLS
+
 
 # ---------------------------------------------------------------------------
 # save_snapshot row dict tests
@@ -49,6 +52,7 @@ class TestSaveSnapshotRowDict:
             "term_slope": None,
             "rv20": 15.5,
             "vrp": 4.5,
+            "butterfly": 1.25,
         }
 
     def test_rv20_persisted(self, summary_with_metrics, tmp_path):
@@ -66,6 +70,15 @@ class TestSaveSnapshotRowDict:
         hist = pd.read_parquet(store)
         assert "vrp" in hist.columns
         assert float(hist["vrp"].iloc[0]) == pytest.approx(4.5)
+
+
+    def test_butterfly_persisted(self, summary_with_metrics, tmp_path):
+        store = tmp_path / "test_snapshots.parquet"
+        with mock.patch("engine.data.validation.STORE", store):
+            save_snapshot(summary_with_metrics, "SPY")
+        hist = pd.read_parquet(store)
+        assert "butterfly" in hist.columns
+        assert float(hist["butterfly"].iloc[0]) == pytest.approx(1.25)
 
     def test_rv20_none_written_as_null(self, tmp_path):
         summary = {
@@ -232,3 +245,4 @@ class TestLoadPriorSnapshot:
             result = load_prior_snapshot("SPY", datetime.date(2026, 6, 2))
         assert result is not None
         # iv30 absent — accessing it may raise KeyError on old pd.Series, but load itself succeeds
+
