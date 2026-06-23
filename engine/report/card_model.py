@@ -82,13 +82,66 @@ def _expected_1d_range_pct(iv30: float | None) -> float | None:
     return iv30 / (252 ** 0.5)
 
 
+def _fmt_expected_move(
+    expected_move_pct: float | None,
+    em_expiry: str | pd.Timestamp | None,
+    em_dte: int | float | None,
+) -> str:
+    if expected_move_pct is None or em_expiry is None or em_dte is None:
+        return "—"
+    try:
+        expiry = pd.to_datetime(em_expiry)
+        expiry_str = expiry.strftime("%b %d")
+        dte_int = int(round(float(em_dte)))
+    except (TypeError, ValueError):
+        return "—"
+    return f"±{expected_move_pct:.1f}% by {expiry_str} ({dte_int}d)"
+
+
+def _fmt_butterfly(butterfly: float | None, butterfly_pct: int | None, butterfly_pct_n: int | None) -> str:
+    if butterfly is None:
+        return "—"
+    base = f"{butterfly:+.1f}pp"
+    lookback = config.VRP_PERCENTILE_LOOKBACK
+    min_sessions = config.BUTTERFLY_PERCENTILE_MIN_SESSIONS
+    if butterfly_pct is None:
+        if butterfly_pct_n is not None and min_sessions <= butterfly_pct_n < lookback:
+            return f"{base} · {butterfly_pct_n} sessions (building to {lookback})"
+        return base
+    if butterfly_pct_n is not None and butterfly_pct_n < lookback:
+        return f"{base} · {butterfly_pct}th %ile · {butterfly_pct_n} sessions (building to {lookback})"
+    return f"{base} · {butterfly_pct}th %ile"
+
+
+def format_oi_impact(pct_of_total: float | None, put_call_ratio: float | None) -> str:
+    if pct_of_total is None:
+        concentration = "Concentration unavailable"
+    elif pct_of_total >= 35:
+        concentration = "High concentration"
+    elif pct_of_total >= 20:
+        concentration = "Moderate concentration"
+    else:
+        concentration = "Diffuse concentration"
+
+    if put_call_ratio is None:
+        balance = "mixed call/put positioning"
+    elif put_call_ratio >= 1.15:
+        balance = "put-heavy mix"
+    elif put_call_ratio <= 0.85:
+        balance = "call-heavy mix"
+    else:
+        balance = "balanced call/put mix"
+
+    return f"{concentration}; {balance}"
+
+
 def _pin_location(spot: float | None, pw: float | None, cw: float | None) -> str:
     """How close is spot to call wall vs put wall, as a percentage of the range."""
     if spot is None or pw is None or cw is None or cw <= pw:
         return "—"
     pct = (spot - pw) / (cw - pw) * 100
     pct = max(0.0, min(100.0, pct))
-    direction = "→ CW" if pct >= 50 else "← PW"
+    direction = "toward CW" if pct >= 50 else "toward PW"
     return f"{pct:.0f}% {direction}"
 
 
@@ -187,10 +240,16 @@ def build_card_fields(
     spot = s.get("spot")
     price_change_pct = s.get("price_change_pct")
     iv30 = s.get("iv30")
+    expected_move_pct = s.get("expected_move_pct")
+    em_expiry = s.get("em_expiry")
+    em_dte = s.get("em_dte")
     zgl = s.get("zero_gamma_level")
     net_gex = s.get("net_gex")
     delta_hedge_flow = s.get("delta_hedge_flow")
     front_skew = s.get("front_skew")
+    butterfly = s.get("butterfly")
+    butterfly_pct = s.get("butterfly_pct")
+    butterfly_pct_n = s.get("butterfly_pct_n")
     vrp = s.get("vrp")
     vrp_pct = s.get("vrp_pct")
     vrp_pct_n = s.get("vrp_pct_n")
@@ -210,8 +269,8 @@ def build_card_fields(
 
     iv30_str = f"{iv30:.1f}%" if iv30 else "—"
     iv30_delta = _delta_suffix_pp(iv30, p_iv30)
-    expected_1d = _expected_1d_range_pct(iv30)
-    expected_str = f"±{expected_1d:.2f}%" if expected_1d else "—"
+    expected_str = _fmt_expected_move(expected_move_pct, em_expiry, em_dte)
+    fly_str = _fmt_butterfly(butterfly, butterfly_pct, butterfly_pct_n)
 
     cw_pct = _pct_from_spot(spot, call_wall)
     pw_pct = _pct_from_spot(spot, put_wall)
@@ -236,7 +295,7 @@ def build_card_fields(
             sign=_get_sign(price_change_pct),
         ),
         CardField(
-            label="IV30 / 1d σ",
+            label="IV30 / EM",
             value=f"{iv30_str}{iv30_delta} · {expected_str}",
             sign="neutral",
         ),
@@ -263,6 +322,11 @@ def build_card_fields(
         CardField(
             label="Skew (25Δ)",
             value=_fmt_skew(front_skew) + _delta_suffix_pp(front_skew, p_front_skew),
+            sign="neutral",
+        ),
+        CardField(
+            label="25Δ Fly",
+            value=fly_str,
             sign="neutral",
         ),
         CardField(

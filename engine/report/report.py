@@ -17,7 +17,7 @@ from engine.report.card_model import (
     CardField, build_card_fields, build_card_read,
     _fmt_b, _fmt_price, _fmt_pct, _fmt_skew,
     _fmt_hedge_shares, _pct_from_spot, _wall_value,
-    _expected_1d_range_pct, _pin_location, _signed_color,
+    _expected_1d_range_pct, _pin_location, _signed_color, format_oi_impact,
 )
 from engine.data.validation import load_prior_snapshot
 
@@ -201,10 +201,10 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
     header_row = (
         f'<tr>'
         f'<th {th_style}>Expiry</th>'
+        f'<th {th_style}>DTE</th>'
         f'<th {th_style}>OI</th>'
-        f'<th {th_style} style="color:{call_color};">Calls</th>'
-        f'<th {th_style} style="color:{put_color};">Puts</th>'
         f'<th {th_style}>P:C Ratio</th>'
+        f'<th {th_style}>Impact</th>'
         f'</tr>'
     )
 
@@ -222,13 +222,15 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
             )
         except (ValueError, TypeError):
             expiry_str = str(row.get("expiry", ""))
+        dte = int(round(float(row.get("dte", 0)))) if row.get("dte") is not None else 0
+        impact = format_oi_impact(row.get("pct_of_total"), row.get("put_call_ratio"))
         data_rows += (
             f'<tr>'
             f'<td {td_style}>{expiry_str}</td>'
+            f'<td {td_style}>{dte}</td>'
             f'<td {td_style}>{_k(row["oi"])}</td>'
-            f'<td {td_style} style="color:{call_color};">{_k(row["call_oi"])}</td>'
-            f'<td {td_style} style="color:{put_color};">{_k(row["put_oi"])}</td>'
             f'<td {td_style}>{row["put_call_ratio"]:.2f}</td>'
+            f'<td style="{_SANS}padding:4px 12px 4px 0;font-size:12px;">{impact}</td>'
             f'</tr>'
         )
 
@@ -242,7 +244,7 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
     label = (
         f'<div style="{_SANS}font-size:11px;color:{LABEL_GRAY};'
         f'letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">'
-        f'OI BY EXPIRY</div>'
+        f'OI IMPACT BY EXPIRY</div>'
     )
 
     return (
@@ -389,8 +391,9 @@ def build_email(
         f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.7;'
         f'margin-top:24px;padding-top:14px;border-top:1px solid {RULE_COLOR};">'
         '<b>Glossary</b><br>'
-        '<b>VRP</b>: implied − realized vol (vol points), shown as a percentile vs its own '
-        'history. High = premium rich (selling well paid); low = cheap.<br>'
+        '<b>VRP</b>: CBOE index-vol close (VIX/VXN/RVX) minus RV20×100 (vol points), with RV20 '
+        'from yfinance daily closes; percentile is computed on this same series. '
+        'High = premium rich (selling well paid); low = cheap.<br>'
         '<b>Skew (25Δ)</b>: IV(25Δ put) − IV(25Δ call), nearest expiry ≥7 DTE, in pp. '
         'Higher = downside protection more bid. Only metric here with direct peer-reviewed '
         'predictive validity (Xing-Zhang-Zhao 2010, JFQA).<br>'
@@ -408,6 +411,8 @@ def build_email(
         '<b>Read before trading off this</b><br>'
         '&bull; <b>OI is T-1, quotes ~15-min delayed</b> — γ-flip and walls describe yesterday\'s '
         'positioning, not live.<br>'
+        '&bull; <b>OI views use the filtered positioning set</b> (OI ≥ 100, IV ≤ 300%, DTE ≤ 90, '
+        '0DTE excluded).<br>'
         '&bull; <b>Positioning is ≤90 DTE</b> (the dealer-relevant tenor); the long-dated '
         'call tail is excluded.<br>'
         '&bull; <b>Sign &amp; order of magnitude are load-bearing; absolute GEX is not</b> — '

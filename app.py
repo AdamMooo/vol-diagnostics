@@ -16,7 +16,7 @@ from engine.surface.surface_interactive import (
     build_diff_payload, render_diff_html,
     build_movie_payload, render_movie_html,
 )
-from engine.report.card_model import CardField, build_card_fields, build_card_read, LABEL_GRAY
+from engine.report.card_model import CardField, build_card_fields, build_card_read, LABEL_GRAY, format_oi_impact
 from engine.data.validation import load_prior_snapshot
 from engine.data.oi_history import prior_oi_snapshot
 from engine.compute import compute_ticker
@@ -693,18 +693,22 @@ if sel_index:
                     "**Model assumption:** dealers net short all options (Garleanu, Pedersen & Poteshman 2009)."
                 )
 
-            with st.expander("OI by Expiry", expanded=False):
+            with st.expander("OI Impact by Expiry", expanded=False):
                 expiry_oi_df = data.get("expiry_oi_df")
                 if expiry_oi_df is None or expiry_oi_df.empty:
                     st.caption(f"{ticker}: OI by expiry data unavailable.")
                 else:
+                    st.caption(
+                        "Computed from the filtered options set used for positioning "
+                        "(OI >= 100, DTE <= 90, IV <= 300%, 0DTE excluded). OI is T-1."
+                    )
                     prior = prior_oi_snapshot(ticker, date.today())
                     prior_oi_map = {}
                     if not prior.empty and "expiry" in prior.columns and "oi" in prior.columns:
                         for _, row in prior.iterrows():
                             prior_oi_map[str(row["expiry"])] = row["oi"]
 
-                    display_df = expiry_oi_df[["expiry", "dte", "oi", "call_oi", "put_oi", "put_call_ratio"]].copy()
+                    display_df = expiry_oi_df[["expiry", "dte", "oi", "pct_of_total", "put_call_ratio"]].copy()
 
                     def _fmt_oi(x):
                         return f"{x/1e3:.0f}K" if x >= 1000 else f"{x:.0f}"
@@ -725,11 +729,14 @@ if sel_index:
                         _fmt_delta_oi(row["oi"], row["expiry"])
                         for _, row in expiry_oi_df.iterrows()
                     ]
-                    display_df["Calls"] = display_df["call_oi"].apply(_fmt_oi)
-                    display_df["Puts"] = display_df["put_oi"].apply(_fmt_oi)
+                    display_df["OI Share"] = display_df["pct_of_total"].apply(lambda x: f"{x:.1f}%")
                     display_df["P/C Ratio"] = display_df["put_call_ratio"].apply(lambda x: f"{x:.2f}")
+                    display_df["Impact"] = display_df.apply(
+                        lambda r: format_oi_impact(r.get("pct_of_total"), r.get("put_call_ratio")),
+                        axis=1,
+                    )
 
-                    display_df = display_df[["Expiry", "DTE", "OI", "Δ OI", "Calls", "Puts", "P/C Ratio"]]
+                    display_df = display_df[["Expiry", "DTE", "OI", "Δ OI", "OI Share", "P/C Ratio", "Impact"]]
                     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
         st.caption(
@@ -747,6 +754,10 @@ Spot, IV, and chain mids are ~15-min delayed. **OI reflects prior session close*
 Bloomberg — no intraday OI update exists). Greeks (γ, Δ, vega, θ) come from
 **CBOE's American option pricing model** (accounts for early exercise + dividends);
 we do not recompute them locally.
+
+**VRP source + formula.** VRP is **not** chain IV30 minus RV20 anymore. It is
+**CBOE index-vol close (VIX/VXN/RVX) − RV20×100**, where RV20 is from yfinance
+daily closes. That keeps the scalar and percentile on one consistent series.
 
 **Risk-free rate.** Live 3-month T-bill (`^IRX` via yfinance) at session start;
 falls back to 0.05 if the fetch fails. Used only in the γ-flip BS gamma sweep.
