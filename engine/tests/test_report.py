@@ -391,3 +391,13 @@ def test_build_email_includes_quick_and_deep_method_sections():
     html = build_email([_minimal_result()])
     assert "Quick assumptions" in html
     assert "Deep methodology details" in html
+
+def test_evolution_section_includes_largest_move_summary_row():
+    evol_data = {
+        "SPY": {"level": 0.1, "rms": 0.2, "skew_change": -0.1, "term_change": 0.6, "as_of": datetime.date(2026, 5, 27)},
+        "QQQ": {"level": 0.0, "rms": 0.1, "skew_change": 0.0, "term_change": 0.1, "as_of": datetime.date(2026, 5, 27)},
+        "IWM": {"level": -0.1, "rms": 0.1, "skew_change": 0.1, "term_change": -0.1, "as_of": datetime.date(2026, 5, 27)},
+    }
+    html = evolution_section_html(evol_data)
+    assert html is not None
+    assert "What changed most today" in html

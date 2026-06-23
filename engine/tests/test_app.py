@@ -188,3 +188,15 @@ def test_methods_copy_mentions_quick_and_deep_sections():
     deep = app._methods_deep_markdown()
     assert any("Quick assumptions" in b for b in quick)
     assert "Deep methodology details" in deep
+
+def test_evolution_summary_picks_largest_dimension_and_direction():
+    app = _import_app_module()
+    line = app._evolution_largest_move_summary({
+        "level": 0.10,
+        "rms": -0.25,
+        "skew_change": 0.20,
+        "term_change": -0.80,
+    })
+    assert "what changed most today" in line.lower()
+    assert "term" in line.lower()
+    assert "flattened" in line.lower()
