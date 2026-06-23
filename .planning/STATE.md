@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Index Vol-Context Rebuild
-status: ready_to_plan
-stopped_at: Phase 16.5 complete (3/3) — ready to discuss Phase 17.1
-last_updated: 2026-06-22T21:10:59.076Z
-last_activity: 2026-06-22 -- Phase 16.5 execution started
+status: planning
+stopped_at: Completed 17.1-convexity-expected-move-01-PLAN.md
+last_updated: "2026-06-23T14:34:33.507Z"
+last_activity: 2026-06-22
 progress:
   total_phases: 10
-  completed_phases: 4
-  total_plans: 11
-  completed_plans: 24
-  percent: 40
+  completed_phases: 5
+  total_plans: 13
+  completed_plans: 12
+  percent: 50
 ---
 
 # Project State
@@ -30,7 +30,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-06-22
 
-Progress: [██████████] 100%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [██████████] 100%
 | 16-vrp-percentile P01 | ~2 min | 2 tasks | 3 files |
 | 16-vrp-percentile P02 | ~12 min | 2 tasks | 4 files |
 | 16.5 | 3 | - | - |
+| Phase 17.1-convexity-expected-move P01 | 6 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Progress: [██████████] 100%
 - [Phase ?]: _ticker_card() delegates field construction to build_card_fields(); no local field logic remains in report.py
 - [Phase ?]: render_regime_card delegates field construction to build_card_fields(); no local field logic remains in streamlit_app
 - [Phase ?]: patch target for load_prior_snapshot in dashboard tests is streamlit_app.load_prior_snapshot — from-import creates a direct reference
+- [Phase ?]: 17.1-01: Model-free expected move uses CBOE variance with invalid-mid and >=3-strike guard.
+- [Phase ?]: 17.1-01: Butterfly computed from same-expiry front skew put/call/atm inputs.
+- [Phase ?]: 17.1-01: Butterfly percentile uses rank method and is suppressed below 10 sessions while exposing n.
 
 ### Pending Todos
 
@@ -102,8 +106,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-22T20:07:52.415Z
-Stopped at: Phase 16.5 context gathered
+Last session: 2026-06-23T14:34:12.317Z
+Stopped at: Completed 17.1-convexity-expected-move-01-PLAN.md
 Post-rename hotfixes (2026-06-22): (a) **Store-path regression fixed** — after `gex/→engine/` rename, subpackage modules (`engine/data/*`, `engine/surface/*`, `engine/report/*`) used `Path(__file__).parents[1]` which now resolved to `engine/` not project root → daily run wrote parquet to `engine/out/`. Re-anchored 6 files to `parents[2]` (validation, surface_history, vol_index, surface_evolution, png_export, emailer `.env`). `run_daily`/`run_gex` at engine root keep `parents[1]` (correct). Full path audit done — all 9 anchors verified resolving under `out/`. Deleted stray `engine/out/`; real `out/` history intact. (b) **Scheduler re-pointed** — Task Scheduler "GEX Daily Report" action was still `-m gex.run_daily`; updated in place to `-m engine.run_daily --send` (battery flags/RestartCount preserved via Set-ScheduledTask -Action). 246 tests green.
 Resume queue (updated 2026-06-22): (1) Phase 16.5 OI Depth Expansion is next up the roadmap (no CONTEXT.md yet → discuss-phase first). (2) Roadmap "where": Phase 17 (term) → 17.1 (expected-move cone). Hosting eventual (app.py has _check_password). st.iframe deferred (not a drop-in). See memory [[project_email_vs_hosting]]. Note: skew/motion read chips still gated off (sample <60 sessions, HISTORY_DAYS=30 caps the skew series — latent: with floor=60 the skew chip can never light until HISTORY_DAYS is raised; revisit if skew chip wanted sooner).
 

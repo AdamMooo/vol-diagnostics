@@ -32,8 +32,8 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 
 ### Convexity & Expected Move (EM / SHAPE)
 
-- [ ] **EM-01** — PM sees the front-expiry implied expected move as a ±% (and/or ± price) range, computed from the ATM straddle, with the expiry/DTE explicitly labeled. Descriptive only — no trade prescription.
-- [ ] **SHAPE-01** — PM sees the front-month 25Δ butterfly — ½(25Δput_iv + 25Δcall_iv) − ATM_iv — beside the existing 25Δ risk reversal, labeled, with percentile context vs its own history where enough sessions exist (reusing the Phase 16 percentile + cold-start gating). No realized cone, RND, put/call ratio, or VVIX.
+- [x] **EM-01** — PM sees the front-expiry implied expected move as a ±% (and/or ± price) range, computed from the ATM straddle, with the expiry/DTE explicitly labeled. Descriptive only — no trade prescription.
+- [x] **SHAPE-01** — PM sees the front-month 25Δ butterfly — ½(25Δput_iv + 25Δcall_iv) − ATM_iv — beside the existing 25Δ risk reversal, labeled, with percentile context vs its own history where enough sessions exist (reusing the Phase 16 percentile + cold-start gating). No realized cone, RND, put/call ratio, or VVIX.
 
 ### Dashboard Reorg (VIEW — continues VIEW-05)
 
@@ -84,8 +84,8 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 | VRP-03 | Phase 16 | Complete |
 | TERM-01 | Phase 17 | Pending |
 | TERM-02 | Phase 17 | Pending |
-| EM-01 | Phase 17.1 | Pending |
-| SHAPE-01 | Phase 17.1 | Pending |
+| EM-01 | Phase 17.1 | Complete |
+| SHAPE-01 | Phase 17.1 | Complete |
 | VIEW-06 | Phase 18 | Pending |
 | VIEW-07 | Phase 18 | Pending |
 | CUT-02 | Phase 18 | Pending |

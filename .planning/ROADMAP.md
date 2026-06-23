@@ -229,7 +229,12 @@ Plans:
   3. The butterfly carries percentile context vs its own history where enough sessions exist, reusing the Phase 16 percentile + cold-start gating pattern; below the lookback it is omitted or labeled with the actual count — never a silent thin sample.
   4. No realized-vol cone, risk-neutral density, put/call ratio, or VVIX is added — scope is exactly the two reads above.
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+
+- [x] 17.1-01-PLAN.md — Engine + persistence wiring for model-free EM and 25Δ fly percentile history
+- [ ] 17.1-02-PLAN.md — Canonical card rendering for IV30/EM + 25Δ Fly and 17.1-MATH reference
 
 ### Phase 18: 3-Page Reorg + Email Parity + Gating
 
@@ -305,3 +310,4 @@ Plans:
 ## Related
 **Project:** [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
+
