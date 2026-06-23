@@ -32,7 +32,7 @@ _FLOAT_COLS = (
     "zero_gamma_level", "call_wall", "put_wall",
     "front_skew", "put_25d_iv", "call_25d_iv", "iv30",
     "strike_slope", "term_slope",
-    "rv20", "vrp",
+    "rv20", "vrp", "butterfly",
     "coverage_pct", "fit_rmse", "max_resid", "cv_rmse", "coherence_violations",
 )
 
@@ -66,6 +66,7 @@ def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = Non
         "term_slope": summary.get("term_slope"),
         "rv20": summary.get("rv20"),
         "vrp": summary.get("vrp"),
+        "butterfly": summary.get("butterfly"),
         "coverage_pct": summary.get("coverage_pct"),
         "fit_rmse": summary.get("fit_rmse"),
         "max_resid": summary.get("max_resid"),

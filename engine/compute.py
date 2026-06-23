@@ -15,7 +15,7 @@ from engine.gex.exposure_engine import (
     compute_skew, surface_diagnostics,
 )
 from engine.gex.analytics import summarise
-from engine.vol.vol_metrics import compute_skew_25d, compute_term_structure, compute_rv20
+from engine.vol.vol_metrics import compute_model_free_em, compute_skew_25d, compute_term_structure, compute_rv20
 from engine.data.validation import load_history
 from engine.vol.vrp_history import vrp_percentile
 from engine.surface.surface_evolution import load_evolution
@@ -149,7 +149,19 @@ def compute_ticker(ticker: str) -> dict:
 
     skew_25d = compute_skew_25d(df, spot=snapshot.spot)
     term_structure = compute_term_structure(df, spot=snapshot.spot)
-    hist = load_history(ticker)
+
+    front = skew_25d.get("front_month") if isinstance(skew_25d, dict) else None
+    butterfly = None
+    if front and all(front.get(k) is not None for k in ("put_iv", "call_iv", "atm_iv")):
+        butterfly = 0.5 * (float(front["put_iv"]) + float(front["call_iv"])) - float(front["atm_iv"])
+
+    front_expiry = None
+    expiry_candidates = df.loc[df["T_years"] > 0, ["expiry", "T_years"]].dropna()
+    if not expiry_candidates.empty:
+        front_expiry = expiry_candidates.sort_values("T_years").iloc[0]["expiry"]
+    em = compute_model_free_em(df, spot=snapshot.spot, front_expiry=front_expiry)
+
+    hist = load_history(ticker, days=config.VRP_PERCENTILE_LOOKBACK)
     # Use parquet history if we have 21+ rows; otherwise fall back to yfinance daily closes.
     if not hist.empty and "spot" in hist.columns and len(hist) >= 21:
         spot_series = hist["spot"].iloc[::-1].reset_index(drop=True)
@@ -159,6 +171,22 @@ def compute_ticker(ticker: str) -> dict:
             spot_series = hist["spot"].iloc[::-1].reset_index(drop=True)
     rv20 = compute_rv20(spot_series) if spot_series is not None else None
     summary["rv20"] = rv20
+    summary["expected_move_pct"] = em.get("expected_move_pct")
+    summary["expected_move_abs"] = em.get("expected_move_abs")
+    summary["em_expiry"] = em.get("em_expiry")
+    summary["em_dte"] = em.get("em_dte")
+    summary["butterfly"] = butterfly
+
+    butterfly_pct = None
+    butterfly_pct_n = 0
+    if not hist.empty and "butterfly" in hist.columns:
+        butterfly_hist = hist["butterfly"].dropna()
+        butterfly_pct_n = int(len(butterfly_hist))
+        if butterfly is not None and butterfly_pct_n >= config.BUTTERFLY_PERCENTILE_MIN_SESSIONS:
+            butterfly_window = butterfly_hist.iloc[-config.VRP_PERCENTILE_LOOKBACK:]
+            butterfly_pct = int(percentileofscore(butterfly_window.to_numpy(), butterfly, kind="rank"))
+    summary["butterfly_pct"] = butterfly_pct
+    summary["butterfly_pct_n"] = butterfly_pct_n
 
     # VRP-03: the displayed VRP scalar AND its percentile share the vol-index series
     # (vol_index − RV20). snapshot.iv30 is no longer the VRP basis — both numbers come

@@ -211,6 +211,9 @@ TICKER_VOL_INDEX: dict[str, str] = {"SPY": "VIX", "QQQ": "VXN", "IWM": "RVX"}
 # Rolling-session window for the VRP percentile rank; ~one trading year. Used by vrp_history.vrp_percentile.
 VRP_PERCENTILE_LOOKBACK: int = 252
 
+# Minimum sessions before publishing a butterfly percentile rank; below this, keep n only.
+BUTTERFLY_PERCENTILE_MIN_SESSIONS: int = 10
+
 CARD_READ_MIN_SESSIONS: int = 60
 """Minimum sample before a percentile/history-derived card-read chip is shown at all.
 A rank on a thin sample is worse than no rank — so skew %ile, 5d-motion, etc. are OMITTED
