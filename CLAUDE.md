@@ -24,7 +24,7 @@ Descriptive only — no predictive/prescriptive claims.
 
 **Cold-start note:** chain-derived metrics (skew, surface, GEX) only accrue from our own daily snapshots (since ~2026-05-06); the VRP percentile is deep (CBOE vol-index 1990/2009 − yfinance RV20 over a 252-session window). The daily scheduler firing is what compounds the value.
 
-**Removed (commit `663f72f`, archive cleanup):** the v2.x sleeve-allocation framework (`run.py`, `build_report.py`, `signals.py`, `backtest.py`, `data_layer.py`, …) and the v1.0 `hmm.ipynb` — hmm was moved to the **marco-quant** repo. All recoverable from git history.
+**Removed (commit `663f72f`, archive cleanup):** the v2.x sleeve-allocation framework (`run.py`, `build_report.py`, `signals.py`, `backtest.py`, `data_layer.py`, …) and the v1.0 `hmm.ipynb` — hmm was moved to the **purpose-factor-model** repo (formerly marco-quant). All recoverable from git history.
 
 ## Local Setup
 
@@ -114,7 +114,7 @@ Bloomberg upgrade path: swap `engine/data/data_loader.py` only — everything el
 
 ## v2.x sleeve framework / v1.0 hmm — REMOVED
 
-The sleeve-allocation framework (`run.py`, `build_report.py`, `local_data.py`, `data_layer.py`, `signals.py`, `backtest.py`, `dashboard.py`, `stats_rigor.py`, `sensitivity.py`, `WALKTHROUGH.md`) and `hmm.ipynb` were removed in commit `663f72f` (archive cleanup). `hmm.ipynb` lives in the **marco-quant** repo now. Recover any of these from git history if needed — they are not part of this repo's working tree.
+The sleeve-allocation framework (`run.py`, `build_report.py`, `local_data.py`, `data_layer.py`, `signals.py`, `backtest.py`, `dashboard.py`, `stats_rigor.py`, `sensitivity.py`, `WALKTHROUGH.md`) and `hmm.ipynb` were removed in commit `663f72f` (archive cleanup). `hmm.ipynb` lives in the **purpose-factor-model** repo (formerly marco-quant) now. Recover any of these from git history if needed — they are not part of this repo's working tree.
 
 ## Workflow
 
