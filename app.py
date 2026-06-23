@@ -16,14 +16,13 @@ from engine.surface.surface_interactive import (
     build_diff_payload, render_diff_html,
     build_movie_payload, render_movie_html,
 )
-from engine.report.card_model import CardField, build_card_fields, build_card_read, LABEL_GRAY, format_oi_impact
+from engine.report.card_model import (CardField, build_card_fields, build_card_read, split_compact_fields, LABEL_GRAY, format_oi_impact)
 from engine.data.validation import load_prior_snapshot
-from engine.data.oi_history import prior_oi_snapshot
+from engine.data.oi_history import prior_oi_snapshot, load_oi_history
 from engine.compute import compute_ticker
 from engine.gex.analytics import (
     plot_gamma_profile,
     plot_vol_surface, plot_iv_change_surface,
-    plot_oi_by_strike,
 )
 from scipy.stats import percentileofscore
 from engine.data.surface_history import (
@@ -90,6 +89,10 @@ _CSS = """
 }
 .rc-k { opacity: 0.55; }
 .rc-v { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.rc-tag {
+    font-size: 0.62rem; padding: 1px 6px; border-radius: 8px; margin-left: 6px;
+    border: 1px solid rgba(148,163,184,0.35); color: #94a3b8; opacity: 0.9;
+}
 .rc-obs { font-size: 0.72rem; opacity: 0.70; margin-top: 10px; line-height: 1.6; }
 
 .top-bar {
@@ -183,10 +186,12 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
     prior_row = load_prior_snapshot(ticker=ticker, before_date=date.today())
     fields = build_card_fields(today_summary=summary, prior_summary=prior_row)
     fields = [f for f in fields if f.label != "γ-flip"]
+    primary_fields, detail_fields = split_compact_fields(fields)
+
     grid_html = "".join(
-        f'<span class="rc-k">{f.label}</span>'
+        f'<span class="rc-k">{f.label}<span class="rc-tag">{f.trust_tag}</span></span>'
         f'<span class="rc-v">{f.value}</span>'
-        for f in fields
+        for f in primary_fields
     )
 
     # The "so what" read — skew %ile + 5d drift, each shown ONLY if its sample clears the
@@ -221,6 +226,9 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
   <div class="rc-grid">{grid_html}</div>
 </div>
 """, unsafe_allow_html=True)
+    with col.expander("More fields", expanded=False):
+        for f in detail_fields:
+            st.markdown(f"- **{f.label}** ({f.trust_tag}): {f.value}")
 
 
 def render_regime_cards(tickers: list[str], all_data: dict[str, dict],
@@ -598,21 +606,7 @@ if sel_index:
 
             st.markdown(f"**{ticker}**")
 
-            c1, c2 = st.columns([3, 2])
-            with c1:
-                s_df = data.get("s_df")
-                if s_df is not None:
-                    st.plotly_chart(
-                        plot_oi_by_strike(s_df, spot, ticker, s),
-                        width='stretch',
-                    )
-                else:
-                    st.caption(f"{ticker}: OI data unavailable.")
-                st.caption(
-                    "Call OI = blue, Put OI = red. "
-                    "Call wall / put wall are GEX-defined (model · assumes dealers net short)."
-                )
-            with c2:
+            with st.container():
                 hist42 = _load_history_cached(ticker, days=42)
                 if not hist42.empty:
                     chart_df = hist42.sort_values("date")
@@ -709,6 +703,11 @@ if sel_index:
                             prior_oi_map[str(row["expiry"])] = row["oi"]
 
                     display_df = expiry_oi_df[["expiry", "dte", "oi", "pct_of_total", "put_call_ratio"]].copy()
+                    oi_hist = load_oi_history(ticker, days=5)
+                    avg_share_map: dict[str, float] = {}
+                    if not oi_hist.empty and {"expiry", "pct_of_total"}.issubset(set(oi_hist.columns)):
+                        avg_share = oi_hist.groupby("expiry", dropna=True)["pct_of_total"].mean()
+                        avg_share_map = {str(k): float(v) for k, v in avg_share.items()}
 
                     def _fmt_oi(x):
                         return f"{x/1e3:.0f}K" if x >= 1000 else f"{x:.0f}"
@@ -731,12 +730,25 @@ if sel_index:
                     ]
                     display_df["OI Share"] = display_df["pct_of_total"].apply(lambda x: f"{x:.1f}%")
                     display_df["P/C Ratio"] = display_df["put_call_ratio"].apply(lambda x: f"{x:.2f}")
+                    display_df["5d Avg Share"] = [
+                        (f"{avg_share_map[str(row['expiry'])]:.1f}%" if str(row["expiry"]) in avg_share_map else "—")
+                        for _, row in expiry_oi_df.iterrows()
+                    ]
+                    display_df["vs 5d Avg"] = [
+                        (
+                            f"{(row['pct_of_total'] - avg_share_map[str(row['expiry'])]):+.1f}pp"
+                            if str(row["expiry"]) in avg_share_map else "—"
+                        )
+                        for _, row in expiry_oi_df.iterrows()
+                    ]
                     display_df["Impact"] = display_df.apply(
                         lambda r: format_oi_impact(r.get("pct_of_total"), r.get("put_call_ratio")),
                         axis=1,
                     )
 
-                    display_df = display_df[["Expiry", "DTE", "OI", "Δ OI", "OI Share", "P/C Ratio", "Impact"]]
+                    display_df = display_df[
+                        ["Expiry", "DTE", "OI", "Δ OI", "OI Share", "5d Avg Share", "vs 5d Avg", "P/C Ratio", "Impact"]
+                    ]
                     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
         st.caption(
@@ -815,3 +827,5 @@ No event study, base rate, or backtest is shown — the live history is too shor
 for inference.
         """
     )
+
+

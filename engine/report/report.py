@@ -14,7 +14,7 @@ import datetime
 
 from engine import config
 from engine.report.card_model import (
-    CardField, build_card_fields, build_card_read,
+    CardField, build_card_fields, build_card_read, split_compact_fields,
     _fmt_b, _fmt_price, _fmt_pct, _fmt_skew,
     _fmt_hedge_shares, _pct_from_spot, _wall_value,
     _expected_1d_range_pct, _pin_location, _signed_color, format_oi_impact,
@@ -127,11 +127,13 @@ def _ticker_card(r: dict) -> str:
     prior_row = load_prior_snapshot(ticker=r["ticker"], before_date=datetime.date.today())
     fields = build_card_fields(today_summary=r, prior_summary=prior_row)
 
-    left_fields = fields[:5]
-    right_fields = fields[5:]
+    primary_fields, detail_fields = split_compact_fields(fields)
+    ordered_fields = [*primary_fields, *detail_fields]
+    left_fields = ordered_fields[:5]
+    right_fields = ordered_fields[5:]
 
-    left_rows = "".join(_kv_cell(f.label, f.value) for f in left_fields)
-    right_rows = "".join(_kv_cell(f.label, f.value) for f in right_fields)
+    left_rows = "".join(_kv_cell(f"{f.label} [{f.trust_tag}]", f.value) for f in left_fields)
+    right_rows = "".join(_kv_cell(f"{f.label} [{f.trust_tag}]", f.value) for f in right_fields)
 
     header = (
         f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
@@ -463,3 +465,6 @@ def build_email(
 </table>
 </body></html>
 """
+
+
+
