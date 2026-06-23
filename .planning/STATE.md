@@ -4,14 +4,14 @@ milestone: v3.5
 milestone_name: Index Vol-Context Rebuild
 status: planning
 stopped_at: Phase 18.1 context gathered
-last_updated: "2026-06-23T18:11:08.104Z"
+last_updated: "2026-06-23T18:19:43.041Z"
 last_activity: 2026-06-23
 progress:
   total_phases: 11
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 16
-  completed_plans: 15
-  percent: 55
+  completed_plans: 16
+  percent: 64
 ---
 
 # Project State
@@ -30,7 +30,7 @@ Plan: Not started
 Status: Ready to plan inserted phase 18.1
 Last activity: 2026-06-23
 
-Progress: [██████████] 97%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -121,7 +121,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-23T18:09:40.799Z
+Last session: 2026-06-23T18:19:43.014Z
 Stopped at: Phase 18.1 context gathered
 Post-rename hotfixes (2026-06-22): (a) **Store-path regression fixed** — after `gex/→engine/` rename, subpackage modules (`engine/data/*`, `engine/surface/*`, `engine/report/*`) used `Path(__file__).parents[1]` which now resolved to `engine/` not project root → daily run wrote parquet to `engine/out/`. Re-anchored 6 files to `parents[2]` (validation, surface_history, vol_index, surface_evolution, png_export, emailer `.env`). `run_daily`/`run_gex` at engine root keep `parents[1]` (correct). Full path audit done — all 9 anchors verified resolving under `out/`. Deleted stray `engine/out/`; real `out/` history intact. (b) **Scheduler re-pointed** — Task Scheduler "GEX Daily Report" action was still `-m gex.run_daily`; updated in place to `-m engine.run_daily --send` (battery flags/RestartCount preserved via Set-ScheduledTask -Action). 246 tests green.
 Resume queue (updated 2026-06-22): (1) Phase 16.5 OI Depth Expansion is next up the roadmap (no CONTEXT.md yet → discuss-phase first). (2) Roadmap "where": Phase 17 (term) → 17.1 (expected-move cone). Hosting eventual (app.py has _check_password). st.iframe deferred (not a drop-in). See memory [[project_email_vs_hosting]]. Note: skew/motion read chips still gated off (sample <60 sessions, HISTORY_DAYS=30 caps the skew series — latent: with floor=60 the skew chip can never light until HISTORY_DAYS is raised; revisit if skew chip wanted sooner).

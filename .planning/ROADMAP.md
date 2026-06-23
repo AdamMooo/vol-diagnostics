@@ -55,7 +55,7 @@
 - [ ] **Phase 17: Term-Structure Regime** — SPY VIX9D/VIX/VIX3M raw ratio; QQQ/IWM graceful degradation; no hidden scoring
 - [x] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only
  (completed 2026-06-23)
-- [ ] **Phase 18.1: Dashboard Trust and Clarity Hardening** (INSERTED) — compact trust-tagged scorecard, table-first OI context, 14-DTE primary dealer-impact framing, methods quick/deep trim, and evolution plain-English summary
+- [x] **Phase 18.1: Dashboard Trust and Clarity Hardening** (INSERTED) — compact trust-tagged scorecard, table-first OI context, 14-DTE primary dealer-impact framing, methods quick/deep trim, and evolution plain-English summary (completed 2026-06-23)
 - [ ] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (VRP+term+snapshot / surfaces / GEX); page-1 snapshot tied to canonical card; accumulation-dependent elements gated
 - [ ] **Phase 19: Data Health & Continuity** — Health-check CLI for all parquet stores, Task Scheduler re-verify, monthly SOP documented in CLAUDE.md
 
@@ -267,7 +267,7 @@ Plans:
 Plans:
 - [x] 18.1-01-PLAN.md
 - [x] 18.1-02-PLAN.md
-- [ ] 18.1-03-PLAN.md
+- [x] 18.1-03-PLAN.md
 
 ### Phase 19: Data Health & Continuity
 
