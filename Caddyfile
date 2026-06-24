@@ -1,0 +1,12 @@
+# Caddyfile — reverse proxy for Gamma OMM dashboard
+# Replace YOUR_DOMAIN with your actual domain or use :80 for IP-only access.
+#
+# For Oracle Cloud with a domain:
+#   your-domain.com {
+#       reverse_proxy dashboard:8501
+#   }
+#
+# For IP-only access (no HTTPS):
+:80 {
+    reverse_proxy dashboard:8501
+}

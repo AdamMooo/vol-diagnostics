@@ -1,0 +1,60 @@
+# Gamma OMM — Docker Compose
+# Services: dashboard (Streamlit), scheduler (daily data collection), caddy (HTTPS proxy)
+
+services:
+  dashboard:
+    build: .
+    container_name: gamma-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      - parquet-data:/app/out
+      - ./.env:/app/.env:ro
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  scheduler:
+    build: .
+    container_name: gamma-scheduler
+    restart: unless-stopped
+    volumes:
+      - parquet-data:/app/out
+      - ./.env:/app/.env:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Gamma OMM scheduler — daily collection at 16:35 ET (20:35 UTC)"
+        apt-get update -qq && apt-get install -y -qq cron > /dev/null 2>&1
+        echo "35 20 * * 1-5 cd /app && python -m engine.run_daily >> /var/log/gamma-daily.log 2>&1" > /etc/cron.d/gamma-daily
+        chmod 0644 /etc/cron.d/gamma-daily
+        crontab /etc/cron.d/gamma-daily
+        touch /var/log/gamma-daily.log
+        cron && tail -f /var/log/gamma-daily.log
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: gamma-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - dashboard
+
+volumes:
+  parquet-data:
+    driver: local
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local
