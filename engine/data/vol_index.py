@@ -35,10 +35,20 @@ def _fetch_cboe_vol_index(symbol: str) -> pd.DataFrame | None:
         # CBOE returns full history; no pagination.
         df = pd.read_csv(pd.io.common.StringIO(resp.text))
         df["DATE"] = pd.to_datetime(df["DATE"]).dt.date
-        df["OPEN"] = pd.to_numeric(df["OPEN"], errors="coerce")
-        df["HIGH"] = pd.to_numeric(df["HIGH"], errors="coerce")
-        df["LOW"] = pd.to_numeric(df["LOW"], errors="coerce")
-        df["CLOSE"] = pd.to_numeric(df["CLOSE"], errors="coerce")
+
+        # Some CBOE indices (e.g., VVIX) have a single value column named after
+        # the symbol instead of OHLC. Normalize to the OHLC schema.
+        if "OPEN" not in df.columns and symbol in df.columns:
+            val = pd.to_numeric(df[symbol], errors="coerce")
+            df["OPEN"] = val
+            df["HIGH"] = val
+            df["LOW"] = val
+            df["CLOSE"] = val
+        else:
+            df["OPEN"] = pd.to_numeric(df["OPEN"], errors="coerce")
+            df["HIGH"] = pd.to_numeric(df["HIGH"], errors="coerce")
+            df["LOW"] = pd.to_numeric(df["LOW"], errors="coerce")
+            df["CLOSE"] = pd.to_numeric(df["CLOSE"], errors="coerce")
 
         clean_df = df.dropna(subset=["OPEN", "HIGH", "LOW", "CLOSE"])
         dropped = len(df) - len(clean_df)

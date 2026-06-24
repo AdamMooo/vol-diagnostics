@@ -492,15 +492,18 @@ def compute_net_delta(gex_df: pd.DataFrame) -> float | None:
     """
     if gex_df is None or gex_df.empty:
         return None
-    if "delta" not in gex_df.columns or "openInterest" not in gex_df.columns:
+    if "delta" not in gex_df.columns:
+        return None
+    oi_col = "openInterest" if "openInterest" in gex_df.columns else "oi"
+    if oi_col not in gex_df.columns:
         return None
 
     MULTIPLIER = 100
     calls = gex_df[gex_df["type"] == "call"]
     puts = gex_df[gex_df["type"] == "put"]
 
-    call_delta = (calls["delta"] * calls["openInterest"] * MULTIPLIER).sum()
-    put_delta = (puts["delta"].abs() * puts["openInterest"] * MULTIPLIER).sum()
+    call_delta = (calls["delta"] * calls[oi_col] * MULTIPLIER).sum()
+    put_delta = (puts["delta"].abs() * puts[oi_col] * MULTIPLIER).sum()
 
     # Dealer net-short assumption: dealers are short calls (so their delta hedge
     # is +call_delta) and short puts (their hedge is -put_delta).

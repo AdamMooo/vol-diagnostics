@@ -578,13 +578,14 @@ if not all_data:
 
 
 def _render_surface_momentum(selected_all: list[str], all_data: dict) -> None:
-    """Trend-first momentum strip: 1d/5d/10d/20d surface level change for the primary ticker."""
+    """Trend-first momentum strip: 5d/10d/20d surface level change for the primary ticker.
+    Horizons match the evolution engine (5/10/20); 1d excluded by design decision."""
     import math
     primary = selected_all[0] if selected_all else None
     if not primary or primary not in all_data:
         return
 
-    horizons = [1, 5, 10, 20]
+    horizons = [5, 10, 20]
     values: dict[int, float | None] = {}
     for h in horizons:
         evo = load_evolution(primary, horizon=h, days=400)
@@ -594,9 +595,9 @@ def _render_surface_momentum(selected_all: list[str], all_data: dict) -> None:
         latest = evo.dropna(subset=["level"]).sort_values("date").tail(1)
         values[h] = float(latest.iloc[0]["level"]) if not latest.empty else None
 
-    # Find the dominant trend direction
     filled = [(h, v) for h, v in values.items() if v is not None and not math.isnan(v)]
     if not filled:
+        st.caption(f"{primary}: surface momentum builds as daily snapshots accumulate (need ≥5 sessions).")
         return
 
     rising = sum(1 for _, v in filled if v > 0)
@@ -613,7 +614,7 @@ def _render_surface_momentum(selected_all: list[str], all_data: dict) -> None:
     for col, h in zip(cols, horizons):
         v = values.get(h)
         if v is None:
-            col.metric(f"{h}d", "—")
+            col.metric(f"{h}d", f"need {h}+ sessions")
         else:
             arrow = "↑" if v > 0.05 else "↓" if v < -0.05 else "—"
             col.metric(f"{h}d", f"{v:+.2f}pp {arrow}")
