@@ -37,9 +37,9 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 
 ### Dashboard Reorg (VIEW — continues VIEW-05)
 
-- [ ] **VIEW-06** — The dashboard is organized into three pages: (1) VRP + term structure + snapshot, (2) surfaces, (3) GEX. Surfaces and GEX are retained, only demoted.
+- [x] **VIEW-06** — The dashboard is organized into three pages: (1) VRP + term structure + snapshot, (2) surfaces, (3) GEX. Surfaces and GEX are retained, only demoted.
 - [ ] **VIEW-07** — The page-1 snapshot is simplified for at-a-glance readability (the lead PM-facing view).
-- [ ] **CUT-02** — (absorbed from v3.2 backlog) The 3D vol surface is demoted off page 1 into the surfaces page.
+- [x] **CUT-02** — (absorbed from v3.2 backlog) The 3D vol surface is demoted off page 1 into the surfaces page.
 
 ### Email Parity (PAR)
 
@@ -86,9 +86,9 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 | TERM-02 | Phase 17 | Pending |
 | EM-01 | Phase 17.1 | Complete |
 | SHAPE-01 | Phase 17.1 | Complete |
-| VIEW-06 | Phase 18 | Pending |
+| VIEW-06 | Phase 18 | Complete |
 | VIEW-07 | Phase 18 | Pending |
-| CUT-02 | Phase 18 | Pending |
+| CUT-02 | Phase 18 | Complete |
 | PAR-01 | Phase 18 | Pending |
 | GATE-01 | Phase 18 | Pending |
 | GATE-02 | Phase 18 | Pending |

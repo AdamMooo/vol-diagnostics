@@ -312,7 +312,7 @@ Plans:
 | 16. VRP Percentile | v3.5 | 2/2 | Complete | 2026-06-16 |
 | 16.5. OI Depth Expansion | v3.5 | 3/3 | Complete    | 2026-06-22 |
 | 17. Term-Structure Regime | v3.5 | 0/TBD | Not started | - |
-| 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 0/TBD | Not started | - |
+| 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 1/3 | In Progress|  |
 | 19. Data Health & Continuity | v3.5 | 0/TBD | Not started | - |
 
 ---

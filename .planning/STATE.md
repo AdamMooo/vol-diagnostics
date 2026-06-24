@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Index Vol-Context Rebuild
-status: planning
-stopped_at: "Tomorrow first step: confirm Phase 18 discussion decisions before planning"
-last_updated: "2026-06-23T20:57:06.813Z"
-last_activity: 2026-06-23
+status: executing
+stopped_at: Completed 18-01-PLAN.md
+last_updated: "2026-06-24T14:10:54.553Z"
+last_activity: 2026-06-24 -- Completed 18-01 execution
 progress:
   total_phases: 11
   completed_phases: 8
-  total_plans: 17
-  completed_plans: 17
-  percent: 73
+  total_plans: 20
+  completed_plans: 18
+  percent: 90
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 ## Current Position
 
 Phase: 18
-Plan: Not started
-Status: Ready to plan Phase 18 (3-Page Reorg + Email Parity + Gating)
-Last activity: 2026-06-23
+Plan: 02
+Status: In progress
+Last activity: 2026-06-24 -- Completed 18-01 execution
 
-Progress: [██████████] 100%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -72,6 +72,9 @@ Progress: [██████████] 100%
 
 ### Decisions
 
+- 2026-06-24: Phase 18-01 — Top-level dashboard routing is locked to Regime / Surfaces / Positioning; Evolution is nested under Surfaces.
+- 2026-06-24: Phase 18-01 — Page-1 hierarchy is cross-index briefing + short OI teaser above default three-card snapshot.
+- 2026-06-24: Phase 18-01 — Full OI/GEX mechanics remain on Positioning and heavy pages use single-ticker radios.
 - 2026-06-16: Phase 16-02 — Displayed VRP scalar switched from snapshot.iv30 − RV20 to vol_index − RV20 (LOCKED CONTEXT); scalar + percentile share one series and cannot drift. vrp_pct/vrp_pct_n precomputed in compute_ticker; build_card_fields stays I/O-free. One VRP CardField (index 8, after Skew) reaches both email and dashboard via the PAR-01 seam. _fetch_spot_history_yf widened 35d→400d.
 - 2026-06-16: Phase 16-01 — VRP percentile built from one vol-index-based series (`vol_index − RV20×100`, vol points); snapshot-IV30 `vrp` column never enters the history (VRP-03). `percentileofscore(kind="rank")` for uniformity with the skew percentile. Cold-start returns actual count n; failure paths return None-dict, never raise. Engine isolated in `gex/vrp_history.py` so 16-02 only wires it.
 - 2026-06-04: v3.5 roadmap — 4 phases (15–18). VIDX data layer first (foundation); VRP percentile and term-structure regime are separate phases (distinct deliverables, both depend on VIDX); 3-page reorg + email parity + gating last (presentation layer, depends on both metrics). GATE-01/02 folded into Phase 18 (display-layer safety net for the same page-1 reorg).
@@ -123,8 +126,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-23T20:57:06.796Z
-Stopped at: Tomorrow first step: confirm Phase 18 discussion decisions before planning
+Last session: 2026-06-24T14:10:29.203Z
+Stopped at: Session resumed, proceeding to plan phase 18
 Post-rename hotfixes (2026-06-22): (a) **Store-path regression fixed** — after `gex/→engine/` rename, subpackage modules (`engine/data/*`, `engine/surface/*`, `engine/report/*`) used `Path(__file__).parents[1]` which now resolved to `engine/` not project root → daily run wrote parquet to `engine/out/`. Re-anchored 6 files to `parents[2]` (validation, surface_history, vol_index, surface_evolution, png_export, emailer `.env`). `run_daily`/`run_gex` at engine root keep `parents[1]` (correct). Full path audit done — all 9 anchors verified resolving under `out/`. Deleted stray `engine/out/`; real `out/` history intact. (b) **Scheduler re-pointed** — Task Scheduler "GEX Daily Report" action was still `-m gex.run_daily`; updated in place to `-m engine.run_daily --send` (battery flags/RestartCount preserved via Set-ScheduledTask -Action). 246 tests green.
 Resume queue: (1) **Phase 18: 3-Page Reorg + Email Parity + Gating** — dashboard reorganized to 3 pages (page 1: VRP+term+snapshot, page 2: surfaces, page 3: GEX); page-1 snapshot tied to canonical card; accumulation gating. Depends on Phase 16 + 17 + 17.1 (all done). No CONTEXT.md yet → discuss-phase first. (2) Phase 19: Data Health & Continuity. (3) v4.0 Cloud Hosting. Note: skew/motion read chips still gated off (sample <60 sessions, HISTORY_DAYS=30 caps the skew series — latent: with floor=60 the skew chip can never light until HISTORY_DAYS is raised; revisit if skew chip wanted sooner).
 
@@ -145,3 +148,4 @@ Resume queue: (1) **Phase 18: 3-Page Reorg + Email Parity + Gating** — dashboa
 
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
+
