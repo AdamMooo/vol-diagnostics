@@ -56,19 +56,23 @@
  (completed 2026-06-23)
 - [x] **Phase 17.1: Convexity & Expected Move** (INSERTED) — front-expiry ATM-straddle expected move + 25Δ butterfly on the page-1 card; descriptive only
  (completed 2026-06-23)
-- [x] **Phase 18.1: Dashboard Trust and Clarity Hardening** (INSERTED) — compact trust-tagged scorecard, table-first OI context, 14-DTE primary dealer-impact framing, methods quick/deep trim, and evolution plain-English summary (completed 2026-06-23)
-- [ ] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (VRP+term+snapshot / surfaces / GEX); page-1 snapshot tied to canonical card; accumulation-dependent elements gated
-- [ ] **Phase 19: Data Health & Continuity** — Health-check CLI for all parquet stores, Task Scheduler re-verify, monthly SOP documented in CLAUDE.md
+- [x] **Phase 18.1: Dashboard Trust and Clarity Hardening** (INSERTED) — compact trust-tagged scorecard, table-first OI context, 14-DTE primary dealer-impact framing, methods quick/deep trim, and evolution plain-English summary
+ (completed 2026-06-23)
+- [x] **Phase 18: 3-Page Reorg + Email Parity + Gating** — Dashboard reorganized to 3 pages (Regime/Surfaces/Positioning); page-1 environment-read hero (risk bar + narrative + key levels + VVIX + net delta); accumulation-dependent elements gated; performance caching pass (completed 2026-06-24)
+- [~] **Phase 19: Data Health & Continuity** — MOVED to v4.0 Phase 20 (folded into Docker deployment; health-check makes more sense alongside the container scheduler)
 
 ---
 
-### v4.0 Cloud Hosting (Planned)
+### v4.0 Cloud Hosting — Docker on Oracle Cloud Free Tier
 
-**Milestone Goal:** Move the dashboard off the local Windows machine onto a VPS or cloud VM — runs 24/7, accessible from any computer. Code deploys via git pull from personal GitHub; historical parquet data migrated via volume mount; cron replaces Windows Task Scheduler. No code changes required to the app itself.
+**Milestone Goal:** Containerize the full stack and deploy to Oracle Cloud Always Free ARM VM. Dashboard runs 24/7, accessible from any device. Daily data collection fires via container cron. Historical parquet persisted via Docker volume. HTTPS via Caddy reverse proxy.
 
-- [ ] **Phase 20: VPS Setup + Code Deploy Workflow** — Provision server, configure git remote, automated deploy script
-- [ ] **Phase 21: Data Migration + Cron Scheduler** — Migrate `out/` parquet history, wire cron job for daily run
-- [ ] **Phase 22: Multi-Machine Access + Hardening** — Auth layer (password guard already in app.py), HTTPS, stable URL
+**Target infra:** Oracle Cloud Free Tier (ARM Ampere A1, 4GB RAM, 24GB disk) — truly free, never expires.
+
+- [ ] **Phase 19: Dockerize** — Dockerfile (Python 3.11-slim, requirements.txt, Streamlit entrypoint) + docker-compose.yml (app service + scheduler service + Caddy proxy). Volume mount for `out/` parquet. `.env` for SMTP creds. Runs locally first.
+- [ ] **Phase 20: Data Health + Collection Hardening** — Health-check script (verifies last snapshot date per ticker, alerts on missed sessions). Idempotent `run_daily` (safe to double-fire). Compose scheduler service uses cron-based entrypoint (supercronic or built-in).
+- [ ] **Phase 21: Oracle Cloud Provision + Deploy** — Create Always Free ARM instance, install Docker, git clone, docker compose up. Migrate existing `out/` parquet via scp. Verify daily collection fires.
+- [ ] **Phase 22: HTTPS + Remote Access** — Caddy reverse proxy with automatic Let's Encrypt. Custom domain or Oracle public IP. Password gate already in app.py. Firewall rules (80/443 only).
 
 ---
 
