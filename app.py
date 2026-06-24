@@ -287,6 +287,56 @@ def render_regime_cards(tickers: list[str], all_data: dict[str, dict],
             render_regime_card(col, data["summary"], spot=data.get("spot"))
 
 
+def _render_cross_index_summary(selected_all: list[str], all_data: dict[str, dict]) -> None:
+    rows: list[dict] = []
+    for ticker in selected_all:
+        data = all_data.get(ticker)
+        if not data:
+            continue
+        s = data.get("summary") or {}
+        if s.get("error"):
+            continue
+        rows.append(s)
+
+    if not rows:
+        return
+
+    rich = sum(1 for s in rows if (s.get("vrp") is not None and s.get("vrp") > 0))
+    stabilizing = sum(1 for s in rows if (s.get("net_gex") is not None and s.get("net_gex") >= 0))
+    avg_iv30 = [s.get("iv30") for s in rows if s.get("iv30") is not None]
+    avg_iv30_str = f"{sum(avg_iv30) / len(avg_iv30):.1f}%" if avg_iv30 else "—"
+
+    st.markdown("### Cross-index briefing")
+    st.caption(
+        f"Selected: {len(rows)} index cards · VRP above RV20: {rich}/{len(rows)} · "
+        f"stabilising dealer sign: {stabilizing}/{len(rows)} · avg IV30: {avg_iv30_str}."
+    )
+
+
+def _render_positioning_teaser(selected_all: list[str], all_data: dict[str, dict]) -> None:
+    teaser_bits: list[str] = []
+    for ticker in selected_all:
+        data = all_data.get(ticker)
+        expiry_oi_df = (data or {}).get("expiry_oi_df")
+        if expiry_oi_df is None or expiry_oi_df.empty:
+            continue
+        top = expiry_oi_df.sort_values("pct_of_total", ascending=False).head(1)
+        if top.empty:
+            continue
+        row = top.iloc[0]
+        expiry = pd.to_datetime(row["expiry"]).strftime("%b %d")
+        teaser_bits.append(
+            f"{ticker} top OI expiry {expiry} ({row['pct_of_total']:.1f}% share, P/C {row['put_call_ratio']:.2f})"
+        )
+
+    st.markdown("#### Positioning teaser")
+    if teaser_bits:
+        st.caption(" · ".join(teaser_bits))
+    else:
+        st.caption("OI teaser builds as expiry history accumulates.")
+    st.caption("Full OI table, γ-flip mechanics, and wall derivation stay on the Positioning page.")
+
+
 def _expected_latest_session(now_et: datetime) -> date:
     """Most recent NYSE session that should already be collected.
 
@@ -618,6 +668,8 @@ if sel_index:
     )
 
     with tab_regime:
+        _render_cross_index_summary(selected_all, all_data)
+        _render_positioning_teaser(selected_all, all_data)
         render_regime_cards(sel_index, all_data)
 
     # ── Surfaces (Today / Compare / Evolution) ───────────────────────────────
