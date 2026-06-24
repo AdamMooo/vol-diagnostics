@@ -1,6 +1,6 @@
 # Roadmap: Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-22 · v3.3 SHIPPED · v3.4 SHIPPED · v3.5 active (Phases 15–19; 15–16 done) · v4.0 planned*
+*Last updated: 2026-06-24 · v3.3 SHIPPED · v3.4 SHIPPED · v3.5 SHIPPED · v4.0 active (Phase 19 done; 20–22 remaining)*
 
 ## Milestones
 
@@ -9,8 +9,8 @@
 - ✅ **v3.2 Vol Surface Reframe** — Phases 6–7 (computation engine + institutional dashboard rendering)
 - ✅ **v3.3 Surface Evolution & Daily Intelligence** — Phases 8–11 (shipped 2026-06-01)
 - ✅ **v3.4 Email-First Daily Report Polish** — Phases 12–14 (shipped 2026-06-02)
-- 🚧 **v3.5 Index Vol-Context Rebuild** — Phases 15–19 (active; 15–16 done)
-- **v4.0 Cloud Hosting** — VPS deploy + git workflow + data migration (planned)
+- ✅ **v3.5 Index Vol-Context Rebuild** — Phases 15–18 (shipped 2026-06-24)
+- 🚧 **v4.0 Cloud Hosting** — Docker on Oracle Cloud Free Tier (active; Phase 19 done)
 - **Backlog (999.x)** — Charm, test coverage, pre-distribution; awaiting research
 
 ## Phases
@@ -278,19 +278,14 @@ Plans:
 - [x] 18.1-02-PLAN.md
 - [x] 18.1-03-PLAN.md
 
-### Phase 19: Data Health & Continuity
+### Phase 19: Dockerize (MOVED to v4.0)
 
-**Goal**: A single CLI command audits all parquet stores for freshness, row count, date gaps, and schema consistency; the result is clean on a healthy setup. Task Scheduler is re-verified and a monthly SOP is documented in CLAUDE.md so the accumulation engine keeps running reliably.
+**Goal**: Containerize the full stack for cloud deployment — Dockerfile, docker-compose (dashboard + scheduler + Caddy proxy), volume for parquet, platform-adaptive emailer.
 **Depends on**: Phase 18
-**Requirements**: HEALTH-01, HEALTH-02
-**Success Criteria** (what must be TRUE):
+**Status**: ✅ Complete (2026-06-24)
+**Plans**: 1/1 complete
 
-  1. `python -m gex.health_check` prints a table: store name, row count, first/last date, gap count vs NYSE calendar, and a PASS/WARN flag per store.
-  2. Running it on the current setup produces no WARN flags.
-  3. Task Scheduler re-verified: battery flags off, RestartCount=2, last-result=0 confirmed; any fix committed and documented.
-  4. CLAUDE.md documents the monthly-check SOP: run health_check, verify Task Scheduler last-result, confirm latest parquet date is within 2 trading days.
-
-**Plans**: TBD
+Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 services), Caddyfile, .env.example, SMTP emailer fallback.
 
 ---
 
@@ -315,9 +310,14 @@ Plans:
 | 15. Vol-Index Data Layer | v3.5 | 2/2 | Complete    | 2026-06-05 |
 | 16. VRP Percentile | v3.5 | 2/2 | Complete | 2026-06-16 |
 | 16.5. OI Depth Expansion | v3.5 | 3/3 | Complete    | 2026-06-22 |
-| 17. Term-Structure Regime | v3.5 | 0/TBD | Not started | - |
-| 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 1/3 | In Progress|  |
-| 19. Data Health & Continuity | v3.5 | 0/TBD | Not started | - |
+| 17. Term-Structure Regime | v3.5 | 1/1 | Complete | 2026-06-23 |
+| 17.1. Convexity & Expected Move | v3.5 | 2/2 | Complete | 2026-06-23 |
+| 18.1. Dashboard Trust & Clarity | v3.5 | 3/3 | Complete | 2026-06-23 |
+| 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 3/3 | Complete | 2026-06-24 |
+| 19. Dockerize | v4.0 | 1/1 | Complete | 2026-06-24 |
+| 20. Data Health + Collection Hardening | v4.0 | 0/TBD | Not started | - |
+| 21. Oracle Cloud Provision + Deploy | v4.0 | 0/TBD | Not started | - |
+| 22. HTTPS + Remote Access | v4.0 | 0/TBD | Not started | - |
 
 ---
 

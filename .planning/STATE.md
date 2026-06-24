@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.5
-milestone_name: Index Vol-Context Rebuild
+milestone: v4.0
+milestone_name: Cloud Hosting
 status: executing
-stopped_at: Completed 18-01-PLAN.md
-last_updated: "2026-06-24T14:10:54.553Z"
-last_activity: 2026-06-24 -- Completed 18-01 execution
+stopped_at: Phase 19 complete; Oracle Cloud account provisioning
+last_updated: "2026-06-24T20:36:00.000Z"
+last_activity: 2026-06-24 -- v3.5 shipped; Phase 19 Dockerize committed; Oracle Cloud account created
 progress:
-  total_phases: 11
-  completed_phases: 8
-  total_plans: 20
-  completed_plans: 18
-  percent: 90
+  total_phases: 4
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 25
 ---
 
 # Project State
@@ -21,24 +21,45 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 17.1 — convexity expected move
+**Current focus:** v4.0 Cloud Hosting — Docker on Oracle Cloud Free Tier
 
 ## Current Position
 
-Phase: 18
-Plan: 02
-Status: In progress
-Last activity: 2026-06-24 -- Completed 18-01 execution
+Milestone: v4.0
+Phase: 20
+Plan: 01
+Status: Not started (Oracle Cloud account being provisioned)
+Last activity: 2026-06-24 -- Phase 19 Dockerize committed; v3.5 shipped
 
-Progress: [█████████░] 90%
+Progress: [██░░░░░░░░] 25%
+
+## v3.5 Milestone Summary (SHIPPED 2026-06-24)
+
+All phases complete:
+- Phase 15: Vol-Index Data Layer ✅
+- Phase 16: VRP Percentile ✅
+- Phase 16.5: OI Depth Expansion ✅
+- Phase 17: Term-Structure Regime ✅
+- Phase 17.1: Convexity & Expected Move ✅
+- Phase 18.1: Dashboard Trust & Clarity Hardening ✅
+- Phase 18: 3-Page Reorg + Email Parity + Gating ✅
+
+## v4.0 Phases Remaining
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 19. Dockerize | ✅ Complete | Dockerfile, compose, Caddy, SMTP emailer |
+| 20. Data Health + Collection Hardening | Not started | Health-check script, idempotent run_daily, cron |
+| 21. Oracle Cloud Provision + Deploy | Not started | ARM instance, Docker, git clone, migrate parquet |
+| 22. HTTPS + Remote Access | Not started | Caddy + Let's Encrypt, firewall |
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 35 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11) + 4 (v3.4 phases 12–13)
+- Total plans completed: 35 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11) + 4 (v3.4 phases 12–13) + 13 (v3.5 phases 15–18) + 1 (v4.0 phase 19)
 - Average duration: ~7 min per plan
-- Current test count: 66
+- Current test count: 344
 
 **By Phase:**
 
@@ -126,10 +147,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-24T14:10:29.203Z
-Stopped at: Session resumed, proceeding to plan phase 18
-Post-rename hotfixes (2026-06-22): (a) **Store-path regression fixed** — after `gex/→engine/` rename, subpackage modules (`engine/data/*`, `engine/surface/*`, `engine/report/*`) used `Path(__file__).parents[1]` which now resolved to `engine/` not project root → daily run wrote parquet to `engine/out/`. Re-anchored 6 files to `parents[2]` (validation, surface_history, vol_index, surface_evolution, png_export, emailer `.env`). `run_daily`/`run_gex` at engine root keep `parents[1]` (correct). Full path audit done — all 9 anchors verified resolving under `out/`. Deleted stray `engine/out/`; real `out/` history intact. (b) **Scheduler re-pointed** — Task Scheduler "GEX Daily Report" action was still `-m gex.run_daily`; updated in place to `-m engine.run_daily --send` (battery flags/RestartCount preserved via Set-ScheduledTask -Action). 246 tests green.
-Resume queue: (1) **Phase 18: 3-Page Reorg + Email Parity + Gating** — dashboard reorganized to 3 pages (page 1: VRP+term+snapshot, page 2: surfaces, page 3: GEX); page-1 snapshot tied to canonical card; accumulation gating. Depends on Phase 16 + 17 + 17.1 (all done). No CONTEXT.md yet → discuss-phase first. (2) Phase 19: Data Health & Continuity. (3) v4.0 Cloud Hosting. Note: skew/motion read chips still gated off (sample <60 sessions, HISTORY_DAYS=30 caps the skew series — latent: with floor=60 the skew chip can never light until HISTORY_DAYS is raised; revisit if skew chip wanted sooner).
+Last session: 2026-06-24T20:36:00.000Z
+Stopped at: v3.5 shipped; Phase 19 Dockerize committed; Oracle Cloud account being provisioned
+Resume queue: (1) **Phase 20: Data Health + Collection Hardening** — health-check script, idempotent run_daily, cron-based scheduler service. (2) **Phase 21: Oracle Cloud Provision + Deploy** — create Always Free ARM instance, install Docker, clone repo, compose up, migrate parquet via scp. (3) **Phase 22: HTTPS + Remote Access** — Caddy + Let's Encrypt, firewall rules. Note: Oracle Cloud account created 2026-06-24; instance provisioning in progress.
 
 ---
 ---

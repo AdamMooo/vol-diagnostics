@@ -1,5 +1,56 @@
 # Milestones — Options Quant
 
+## v3.5 — Index Vol-Context Rebuild
+
+**Shipped:** 2026-06-24
+**Phases:** 15–18 (incl. 16.5, 17.1, 18.1 inserts) | **Plans:** ~18
+
+### Delivered
+
+Re-aimed the dashboard at the index income-sleeve PM — VRP percentile with deep CBOE vol-index history, VIX term-structure regime (SPY-only; CBOE limitation documented), model-free expected move + 25Δ butterfly, richer OI depth analytics, trust-tagged compact scorecards, and a full 3-page dashboard reorg (Regime → Surfaces → Positioning) with environment-read hero page-1. Dockerized the full stack for cloud deployment.
+
+### Key Accomplishments
+
+1. Vol-index data layer — CBOE CSV fetch/cache for VIX/VXN/RVX + VIX9D/VIX3M; Bloomberg-swappable
+2. VRP percentile — vol-index − RV20 ranked over 252-session history; cold-start aware
+3. OI depth expansion — expiry concentration, day-over-day OI change, put/call split, top-decile flagging
+4. Term-structure regime — SPY VIX9D/VIX/VIX3M raw ratios; QQQ/IWM graceful degradation
+5. Convexity & expected move — front-expiry ATM straddle EM + 25Δ butterfly with percentile history
+6. Dashboard trust hardening — compact trust-tagged scorecards, 14-DTE primary framing, methods quick/deep
+7. 3-page reorg — environment-read hero (risk bar + narrative + key levels + VVIX + net delta), accumulation gating
+8. Performance caching — all parquet/filesystem I/O cached in dashboard render path
+9. Dockerize — Dockerfile, docker-compose (3 services), Caddy, SMTP emailer fallback
+
+### Stats
+
+- Timeline: 2026-06-05 → 2026-06-24 (20 days)
+- Test count: 246 → 344
+- 344 tests green
+
+---
+
+## v3.4 — Email-First Daily Report Polish
+
+**Shipped:** 2026-06-02
+**Phases:** 12–13 (Phase 14 superseded → Phase 18) | **Plans:** 4
+
+### Delivered
+
+Canonical card shared by email + dashboard; 1-day ΔIV email PNGs replacing static surface images.
+
+---
+
+## v3.3 — Surface Evolution & Daily Intelligence
+
+**Shipped:** 2026-06-01
+**Phases:** 8–11 | **Plans:** 12
+
+### Delivered
+
+Convex-hull surface validation, ΔIV evolution engine (5/10/20 horizons), dashboard restructure (5→4 tabs, stored-vs-stored compare, evolution view, OI-led Positioning), richer daily report with surface + ΔIV PNG attachments.
+
+---
+
 ## v3.0 — GEX Interactive Dashboard
 
 **Shipped:** 2026-05-06
