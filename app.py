@@ -613,15 +613,16 @@ def _evolution_section(selected_all: list[str], all_data: dict) -> None:
 
 
 if sel_index:
-    render_regime_cards(sel_index, all_data)
-
-    tab_surface, tab_evolution, tab_positioning = st.tabs(
-        ["Surface", "Evolution", "Positioning"]
+    tab_regime, tab_surfaces, tab_positioning = st.tabs(
+        ["Regime", "Surfaces", "Positioning"]
     )
 
-    # ── Surface ──────────────────────────────────────────────────────────────
-    with tab_surface:
-        sub_today, sub_compare = st.tabs(["Today", "Compare"])
+    with tab_regime:
+        render_regime_cards(sel_index, all_data)
+
+    # ── Surfaces (Today / Compare / Evolution) ───────────────────────────────
+    with tab_surfaces:
+        sub_today, sub_compare, sub_evolution = st.tabs(["Today", "Compare", "Evolution"])
 
         with sub_today:
             _surface_today_section(selected_all, all_data)
@@ -629,9 +630,8 @@ if sel_index:
         with sub_compare:
             _surface_compare_section(selected_all, all_data)
 
-    # ── Evolution — the surface in motion ─────────────────────────────────────
-    with tab_evolution:
-        _evolution_section(selected_all, all_data)
+        with sub_evolution:
+            _evolution_section(selected_all, all_data)
 
     # ── Positioning ───────────────────────────────────────────────────────────
     with tab_positioning:
@@ -644,7 +644,12 @@ if sel_index:
             unsafe_allow_html=False,
         )
 
-        for ticker in selected_all:
+        pos_tkr = st.radio(
+            "Positioning ticker", selected_all, horizontal=True,
+            key="positioning_tkr", label_visibility="collapsed",
+        )
+
+        for ticker in [pos_tkr]:
             if ticker not in all_data:
                 continue
             data = all_data[ticker]
