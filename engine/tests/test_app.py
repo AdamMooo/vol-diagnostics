@@ -200,3 +200,21 @@ def test_evolution_summary_picks_largest_dimension_and_direction():
     assert "what changed most today" in line.lower()
     assert "term" in line.lower()
     assert "flattened" in line.lower()
+
+def test_phase18_page_tabs_top_level_labels_and_sections_contract():
+    app = _import_app_module()
+    import inspect
+    src = inspect.getsource(app)
+    assert 'tab_regime, tab_surfaces, tab_positioning = st.tabs(' in src
+    assert '["Regime", "Surfaces", "Positioning"]' in src
+    assert '["Surface", "Evolution", "Positioning"]' not in src
+    assert 'sub_today, sub_compare, sub_evolution = st.tabs(["Today", "Compare", "Evolution"])' in src
+
+
+def test_phase18_page_tabs_routes_evolution_under_surfaces_only():
+    app = _import_app_module()
+    import inspect
+    src = inspect.getsource(app)
+    i_surfaces = src.index('with tab_surfaces:')
+    i_evo_call = src.index('_evolution_section(selected_all, all_data)')
+    assert i_surfaces < i_evo_call
