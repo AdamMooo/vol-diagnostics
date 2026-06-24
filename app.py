@@ -839,8 +839,12 @@ if sel_index:
 
     # ── Surfaces (Today / Compare / Evolution) ───────────────────────────────
     with tab_surfaces:
+        surf_tkr = st.radio(
+            "Surface ticker", selected_all, horizontal=True,
+            key="surf_main_tkr", label_visibility="collapsed",
+        )
         # ── Momentum strip — trend headline before any surface detail ────────
-        _render_surface_momentum(selected_all, all_data)
+        _render_surface_momentum([surf_tkr], all_data)
 
         sub_today, sub_compare, sub_evolution = st.tabs(["Today", "Compare", "Evolution"])
 
