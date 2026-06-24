@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 001: Environment Read Hero</title>
+<link rel="stylesheet" href="../themes/default.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  padding: 0;
+}
+
+/* ── Variant Tabs ─────────────────────────────────────────── */
+.variant-tabs {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; gap: 0;
+  background: #000;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 20px;
+}
+.variant-tab {
+  padding: 12px 24px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.variant-tab:hover { color: var(--color-text); }
+.variant-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.variant { display: none; padding: 40px; max-width: 1200px; margin: 0 auto; }
+.variant.active { display: block; }
+
+/* ── Shared Components ────────────────────────────────────── */
+.freshness {
+  font-size: var(--text-xs);
+  color: var(--color-success);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.freshness.stale { color: var(--color-danger); }
+
+.date-header {
+  font-size: var(--text-xs);
+  color: var(--color-text-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   VARIANT A: "Morning Brief"
+   Editorial feel — bold paragraph hero, cards as evidence
+   ════════════════════════════════════════════════════════════ */
+.va-read {
+  font-size: var(--text-2xl);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text);
+  margin-bottom: 32px;
+  max-width: 800px;
+}
+.va-read strong {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.va-read .danger { color: var(--color-danger); }
+.va-read .calm { color: var(--color-success); }
+
+.va-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 32px;
+}
+.va-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  border: 1px solid var(--color-border);
+}
+.va-card-ticker {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 12px;
+}
+.va-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(148,163,184,0.08);
+}
+.va-card-row:last-child { border-bottom: none; }
+.va-card-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.va-card-value {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.va-card-value.neg { color: var(--color-danger); }
+.va-card-value.pos { color: var(--color-success); }
+.va-card-value.warn { color: var(--color-warning); }
+
+.va-section-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  margin-top: 40px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ════════════════════════════════════════════════════════════
+   VARIANT B: "Signal Board"
+   Data-first — colored risk bar, metric grid, then read
+   ════════════════════════════════════════════════════════════ */
+.vb-risk-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-radius: var(--radius-md);
+  margin-bottom: 28px;
+}
+.vb-risk-bar.elevated {
+  background: var(--color-danger-soft);
+  border: 1px solid rgba(248,113,113,0.3);
+}
+.vb-risk-bar.normal {
+  background: var(--color-success-soft);
+  border: 1px solid rgba(74,222,128,0.3);
+}
+.vb-risk-label {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.vb-risk-bar.elevated .vb-risk-label { color: var(--color-danger); }
+.vb-risk-bar.normal .vb-risk-label { color: var(--color-success); }
+.vb-risk-detail {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.vb-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.vb-metric {
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  border: 1px solid var(--color-border);
+}
+.vb-metric-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-dim);
+  margin-bottom: 4px;
+}
+.vb-metric-value {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.vb-metric-context {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.vb-read {
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--color-text-muted);
+  padding: 20px 24px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-primary);
+}
+
+/* ════════════════════════════════════════════════════════════
+   VARIANT C: "Conversation"
+   Large-type natural language — everything in words
+   ════════════════════════════════════════════════════════════ */
+.vc-hero {
+  max-width: 720px;
+  margin-bottom: 40px;
+}
+.vc-headline {
+  font-size: var(--text-3xl);
+  font-weight: 300;
+  line-height: 1.4;
+  color: var(--color-text);
+  margin-bottom: 20px;
+}
+.vc-headline em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+.vc-body {
+  font-size: var(--text-lg);
+  line-height: 1.8;
+  color: var(--color-text-muted);
+}
+.vc-body strong {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.vc-evidence {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-top: 40px;
+}
+.vc-evidence-cell {
+  background: var(--color-surface);
+  padding: 20px 24px;
+}
+.vc-evidence-ticker {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.vc-evidence-line {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+.vc-evidence-line .dim { color: var(--color-text-muted); }
+
+.vc-nudge {
+  margin-top: 32px;
+  font-size: var(--text-sm);
+  color: var(--color-text-dim);
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+.vc-nudge a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+/* ════════════════════════════════════════════════════════════
+   VARIANT D: Brief + Levels (synthesis)
+   Risk bar + narrative + KEY LEVELS + compact metrics
+   ════════════════════════════════════════════════════════════ */
+.vd-read {
+  font-size: var(--text-lg);
+  line-height: 1.7;
+  color: var(--color-text);
+  margin: 20px 0 32px;
+  max-width: 860px;
+}
+.vd-read strong {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.vd-levels-header, .vd-metrics-header {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+.vd-metrics-header { margin-top: 32px; }
+
+.vd-levels-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.vd-level-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+}
+.vd-level-ticker {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 14px;
+}
+.vd-level-spot {
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  margin-left: 8px;
+}
+.vd-level-row {
+  display: grid;
+  grid-template-columns: 80px 50px 1fr;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(148,163,184,0.06);
+}
+.vd-level-row:last-child { border-bottom: none; }
+.vd-level-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.vd-level-value {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+.vd-level-context {
+  font-size: var(--text-xs);
+  color: var(--color-text-dim);
+  padding-left: 8px;
+}
+.vd-level-context.neg { color: var(--color-danger); opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<!-- ── Variant Navigation ──────────────────────────────────── -->
+<div class="variant-tabs">
+  <div class="variant-tab" data-variant="a">A: Morning Brief</div>
+  <div class="variant-tab" data-variant="b">B: Signal Board</div>
+  <div class="variant-tab" data-variant="c">C: Conversation</div>
+  <div class="variant-tab active" data-variant="d">D: Brief + Levels ★</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     VARIANT D: Brief + Levels (synthesis of A's narrative + B's structure + key levels)
+     ══════════════════════════════════════════════════════════ -->
+<div class="variant active" id="variant-d">
+  <div class="freshness">✓ data current through Tue Jun 24</div>
+  <div class="date-header">Tue Jun 24, 2025 · SPY · QQQ · IWM</div>
+
+  <!-- Risk status bar from B -->
+  <div class="vb-risk-bar elevated">
+    <span class="vb-risk-label">AMPLIFYING</span>
+    <span class="vb-risk-detail">0/3 dealers stabilizing · 2/3 VRP rich · Surface rising 5d</span>
+  </div>
+
+  <!-- Narrative from A — but tighter, and includes the "what breaks" framing -->
+  <div class="vd-read">
+    Dealers are net short gamma across all three indices — every move in either direction gets amplified, not absorbed. The market already knows: premium is rich (VRP above realized on SPY and QQQ) and front skew is at the 87th percentile (heavy put demand). Surface level rose over the last 5 sessions. <strong>This is a "follow the break" environment — don't anticipate, wait for levels to give.</strong>
+  </div>
+
+  <!-- KEY LEVELS — the "when does something break" section -->
+  <div class="vd-levels-header">Key Levels — Where the Regime Changes</div>
+  <div class="vd-levels-grid">
+    <div class="vd-level-card">
+      <div class="vd-level-ticker">SPY <span class="vd-level-spot">spot 555.20</span></div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">γ-flip</span>
+        <span class="vd-level-value">548</span>
+        <span class="vd-level-context neg">−1.3% · below = amplifying accelerates</span>
+      </div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">Call wall</span>
+        <span class="vd-level-value">560</span>
+        <span class="vd-level-context">+0.9% · upside magnet / resistance</span>
+      </div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">Put wall</span>
+        <span class="vd-level-value">545</span>
+        <span class="vd-level-context neg">−1.8% · downside support (if dealers hedge)</span>
+      </div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">Expected move</span>
+        <span class="vd-level-value">±1.4%</span>
+        <span class="vd-level-context">7 DTE front expiry</span>
+      </div>
+    </div>
+
+    <div class="vd-level-card">
+      <div class="vd-level-ticker">QQQ <span class="vd-level-spot">spot 487.30</span></div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">γ-flip</span>
+        <span class="vd-level-value">479</span>
+        <span class="vd-level-context neg">−1.7% · below = amplifying accelerates</span>
+      </div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">Call wall</span>
+        <span class="vd-level-value">495</span>
+        <span class="vd-level-context">+1.6% · upside magnet / resistance</span>
+      </div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">Put wall</span>
+        <span class="vd-level-value">475</span>
+        <span class="vd-level-context neg">−2.5% · downside support</span>
+      </div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">Expected move</span>
+        <span class="vd-level-value">±1.8%</span>
+        <span class="vd-level-context">7 DTE front expiry</span>
+      </div>
+    </div>
+
+    <div class="vd-level-card">
+      <div class="vd-level-ticker">IWM <span class="vd-level-spot">spot 218.50</span></div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">γ-flip</span>
+        <span class="vd-level-value">215</span>
+        <span class="vd-level-context neg">−1.6% · below = amplifying accelerates</span>
+      </div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">Call wall</span>
+        <span class="vd-level-value">222</span>
+        <span class="vd-level-context">+1.6% · upside magnet / resistance</span>
+      </div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">Put wall</span>
+        <span class="vd-level-value">213</span>
+        <span class="vd-level-context neg">−2.5% · downside support</span>
+      </div>
+      <div class="vd-level-row">
+        <span class="vd-level-label">Expected move</span>
+        <span class="vd-level-value">±2.1%</span>
+        <span class="vd-level-context">7 DTE front expiry</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compact metrics — the important ones only -->
+  <div class="vd-metrics-header">Vol Environment</div>
+  <div class="vb-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="vb-metric">
+      <div class="vb-metric-label">SPY VRP</div>
+      <div class="vb-metric-value" style="color: var(--color-warning);">+3.2pp</div>
+      <div class="vb-metric-context">72nd %ile · premium rich</div>
+    </div>
+    <div class="vb-metric">
+      <div class="vb-metric-label">SPY front skew</div>
+      <div class="vb-metric-value" style="color: var(--color-warning);">87th %ile</div>
+      <div class="vb-metric-context">−4.1pp · heavy put demand</div>
+    </div>
+    <div class="vb-metric">
+      <div class="vb-metric-label">VIX term</div>
+      <div class="vb-metric-value" style="color: var(--color-danger);">Backwardation</div>
+      <div class="vb-metric-context">9D/30D: 1.08 · stress NOW</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     VARIANT A: Morning Brief
+     Big editorial read at top, cards as supporting evidence
+     ══════════════════════════════════════════════════════════ -->
+<div class="variant" id="variant-a">
+  <div class="freshness">✓ data current through Tue Jun 24</div>
+  <div class="date-header">Tue Jun 24, 2025 · SPY · QQQ · IWM</div>
+
+  <div class="va-read">
+    <strong class="danger">All three indices under dealer amplification</strong> — moves in either direction get magnified, not dampened. Premium is rich on 2 of 3 (VRP above realized), which means the market is <em>already pricing fear</em>. Surface level rose over 5 days. Front skew steep (87th %ile on SPY) — unusual put demand. This is a <strong>high-alert environment</strong> where positioning amplifies whatever comes next.
+  </div>
+
+  <div class="va-section-label">Supporting Evidence</div>
+  <div class="va-cards">
+    <div class="va-card">
+      <div class="va-card-ticker">SPY</div>
+      <div class="va-card-row">
+        <span class="va-card-label">Dealer Gamma</span>
+        <span class="va-card-value neg">Amplifying</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">VRP</span>
+        <span class="va-card-value warn">+3.2pp (72nd %ile)</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">IV30</span>
+        <span class="va-card-value">18.4%</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">Front Skew</span>
+        <span class="va-card-value warn">−4.1pp (87th %ile)</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">5d Surface</span>
+        <span class="va-card-value neg">↑ +0.8pp</span>
+      </div>
+    </div>
+
+    <div class="va-card">
+      <div class="va-card-ticker">QQQ</div>
+      <div class="va-card-row">
+        <span class="va-card-label">Dealer Gamma</span>
+        <span class="va-card-value neg">Amplifying</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">VRP</span>
+        <span class="va-card-value warn">+4.8pp (81st %ile)</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">IV30</span>
+        <span class="va-card-value">24.1%</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">Front Skew</span>
+        <span class="va-card-value">−3.8pp (62nd %ile)</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">5d Surface</span>
+        <span class="va-card-value neg">↑ +1.2pp</span>
+      </div>
+    </div>
+
+    <div class="va-card">
+      <div class="va-card-ticker">IWM</div>
+      <div class="va-card-row">
+        <span class="va-card-label">Dealer Gamma</span>
+        <span class="va-card-value neg">Amplifying</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">VRP</span>
+        <span class="va-card-value">−1.1pp (34th %ile)</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">IV30</span>
+        <span class="va-card-value">23.7%</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">Front Skew</span>
+        <span class="va-card-value">−3.2pp (55th %ile)</span>
+      </div>
+      <div class="va-card-row">
+        <span class="va-card-label">5d Surface</span>
+        <span class="va-card-value neg">↑ +0.5pp</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     VARIANT B: Signal Board
+     Risk bar + metric grid + contextual read
+     ══════════════════════════════════════════════════════════ -->
+<div class="variant" id="variant-b">
+  <div class="freshness">✓ data current through Tue Jun 24</div>
+  <div class="date-header">Tue Jun 24, 2025 · SPY · QQQ · IWM</div>
+
+  <div class="vb-risk-bar elevated">
+    <span class="vb-risk-label">ELEVATED</span>
+    <span class="vb-risk-detail">Dealer amplification across all 3 indices · Premium rich · Surface rising</span>
+  </div>
+
+  <div class="vb-grid">
+    <div class="vb-metric">
+      <div class="vb-metric-label">Dealers stabilizing</div>
+      <div class="vb-metric-value" style="color: var(--color-danger);">0 / 3</div>
+      <div class="vb-metric-context">All amplifying moves</div>
+    </div>
+    <div class="vb-metric">
+      <div class="vb-metric-label">VRP rich</div>
+      <div class="vb-metric-value" style="color: var(--color-warning);">2 / 3</div>
+      <div class="vb-metric-context">Premium above realized</div>
+    </div>
+    <div class="vb-metric">
+      <div class="vb-metric-label">Avg IV30</div>
+      <div class="vb-metric-value">22.1%</div>
+      <div class="vb-metric-context">vs 20d avg: 19.8%</div>
+    </div>
+    <div class="vb-metric">
+      <div class="vb-metric-label">5d surface Δ</div>
+      <div class="vb-metric-value" style="color: var(--color-danger);">↑ +0.8pp</div>
+      <div class="vb-metric-context">Vol building</div>
+    </div>
+  </div>
+
+  <div class="vb-grid">
+    <div class="vb-metric">
+      <div class="vb-metric-label">SPY front skew</div>
+      <div class="vb-metric-value" style="color: var(--color-warning);">87th %ile</div>
+      <div class="vb-metric-context">−4.1pp (steep)</div>
+    </div>
+    <div class="vb-metric">
+      <div class="vb-metric-label">VIX term</div>
+      <div class="vb-metric-value" style="color: var(--color-danger);">Backwardation</div>
+      <div class="vb-metric-context">9D/30D: 1.08</div>
+    </div>
+    <div class="vb-metric">
+      <div class="vb-metric-label">Expected move (SPY)</div>
+      <div class="vb-metric-value">±1.4%</div>
+      <div class="vb-metric-context">7 DTE front expiry</div>
+    </div>
+    <div class="vb-metric">
+      <div class="vb-metric-label">Top OI expiry</div>
+      <div class="vb-metric-value">Jul 17</div>
+      <div class="vb-metric-context">SPY 23% · P/C 3.8</div>
+    </div>
+  </div>
+
+  <div class="vb-read">
+    <strong>What it means:</strong> Dealers are net short gamma across all three indices — any directional move gets amplified, not absorbed. The market is already paying up for protection (VRP rich on SPY and QQQ), surface level is rising, and front skew is at the 87th percentile for SPY. VIX term structure in backwardation confirms near-term stress exceeding expectations. This is a "bigger moves ahead" setup — direction unknown, magnitude elevated.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     VARIANT C: Conversation
+     Pure narrative — large type, natural language, minimal chrome
+     ══════════════════════════════════════════════════════════ -->
+<div class="variant" id="variant-c">
+  <div class="freshness">✓ data current through Tue Jun 24</div>
+  <div class="date-header">Tue Jun 24, 2025</div>
+
+  <div class="vc-hero">
+    <div class="vc-headline">
+      Dealers are <em>amplifying</em> across all three indices and the surface is rising.
+    </div>
+    <div class="vc-body">
+      <strong>Every move gets bigger right now.</strong> Net gamma is negative on SPY, QQQ, and IWM — dealers have to hedge in the same direction as the market, adding fuel to any selloff or squeeze. The market knows this: 2 of 3 indices are pricing premium above realized vol (VRP rich), and SPY's front skew sits at the 87th percentile — heavy put demand relative to history.
+      <br><br>
+      <strong>The trend is getting worse, not better.</strong> Surface level rose +0.8pp over the last 5 sessions (SPY). VIX term structure is in backwardation (front vol exceeds back vol) — stress is priced as immediate, not future. This is a "coiled spring" environment: magnitude is elevated, direction is unknown.
+    </div>
+  </div>
+
+  <div class="vc-evidence">
+    <div class="vc-evidence-cell">
+      <div class="vc-evidence-ticker">SPY</div>
+      <div class="vc-evidence-line">Amplifying · IV30 18.4% · VRP +3.2pp <span class="dim">(72nd)</span></div>
+      <div class="vc-evidence-line">Skew −4.1pp <span class="dim">(87th %ile)</span> · Surface ↑0.8pp/5d</div>
+    </div>
+    <div class="vc-evidence-cell">
+      <div class="vc-evidence-ticker">QQQ</div>
+      <div class="vc-evidence-line">Amplifying · IV30 24.1% · VRP +4.8pp <span class="dim">(81st)</span></div>
+      <div class="vc-evidence-line">Skew −3.8pp <span class="dim">(62nd %ile)</span> · Surface ↑1.2pp/5d</div>
+    </div>
+    <div class="vc-evidence-cell">
+      <div class="vc-evidence-ticker">IWM</div>
+      <div class="vc-evidence-line">Amplifying · IV30 23.7% · VRP −1.1pp <span class="dim">(34th)</span></div>
+      <div class="vc-evidence-line">Skew −3.2pp <span class="dim">(55th %ile)</span> · Surface ↑0.5pp/5d</div>
+    </div>
+  </div>
+
+  <div class="vc-nudge">
+    Dig deeper: <a href="#">Surfaces</a> · <a href="#">Positioning</a> · <a href="#">Methodology</a>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.variant-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('variant-' + tab.dataset.variant).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

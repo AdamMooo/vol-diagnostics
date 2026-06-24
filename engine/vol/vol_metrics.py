@@ -468,3 +468,40 @@ def positioning_levels(summary: dict, hist_df: pd.DataFrame) -> dict:
         "dist_gamma_flip_pct": _dist(gamma_flip),
         "net_gex_b": (net_gex / 1e9) if net_gex is not None else None,
     }
+
+
+# ── VVIX (Vol-of-Vol) ─────────────────────────────────────────────────────
+
+def compute_vvix_level() -> float | None:
+    """Latest VVIX close from the vol-index store. Returns None if unavailable."""
+    from engine.data.vol_index import load_vol_index
+    df = load_vol_index("VVIX")
+    if df.empty:
+        return None
+    return float(df.iloc[-1]["close"])
+
+
+# ── Net Delta Exposure ─────────────────────────────────────────────────────
+
+def compute_net_delta(gex_df: pd.DataFrame) -> float | None:
+    """Aggregate dealer net delta exposure: Σ(delta × OI × 100 × sign).
+
+    Sign convention: calls positive (dealers short calls → long delta),
+    puts negative (dealers short puts → short delta).
+    Returns net shares of underlying dealers hold as delta hedge, or None.
+    """
+    if gex_df is None or gex_df.empty:
+        return None
+    if "delta" not in gex_df.columns or "openInterest" not in gex_df.columns:
+        return None
+
+    MULTIPLIER = 100
+    calls = gex_df[gex_df["type"] == "call"]
+    puts = gex_df[gex_df["type"] == "put"]
+
+    call_delta = (calls["delta"] * calls["openInterest"] * MULTIPLIER).sum()
+    put_delta = (puts["delta"].abs() * puts["openInterest"] * MULTIPLIER).sum()
+
+    # Dealer net-short assumption: dealers are short calls (so their delta hedge
+    # is +call_delta) and short puts (their hedge is -put_delta).
+    return float(call_delta - put_delta)

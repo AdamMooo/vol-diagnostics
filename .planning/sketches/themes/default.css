@@ -1,0 +1,49 @@
+:root {
+  /* Dark financial dashboard palette */
+  --color-bg: #0d1117;
+  --color-surface: #161b22;
+  --color-surface-raised: #1c2128;
+  --color-border: rgba(148,163,184,0.15);
+  --color-text: #e6edf3;
+  --color-text-muted: #8b949e;
+  --color-text-dim: #6e7681;
+  --color-primary: #d97706;  /* amber — the accent */
+  --color-primary-soft: rgba(217,119,6,0.12);
+  --color-danger: #f87171;
+  --color-danger-soft: rgba(248,113,113,0.12);
+  --color-success: #4ade80;
+  --color-success-soft: rgba(74,222,128,0.12);
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(251,191,36,0.12);
+  --color-neutral: #94a3b8;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --text-xs: 0.72rem;
+  --text-sm: 0.82rem;
+  --text-base: 0.95rem;
+  --text-lg: 1.1rem;
+  --text-xl: 1.3rem;
+  --text-2xl: 1.6rem;
+  --text-3xl: 2.0rem;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+}

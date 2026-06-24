@@ -111,6 +111,21 @@ _CSS = """
 }
 .fresh-ok  { background: rgba(22,163,74,0.10);  border-color: #16a34a; color: #16a34a; }
 .fresh-bad { background: rgba(234,88,12,0.12);   border-color: #ea580c; color: #ea580c; }
+
+.risk-bar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 22px; border-radius: 8px; margin-bottom: 20px;
+}
+.risk-elevated { background: rgba(248,113,113,0.10); border: 1px solid rgba(248,113,113,0.3); }
+.risk-stable   { background: rgba(74,222,128,0.10);  border: 1px solid rgba(74,222,128,0.3); }
+.risk-mixed    { background: rgba(251,191,36,0.10);  border: 1px solid rgba(251,191,36,0.3); }
+.risk-label {
+    font-size: 0.92rem; font-weight: 700; letter-spacing: 0.04em;
+}
+.risk-elevated .risk-label { color: #f87171; }
+.risk-stable .risk-label   { color: #4ade80; }
+.risk-mixed .risk-label    { color: #fbbf24; }
+.risk-detail { font-size: 0.78rem; color: #94a3b8; }
 </style>
 """
 
@@ -287,7 +302,9 @@ def render_regime_cards(tickers: list[str], all_data: dict[str, dict],
             render_regime_card(col, data["summary"], spot=data.get("spot"))
 
 
-def _render_cross_index_summary(selected_all: list[str], all_data: dict[str, dict]) -> None:
+def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict]) -> None:
+    """Page-1 hero: risk bar + narrative + key levels + vol metrics.
+    Replaces the old cross-index briefing + positioning teaser + card grid."""
     rows: list[dict] = []
     for ticker in selected_all:
         data = all_data.get(ticker)
@@ -299,42 +316,148 @@ def _render_cross_index_summary(selected_all: list[str], all_data: dict[str, dic
         rows.append(s)
 
     if not rows:
+        st.info("No data loaded.")
         return
 
-    rich = sum(1 for s in rows if (s.get("vrp") is not None and s.get("vrp") > 0))
+    n = len(rows)
     stabilizing = sum(1 for s in rows if (s.get("net_gex") is not None and s.get("net_gex") >= 0))
-    avg_iv30 = [s.get("iv30") for s in rows if s.get("iv30") is not None]
-    avg_iv30_str = f"{sum(avg_iv30) / len(avg_iv30):.1f}%" if avg_iv30 else "—"
+    rich = sum(1 for s in rows if (s.get("vrp") is not None and s.get("vrp") > 0))
+    amplifying = n - stabilizing
 
-    st.markdown("### Cross-index briefing")
-    st.caption(
-        f"Selected: {len(rows)} index cards · VRP above RV20: {rich}/{len(rows)} · "
-        f"stabilising dealer sign: {stabilizing}/{len(rows)} · avg IV30: {avg_iv30_str}."
-    )
+    # ── Risk Bar ──────────────────────────────────────────────────────────────
+    if amplifying >= 2:
+        bar_class = "risk-bar risk-elevated"
+        bar_label = "AMPLIFYING"
+        bar_detail = f"{amplifying}/{n} indices under dealer amplification"
+    elif stabilizing == n:
+        bar_class = "risk-bar risk-stable"
+        bar_label = "STABILIZING"
+        bar_detail = f"All {n} indices in positive gamma (dealers dampen moves)"
+    else:
+        bar_class = "risk-bar risk-mixed"
+        bar_label = "MIXED"
+        bar_detail = f"{stabilizing}/{n} stabilizing · {amplifying}/{n} amplifying"
 
+    vrp_bit = f" · VRP rich: {rich}/{n}" if rich > 0 else ""
+    # Surface trend from first ticker with evolution data
+    surf_bit = ""
+    for s in rows:
+        mv = s.get("read_move_5d")
+        if mv is not None:
+            direction = "rising" if mv > 0 else "falling" if mv < 0 else "flat"
+            surf_bit = f" · Surface {direction} 5d"
+            break
 
-def _render_positioning_teaser(selected_all: list[str], all_data: dict[str, dict]) -> None:
-    teaser_bits: list[str] = []
-    for ticker in selected_all:
-        data = all_data.get(ticker)
-        expiry_oi_df = (data or {}).get("expiry_oi_df")
-        if expiry_oi_df is None or expiry_oi_df.empty:
-            continue
-        top = expiry_oi_df.sort_values("pct_of_total", ascending=False).head(1)
-        if top.empty:
-            continue
-        row = top.iloc[0]
-        expiry = pd.to_datetime(row["expiry"]).strftime("%b %d")
-        teaser_bits.append(
-            f"{ticker} top OI expiry {expiry} ({row['pct_of_total']:.1f}% share, P/C {row['put_call_ratio']:.2f})"
+    st.markdown(f'''<div class="{bar_class}">
+  <span class="risk-label">{bar_label}</span>
+  <span class="risk-detail">{bar_detail}{vrp_bit}{surf_bit}</span>
+</div>''', unsafe_allow_html=True)
+
+    # ── Narrative ─────────────────────────────────────────────────────────────
+    narrative_parts = []
+    if amplifying >= 2:
+        narrative_parts.append(
+            "Dealers are net short gamma — moves in either direction get amplified, not dampened."
+        )
+    elif stabilizing == n:
+        narrative_parts.append(
+            "Dealers are long gamma across all indices — moves are dampened. Low-vol, mean-reverting regime."
         )
 
-    st.markdown("#### Positioning teaser")
-    if teaser_bits:
-        st.caption(" · ".join(teaser_bits))
-    else:
-        st.caption("OI teaser builds as expiry history accumulates.")
-    st.caption("Full OI table, γ-flip mechanics, and wall derivation stay on the Positioning page.")
+    if rich >= 2:
+        narrative_parts.append(
+            f"Premium is rich on {rich}/{n} (VRP above realized) — protection demand is elevated."
+        )
+
+    # Skew context (SPY first)
+    spy_summary = next((s for s in rows if s.get("ticker") == "SPY"), rows[0])
+    skew_pct = spy_summary.get("read_skew_pct")
+    if skew_pct is not None and skew_pct >= 75:
+        narrative_parts.append(
+            f"Front skew at {skew_pct}th percentile — heavy put demand relative to history."
+        )
+
+    # VIX term
+    term_9d = spy_summary.get("term_ratio_9d_30d")
+    if term_9d is not None and term_9d > 1.0:
+        narrative_parts.append(
+            "VIX term structure in backwardation — near-term stress exceeds forward expectations."
+        )
+
+    if amplifying >= 2:
+        narrative_parts.append(
+            "**Follow the break — don't anticipate.** Magnitude is elevated; direction unknown."
+        )
+
+    if narrative_parts:
+        st.markdown(" ".join(narrative_parts))
+
+    # ── Key Levels ────────────────────────────────────────────────────────────
+    st.markdown('<div class="sec">Key Levels</div>', unsafe_allow_html=True)
+
+    cols = st.columns(n)
+    for col, s in zip(cols, rows):
+        ticker = s.get("ticker", "?")
+        spot = s.get("spot")
+        zgl = s.get("zero_gamma_level")
+        cw = s.get("call_wall")
+        pw = s.get("put_wall")
+        em_pct = s.get("expected_move_pct")
+
+        def _pct(level):
+            if level is None or spot is None or spot <= 0:
+                return "—"
+            return f"{(level - spot) / spot * 100:+.1f}%"
+
+        def _shift(key):
+            v = s.get(key)
+            if v is None:
+                return ""
+            return f" ({v:+.1f}% 5d)"
+
+        with col:
+            st.markdown(f"**{ticker}** · spot {spot:,.0f}" if spot else f"**{ticker}**")
+            level_rows = []
+            if zgl is not None:
+                level_rows.append(f"γ-flip **{zgl:,.0f}** {_pct(zgl)}{_shift('zgl_5d_shift')}")
+            if cw is not None:
+                level_rows.append(f"Call wall **{cw:,.0f}** {_pct(cw)}{_shift('call_wall_5d_shift')}")
+            if pw is not None:
+                level_rows.append(f"Put wall **{pw:,.0f}** {_pct(pw)}{_shift('put_wall_5d_shift')}")
+            if em_pct is not None:
+                level_rows.append(f"Expected move **±{em_pct:.1f}%**")
+            for lr in level_rows:
+                st.markdown(f"<span style='font-size:0.82rem;'>{lr}</span>", unsafe_allow_html=True)
+
+    # ── Vol Metrics Strip ─────────────────────────────────────────────────────
+    st.markdown('<div class="sec">Vol Environment</div>', unsafe_allow_html=True)
+
+    # Gather metrics from SPY (primary) with fallbacks
+    vrp_val = spy_summary.get("vrp")
+    vrp_pct = spy_summary.get("vrp_pct")
+    skew_val = spy_summary.get("front_skew")
+    vvix = spy_summary.get("vvix")
+
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        vrp_str = f"{vrp_val:+.1f}pp" if vrp_val is not None else "—"
+        if vrp_pct is not None:
+            vrp_str += f" ({vrp_pct}th)"
+        st.metric("VRP (SPY)", vrp_str)
+    with m2:
+        skew_str = f"{skew_val:+.1f}pp" if skew_val is not None else "—"
+        if skew_pct is not None:
+            skew_str += f" ({skew_pct}th)"
+        st.metric("Front Skew (SPY)", skew_str)
+    with m3:
+        if term_9d is not None:
+            term_state = "Backwardation" if term_9d > 1.0 else "Contango"
+            st.metric("VIX Term", f"{term_state} ({term_9d:.2f})")
+        else:
+            st.metric("VIX Term", "—")
+    with m4:
+        vvix_str = f"{vvix:.0f}" if vvix is not None else "—"
+        st.metric("VVIX", vvix_str)
 
 
 def _expected_latest_session(now_et: datetime) -> date:
@@ -452,6 +575,49 @@ for err in errors:
 if not all_data:
     st.warning("No data loaded.")
     st.stop()
+
+
+def _render_surface_momentum(selected_all: list[str], all_data: dict) -> None:
+    """Trend-first momentum strip: 1d/5d/10d/20d surface level change for the primary ticker."""
+    import math
+    primary = selected_all[0] if selected_all else None
+    if not primary or primary not in all_data:
+        return
+
+    horizons = [1, 5, 10, 20]
+    values: dict[int, float | None] = {}
+    for h in horizons:
+        evo = load_evolution(primary, horizon=h, days=400)
+        if evo.empty or "level" not in evo.columns:
+            values[h] = None
+            continue
+        latest = evo.dropna(subset=["level"]).sort_values("date").tail(1)
+        values[h] = float(latest.iloc[0]["level"]) if not latest.empty else None
+
+    # Find the dominant trend direction
+    filled = [(h, v) for h, v in values.items() if v is not None and not math.isnan(v)]
+    if not filled:
+        return
+
+    rising = sum(1 for _, v in filled if v > 0)
+    trend = "rising" if rising > len(filled) / 2 else "falling" if rising < len(filled) / 2 else "mixed"
+    trend_color = "#f87171" if trend == "rising" else "#4ade80" if trend == "falling" else "#94a3b8"
+
+    st.markdown(
+        f"<span style='font-size:0.92rem;'><strong style='color:{trend_color};'>"
+        f"Surface {trend}</strong> — {primary} level change across horizons</span>",
+        unsafe_allow_html=True,
+    )
+
+    cols = st.columns(len(horizons))
+    for col, h in zip(cols, horizons):
+        v = values.get(h)
+        if v is None:
+            col.metric(f"{h}d", "—")
+        else:
+            arrow = "↑" if v > 0.05 else "↓" if v < -0.05 else "—"
+            col.metric(f"{h}d", f"{v:+.2f}pp {arrow}")
+
 
 @st.fragment
 def _surface_today_section(selected_all: list[str], all_data: dict) -> None:
@@ -668,12 +834,13 @@ if sel_index:
     )
 
     with tab_regime:
-        _render_cross_index_summary(selected_all, all_data)
-        _render_positioning_teaser(selected_all, all_data)
-        render_regime_cards(sel_index, all_data)
+        _render_environment_hero(selected_all, all_data)
 
     # ── Surfaces (Today / Compare / Evolution) ───────────────────────────────
     with tab_surfaces:
+        # ── Momentum strip — trend headline before any surface detail ────────
+        _render_surface_momentum(selected_all, all_data)
+
         sub_today, sub_compare, sub_evolution = st.tabs(["Today", "Compare", "Evolution"])
 
         with sub_today:
@@ -709,6 +876,32 @@ if sel_index:
             spot = data.get("spot")
 
             st.markdown(f"**{ticker}**")
+
+            # Net GEX + Net Delta side by side
+            nd = s.get("net_delta")
+            ng = s.get("net_gex")
+            d1, d2 = st.columns(2)
+            with d1:
+                gex_sign = "Stabilizing" if (ng is not None and ng >= 0) else "Amplifying"
+                gex_color = "#4ade80" if ng and ng >= 0 else "#f87171"
+                gex_str = f"{ng/1e9:.2f}B" if ng is not None else "—"
+                st.markdown(
+                    f"<span style='font-size:0.78rem;color:#8b949e;'>Net GEX</span><br>"
+                    f"<span style='font-size:1.1rem;font-weight:700;color:{gex_color};'>"
+                    f"{gex_str}</span> <span style='font-size:0.78rem;color:{gex_color};'>{gex_sign}</span>",
+                    unsafe_allow_html=True,
+                )
+            with d2:
+                if nd is not None:
+                    nd_dir = "Long" if nd > 0 else "Short"
+                    nd_str = f"{abs(nd)/1e6:.1f}M shares {nd_dir.lower()}"
+                else:
+                    nd_str = "—"
+                st.markdown(
+                    f"<span style='font-size:0.78rem;color:#8b949e;'>Net Delta (dealer hedge)</span><br>"
+                    f"<span style='font-size:1.1rem;font-weight:700;'>{nd_str}</span>",
+                    unsafe_allow_html=True,
+                )
 
             with st.container():
                 hist42 = _load_history_cached(ticker, days=42)

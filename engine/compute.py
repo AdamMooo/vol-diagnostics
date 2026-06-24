@@ -7,6 +7,8 @@ Both callers wrap this function:
 """
 from __future__ import annotations
 
+import pandas as pd
+
 from engine import config
 from engine.data.data_loader import load_chain
 from engine.gex.greeks_engine import add_greeks
@@ -15,7 +17,7 @@ from engine.gex.exposure_engine import (
     compute_skew, surface_diagnostics,
 )
 from engine.gex.analytics import summarise
-from engine.vol.vol_metrics import compute_model_free_em, compute_skew_25d, compute_term_structure, compute_rv20, compute_term_ratios
+from engine.vol.vol_metrics import compute_model_free_em, compute_skew_25d, compute_term_structure, compute_rv20, compute_term_ratios, compute_vvix_level, compute_net_delta
 from engine.data.validation import load_history
 from engine.vol.vrp_history import vrp_percentile
 from engine.surface.surface_evolution import load_evolution
@@ -58,6 +60,39 @@ def _get_risk_free_rate() -> float:
     except Exception as exc:
         print(f"[compute] rate fetch failed ({exc}); using fallback {config.RISK_FREE_FALLBACK}")
     return config.RISK_FREE_FALLBACK
+
+
+def _compute_wall_shift(ticker: str, current_summary: dict) -> dict:
+    """Compute 5-session shift in call_wall, put_wall, and zero_gamma_level.
+
+    Uses gex_snapshots parquet history. Returns shift in % of spot (level moved
+    toward/away from spot over 5 sessions). None if insufficient history.
+    """
+    try:
+        hist = load_history(ticker, days=10)
+    except Exception:
+        return {}
+    if hist.empty or len(hist) < 5:
+        return {}
+
+    # hist is date-descending from load_history; take 5th row back as reference
+    ref = hist.iloc[min(4, len(hist) - 1)]
+    spot = current_summary.get("spot")
+    if spot is None or spot <= 0:
+        return {}
+
+    def _shift(key: str) -> float | None:
+        current = current_summary.get(key)
+        prior = ref.get(key) if key in hist.columns else None
+        if current is None or prior is None or pd.isna(prior):
+            return None
+        return (current - prior) / spot * 100
+
+    return {
+        "call_wall_shift": _shift("call_wall"),
+        "put_wall_shift": _shift("put_wall"),
+        "zgl_shift": _shift("zero_gamma_level"),
+    }
 
 
 def compute_ticker(ticker: str) -> dict:
@@ -205,6 +240,20 @@ def compute_ticker(ticker: str) -> dict:
     term_ratios = compute_term_ratios(ticker)
     summary["term_ratio_9d_30d"] = term_ratios["term_ratio_9d_30d"]
     summary["term_ratio_30d_3m"] = term_ratios["term_ratio_30d_3m"]
+
+    # VVIX: vol-of-vol — second-order fear measure (SPY-proxy; VVIX is SPX-only).
+    vvix = compute_vvix_level()
+    summary["vvix"] = vvix
+
+    # Net delta exposure: directional tilt of dealer delta hedge book.
+    net_delta = compute_net_delta(gex_df)
+    summary["net_delta"] = net_delta
+
+    # Wall movement (5-session history) — shift in call_wall/put_wall/zgl.
+    wall_shift = _compute_wall_shift(ticker, summary)
+    summary["call_wall_5d_shift"] = wall_shift.get("call_wall_shift")
+    summary["put_wall_5d_shift"] = wall_shift.get("put_wall_shift")
+    summary["zgl_5d_shift"] = wall_shift.get("zgl_shift")
 
     # Credibility-gated read inputs — computed ONCE here so the dashboard card and the
     # email card show the same chips (the canonical-card seam). Each is None unless its
