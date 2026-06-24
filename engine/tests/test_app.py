@@ -50,7 +50,7 @@ def _render_regime_card_html(summary_overrides=None, prior_row=None):
     col = mock.MagicMock()
     app_mod = _import_app_module()
 
-    with mock.patch.object(app_mod, "load_prior_snapshot", return_value=prior_row):
+    with mock.patch.object(app_mod, "_prior_snapshot_cached", return_value=prior_row):
         app_mod.render_regime_card(col=col, summary=summary, spot=500.0)
 
     calls = col.markdown.call_args_list

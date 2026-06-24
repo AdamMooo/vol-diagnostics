@@ -182,7 +182,7 @@ def _load_history_cached(ticker: str, days: int = config.HISTORY_DAYS) -> pd.Dat
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner="Building surface video…")
 def _movie_payload_cached(ticker: str, mode: str = "level") -> dict | None:
     snaps = []
-    for d in sorted(list_available_dates(ticker)):
+    for d in sorted(_available_dates_cached(ticker)):
         sdf, sp = load_surface_snapshot(ticker, d)
         if sdf is not None and not sdf.empty and sp is not None:
             snaps.append((d.strftime("%b %d"), sdf, sp))
@@ -198,6 +198,31 @@ def _latest_evolution_row_cached(ticker: str) -> dict | None:
     latest = evo.sort_values("date").tail(1)
     if latest.empty:
         return None
+
+
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _load_evolution_cached(ticker: str, horizon: int, days: int = 400) -> pd.DataFrame:
+    return load_evolution(ticker, horizon=horizon, days=days)
+
+
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _prior_snapshot_cached(ticker: str, before_date: date) -> "pd.Series | None":
+    return load_prior_snapshot(ticker=ticker, before_date=before_date)
+
+
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _prior_oi_cached(ticker: str, before_date: date) -> pd.DataFrame:
+    return prior_oi_snapshot(ticker, before_date)
+
+
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _oi_history_cached(ticker: str, days: int) -> pd.DataFrame:
+    return load_oi_history(ticker, days=days)
+
+
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _available_dates_cached(ticker: str) -> list:
+    return list(list_available_dates(ticker))
     row = latest.iloc[0]
     out = {k: row[k] if k in latest.columns else None for k in cols}
     return out
@@ -240,7 +265,7 @@ def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
     color = config.PALETTE["accent"]
     bg = "rgba(148,163,184,0.05)"
 
-    prior_row = load_prior_snapshot(ticker=ticker, before_date=date.today())
+    prior_row = _prior_snapshot_cached(ticker=ticker, before_date=date.today())
     fields = build_card_fields(today_summary=summary, prior_summary=prior_row)
     fields = [f for f in fields if f.label != "γ-flip"]
     primary_fields, detail_fields = split_compact_fields(fields)
@@ -499,7 +524,7 @@ def _render_freshness_banner() -> None:
     archive), so surface a stall loudly. Latest stored snapshot vs the NYSE
     calendar — green when current, amber when sessions are missing."""
     latest_per_ticker = [
-        max(d) for t in INDEX_TICKERS if (d := list_available_dates(t))
+        max(d) for t in INDEX_TICKERS if (d := _available_dates_cached(t))
     ]
     if not latest_per_ticker:
         st.markdown(
@@ -588,7 +613,7 @@ def _render_surface_momentum(selected_all: list[str], all_data: dict) -> None:
     horizons = [5, 10, 20]
     values: dict[int, float | None] = {}
     for h in horizons:
-        evo = load_evolution(primary, horizon=h, days=400)
+        evo = _load_evolution_cached(primary, horizon=h, days=400)
         if evo.empty or "level" not in evo.columns:
             values[h] = None
             continue
@@ -671,7 +696,7 @@ def _surface_compare_section(selected_all: list[str], all_data: dict) -> None:
         surface_df_today = data.get("surface_df")
         spot_today = data.get("spot")
 
-        available = list_available_dates(ticker)
+        available = _available_dates_cached(ticker)
         if not available:
             st.caption(
                 f"{ticker}: no historical snapshots yet — "
@@ -1000,14 +1025,14 @@ if sel_index:
                         f"Primary narrative lens: first {config.GEX_PRIMARY_DTE} DTE; broader tenor remains secondary context. "
                         "OI is T-1, and 5d share context is shown when history exists."
                     )
-                    prior = prior_oi_snapshot(ticker, date.today())
+                    prior = _prior_oi_cached(ticker, date.today())
                     prior_oi_map = {}
                     if not prior.empty and "expiry" in prior.columns and "oi" in prior.columns:
                         for _, row in prior.iterrows():
                             prior_oi_map[str(row["expiry"])] = row["oi"]
 
                     display_df = expiry_oi_df[["expiry", "dte", "oi", "pct_of_total", "put_call_ratio"]].copy()
-                    oi_hist = load_oi_history(ticker, days=5)
+                    oi_hist = _oi_history_cached(ticker, days=5)
                     avg_share_map: dict[str, float] = {}
                     if not oi_hist.empty and {"expiry", "pct_of_total"}.issubset(set(oi_hist.columns)):
                         avg_share = oi_hist.groupby("expiry", dropna=True)["pct_of_total"].mean()
