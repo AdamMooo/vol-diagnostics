@@ -218,3 +218,22 @@ def test_phase18_page_tabs_routes_evolution_under_surfaces_only():
     i_surfaces = src.index('with tab_surfaces:')
     i_evo_call = src.index('_evolution_section(selected_all, all_data)')
     assert i_surfaces < i_evo_call
+
+def test_phase18_cross_index_teaser_and_trust_tag_regime_briefing_contract():
+    app = _import_app_module()
+    import inspect
+    src = inspect.getsource(app)
+    assert '_render_cross_index_summary(selected_all, all_data)' in src
+    assert '_render_positioning_teaser(selected_all, all_data)' in src
+    assert 'with tab_regime:' in src
+    assert 'render_regime_cards(sel_index, all_data)' in src
+
+
+def test_phase18_cross_index_teaser_and_trust_tag_default_cards_and_positioning_split():
+    app = _import_app_module()
+    import inspect
+    src = inspect.getsource(app)
+    assert 'st.multiselect(' in src
+    assert 'default=INDEX_TICKERS' in src
+    assert 'rc-tag' in inspect.getsource(app.render_regime_card)
+    assert 'st.dataframe(display_df, use_container_width=True, hide_index=True)' in src
