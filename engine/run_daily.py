@@ -4,8 +4,12 @@ Daily GEX orchestrator — run all tickers, send email report, save snapshots.
 Usage:
     python -m engine.run_daily            # all tickers
     python -m engine.run_daily --dry-run  # compute + print, no email
+    python -m engine.run_daily --force    # bypass idempotency guard
 
-Scheduled via: runners/gex_daily.ps1 (Task Scheduler, 4:30 PM ET on trading days)
+Idempotent: safe to double-fire. If today's snapshots already exist for all
+tickers, the run is a no-op (use --force to override).
+
+Scheduled via container cron (supercronic) or Task Scheduler on Windows.
 """
 from __future__ import annotations
 
@@ -34,6 +38,23 @@ ALL_TICKERS = INDEX_TICKERS
 
 OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex"
 ET = pytz.timezone("America/New_York")
+
+SNAPSHOT_STORE = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex_snapshots.parquet"
+
+
+def _already_collected_today(today: datetime.date) -> bool:
+    """True if snapshots exist for all tickers on the given date."""
+    if not SNAPSHOT_STORE.exists():
+        return False
+    try:
+        import pandas as pd
+        df = pd.read_parquet(SNAPSHOT_STORE)
+        df["date"] = pd.to_datetime(df["date"]).dt.date
+        today_rows = df[df["date"] == today]
+        collected = set(today_rows["ticker"].unique())
+        return all(t in collected for t in ALL_TICKERS)
+    except Exception:
+        return False
 
 
 def is_trading_day(date: datetime.date | None = None) -> bool:
@@ -136,11 +157,15 @@ def _build_price_level_attachments(
     return attachments
 
 
-def run(dry_run: bool = False) -> None:
+def run(dry_run: bool = False, force: bool = False) -> None:
     today = datetime.datetime.now(ET).date()
 
     if not is_trading_day(today):
         print(f"[gex-daily] {today} is not a NYSE trading day — skipping.")
+        return
+
+    if not force and _already_collected_today(today):
+        print(f"[gex-daily] {today} already collected for all tickers — skipping (use --force to override).")
         return
 
     print(f"[gex-daily] {today}  tickers: {', '.join(ALL_TICKERS)}")
@@ -251,6 +276,8 @@ if __name__ == "__main__":
     parser.add_argument("--send", action="store_true",
                         help="Required to actually send the email. Without this flag, "
                              "the script behaves as --dry-run. Set by the scheduled task.")
+    parser.add_argument("--force", action="store_true",
+                        help="Bypass idempotency guard (re-collect even if today's data exists).")
     args = parser.parse_args()
 
     # Safety guard: require an explicit --send (or GEX_SEND=1) to send mail.
@@ -262,4 +289,4 @@ if __name__ == "__main__":
         print("[gex-daily] The scheduled task is the only authorized sender.")
         args.dry_run = True
 
-    run(dry_run=args.dry_run)
+    run(dry_run=args.dry_run, force=args.force)

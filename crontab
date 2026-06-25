@@ -1,0 +1,8 @@
+# Gamma OMM — container cron schedule (supercronic)
+# Times are UTC — 20:35 UTC = 4:35 PM ET (after market close)
+
+# Daily data collection (Mon-Fri)
+35 20 * * 1-5 cd /app && python -m engine.run_daily --send 2>&1
+
+# Health check (Mon-Fri, 21:00 UTC = 5:00 PM ET — 25 min after collection)
+0 21 * * 1-5 cd /app && python -m engine.health_check --strict 2>&1
