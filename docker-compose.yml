@@ -9,7 +9,7 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - parquet-data:/app/out
+      - ./out:/app/out
       - ./.env:/app/.env:ro
     environment:
       - STREAMLIT_SERVER_HEADLESS=true
@@ -24,7 +24,7 @@ services:
     container_name: gamma-scheduler
     restart: unless-stopped
     volumes:
-      - parquet-data:/app/out
+      - ./out:/app/out
       - ./.env:/app/.env:ro
     environment:
       - GEX_SEND=1
@@ -51,8 +51,6 @@ services:
       - dashboard
 
 volumes:
-  parquet-data:
-    driver: local
   caddy-data:
     driver: local
   caddy-config:
