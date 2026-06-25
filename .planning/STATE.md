@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Cloud Hosting
 status: executing
-stopped_at: Phase 19 complete; Oracle Cloud account provisioning
-last_updated: "2026-06-24T20:36:00.000Z"
-last_activity: 2026-06-24 -- v3.5 shipped; Phase 19 Dockerize committed; Oracle Cloud account created
+stopped_at: Phase 20 complete; ready for Phase 21 Oracle Cloud deploy
+last_updated: "2026-06-25T09:15:00.000Z"
+last_activity: 2026-06-25 -- Phase 20 Data Health + Collection Hardening committed
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 25
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 ## Current Position
 
 Milestone: v4.0
-Phase: 20
+Phase: 21
 Plan: 01
-Status: Not started (Oracle Cloud account being provisioned)
-Last activity: 2026-06-24 -- Phase 19 Dockerize committed; v3.5 shipped
+Status: Not started
+Last activity: 2026-06-25 -- Phase 20 committed
 
-Progress: [██░░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## v3.5 Milestone Summary (SHIPPED 2026-06-24)
 
@@ -49,7 +49,7 @@ All phases complete:
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 19. Dockerize | ✅ Complete | Dockerfile, compose, Caddy, SMTP emailer |
-| 20. Data Health + Collection Hardening | Not started | Health-check script, idempotent run_daily, cron |
+| 20. Data Health + Collection Hardening | ✅ Complete | Idempotent run_daily, supercronic, health-check |
 | 21. Oracle Cloud Provision + Deploy | Not started | ARM instance, Docker, git clone, migrate parquet |
 | 22. HTTPS + Remote Access | Not started | Caddy + Let's Encrypt, firewall |
 
@@ -147,9 +147,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-24T20:36:00.000Z
-Stopped at: v3.5 shipped; Phase 19 Dockerize committed; Oracle Cloud account being provisioned
-Resume queue: (1) **Phase 20: Data Health + Collection Hardening** — health-check script, idempotent run_daily, cron-based scheduler service. (2) **Phase 21: Oracle Cloud Provision + Deploy** — create Always Free ARM instance, install Docker, clone repo, compose up, migrate parquet via scp. (3) **Phase 22: HTTPS + Remote Access** — Caddy + Let's Encrypt, firewall rules. Note: Oracle Cloud account created 2026-06-24; instance provisioning in progress.
+Last session: 2026-06-25T09:15:00.000Z
+Stopped at: Phase 20 complete; ready for Phase 21 Oracle Cloud deploy
+Resume queue: (1) **Phase 21: Oracle Cloud Provision + Deploy** — create Always Free ARM instance, install Docker, clone repo, compose up, migrate parquet via scp. (2) **Phase 22: HTTPS + Remote Access** — Caddy + Let's Encrypt, firewall rules.
 
 ---
 ---

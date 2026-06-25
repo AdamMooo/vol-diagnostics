@@ -70,7 +70,7 @@
 **Target infra:** Oracle Cloud Free Tier (ARM Ampere A1, 4GB RAM, 24GB disk) — truly free, never expires.
 
 - [ ] **Phase 19: Dockerize** — Dockerfile (Python 3.11-slim, requirements.txt, Streamlit entrypoint) + docker-compose.yml (app service + scheduler service + Caddy proxy). Volume mount for `out/` parquet. `.env` for SMTP creds. Runs locally first.
-- [ ] **Phase 20: Data Health + Collection Hardening** — Health-check script (verifies last snapshot date per ticker, alerts on missed sessions). Idempotent `run_daily` (safe to double-fire). Compose scheduler service uses cron-based entrypoint (supercronic or built-in).
+- [x] **Phase 20: Data Health + Collection Hardening** — Health-check script (verifies last snapshot date per ticker, alerts on missed sessions). Idempotent `run_daily` (safe to double-fire). Compose scheduler service uses supercronic entrypoint. (completed 2026-06-25)
 - [ ] **Phase 21: Oracle Cloud Provision + Deploy** — Create Always Free ARM instance, install Docker, git clone, docker compose up. Migrate existing `out/` parquet via scp. Verify daily collection fires.
 - [ ] **Phase 22: HTTPS + Remote Access** — Caddy reverse proxy with automatic Let's Encrypt. Custom domain or Oracle public IP. Password gate already in app.py. Firewall rules (80/443 only).
 
@@ -315,7 +315,7 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
 | 18.1. Dashboard Trust & Clarity | v3.5 | 3/3 | Complete | 2026-06-23 |
 | 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 3/3 | Complete | 2026-06-24 |
 | 19. Dockerize | v4.0 | 1/1 | Complete | 2026-06-24 |
-| 20. Data Health + Collection Hardening | v4.0 | 0/TBD | Not started | - |
+| 20. Data Health + Collection Hardening | v4.0 | 1/1 | Complete | 2026-06-25 |
 | 21. Oracle Cloud Provision + Deploy | v4.0 | 0/TBD | Not started | - |
 | 22. HTTPS + Remote Access | v4.0 | 0/TBD | Not started | - |
 
