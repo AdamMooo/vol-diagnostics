@@ -25,13 +25,8 @@ env/
 Thumbs.db
 desktop.ini
 
-# POC outputs — regenerated files ignored, data stores tracked
-out/*
-!out/gex_snapshots.parquet
-!out/surface_evolution.parquet
-!out/surface_history/
-out/surface_history/*
-!out/surface_history/*.parquet
+# Data stores — generated daily, never tracked
+out/
 
 # Claude Code
 .claude/
