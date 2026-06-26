@@ -91,16 +91,23 @@ while ($true) {
         break
     }
 
-    if ($out -match "Out of host capacity" -or $out -match "InternalError" -or $out -match "500") {
+    # Only genuine config/account problems are fatal — stop on those so we don't
+    # loop forever on a fixable mistake. Everything else (capacity, rate-limit,
+    # network timeouts, transient 5xx) is "wait and retry".
+    $fatal = "InvalidParameter|NotAuthenticated|NotAuthorized|NotAuthorizedOrNotFound|" +
+             "LimitExceeded|QuotaExceeded|CannotParseRequest|MissingParameter"
+    if ($out -match $fatal) {
+        Write-Host "FATAL (stopping)" -ForegroundColor Red
+        Write-Host $out
+        Write-Host "`nThis is a config/account problem, not capacity — fix it before retrying." -ForegroundColor Red
+        break
+    } elseif ($out -match "Out of host capacity") {
         Write-Host "no capacity" -ForegroundColor Yellow
-    } elseif ($out -match "TooManyRequests" -or $out -match "429") {
+    } elseif ($out -match "TooManyRequests|429") {
         Write-Host "rate-limited (backing off)" -ForegroundColor Yellow
     } else {
-        # A real error (bad OCID, auth, quota) — don't loop forever on it.
-        Write-Host "ERROR (stopping)" -ForegroundColor Red
-        Write-Host $out
-        Write-Host "`nThis isn't a capacity error — fix the config above before retrying." -ForegroundColor Red
-        break
+        $msg = if ($out -match '"message":\s*"([^"]+)"') { $matches[1] } else { "unknown" }
+        Write-Host "transient ($msg) — retrying" -ForegroundColor DarkYellow
     }
 
     Start-Sleep -Seconds $SleepSeconds
