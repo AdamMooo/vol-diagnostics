@@ -41,7 +41,7 @@ $Shape        = "VM.Standard.A1.Flex"
 $Ocpus        = 2
 $MemoryGB     = 12
 $BootVolGB    = 50        # Oracle minimum is 50GB; still free (Always-Free quota = 200GB total)
-$SleepSeconds = 60        # wait between attempts; 60s is polite and effective
+$SleepSeconds = 300       # Oracle's launch endpoint rate-limits hard (429) below ~5min
 # ────────────────────────────────────────────────────────────────────────────
 
 if (-not (Get-Command oci -ErrorAction SilentlyContinue)) {
@@ -93,6 +93,8 @@ while ($true) {
 
     if ($out -match "Out of host capacity" -or $out -match "InternalError" -or $out -match "500") {
         Write-Host "no capacity" -ForegroundColor Yellow
+    } elseif ($out -match "TooManyRequests" -or $out -match "429") {
+        Write-Host "rate-limited (backing off)" -ForegroundColor Yellow
     } else {
         # A real error (bad OCID, auth, quota) — don't loop forever on it.
         Write-Host "ERROR (stopping)" -ForegroundColor Red
