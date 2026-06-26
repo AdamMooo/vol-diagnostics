@@ -231,8 +231,9 @@ def run(dry_run: bool = False, force: bool = False) -> None:
     index_results = [d["summary"] for d in all_data if d["summary"]["ticker"] in INDEX_TICKERS]
     good = [d for d in all_data if not d["summary"].get("error")]
     if not good:
-        print("[run_daily] All tickers failed — skipping email.")
-        return
+        errors = {d["summary"]["ticker"]: d["summary"].get("error") for d in all_data}
+        print(f"[run_daily] All tickers failed — skipping email. Errors: {errors}")
+        raise SystemExit(1)
 
     subject = f"Index Volatility Report — {today.strftime('%B')} {today.day}, {today.year}"
     oi_data = {
