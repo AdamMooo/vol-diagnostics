@@ -172,14 +172,16 @@ match standard option-cycle thinking."""
 
 # ── Streamlit caching ──────────────────────────────────────────────────────────
 
-CACHE_TTL_TICKER: int = 300
-"""Seconds to cache compute_ticker() results in the Streamlit app. 5 minutes
-roughly matches the CBOE delayed-quote refresh rhythm — quotes won't change
-meaningfully inside this window."""
+CACHE_TTL_TICKER: int = 21600
+"""Seconds to cache compute_ticker() results in the Streamlit app. The data is a
+once-daily snapshot — it does not change intraday — so a viewing session should
+never pay the network re-fetch cost. 6h keeps the whole session fast while still
+picking up the new daily snapshot when the app is next opened in the morning."""
 
-CACHE_TTL_HISTORY: int = 1800
-"""Seconds to cache parquet history reads. 30 minutes is fine — history is
-append-only and only changes once a day when run_daily fires."""
+CACHE_TTL_HISTORY: int = 21600
+"""Seconds to cache parquet history reads. Reads are cheap + local and history is
+append-only (changes once a day when run_daily fires), so match the ticker TTL —
+no reason to re-read mid-session."""
 
 HISTORY_DAYS: int = 30
 """Rolling lookback (days) for the History tab charts (γ-flip vs spot, skew).
