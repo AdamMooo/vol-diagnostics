@@ -207,10 +207,16 @@ def run(dry_run: bool = False, force: bool = False) -> None:
     OUT_DIR.mkdir(exist_ok=True)
 
     print("[run_daily] Refreshing vol-index snapshots...")
+    refreshed: list[str] = []
     try:
-        refresh_vol_indices()
+        refreshed = refresh_vol_indices()
     except Exception as exc:
         print(f"  [WARN] vol-index refresh failed (non-blocking): {exc}")
+    vol_feed_note = None
+    if "VIX" not in refreshed:
+        vol_feed_note = ("Vol-index feed unavailable this run — VRP, term structure and "
+                         "VVIX may be stale (last good values shown).")
+        print("  [WARN] vol-index feed did not refresh VIX — VRP/term/VVIX may be stale.")
 
     all_data: list[dict] = []
     for ticker in ALL_TICKERS:
@@ -278,11 +284,12 @@ def run(dry_run: bool = False, force: bool = False) -> None:
         for d in all_data
         if not d["summary"].get("error") and d.get("expiry_oi_df") is not None
     }
+    notes = [n for n in (vol_feed_note, png_note) if n]
     html = rpt.build_email(
         index_results=index_results,
         date=today,
         evolution_data=evolution_data,
-        png_note=png_note,
+        png_note=" · ".join(notes) if notes else None,
         oi_data=oi_data if oi_data else None,
     )
 
@@ -292,8 +299,10 @@ def run(dry_run: bool = False, force: bool = False) -> None:
         print(f"[gex-daily] Report saved: {out_path}")
         return
 
+    email_ok = False
     try:
         emailer.send(subject=subject, html_body=html, attachments=attachments)
+        email_ok = True
         print("[gex-daily] Email sent.")
     except Exception as exc:
         print(f"[gex-daily] Email failed: {exc}")
@@ -305,6 +314,12 @@ def run(dry_run: bool = False, force: bool = False) -> None:
             print(f"[gex-daily] Observation block appended: {note_path}")
     except Exception as exc:
         print(f"[gex-daily] Observation log failed (non-blocking): {exc}")
+
+    # Snapshots are saved and the observation is logged; a dead email channel must
+    # surface as a non-zero exit so Task Scheduler reports failure instead of a
+    # silent "success" with no email. Re-run (--force) to resend from the saved chain.
+    if not email_ok:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

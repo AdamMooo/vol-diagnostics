@@ -106,15 +106,20 @@ def load_vol_index(symbol: str, days: int | None = None) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def refresh_vol_indices(symbols: list[str] | None = None) -> None:
-    """Fetch and cache vol-index daily snapshots for all symbols. Non-fatal on 403 or network error."""
+def refresh_vol_indices(symbols: list[str] | None = None) -> list[str]:
+    """Fetch and cache vol-index daily snapshots for all symbols. Non-fatal on 403
+    or network error. Returns the symbols successfully refreshed this run so the
+    caller can flag a dead feed."""
     symbols = DEFAULT_VOL_INDICES if symbols is None else symbols
+    refreshed: list[str] = []
     for sym in symbols:
         try:
             df = _fetch_cboe_vol_index(sym)
             if df is None:
                 continue
             save_vol_index_snapshot(df, sym)
+            refreshed.append(sym)
         except Exception as exc:
             print(f"[vol_index] {sym}: refresh failed (skipping): {exc}")
             continue
+    return refreshed
