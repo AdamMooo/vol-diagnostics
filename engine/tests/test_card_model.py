@@ -364,7 +364,7 @@ class TestCardReadOtherChips:
     def test_rich_and_steep_lean_favors_calls(self):
         s = dict(self.BASE, vrp_pct=85)
         r = build_card_read(s, skew_pct=80)
-        assert "writing calls" in r.lean.lower()
+        assert "call writing" in r.lean.lower()
 
     def test_chips_are_text_sign_tuples(self):
         r = build_card_read(self.BASE)

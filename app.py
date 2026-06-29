@@ -229,7 +229,7 @@ def _available_dates_cached(ticker: str) -> list:
 def _evolution_largest_move_summary(metrics: dict | None) -> str:
     import math
     if not metrics:
-        return "What changed most today: insufficient history yet (need stored sessions)."
+        return "Largest move: — (history building)."
 
     defs = {
         "level": ("surface level", "rose", "fell"),
@@ -245,12 +245,12 @@ def _evolution_largest_move_summary(metrics: dict | None) -> str:
         ranked.append((abs(float(v)), key, float(v)))
 
     if not ranked:
-        return "What changed most today: insufficient history yet (need stored sessions)."
+        return "Largest move: — (history building)."
 
     _, key, value = max(ranked, key=lambda x: x[0])
     label, up_word, down_word = defs[key]
     direction = up_word if value >= 0 else down_word
-    return f"What changed most today: {label} {direction} ({value:+.2f}pp)."
+    return f"Largest move: {label} {direction} ({value:+.2f}pp)."
 
 
 def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
@@ -355,7 +355,7 @@ def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict])
     elif stabilizing == n:
         bar_class = "risk-bar risk-stable"
         bar_label = "STABILIZING"
-        bar_detail = f"All {n} indices in positive gamma (dealers dampen moves)"
+        bar_detail = f"All {n} indices in positive gamma"
     else:
         bar_class = "risk-bar risk-mixed"
         bar_label = "MIXED"
@@ -376,44 +376,11 @@ def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict])
   <span class="risk-detail">{bar_detail}{vrp_bit}{surf_bit}</span>
 </div>''', unsafe_allow_html=True)
 
-    # ── Narrative ─────────────────────────────────────────────────────────────
-    narrative_parts = []
-    if amplifying >= 2:
-        narrative_parts.append(
-            "Dealers are net short gamma — moves in either direction get amplified, not dampened."
-        )
-    elif stabilizing == n:
-        narrative_parts.append(
-            "Dealers are long gamma across all indices — moves are dampened. Low-vol, mean-reverting regime."
-        )
-
-    if rich >= 2:
-        narrative_parts.append(
-            f"Premium is rich on {rich}/{n} (VRP above realized) — protection demand is elevated."
-        )
-
-    # Skew context (SPY first)
+    # ── SPY context for the vol strip below (no inline narrative paragraph —
+    #    the risk bar, Key Levels, and vol strip carry the read) ───────────────
     spy_summary = next((s for s in rows if s.get("ticker") == "SPY"), rows[0])
     skew_pct = spy_summary.get("read_skew_pct")
-    if skew_pct is not None and skew_pct >= 75:
-        narrative_parts.append(
-            f"Front skew at {skew_pct}th percentile — heavy put demand relative to history."
-        )
-
-    # VIX term
     term_9d = spy_summary.get("term_ratio_9d_30d")
-    if term_9d is not None and term_9d > 1.0:
-        narrative_parts.append(
-            "VIX term structure in backwardation — near-term stress exceeds forward expectations."
-        )
-
-    if amplifying >= 2:
-        narrative_parts.append(
-            "**Follow the break — don't anticipate.** Magnitude is elevated; direction unknown."
-        )
-
-    if narrative_parts:
-        st.markdown(" ".join(narrative_parts))
 
     # ── Key Levels ────────────────────────────────────────────────────────────
     st.markdown('<div class="sec">Key Levels</div>', unsafe_allow_html=True)
@@ -543,7 +510,7 @@ with st.sidebar:
     if st.button("Refresh", use_container_width=True):
         fetch_ticker.clear()
         st.rerun()
-    st.caption(f"{datetime.now().strftime('%a %b %d, %Y')} · CBOE delayed, 15-min lag")
+    st.caption(f"{datetime.now().strftime('%a %b %d, %Y')}")
 
 selected_all = sel_index
 if not selected_all:
@@ -555,7 +522,7 @@ _top_date = datetime.now().strftime("%a %b %d, %Y").replace(" 0", " ")
 st.markdown(
     f"""<div class="top-bar">
   <span class="top-bar-tickers">{_top_tickers}</span>
-  <span>{_top_date}  ·  CBOE delayed, 15-min lag  ·  OI T-1 (OCC standard)</span>
+  <span>{_top_date}  ·  CBOE delayed, 15-min lag  ·  OI T-1</span>
 </div>""",
     unsafe_allow_html=True,
 )
@@ -679,10 +646,7 @@ def _surface_compare_section(selected_all: list[str], all_data: dict) -> None:
 
         available = _available_dates_cached(ticker)
         if not available:
-            st.caption(
-                f"{ticker}: no historical snapshots yet — "
-                "accumulates from `run_daily` runs forward."
-            )
+            st.caption(f"{ticker}: no stored snapshots yet.")
             continue
 
         # Determine which horizon keys have enough stored history
@@ -763,9 +727,7 @@ def _surface_compare_section(selected_all: list[str], all_data: dict) -> None:
                     width='stretch',
                 )
             st.caption(
-                f"DTE range is bounded by the intersection of {label_a}'s and "
-                f"{label_b}'s data — if the surface is narrower than today's, "
-                "the prior snapshot's front expiry has rolled off."
+                f"DTE range = {label_a} ∩ {label_b} (a narrower band means the prior front expiry rolled off)."
             )
         else:
             st.caption(f"{ticker}: insufficient data for comparison.")
@@ -773,10 +735,7 @@ def _surface_compare_section(selected_all: list[str], all_data: dict) -> None:
 
 @st.fragment
 def _evolution_section(selected_all: list[str], all_data: dict) -> None:
-    st.caption(
-        "How the surface changes day by day — hit ▶ to play it like a video, "
-        "or drag the slider to scrub through stored sessions."
-    )
+    st.caption("Surface by session — play or scrub the slider.")
     ec1, ec2 = st.columns([2, 2])
     with ec1:
         evo_tkr = st.radio(
@@ -816,9 +775,9 @@ def _evolution_section(selected_all: list[str], all_data: dict) -> None:
         term_disp = f"{term_spread_val:+.1f}pp" if term_spread_val is not None else "—"
 
         h1, h2, h3 = st.columns(3)
-        h1.metric("VRP (vol − RV20)", vrp_disp)
-        h2.metric("Front skew (25Δ RR)", skew_disp)
-        h3.metric("Term spread (front − back)", term_disp)
+        h1.metric("VRP", vrp_disp)
+        h2.metric("Front Skew (25Δ)", skew_disp)
+        h3.metric("Term Spread", term_disp)
 
     # The surface video: one frame per stored session, fixed color scale.
     movie = _movie_payload_cached(evo_tkr, evo_mode)
@@ -829,10 +788,7 @@ def _evolution_section(selected_all: list[str], all_data: dict) -> None:
         )
         components.html(render_movie_html(movie), height=620, scrolling=False)
     else:
-        st.info(
-            f"{evo_tkr}: need ≥2 stored sessions to animate — "
-            "accumulates from `run_daily` runs forward."
-        )
+        st.info(f"{evo_tkr}: need ≥2 stored sessions to animate.")
 
 
 if sel_index:
@@ -865,13 +821,9 @@ if sel_index:
 
     # ── Positioning ───────────────────────────────────────────────────────────
     with tab_positioning:
-        st.markdown(
-            f"Positioning defaults to a **{config.GEX_PRIMARY_DTE} DTE primary dealer-impact lens**. "
-            f"Broader ≤{config.GEX_MAX_DTE} DTE remains secondary context. "
-            "OI is assumption-free (no dealer model needed), while GEX-derived levels "
-            "(γ-flip, walls) are model constructs under the dealer net-short assumption "
-            "(Garleanu et al. 2009).",
-            unsafe_allow_html=False,
+        st.caption(
+            f"Lens: {config.GEX_PRIMARY_DTE} DTE primary · ≤{config.GEX_MAX_DTE} DTE context · "
+            "γ-flip/walls = model (dealer net-short) · OI = raw"
         )
 
         pos_tkr = st.radio(
@@ -973,10 +925,7 @@ if sel_index:
                     )
                     st.plotly_chart(levels_fig, width='stretch')
                 else:
-                    st.caption(
-                        f"{ticker}: no history yet — "
-                        "accumulates from `run_daily` runs forward."
-                    )
+                    st.caption(f"{ticker}: no history yet.")
 
             with st.expander("γ-flip & walls — model derivation", expanded=False):
                 p_df = data.get("p_df")

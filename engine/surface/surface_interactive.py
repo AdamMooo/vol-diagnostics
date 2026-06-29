@@ -155,7 +155,7 @@ _HTML = """<!DOCTYPE html>
     <button id="fs" title="Fullscreen (Esc to exit)">⛶ full</button>
   </span>
 </div>
-<div id="howto">how to read — <b>drag</b> to rotate · steep front edge = near-term fear · bright ridge = high IV · <b>hover</b> anywhere → the smile + term slices on the right update live</div>
+<div id="howto"><b>drag</b> to rotate · <b>hover</b> for smile + term slices</div>
 <div id="wrap">
   <div id="fig3d"></div>
   <div id="right"><div class="lbl" id="lbl">smile / term — hover the surface</div><div id="figsl"></div></div>

@@ -457,16 +457,16 @@ class CardRead:
 def _lean_text(vrp_pct, skew_pct) -> str:
     """vrp_pct is None unless it cleared the credibility floor; same for skew_pct."""
     if vrp_pct is None:
-        return "Premium history still building — no rich/cheap call yet."
+        return "Premium history building — no rich/cheap read yet."
     rich, cheap = vrp_pct >= 67, vrp_pct <= 33
     steep = skew_pct is not None and skew_pct >= 67
     if cheap:
-        return "Premium's cheap — writing is poorly paid; owning protection is relatively attractive."
+        return "Premium cheap — writing poorly compensated; owning protection relatively attractive."
     if rich and steep:
-        return "Protection's expensive and bid up front — favors writing calls; don't sell downside cheap here."
+        return "Premium rich, front skew bid — favors call writing."
     if rich:
-        return "Premium's rich — broad premium-selling is favored."
-    return "Premium's middling — no strong write edge today."
+        return "Premium rich — premium-selling favored."
+    return "Premium middling — limited write edge."
 
 
 def build_card_read(

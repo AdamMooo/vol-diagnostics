@@ -197,7 +197,7 @@ def test_evolution_summary_picks_largest_dimension_and_direction():
         "skew_change": 0.20,
         "term_change": -0.80,
     })
-    assert "what changed most today" in line.lower()
+    assert "largest move" in line.lower()
     assert "term" in line.lower()
     assert "flattened" in line.lower()
 
