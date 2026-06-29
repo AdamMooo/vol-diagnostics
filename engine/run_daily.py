@@ -22,8 +22,10 @@ import pytz
 
 from engine.compute import compute_ticker
 from engine.data.validation import save_snapshot
-from engine.data.surface_history import save_surface_snapshot, nth_trading_day_back, load_surface_snapshot
-from engine.data.oi_history import save_oi_snapshot
+from engine.data.surface_history import (
+    save_surface_snapshot, nth_trading_day_back, load_surface_snapshot, list_available_dates,
+)
+from engine.data.oi_history import save_oi_snapshot, list_oi_dates
 from engine.report import report as rpt
 from engine.report import emailer
 from engine.report import observation
@@ -53,7 +55,8 @@ def _already_collected_today(today: datetime.date) -> bool:
         today_rows = df[df["date"] == today]
         collected = set(today_rows["ticker"].unique())
         return all(t in collected for t in ALL_TICKERS)
-    except Exception:
+    except Exception as exc:
+        print(f"[CORRUPT] run_daily: {SNAPSHOT_STORE.name} unreadable ({exc}) — re-collecting today.")
         return False
 
 
@@ -157,6 +160,47 @@ def _build_price_level_attachments(
     return attachments
 
 
+def _verify_stores_written(all_data: list[dict], today: datetime.date) -> None:
+    """Post-write cross-store consistency check.
+
+    Atomic writes (engine.data.store) close the in-file corruption window, but a
+    process killed *between* the per-ticker scalar/surface/OI saves still leaves
+    the stores desynced for that ticker — silently degrading the compare tab and
+    evolution baseline downstream. Verify each store we attempted to write
+    actually has today's rows and shout if not, rather than letting it pass.
+    """
+    import pandas as pd
+
+    scalar_tickers: set[str] = set()
+    if SNAPSHOT_STORE.exists():
+        try:
+            df = pd.read_parquet(SNAPSHOT_STORE)
+            df["date"] = pd.to_datetime(df["date"]).dt.date
+            scalar_tickers = set(df[df["date"] == today]["ticker"].unique())
+        except Exception as exc:
+            print(f"[CORRUPT] run_daily: store verify could not read {SNAPSHOT_STORE.name} ({exc})")
+
+    problems: list[str] = []
+    for data in all_data:
+        s = data["summary"]
+        if s.get("error"):
+            continue
+        ticker = s["ticker"]
+        if ticker not in scalar_tickers:
+            problems.append(f"{ticker}: scalar snapshot missing")
+        sdf = data.get("surface_df")
+        if sdf is not None and not sdf.empty and today not in set(list_available_dates(ticker)):
+            problems.append(f"{ticker}: surface snapshot missing")
+        odf = data.get("expiry_oi_df")
+        if odf is not None and not odf.empty and today not in set(list_oi_dates(ticker)):
+            problems.append(f"{ticker}: OI snapshot missing")
+
+    if problems:
+        print(f"[ERROR] cross-store consistency check FAILED for {today}: " + "; ".join(problems))
+    else:
+        print("[run_daily] Cross-store consistency check passed.")
+
+
 def run(dry_run: bool = False, force: bool = False) -> None:
     today = datetime.datetime.now(ET).date()
 
@@ -196,6 +240,8 @@ def run(dry_run: bool = False, force: bool = False) -> None:
             print(f"spot={s['spot']:.2f}  gex=${s['net_gex']/1e9:.2f}B{iv30_str}")
         else:
             print(f"ERROR: {s['error']}")
+
+    _verify_stores_written(all_data, today)
 
     print("\n[run_daily] Computing surface evolution...")
     from engine.surface.surface_evolution import update_evolution

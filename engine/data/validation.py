@@ -25,6 +25,8 @@ import pathlib
 
 import pandas as pd
 
+from engine.data.store import atomic_to_parquet
+
 STORE = pathlib.Path(__file__).resolve().parents[2] / "out" / "gex_snapshots.parquet"
 
 
@@ -88,7 +90,7 @@ def save_snapshot(summary: dict, ticker: str, skew_df: pd.DataFrame | None = Non
         STORE.parent.mkdir(exist_ok=True)
         hist = pd.DataFrame([row])
 
-    hist.to_parquet(STORE, index=False)
+    atomic_to_parquet(hist, STORE)
     print(f"[gex] Snapshot saved ({len(hist)} rows total): {STORE}")
 
 
@@ -112,7 +114,8 @@ def load_prior_snapshot(
         if subset.empty:
             return None
         return subset.iloc[0]
-    except Exception:
+    except Exception as exc:
+        print(f"[CORRUPT] validation.load_prior_snapshot: {path.name} unreadable ({exc})")
         return None
 
 

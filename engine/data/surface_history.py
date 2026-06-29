@@ -19,6 +19,8 @@ import pathlib
 
 import pandas as pd
 
+from engine.data.store import atomic_to_parquet
+
 STORE_DIR = pathlib.Path(__file__).resolve().parents[2] / "out" / "surface_history"
 
 
@@ -59,7 +61,7 @@ def save_surface_snapshot(
     else:
         hist = df
 
-    hist.to_parquet(path, index=False)
+    atomic_to_parquet(hist, path)
     print(f"[surface_history] {ticker}: {len(df)} rows @ spot={spot:.2f} saved for {today} "
           f"({len(hist)} total rows in store)")
 

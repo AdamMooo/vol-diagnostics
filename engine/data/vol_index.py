@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 
 from engine.config import DEFAULT_VOL_INDICES
+from engine.data.store import atomic_to_parquet
 
 _CBOE_VOL_URL = "https://cdn.cboe.com/api/global/us_indices/daily_prices/{SYM}_History.csv"
 _HEADERS = {"User-Agent": "gamma-omm/3.5"}
@@ -61,8 +62,11 @@ def _fetch_cboe_vol_index(symbol: str) -> pd.DataFrame | None:
 
         return clean_df
 
-    except requests.exceptions.RequestException as exc:
-        print(f"[vol_index] {symbol}: fetch failed: {exc}")
+    except Exception as exc:
+        # Broad on purpose: a 200-with-bad-body (HTML maintenance page, schema
+        # drift) raises KeyError/ParserError, not RequestException. The function
+        # contract is "return None on any fetch/parse error".
+        print(f"[vol_index] {symbol}: fetch/parse failed: {exc}")
         return None
 
 
@@ -76,8 +80,7 @@ def save_vol_index_snapshot(df: pd.DataFrame | None, symbol: str) -> None:
     df_to_store.columns = ["date", "open", "high", "low", "close"]
     df_to_store.insert(0, "symbol", symbol)
 
-    STORE_DIR.mkdir(parents=True, exist_ok=True)
-    df_to_store.to_parquet(_store_path(symbol), index=False)
+    atomic_to_parquet(df_to_store, _store_path(symbol))
     print(f"[vol_index] {symbol}: {len(df_to_store)} rows written (replace)")
 
 
@@ -106,7 +109,11 @@ def refresh_vol_indices(symbols: list[str] | None = None) -> None:
     """Fetch and cache vol-index daily snapshots for all symbols. Non-fatal on 403 or network error."""
     symbols = DEFAULT_VOL_INDICES if symbols is None else symbols
     for sym in symbols:
-        df = _fetch_cboe_vol_index(sym)
-        if df is None:
+        try:
+            df = _fetch_cboe_vol_index(sym)
+            if df is None:
+                continue
+            save_vol_index_snapshot(df, sym)
+        except Exception as exc:
+            print(f"[vol_index] {sym}: refresh failed (skipping): {exc}")
             continue
-        save_vol_index_snapshot(df, sym)

@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 
 from engine import config
+from engine.data.store import atomic_to_parquet
 from engine.gex.analytics import coverage_mask, rbf_grid
 from engine.data.surface_history import (
     list_available_dates,
@@ -196,7 +197,7 @@ def save_evolution_row(
             STORE.parent.mkdir(parents=True, exist_ok=True)
             hist = pd.DataFrame([row])
 
-        hist.to_parquet(STORE, index=False)
+        atomic_to_parquet(hist, STORE)
         print(
             f"[surface_evolution] {ticker} {date} horizon={horizon}: "
             f"level={level:.2f}pp rms={rms:.2f}pp saved"
