@@ -5,6 +5,7 @@ Bloomberg swap: replace _fetch_cboe_vol_index only.
 """
 from __future__ import annotations
 
+import io
 import pathlib
 
 import pandas as pd
@@ -34,7 +35,7 @@ def _fetch_cboe_vol_index(symbol: str) -> pd.DataFrame | None:
         resp.raise_for_status()
 
         # CBOE returns full history; no pagination.
-        df = pd.read_csv(pd.io.common.StringIO(resp.text))
+        df = pd.read_csv(io.StringIO(resp.text))
         df["DATE"] = pd.to_datetime(df["DATE"]).dt.date
 
         # Some CBOE indices (e.g., VVIX) have a single value column named after

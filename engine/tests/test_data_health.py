@@ -82,9 +82,10 @@ class TestRunIdempotencyGuard:
         """--force should bypass the idempotency guard."""
         from engine.run_daily import run
         mock_compute.return_value = {"summary": {"ticker": "SPY", "error": "test"}}
-        # Won't finish (all error), but it should get past the guard
-        run(dry_run=True, force=True)
-        # If we got here, the guard was bypassed (compute_ticker was called)
+        # All tickers error → run() exits non-zero, but only AFTER bypassing the
+        # guard and calling compute_ticker — which is what --force must do.
+        with pytest.raises(SystemExit):
+            run(dry_run=True, force=True)
         assert mock_compute.called
 
 

@@ -1,16 +1,17 @@
 """
-GEX POC entry point.
+Single-ticker gamma-profile smoke test (CLI).
 
 Usage:
-    cd options-quant
+    cd gamma-omm
     python -m engine.run_gex                   # SPY, save charts to out/
     python -m engine.run_gex --ticker QQQ      # different underlying
     python -m engine.run_gex --no-save         # show charts interactively
 
-What it proves:
-    1. Can compute a stable gamma profile from public chain data
-    2. Profile produces intuitive levels (walls, zero-gamma area)
-    3. Regime classification is interpretable
+What it does:
+    1. Computes a stable gamma profile from public CBOE chain data
+    2. Produces intuitive levels (call/put walls, zero-gamma area)
+    3. Reports the sign of net GEX + those levels — no categorical regime
+       label (the hand-tuned classifier was removed for rigor)
 
 NOTE: This is a lightweight CLI entry point. It intentionally bypasses
 compute_ticker() (which fetches live ^IRX and computes vol surface/skew/slopes).
@@ -46,7 +47,7 @@ def run(ticker: str = "SPY", save: bool = True) -> dict:
     profile_df = gamma_profile(df, spot=snapshot.spot)
     summary = summarise(strike_df, profile_df, spot=snapshot.spot)
 
-    _print_summary(summary, ticker)
+    _print_summary(summary, ticker, snapshot.as_of)
 
     if save:
         OUT_DIR.mkdir(exist_ok=True)
@@ -70,9 +71,9 @@ def run(ticker: str = "SPY", save: bool = True) -> dict:
     return summary
 
 
-def _print_summary(s: dict, ticker: str) -> None:
+def _print_summary(s: dict, ticker: str, as_of: datetime.date) -> None:
     print(f"\n{'='*50}")
-    print(f"  {ticker} GEX SUMMARY — {datetime.date.today()}")
+    print(f"  {ticker} GEX SUMMARY — {as_of}")
     print(f"{'='*50}")
     print(f"  Spot:             {s['spot']:.2f}")
     print(f"  Net GEX:          ${s['net_gex']/1e9:.2f}B")

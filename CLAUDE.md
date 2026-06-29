@@ -10,7 +10,7 @@ Last updated: 2026-06-21 | Status: active milestone v3.5 (Index Vol-Context Rebu
   - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 324 green.
+- **Tests:** `pytest engine/tests` — 358 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -34,7 +34,7 @@ python -m venv .venv
 pip install -r requirements.txt
 streamlit run app.py                    # interactive dashboard
 python -m engine.run_gex --ticker SPY   # single-ticker smoke test to stdout
-pytest engine/tests                     # 246 tests
+pytest engine/tests                     # 358 tests
 ```
 
 `requirements.txt` tracks the stack. Add packages there when needed.
@@ -58,13 +58,13 @@ shared config stay at the package root; everything else is grouped by domain:**
 
 ```
 engine/
-  config.py  compute.py  run_daily.py  run_gex.py   # root: config + orchestration seam
-  data/      data_loader  vol_index  validation  surface_history
+  config.py  compute.py  session.py  run_daily.py  run_gex.py   # root: config + orchestration seam
+  data/      data_loader  vol_index  validation  surface_history  oi_history  store
   gex/       greeks_engine  exposure_engine  analytics       # dealer-gamma subdomain
   surface/   surface_interactive  surface_evolution  surface_sweep
   vol/       vol_metrics  vrp_history
   report/    card_model  report  png_export  emailer  observation
-  tests/     (246 green)
+  tests/     (358 green)
 ```
 
 **Tickers: SPY, QQQ, IWM only.** Full chain pulled per ticker — no moneyness filter, no OI cutoff.
