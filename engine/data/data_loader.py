@@ -21,6 +21,7 @@ import pandas as pd
 import requests
 
 from engine import config
+from engine.session import ET
 
 _CBOE_URL = "https://cdn.cboe.com/api/global/delayed_quotes/options/{ticker}.json"
 _HEADERS = {"User-Agent": "options-quant/1.0"}
@@ -55,6 +56,7 @@ def load_chain(
     min_oi: int = config.MIN_OI,
     min_dte: int = config.MIN_DTE,
     max_iv: float = config.MAX_IV,
+    today: datetime.date | None = None,
 ) -> ChainSnapshot:
     """
     Fetch all listed expiries for ticker from CBOE delayed quotes and return a ChainSnapshot.
@@ -80,7 +82,10 @@ def load_chain(
         )
     iv30 = float(data.get("iv30") or 0.0)
     price_change_pct = float(data.get("price_change_percent") or 0.0)
-    today = datetime.date.today()
+    # DTE basis must match the date the snapshot is filed under (ET session),
+    # not the local wall-clock date — else T_years is off by one on a tz-skewed
+    # or after-midnight run. Callers that know the session date thread it in.
+    today = today if today is not None else datetime.datetime.now(ET).date()
 
     rows: list[dict] = []
     for opt in data["options"]:

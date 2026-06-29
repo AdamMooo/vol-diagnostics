@@ -17,9 +17,6 @@ import argparse
 import datetime
 import pathlib
 
-import pandas_market_calendars as mcal
-import pytz
-
 from engine.compute import compute_ticker
 from engine.data.validation import save_snapshot
 from engine.data.surface_history import (
@@ -34,13 +31,12 @@ from engine.gex.analytics import plot_iv_change_heatmap, plot_price_with_levels
 from engine.surface.surface_evolution import load_evolution
 from engine.vol.vol_metrics import evolution_5d_summary
 from engine.data.vol_index import refresh_vol_indices
+from engine.session import ET, is_trading_day, latest_session, MARKET_OPEN_HOUR, MARKET_OPEN_MIN
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ALL_TICKERS = INDEX_TICKERS
 
 OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex"
-ET = pytz.timezone("America/New_York")
-
 SNAPSHOT_STORE = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex_snapshots.parquet"
 
 
@@ -60,17 +56,10 @@ def _already_collected_today(today: datetime.date) -> bool:
         return False
 
 
-def is_trading_day(date: datetime.date | None = None) -> bool:
-    nyse = mcal.get_calendar("NYSE")
-    d = date or datetime.datetime.now(ET).date()
-    schedule = nyse.schedule(start_date=d.strftime("%Y-%m-%d"), end_date=d.strftime("%Y-%m-%d"))
-    return not schedule.empty
-
-
-def process_ticker(ticker: str) -> dict:
+def process_ticker(ticker: str, today: datetime.date | None = None) -> dict:
     """Never raises — errors go in result."""
     try:
-        return compute_ticker(ticker)
+        return compute_ticker(ticker, today=today)
     except Exception as exc:
         print(f"  [WARN] {ticker}: {exc}")
         return {"summary": {"ticker": ticker, "error": str(exc)}}
@@ -202,7 +191,9 @@ def _verify_stores_written(all_data: list[dict], today: datetime.date) -> None:
 
 
 def run(dry_run: bool = False, force: bool = False) -> None:
-    today = datetime.datetime.now(ET).date()
+    # Calendar-derived session date (not the raw wall-clock date): a delayed or
+    # after-midnight catch-up run files under the session it actually collected.
+    today = latest_session(datetime.datetime.now(ET), MARKET_OPEN_HOUR, MARKET_OPEN_MIN)
 
     if not is_trading_day(today):
         print(f"[gex-daily] {today} is not a NYSE trading day — skipping.")
@@ -224,7 +215,7 @@ def run(dry_run: bool = False, force: bool = False) -> None:
     all_data: list[dict] = []
     for ticker in ALL_TICKERS:
         print(f"  {ticker}...", end=" ", flush=True)
-        data = process_ticker(ticker)
+        data = process_ticker(ticker, today)
         all_data.append(data)
         s = data["summary"]
         if not s.get("error"):

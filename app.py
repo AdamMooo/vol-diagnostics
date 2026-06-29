@@ -29,14 +29,12 @@ from engine.data.surface_history import (
     load_surface_snapshot, list_available_dates, nth_trading_day_back,
 )
 from engine.surface.surface_evolution import load_evolution
+from engine.session import latest_session, DATA_CUTOFF_HOUR, DATA_CUTOFF_MIN
 
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 
 ET = pytz.timezone("America/New_York")
-# Post-close collection fires ~4:30pm ET; today's session only counts as
-# "expected" once that window has passed (small buffer past close).
-DATA_CUTOFF_HOUR, DATA_CUTOFF_MIN = 16, 35
 
 st.set_page_config(
     page_title="Option Diagnostics",
@@ -486,25 +484,8 @@ def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict])
 
 
 def _expected_latest_session(now_et: datetime) -> date:
-    """Most recent NYSE session that should already be collected.
-
-    Today's session counts only after the post-close cutoff (~16:35 ET); before
-    that, the latest expected snapshot is the prior trading day."""
-    nyse = mcal.get_calendar("NYSE")
-    today = now_et.date()
-    sched = nyse.schedule(
-        start_date=(today - timedelta(days=12)).strftime("%Y-%m-%d"),
-        end_date=today.strftime("%Y-%m-%d"),
-    )
-    sessions = [d.date() for d in sched.index]
-    if not sessions:
-        return today
-    cutoff = now_et.replace(
-        hour=DATA_CUTOFF_HOUR, minute=DATA_CUTOFF_MIN, second=0, microsecond=0
-    )
-    if sessions[-1] == today and now_et < cutoff:
-        return sessions[-2] if len(sessions) >= 2 else today
-    return sessions[-1]
+    """Most recent NYSE session that should already be collected (post-close lens)."""
+    return latest_session(now_et, DATA_CUTOFF_HOUR, DATA_CUTOFF_MIN)
 
 
 def _sessions_missing(latest: date, expected: date) -> int:

@@ -95,7 +95,7 @@ def _compute_wall_shift(ticker: str, current_summary: dict) -> dict:
     }
 
 
-def compute_ticker(ticker: str) -> dict:
+def compute_ticker(ticker: str, today: datetime.date | None = None) -> dict:
     """
     Full pipeline for one ticker.
 
@@ -113,7 +113,7 @@ def compute_ticker(ticker: str) -> dict:
           "vrp":            float | None — vol_index − RV20 (vol points, VRP-03)
         }
     """
-    snapshot = load_chain(ticker)
+    snapshot = load_chain(ticker, today=today)
     df = add_greeks(snapshot.chains, spot=snapshot.spot, today=snapshot.as_of)
     df = compute_gex(df, spot=snapshot.spot)
 
