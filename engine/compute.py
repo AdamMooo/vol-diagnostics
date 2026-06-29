@@ -62,7 +62,7 @@ def _get_risk_free_rate() -> float:
     return config.RISK_FREE_FALLBACK
 
 
-def _compute_wall_shift(ticker: str, current_summary: dict) -> dict:
+def _compute_wall_shift(ticker: str, current_summary: dict, session_date: datetime.date | None = None) -> dict:
     """Compute 5-session shift in call_wall, put_wall, and zero_gamma_level.
 
     Uses gex_snapshots parquet history. Returns shift in % of spot (level moved
@@ -72,10 +72,18 @@ def _compute_wall_shift(ticker: str, current_summary: dict) -> dict:
         hist = load_history(ticker, days=10)
     except Exception:
         return {}
-    if hist.empty or len(hist) < 5:
+    if hist.empty:
         return {}
 
-    # hist is date-descending from load_history; take 5th row back as reference
+    # Exclude the current session's own row — present in the dashboard path (where
+    # run_daily already saved today) but absent in the run_daily path. Without this
+    # the "5-session" shift is 4 sessions in one path and 5 in the other.
+    if session_date is not None and "date" in hist.columns:
+        hist = hist[hist["date"] != session_date]
+    if len(hist) < 5:
+        return {}
+
+    # hist is date-descending; 5th row back = 5 sessions before the current one
     ref = hist.iloc[min(4, len(hist) - 1)]
     spot = current_summary.get("spot")
     if spot is None or spot <= 0:
@@ -200,13 +208,12 @@ def compute_ticker(ticker: str, today: datetime.date | None = None) -> dict:
     em = compute_model_free_em(df, spot=snapshot.spot, front_expiry=front_expiry)
 
     hist = load_history(ticker, days=config.VRP_PERCENTILE_LOOKBACK)
-    # Use parquet history if we have 21+ rows; otherwise fall back to yfinance daily closes.
-    if not hist.empty and "spot" in hist.columns and len(hist) >= 21:
+    # RV20 from dividend/split-adjusted closes so the displayed scalar matches the
+    # VRP percentile (which also uses adjusted closes). Unadjusted parquet spot is
+    # the fallback only when the yfinance fetch fails.
+    spot_series = _fetch_spot_history_yf(ticker)
+    if spot_series is None and not hist.empty and "spot" in hist.columns:
         spot_series = hist["spot"].iloc[::-1].reset_index(drop=True)
-    else:
-        spot_series = _fetch_spot_history_yf(ticker)
-        if spot_series is None and not hist.empty and "spot" in hist.columns:
-            spot_series = hist["spot"].iloc[::-1].reset_index(drop=True)
     rv20 = compute_rv20(spot_series) if spot_series is not None else None
     summary["rv20"] = rv20
     summary["expected_move_pct"] = em.get("expected_move_pct")
@@ -250,7 +257,7 @@ def compute_ticker(ticker: str, today: datetime.date | None = None) -> dict:
     summary["net_delta"] = net_delta
 
     # Wall movement (5-session history) — shift in call_wall/put_wall/zgl.
-    wall_shift = _compute_wall_shift(ticker, summary)
+    wall_shift = _compute_wall_shift(ticker, summary, snapshot.as_of)
     summary["call_wall_5d_shift"] = wall_shift.get("call_wall_shift")
     summary["put_wall_5d_shift"] = wall_shift.get("put_wall_shift")
     summary["zgl_5d_shift"] = wall_shift.get("zgl_shift")

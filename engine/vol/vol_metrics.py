@@ -36,6 +36,7 @@ def compute_model_free_em(df: pd.DataFrame, spot: float, front_expiry: object) -
     em_dte = int(round(t * 365))
     if t <= 0:
         return _em_none_payload(front_expiry, em_dte)
+    disc = float(np.exp(config.RISK_FREE_FALLBACK * t))  # e^{rT} — CBOE variance discounts Q(K)
 
     expiry_df["strike"] = pd.to_numeric(expiry_df.get("strike"), errors="coerce")
     expiry_df["bid"] = pd.to_numeric(expiry_df.get("bid"), errors="coerce")
@@ -63,7 +64,7 @@ def compute_model_free_em(df: pd.DataFrame, spot: float, front_expiry: object) -
         fwd = float(spot)
     else:
         atm_idx = (call_put["call_mid"] - call_put["put_mid"]).abs().idxmin()
-        fwd = float(atm_idx + (call_put.loc[atm_idx, "call_mid"] - call_put.loc[atm_idx, "put_mid"]))
+        fwd = float(atm_idx + disc * (call_put.loc[atm_idx, "call_mid"] - call_put.loc[atm_idx, "put_mid"]))
 
     strikes = mids.index.to_numpy(dtype=float)
     if strikes.size == 0:
@@ -105,7 +106,7 @@ def compute_model_free_em(df: pd.DataFrame, spot: float, front_expiry: object) -
     if len(q_rows) < 3:
         return _em_none_payload(front_expiry, em_dte)
 
-    integral = sum((dk / (k * k)) * q for k, dk, q in q_rows)
+    integral = disc * sum((dk / (k * k)) * q for k, dk, q in q_rows)
     variance = (2.0 / t) * integral - (1.0 / t) * ((fwd / k0) - 1.0) ** 2
     if not np.isfinite(variance) or variance <= 0:
         return _em_none_payload(front_expiry, em_dte)
@@ -484,27 +485,26 @@ def compute_vvix_level() -> float | None:
 # ── Net Delta Exposure ─────────────────────────────────────────────────────
 
 def compute_net_delta(gex_df: pd.DataFrame) -> float | None:
-    """Aggregate dealer net delta exposure: Σ(delta × OI × 100 × sign).
+    """Dealer delta-hedge position in shares: Σ(delta × OI × 100) over the book.
 
-    Sign convention: calls positive (dealers short calls → long delta),
-    puts negative (dealers short puts → short delta).
-    Returns net shares of underlying dealers hold as delta hedge, or None.
+    Convention (codebase-wide dealer-net-short assumption): a dealer short a
+    +delta call is short delta and hedges by BUYING shares (+); a dealer short a
+    −delta put is long delta and hedges by SELLING shares (−). Both collapse to
+    the signed sum Σ(delta × OI × 100): calls add (delta > 0), puts subtract
+    (delta < 0). Positive = net shares dealers are long as a hedge. None if
+    delta/OI unavailable.
     """
     if gex_df is None or gex_df.empty:
         return None
-    if "delta" not in gex_df.columns:
-        return None
-    oi_col = "openInterest" if "openInterest" in gex_df.columns else "oi"
-    if oi_col not in gex_df.columns:
+    if "delta" not in gex_df.columns or "oi" not in gex_df.columns:
         return None
 
     MULTIPLIER = 100
     calls = gex_df[gex_df["type"] == "call"]
     puts = gex_df[gex_df["type"] == "put"]
 
-    call_delta = (calls["delta"] * calls[oi_col] * MULTIPLIER).sum()
-    put_delta = (puts["delta"].abs() * puts[oi_col] * MULTIPLIER).sum()
-
-    # Dealer net-short assumption: dealers are short calls (so their delta hedge
-    # is +call_delta) and short puts (their hedge is -put_delta).
-    return float(call_delta - put_delta)
+    call_hedge = (calls["delta"] * calls["oi"] * MULTIPLIER).sum()
+    # put delta < 0, so abs()-then-subtract == adding the (negative) put delta:
+    # equals Σ(put_delta × OI × 100), keeping the whole result a signed Σ(δ·OI·100).
+    put_hedge = (puts["delta"].abs() * puts["oi"] * MULTIPLIER).sum()
+    return float(call_hedge - put_hedge)
