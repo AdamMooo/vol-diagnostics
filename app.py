@@ -196,6 +196,9 @@ def _latest_evolution_row_cached(ticker: str) -> dict | None:
     latest = evo.sort_values("date").tail(1)
     if latest.empty:
         return None
+    row = latest.iloc[0]
+    out = {k: row[k] if k in latest.columns else None for k in cols}
+    return out
 
 
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
@@ -221,9 +224,6 @@ def _oi_history_cached(ticker: str, days: int) -> pd.DataFrame:
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
 def _available_dates_cached(ticker: str) -> list:
     return list(list_available_dates(ticker))
-    row = latest.iloc[0]
-    out = {k: row[k] if k in latest.columns else None for k in cols}
-    return out
 
 
 def _evolution_largest_move_summary(metrics: dict | None) -> str:

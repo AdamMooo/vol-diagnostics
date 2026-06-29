@@ -256,6 +256,13 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
         except Exception:
             return "—"
 
+    def _fmt_ratio(v) -> str:
+        try:
+            fv = float(v)
+            return f"{fv:.2f}" if fv == fv else "—"  # fv == fv is False for NaN
+        except Exception:
+            return "—"
+
     data_rows = ""
     for _, row in top3.iterrows():
         try:
@@ -273,11 +280,11 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
             f'<tr>'
             f'<td {td_style}>{expiry_str}</td>'
             f'<td {td_style}>{dte}</td>'
-            f'<td {td_style}>{_k(row["oi"])}</td>'
+            f'<td {td_style}>{_k(row.get("oi", 0))}</td>'
             f'<td {td_style}>{_fmt_pct(row.get("pct_of_total"))}</td>'
             f'<td {td_style}>{_fmt_pct(row.get("avg_pct_of_total_5d"))}</td>'
             f'<td {td_style}>{_fmt_pp(row.get("vs_avg_pct_of_total_5d"))}</td>'
-            f'<td {td_style}>{row["put_call_ratio"]:.2f}</td>'
+            f'<td {td_style}>{_fmt_ratio(row.get("put_call_ratio"))}</td>'
             f'<td style="{_SANS}padding:4px 12px 4px 0;font-size:12px;">{impact}</td>'
             f'</tr>'
         )

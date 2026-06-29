@@ -30,7 +30,7 @@ def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
     spot: current underlying price
     """
     net_gex = float(gex_df["gex"].sum())
-    zero_gamma = _find_zero_crossing(profile_df)
+    zero_gamma = _find_zero_crossing(profile_df, spot)
 
     calls = gex_df[gex_df["gex"] > 0]
     puts = gex_df[gex_df["gex"] < 0]
@@ -47,16 +47,25 @@ def summarise(gex_df: pd.DataFrame, profile_df: pd.DataFrame,
     }
 
 
-def _find_zero_crossing(profile_df: pd.DataFrame) -> float | None:
+def _find_zero_crossing(profile_df: pd.DataFrame, spot: float | None = None) -> float | None:
+    """Interpolated spot level where the gamma profile changes sign. A profile can
+    cross zero more than once across ±15%; return the crossing nearest spot (the
+    economically relevant γ-flip), not the lowest-spot one."""
     vals = profile_df["net_gex"].to_numpy()
+    levels = profile_df["spot_level"].to_numpy()
+    crossings: list[float] = []
     for i in range(len(vals) - 1):
-        if vals[i] * vals[i + 1] < 0:
-            x0, y0 = profile_df["spot_level"].iloc[i], vals[i]
-            x1, y1 = profile_df["spot_level"].iloc[i + 1], vals[i + 1]
-            return float(x0 - y0 * (x1 - x0) / (y1 - y0))
         if vals[i] == 0.0:
-            return float(profile_df["spot_level"].iloc[i])
-    return None
+            crossings.append(float(levels[i]))
+        elif vals[i] * vals[i + 1] < 0:
+            x0, y0 = levels[i], vals[i]
+            x1, y1 = levels[i + 1], vals[i + 1]
+            crossings.append(float(x0 - y0 * (x1 - x0) / (y1 - y0)))
+    if not crossings:
+        return None
+    if spot is None:
+        return crossings[0]
+    return min(crossings, key=lambda x: abs(x - spot))
 
 
 

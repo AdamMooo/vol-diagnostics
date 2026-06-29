@@ -98,7 +98,9 @@ def expiry_oi(df: pd.DataFrame, max_dte: int | None = None) -> pd.DataFrame:
 
     total_oi = out["oi"].sum()
     out["pct_of_total"] = 100.0 * out["oi"] / total_oi if total_oi > 0 else 0.0
-    out["put_call_ratio"] = out["put_oi"] / out["call_oi"].clip(lower=1e-6)
+    # NaN (honest "undefined") for put-only expiries, not a 5e9 garbage ratio
+    # from a near-zero denominator — this value is persisted to the OI store.
+    out["put_call_ratio"] = out["put_oi"] / out["call_oi"].where(out["call_oi"] > 0)
 
     return (
         out[["expiry", "dte", "call_oi", "put_oi", "oi", "pct_of_total", "put_call_ratio"]]

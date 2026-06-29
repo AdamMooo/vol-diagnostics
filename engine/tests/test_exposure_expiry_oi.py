@@ -71,14 +71,15 @@ class TestExpiryOiValues:
         assert (result["dte"] > 0).all()
 
     def test_put_call_ratio_no_div_zero(self):
-        """Expiry with zero call OI must not raise ZeroDivisionError."""
+        """Put-only expiry (zero call OI): ratio is undefined (NaN), not a
+        ZeroDivisionError and not a near-inf garbage value."""
         df = pd.DataFrame([
             {"expiry": "2024-06-19", "strike": 500.0, "type": "put",
              "oi": 500, "T_years": 30/365, "iv": 0.20, "gamma": 0.01, "delta": -0.25},
         ])
         result = expiry_oi(df)
         assert len(result) == 1
-        assert result["put_call_ratio"].iloc[0] > 0
+        assert pd.isna(result["put_call_ratio"].iloc[0])
 
 
 class TestExpiryOiDteFilter:
