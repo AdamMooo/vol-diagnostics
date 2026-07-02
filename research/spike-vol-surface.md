@@ -68,5 +68,3 @@ Smoothing locked **0.5**, clip **0.20**, mesh thinned 48×40→36×28 + floor-pr
 3. **Close the spike**: merge `spike/vol-surface-beast` → main, `components.html`→`st.iframe`, delete throwaway `spike/` files.
 4. **The "where"** — resume Phase 17 (term) → 17.1 (expected-move **cone**, not full RND).
 5. Wire the card read into the **email** (report.py) via the canonical-card seam — the 7am glance.
-
-Why-notes in memory: [[project_dashboard_read_and_gex_tenor]], [[project_interactive_surface_pattern]].
