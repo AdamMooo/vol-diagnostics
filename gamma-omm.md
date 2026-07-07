@@ -1,3 +1,7 @@
+---
+type: hub
+project: gamma-omm
+---
 # Gamma OMM — Market Intelligence Dashboard
 
 Vol/dealer microstructure dashboard for SPY, QQQ, IWM — index income-sleeve PM diagnostics. Current metrics: VRP percentile (vol-index − RV20 vs 252-session history), IV30, 25Δ skew, 3D implied vol surface (OTM convention, log-moneyness), surface evolution (ΔIV at 5/10/20 horizons), net GEX (≤90 DTE), γ-flip, OI walls. Descriptive only — no trade signals.
@@ -47,15 +51,15 @@ Scheduled / repeatable scripts. Edit in place; manage via Windows Task Scheduler
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-06-22 04:36 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-06 00:11 UTC
 
-**Milestone:** Phase 16.5 — OI Depth Expansion (next) · **Status:** unknown · **STATE last_updated:** ?
+**Milestone:** v4.0 Cloud Hosting — Docker on Oracle Cloud Free Tier · **Status:** unknown · **STATE last_updated:** ?
 
 ### Current Position
-- **Phase:** 16.5
-- **Plan:** Not started (next up)
-- **Status:** Planning
-- **Last activity:** 2026-06-21
+- **Phase:** 21
+- **Plan:** 01
+- **Status:** Not started
+- **Last activity:** 2026-06-25 -- Phase 20 committed
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->

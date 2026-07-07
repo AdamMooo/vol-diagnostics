@@ -162,10 +162,9 @@ Resume queue: (1) **Phase 21: Oracle Cloud Provision + Deploy** — create Alway
 ---
 ---
 ---
+---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
 <!-- LINKS:END -->
 
