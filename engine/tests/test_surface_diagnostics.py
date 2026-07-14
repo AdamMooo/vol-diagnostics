@@ -89,6 +89,28 @@ def test_cv_rmse_nan_for_single_expiry_finite_for_many():
     assert math.isfinite(many["cv_rmse"])
 
 
+def test_skip_cv_returns_nan_but_keeps_other_diagnostics():
+    # skip_cv=True must not touch coverage/fit_rmse/max_resid/coherence — only
+    # cv_rmse changes. Also exercises the butterfly-violation path (needs
+    # `expiries`, computed outside the skip_cv branch) to guard the refactor.
+    full = surface_diagnostics(_df(_smooth), SPOT, skip_cv=False)
+    skipped = surface_diagnostics(_df(_smooth), SPOT, skip_cv=True)
+
+    assert math.isfinite(full["cv_rmse"])
+    assert math.isnan(skipped["cv_rmse"])
+    for key in ("coverage_pct", "fit_rmse", "max_resid",
+                "coherence_calendar", "coherence_butterfly", "coherence_violations"):
+        assert full[key] == skipped[key]
+
+    def iv_fn(p, dte):
+        if dte == 30 and p == 0:
+            return 35.0  # forces a butterfly violation -> exercises `expiries` below the CV block
+        return _smooth(p, dte)
+    d = surface_diagnostics(_df(iv_fn), SPOT, skip_cv=True)
+    assert d["coherence_butterfly"] is False
+    assert d["coherence_violations"] >= 1
+
+
 def test_empty_input_degrades():
     d = surface_diagnostics(pd.DataFrame(), SPOT)
     assert set(d.keys()) == KEYS

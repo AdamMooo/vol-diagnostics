@@ -254,13 +254,15 @@ def surface_diagnostics(surface_df, spot, skip_cv: bool = False) -> dict:
     fit_rmse = float(np.sqrt(np.mean(resid ** 2)))
     max_resid = float(np.max(np.abs(resid)))
 
+    # expiries is also needed below by the butterfly coherence check, independent of skip_cv.
+    expiries = np.unique(dte_v)
+
     # Leave-one-EXPIRY-out CV (adjacent strikes correlate and flatter leave-one-point-out).
     # Refits an RBF per expiry — expensive (~0.5s each) and only ever used for the
     # persisted snapshot history, never displayed live, so the dashboard skips it.
     if skip_cv:
         cv_rmse = float("nan")
     else:
-        expiries = np.unique(dte_v)
         cv_sq = []
         for e in expiries:
             hold = dte_v == e
