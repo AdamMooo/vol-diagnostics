@@ -6,7 +6,7 @@ Last updated: 2026-06-21 | Status: active milestone v3.5 (Index Vol-Context Rebu
 - **Runtime:** local Python (venv). Bloomberg/Cron2 is a future swap, not the build environment.
 - **Entry points:**
   - `streamlit run app.py` — interactive dashboard (SPY/QQQ/IWM): per-ticker cards + plain-English read, 3D vol surface, surface "video", positioning
-  - `python -m engine.run_daily --send` — daily HTML email (scheduled weekdays via Task Scheduler)
+  - `python -m engine.run_daily --send` — daily HTML email (scheduled weekdays via GitHub Actions `.github/workflows/daily-report.yml` since 2026-07-14; local Windows Task Scheduler job also still active, pending decision on whether to disable)
   - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.

@@ -132,10 +132,11 @@ All phases complete:
 ### Blockers/Concerns
 
 Punch list from the 2026-07-14 Oracle deploy, none blocking but all real:
-- Local Windows Task Scheduler "GEX Daily Report" job (fires ~4:30pm local) is still active — will now duplicate the cloud scheduler's daily email once both fire same day. Decide whether to disable the local one.
-- Cloud scheduler's first real end-to-end scheduled run (fetch → snapshot → email, not manually triggered) hasn't happened yet — verify after it fires at 20:35 UTC.
-- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months.
+- Local Windows Task Scheduler "GEX Daily Report" job (fires ~4:30pm local) is still active — will now duplicate the GitHub Actions daily email once both fire same day. Decide whether to disable the local one. Also worth renaming — "GEX Daily" is leftover naming from before GEX got demoted to a secondary metric, same shape of debt as the gamma-omm rename.
+- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed in run_daily.py's PNG attachment builders — see below — but export_png() itself is still silent at the single-image level.)
 - Dashboard `PASSWORD` env var on the server is the user's personal main password, not a dedicated one — works, but worth a dedicated password given it's now internet-facing.
+
+**Architecture change, same day**: the daily scheduler moved from an Oracle-hosted container to GitHub Actions (`.github/workflows/daily-report.yml`) after the Oracle Micro instance's first live cron fire hung mid-PNG-export (1 vCPU/1GB couldn't run headless Chromium reliably). Oracle now only runs `dashboard` + `caddy`; GitHub Actions rsyncs `out/` down before each run and back up after, keeping Oracle's disk as the one source of truth (data was deliberately kept out of git). Verified working end-to-end via 6 manual test-trigger iterations, each surfacing a real bug: rsync missing on the GH runner, rsync missing on Oracle, root-owned parquet files unreadable by the `ubuntu` SSH user (fixed with `--rsync-path="sudo rsync"`), a flaky `ssh-keyscan` causing intermittent host-key failures (replaced with an SSH config entry), and an empty `SMTP_PASS` GitHub secret from a failed interactive paste (re-set with `--body`). First fully green run: `29369841431`.
 
 ### Quick Tasks Completed
 
