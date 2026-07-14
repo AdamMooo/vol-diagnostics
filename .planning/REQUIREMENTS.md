@@ -98,5 +98,5 @@ Re-aim the dashboard at the index income-sleeve PM (covered-call / put-write ove
 ---
 <!-- LINKS:AUTO -->
 ## Related
-**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[_planning/vol-diagnostics/STATE|STATE]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->

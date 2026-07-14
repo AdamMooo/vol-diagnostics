@@ -166,11 +166,12 @@ def test_render_regime_card_uses_compact_split_helper():
 
 
 def test_render_regime_card_renders_trust_tags_from_card_fields():
+    """Compact primary row is pure vol-surface content (Spot/IV30/VRP/Skew/Fly) —
+    "model"-tagged fields (Net GEX, walls) live in the demoted detail expander."""
     html = _render_regime_card_html({"vrp_pct_n": 80})
     assert "rc-tag" in html
     assert "market" in html
     assert "building" in html
-    assert "model" in html
     assert "smile" in html
 
 

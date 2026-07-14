@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Gamma OMM — Server Deploy Script
+# Vol Diagnostics — Server Deploy Script
 # Run on the Oracle Cloud instance after SSH.
 # Installs Docker, clones the repo, and launches the stack.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/AdamMooo/gamma-omm/main/scripts/deploy.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/AdamMooo/vol-diagnostics/main/scripts/deploy.sh | bash
 #   OR
 #   bash scripts/deploy.sh
 
 set -euo pipefail
 
-echo "=== Gamma OMM Deploy ==="
+echo "=== Vol Diagnostics Deploy ==="
 echo "Target: Oracle Linux 8 (ARM64)"
 echo ""
 
@@ -38,14 +38,14 @@ sudo firewall-cmd --reload 2>/dev/null || true
 echo "  Ports opened (also open in OCI Security List via console)."
 
 # 3. Clone repo (or pull if already cloned)
-REPO_DIR="$HOME/gamma-omm"
+REPO_DIR="$HOME/vol-diagnostics"
 if [ -d "$REPO_DIR/.git" ]; then
     echo "[3/5] Repo exists — pulling latest..."
     cd "$REPO_DIR"
     git pull
 else
     echo "[3/5] Cloning repo..."
-    git clone https://github.com/AdamMooo/gamma-omm.git "$REPO_DIR"
+    git clone https://github.com/AdamMooo/vol-diagnostics.git "$REPO_DIR"
     cd "$REPO_DIR"
 fi
 

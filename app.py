@@ -37,7 +37,7 @@ INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ET = pytz.timezone("America/New_York")
 
 st.set_page_config(
-    page_title="Option Diagnostics",
+    page_title="Index Vol Diagnostics",
     page_icon="assets/gamma-icon-lg.png",
     layout="wide",
     initial_sidebar_state="expanded",

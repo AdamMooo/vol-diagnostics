@@ -246,7 +246,6 @@ COMPACT_PRIMARY_LABELS = (
     "Spot",
     "IV30 / EM",
     "VRP",
-    "Net GEX",
     "Skew (25Δ)",
     "25Δ Fly",
 )

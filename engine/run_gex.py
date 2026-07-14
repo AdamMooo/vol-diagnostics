@@ -2,7 +2,7 @@
 Single-ticker gamma-profile smoke test (CLI).
 
 Usage:
-    cd gamma-omm
+    cd vol-diagnostics
     python -m engine.run_gex                   # SPY, save charts to out/
     python -m engine.run_gex --ticker QQQ      # different underlying
     python -m engine.run_gex --no-save         # show charts interactively

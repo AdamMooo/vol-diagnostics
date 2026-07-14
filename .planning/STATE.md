@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Cloud Hosting
-status: executing
-stopped_at: Phase 20 complete; ready for Phase 21 Oracle Cloud deploy
-last_updated: "2026-06-25T09:15:00.000Z"
-last_activity: 2026-06-25 -- Phase 20 Data Health + Collection Hardening committed
+status: Not started
+stopped_at: Phase 20.5 context gathered
+last_updated: "2026-07-14T03:22:24.499Z"
+last_activity: 2026-06-25 -- Phase 20 committed
 progress:
-  total_phases: 4
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 50
+  total_phases: 12
+  completed_phases: 8
+  total_plans: 20
+  completed_plans: 18
+  percent: 67
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 ## Current Position
 
 Milestone: v4.0
-Phase: 21
+Phase: 20.5
 Plan: 01
 Status: Not started
 Last activity: 2026-06-25 -- Phase 20 committed
@@ -36,6 +36,7 @@ Progress: [█████░░░░░] 50%
 ## v3.5 Milestone Summary (SHIPPED 2026-06-24)
 
 All phases complete:
+
 - Phase 15: Vol-Index Data Layer ✅
 - Phase 16: VRP Percentile ✅
 - Phase 16.5: OI Depth Expansion ✅
@@ -90,6 +91,7 @@ All phases complete:
 ### Roadmap Evolution
 
 - Phase 18.1 inserted after Phase 18: Dashboard Trust and Clarity Hardening (URGENT)
+- Phase 20.5 inserted after Phase 20: Email Remodel -- full content + visual rebuild of the daily HTML email, inserted ahead of Phase 21 since Oracle deploy is blocked on capacity (URGENT)
 
 ### Decisions
 
@@ -147,8 +149,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-25T09:15:00.000Z
-Stopped at: Phase 20 complete; ready for Phase 21 Oracle Cloud deploy
+Last session: 2026-07-14T03:22:24.484Z
+Stopped at: Phase 20.5 context gathered
 Resume queue: (1) **Phase 21: Oracle Cloud Provision + Deploy** — create Always Free ARM instance, install Docker, clone repo, compose up, migrate parquet via scp. (2) **Phase 22: HTTPS + Remote Access** — Caddy + Let's Encrypt, firewall rules.
 
 ---
@@ -164,7 +166,8 @@ Resume queue: (1) **Phase 21: Oracle Cloud Provision + Deploy** — create Alway
 ---
 ---
 <!-- LINKS:AUTO -->
-## Related
-**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[gamma-omm/gamma-omm|Hub]]
-<!-- LINKS:END -->
 
+## Related
+
+**Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[vol-diagnostics/vol-diagnostics|Hub]]
+<!-- LINKS:END -->

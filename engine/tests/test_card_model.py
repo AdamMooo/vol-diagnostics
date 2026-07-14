@@ -404,20 +404,19 @@ class TestExpectedMoveFallback:
         assert v.endswith("· —")
 
 class TestCompactCardContract:
-    def test_compact_primary_fields_exact_six(self):
+    def test_compact_primary_fields_exact_five(self):
         labels = [f.label for f in compact_primary_fields(build_card_fields(FULL_SUMMARY, None))]
         assert labels == [
             "Spot",
             "IV30 / EM",
             "VRP",
-            "Net GEX",
             "Skew (25Δ)",
             "25Δ Fly",
         ]
 
     def test_split_compact_fields_returns_primary_then_detail(self):
         primary, detail = split_compact_fields(build_card_fields(FULL_SUMMARY, None))
-        assert len(primary) == 6
+        assert len(primary) == 5
         assert len(primary) + len(detail) == len(EXPECTED_LABELS)
 
 

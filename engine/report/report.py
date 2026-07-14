@@ -538,7 +538,7 @@ def build_email(
     <table width="720" cellpadding="0" cellspacing="0" style="width:720px;max-width:720px;{_SANS}">
       <tr><td>
 
-  {_section_header("Equity Index Dealer Flow &middot; " + f"{date.strftime('%B')} {date.day}, {date.year}")}
+  {_section_header("Index Vol Diagnostics &middot; " + f"{date.strftime('%B')} {date.day}, {date.year}")}
   {evol_html}
   {cards}
   {failed_note}

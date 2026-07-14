@@ -17,7 +17,7 @@ param(
     [string]$KeyFile,
 
     [string]$User = "opc",
-    [string]$RemoteDir = "~/gamma-omm/out"
+    [string]$RemoteDir = "~/vol-diagnostics/out"
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,7 +47,7 @@ Write-Host ""
 
 # Create remote directories
 Write-Host "[1/3] Creating remote directories..."
-ssh -i $KeyFile "${User}@${IP}" "mkdir -p ~/gamma-omm/out/surface_history ~/gamma-omm/out/vol_index ~/gamma-omm/out/gex"
+ssh -i $KeyFile "${User}@${IP}" "mkdir -p ~/vol-diagnostics/out/surface_history ~/vol-diagnostics/out/vol_index ~/vol-diagnostics/out/gex"
 
 # SCP the data
 Write-Host "[2/3] Transferring parquet files..."
@@ -55,9 +55,9 @@ scp -i $KeyFile -r "${LocalOut}\*" "${User}@${IP}:${RemoteDir}/"
 
 # Restart and verify
 Write-Host "[3/3] Restarting containers and verifying..."
-ssh -i $KeyFile "${User}@${IP}" "cd ~/gamma-omm && docker compose restart && sleep 5 && docker compose exec dashboard python -m engine.health_check"
+ssh -i $KeyFile "${User}@${IP}" "cd ~/vol-diagnostics && docker compose restart && sleep 5 && docker compose exec dashboard python -m engine.health_check"
 
 Write-Host ""
 Write-Host "=== Migration Complete ===" -ForegroundColor Green
 Write-Host "Dashboard: http://${IP}"
-Write-Host "Health check: ssh -i `"$KeyFile`" ${User}@${IP} `"cd ~/gamma-omm && docker compose exec dashboard python -m engine.health_check`""
+Write-Host "Health check: ssh -i `"$KeyFile`" ${User}@${IP} `"cd ~/vol-diagnostics && docker compose exec dashboard python -m engine.health_check`""

@@ -1,5 +1,5 @@
 """
-Central configuration for gamma-omm. Magic numbers that were previously scattered
+Central configuration for vol-diagnostics. Magic numbers that were previously scattered
 across modules — gathered here so the assumptions baked into the system are
 visible in one place and tunable without grep-and-replace.
 

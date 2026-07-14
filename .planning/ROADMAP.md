@@ -71,6 +71,7 @@
 
 - [ ] **Phase 19: Dockerize** — Dockerfile (Python 3.11-slim, requirements.txt, Streamlit entrypoint) + docker-compose.yml (app service + scheduler service + Caddy proxy). Volume mount for `out/` parquet. `.env` for SMTP creds. Runs locally first.
 - [x] **Phase 20: Data Health + Collection Hardening** — Health-check script (verifies last snapshot date per ticker, alerts on missed sessions). Idempotent `run_daily` (safe to double-fire). Compose scheduler service uses supercronic entrypoint. (completed 2026-06-25)
+- [ ] **Phase 20.5: Email Remodel** (INSERTED) — Full rebuild of the daily HTML email: content restructure (what's shown, priority order, PNG attachments) and visual design (layout, typography, chart styling, mobile rendering). Inserted ahead of Phase 21 since Oracle deploy is blocked on capacity.
 - [ ] **Phase 21: Oracle Cloud Provision + Deploy** — Create Always Free ARM instance, install Docker, git clone, docker compose up. Migrate existing `out/` parquet via scp. Verify daily collection fires.
 - [ ] **Phase 22: HTTPS + Remote Access** — Caddy reverse proxy with automatic Let's Encrypt. Custom domain or Oracle public IP. Password gate already in app.py. Firewall rules (80/443 only).
 
@@ -289,6 +290,22 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
 
 ---
 
+### Phase 20.5: Email Remodel (INSERTED)
+
+**Goal**: The daily HTML email is rebuilt end-to-end — both what it shows and how it looks — so it reads as a tight, well-designed institutional briefing rather than the current field-by-field card dump.
+**Depends on**: Phase 18 (canonical card — `engine/report/card_model.py`, `engine/report/report.py`)
+**Requirements**: TBD — define via `/gsd-discuss-phase 20.5`
+**Success Criteria** (what must be TRUE):
+
+  1. Content: section order, included fields, and PNG attachments reflect a deliberate priority (surfaces > walls > OI > gamma, per existing house guidance) rather than accretion of past phases.
+  2. Visual: layout, typography, spacing, and chart sizing are redesigned for readability in both a desktop and mobile mail client — not just the current inline-style table.
+  3. Email and dashboard stay reconciled through the canonical card seam (`build_card_fields`/`build_card_read`) — no parallel field logic introduced in `report.py`.
+  4. Suite stays green; visual result verified by sending a real test email (dry-run HTML + Outlook/SMTP render), not just unit tests.
+
+**Plans**: TBD — plan via `/gsd-plan-phase 20.5`
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -316,6 +333,7 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
 | 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 3/3 | Complete | 2026-06-24 |
 | 19. Dockerize | v4.0 | 1/1 | Complete | 2026-06-24 |
 | 20. Data Health + Collection Hardening | v4.0 | 1/1 | Complete | 2026-06-25 |
+| 20.5. Email Remodel (INSERTED) | v4.0 | 0/TBD | Not started | - |
 | 21. Oracle Cloud Provision + Deploy | v4.0 | 0/TBD | Not started | - |
 | 22. HTTPS + Remote Access | v4.0 | 0/TBD | Not started | - |
 
@@ -330,7 +348,11 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
 | 999.3 Pre-Distribution | Partial | 50% out-of-phase; 50% deferred |
 
 ---
+---
+---
+---
+---
 <!-- LINKS:AUTO -->
 ## Related
-**Project:** [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Project:** [[_planning/vol-diagnostics/STATE|STATE]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->

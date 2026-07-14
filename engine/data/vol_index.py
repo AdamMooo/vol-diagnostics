@@ -15,7 +15,7 @@ from engine.config import DEFAULT_VOL_INDICES
 from engine.data.store import atomic_to_parquet
 
 _CBOE_VOL_URL = "https://cdn.cboe.com/api/global/us_indices/daily_prices/{SYM}_History.csv"
-_HEADERS = {"User-Agent": "gamma-omm/3.5"}
+_HEADERS = {"User-Agent": "vol-diagnostics/3.5"}
 
 STORE_DIR = pathlib.Path(__file__).resolve().parents[2] / "out" / "vol_index"
 
