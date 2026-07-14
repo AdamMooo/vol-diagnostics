@@ -29,8 +29,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install chromium (for kaleido PNG export)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq chromium-browser || sudo apt-get install -y -qq chromium
+      - name: Install chromium (for kaleido PNG export) and rsync
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq rsync
+          sudo apt-get install -y -qq chromium-browser || sudo apt-get install -y -qq chromium
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
