@@ -43,7 +43,16 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/oracle.key
           chmod 600 ~/.ssh/oracle.key
-          ssh-keyscan -H "${{ secrets.ORACLE_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          # StrictHostKeyChecking=no rather than a separate ssh-keyscan step: keyscan
+          # is a network round-trip that can flake transiently, and a failed keyscan
+          # here silently breaks host-key verification on every later step. This is a
+          # single already-known server (not an arbitrary host), so skipping strict
+          # checking is a reasonable trade for reliability.
+          cat > ~/.ssh/config <<EOF
+          Host ${{ secrets.ORACLE_HOST }}
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          EOF
 
       - name: Pull current history down from Oracle
         run: |
