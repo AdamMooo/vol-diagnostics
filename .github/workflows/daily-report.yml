@@ -48,7 +48,10 @@ jobs:
       - name: Pull current history down from Oracle
         run: |
           mkdir -p out
-          rsync -avz -e "ssh -i ~/.ssh/oracle.key" \
+          # --rsync-path="sudo rsync": the parquet files are owned by root (written
+          # by the dashboard container running as root against the bind-mounted
+          # out/ dir) — the ubuntu user can't read them without elevating remotely.
+          rsync -avz --rsync-path="sudo rsync" -e "ssh -i ~/.ssh/oracle.key" \
             "ubuntu@${{ secrets.ORACLE_HOST }}:~/vol-diagnostics/out/" ./out/
 
       - name: Run daily report
