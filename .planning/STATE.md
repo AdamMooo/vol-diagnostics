@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Cloud Hosting
 status: Not started
-stopped_at: Phase 20.5 context gathered
-last_updated: "2026-07-14T03:22:24.499Z"
-last_activity: 2026-06-25 -- Phase 20 committed
+stopped_at: Phase 20.5 context gathered; Phases 21-22 completed out-of-sequence via ad-hoc work
+last_updated: "2026-07-14T17:00:00.000Z"
+last_activity: 2026-07-14 -- Phases 21+22 (Oracle deploy + HTTPS) completed ad-hoc
 progress:
   total_phases: 12
-  completed_phases: 8
+  completed_phases: 10
   total_plans: 20
   completed_plans: 18
-  percent: 67
+  percent: 83
 ---
 
 # Project State
@@ -51,8 +51,8 @@ All phases complete:
 |-------|--------|-------|
 | 19. Dockerize | ✅ Complete | Dockerfile, compose, Caddy, SMTP emailer |
 | 20. Data Health + Collection Hardening | ✅ Complete | Idempotent run_daily, supercronic, health-check |
-| 21. Oracle Cloud Provision + Deploy | Not started | ARM instance, Docker, git clone, migrate parquet |
-| 22. HTTPS + Remote Access | Not started | Caddy + Let's Encrypt, firewall |
+| 21. Oracle Cloud Provision + Deploy | ✅ Complete | Deployed to E2.1.Micro (A1.Flex stayed capacity-constrained); live at 40.233.113.63 |
+| 22. HTTPS + Remote Access | ✅ Complete | nip.io + Let's Encrypt (bare IP can't get a cert directly); https://40.233.113.63.nip.io |
 
 ## Performance Metrics
 
@@ -95,6 +95,7 @@ All phases complete:
 
 ### Decisions
 
+- 2026-07-14: Phases 21+22 completed out-of-sequence, ahead of Phase 20.5 (Email Remodel, still not started) — Oracle deploy was no longer capacity-blocked once the E2.1.Micro fallback shape was used, so it made sense to do it now rather than wait. Full stack (dashboard/scheduler/caddy) live at https://40.233.113.63.nip.io. Along the way: fixed kaleido PNG export needing native chromium on Linux (Chrome-for-Testing has no linux-arm64 build), fixed supercronic's PID-1 reaper crash-looping on Oracle's kernel (`-no-reap`), dropped 5 dead deps, and shipped two real dashboard perf fixes (rate/VVIX dedup + skip never-displayed cv_rmse cross-validation) cutting a 3-ticker load from ~36s to ~11s. Toronto A1.Flex retry loop left running in the background in case the bigger free ARM shape frees up later.
 - 2026-06-24: Phase 18-01 — Top-level dashboard routing is locked to Regime / Surfaces / Positioning; Evolution is nested under Surfaces.
 - 2026-06-24: Phase 18-01 — Page-1 hierarchy is cross-index briefing + short OI teaser above default three-card snapshot.
 - 2026-06-24: Phase 18-01 — Full OI/GEX mechanics remain on Positioning and heavy pages use single-ticker radios.
@@ -130,7 +131,11 @@ All phases complete:
 
 ### Blockers/Concerns
 
-None.
+Punch list from the 2026-07-14 Oracle deploy, none blocking but all real:
+- Local Windows Task Scheduler "GEX Daily Report" job (fires ~4:30pm local) is still active — will now duplicate the cloud scheduler's daily email once both fire same day. Decide whether to disable the local one.
+- Cloud scheduler's first real end-to-end scheduled run (fetch → snapshot → email, not manually triggered) hasn't happened yet — verify after it fires at 20:35 UTC.
+- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months.
+- Dashboard `PASSWORD` env var on the server is the user's personal main password, not a dedicated one — works, but worth a dedicated password given it's now internet-facing.
 
 ### Quick Tasks Completed
 
@@ -149,9 +154,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-14T03:22:24.484Z
-Stopped at: Phase 20.5 context gathered
-Resume queue: (1) **Phase 21: Oracle Cloud Provision + Deploy** — create Always Free ARM instance, install Docker, clone repo, compose up, migrate parquet via scp. (2) **Phase 22: HTTPS + Remote Access** — Caddy + Let's Encrypt, firewall rules.
+Last session: 2026-07-14T17:00:00.000Z
+Stopped at: Phase 21+22 completed ad-hoc (Oracle deploy live); Phase 20.5 still context-gathered only, not planned/executed
+Resume queue: (1) **Phase 20.5: Email Remodel** — `/gsd:plan-phase 20.5` (context already gathered). (2) Punch list from today's deploy — see Blockers/Concerns above.
 
 ---
 ---
@@ -166,8 +171,6 @@ Resume queue: (1) **Phase 21: Oracle Cloud Provision + Deploy** — create Alway
 ---
 ---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->

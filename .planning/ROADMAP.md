@@ -72,8 +72,8 @@
 - [ ] **Phase 19: Dockerize** — Dockerfile (Python 3.11-slim, requirements.txt, Streamlit entrypoint) + docker-compose.yml (app service + scheduler service + Caddy proxy). Volume mount for `out/` parquet. `.env` for SMTP creds. Runs locally first.
 - [x] **Phase 20: Data Health + Collection Hardening** — Health-check script (verifies last snapshot date per ticker, alerts on missed sessions). Idempotent `run_daily` (safe to double-fire). Compose scheduler service uses supercronic entrypoint. (completed 2026-06-25)
 - [ ] **Phase 20.5: Email Remodel** (INSERTED) — Full rebuild of the daily HTML email: content restructure (what's shown, priority order, PNG attachments) and visual design (layout, typography, chart styling, mobile rendering). Inserted ahead of Phase 21 since Oracle deploy is blocked on capacity.
-- [ ] **Phase 21: Oracle Cloud Provision + Deploy** — Create Always Free ARM instance, install Docker, git clone, docker compose up. Migrate existing `out/` parquet via scp. Verify daily collection fires.
-- [ ] **Phase 22: HTTPS + Remote Access** — Caddy reverse proxy with automatic Let's Encrypt. Custom domain or Oracle public IP. Password gate already in app.py. Firewall rules (80/443 only).
+- [x] **Phase 21: Oracle Cloud Provision + Deploy** — Create Always Free ARM instance, install Docker, git clone, docker compose up. Migrate existing `out/` parquet via scp. Verify daily collection fires. (completed 2026-07-14 — A1.Flex ARM stayed capacity-constrained in Toronto; deployed to the E2.1.Micro AMD64 shape instead, still Always Free, still $0. Live at 40.233.113.63. A1 retry loop left running in background in case it frees up later.)
+- [x] **Phase 22: HTTPS + Remote Access** — Caddy reverse proxy with automatic Let's Encrypt. Custom domain or Oracle public IP. Password gate already in app.py. Firewall rules (80/443 only). (completed 2026-07-14 — used a free nip.io hostname (40.233.113.63.nip.io) since Let's Encrypt won't issue certs for a bare IP; real trusted cert obtained, both firewall layers open.)
 
 ---
 
@@ -334,8 +334,8 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
 | 19. Dockerize | v4.0 | 1/1 | Complete | 2026-06-24 |
 | 20. Data Health + Collection Hardening | v4.0 | 1/1 | Complete | 2026-06-25 |
 | 20.5. Email Remodel (INSERTED) | v4.0 | 0/TBD | Not started | - |
-| 21. Oracle Cloud Provision + Deploy | v4.0 | 0/TBD | Not started | - |
-| 22. HTTPS + Remote Access | v4.0 | 0/TBD | Not started | - |
+| 21. Oracle Cloud Provision + Deploy | v4.0 | ad-hoc | Complete | 2026-07-14 |
+| 22. HTTPS + Remote Access | v4.0 | ad-hoc | Complete | 2026-07-14 |
 
 ---
 
@@ -347,6 +347,8 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
 | 999.2 Test Coverage | Backlog | Depends on 999.1 |
 | 999.3 Pre-Distribution | Partial | 50% out-of-phase; 50% deferred |
 
+---
+---
 ---
 ---
 ---

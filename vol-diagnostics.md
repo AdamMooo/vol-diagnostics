@@ -51,9 +51,9 @@ Scheduled / repeatable scripts. Edit in place; manage via Windows Task Scheduler
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-14 02:13 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-14 20:08 UTC
 
-**Milestone:** v4.0 · **Status:** Not started · **STATE last_updated:** 2026-07-14T01:38:15.699Z
+**Milestone:** v4.0 · **Status:** Not started · **STATE last_updated:** 2026-07-14T17:00:00.000Z
 
 ### Current Position
 - **Phase:** 20.5
@@ -64,10 +64,18 @@ Scheduled / repeatable scripts. Edit in place; manage via Windows Task Scheduler
 ### Pending Todos
 - None. (Phase 14 was superseded by Phase 18 per the 2026-06-04 roadmap — GATE-01/02 carried forward; it is NOT incomplete work and does not block Phase 15.)
 
+### Blockers
+- Local Windows Task Scheduler "GEX Daily Report" job (fires ~4:30pm local) is still active — will now duplicate the cloud scheduler's daily email once both fire same day. Decide whether to disable the local one.
+- Cloud scheduler's first real end-to-end scheduled run (fetch → snapshot → email, not manually triggered) hasn't happened yet — verify after it fires at 20:35 UTC.
+- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months.
+- Dashboard `PASSWORD` env var on the server is the user's personal main password, not a dedicated one — works, but worth a dedicated password given it's now internet-facing.
+
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
 
 ### Operator notes (handwritten — survives hub-sync)
+
+**Re-entry (2026-07-14).** Phases 21+22 (v4.0 Cloud Hosting) done, out of sequence ahead of 20.5, via a long ad-hoc session (not a planned/executed GSD phase — see STATE.md decisions). **Live at https://40.233.113.63.nip.io** (dashboard + scheduler + Caddy on Oracle's free E2.1.Micro, since A1.Flex ARM stayed capacity-constrained in Toronto — retry loop for A1 still running in background). Real bugs found and fixed along the way, all committed: kaleido's PNG export needs a native `chromium` apt package on Linux (Chrome-for-Testing has no linux-arm64 build, would've silently broken email PNGs again); supercronic's PID-1 zombie reaper crash-loops on Oracle's kernel (`-no-reap` fixes it); 5 dead deps dropped (matplotlib/seaborn/statsmodels/boto3/pandas-datareader — zero imports anywhere); HTTPS via nip.io + Let's Encrypt since bare IPs can't get a cert. Also shipped two measured dashboard perf fixes — deduped a redundant per-ticker risk-free-rate/VVIX fetch, and skipped the never-displayed `cv_rmse` cross-validation on the interactive path (it's only ever persisted to snapshot history, run_daily still computes it) — cut a full 3-ticker load from ~36s to ~11s on the 1-vCPU box. (Tried parallelizing the ticker loop too; measured it as *slower* than sequential on 1 vCPU and reverted — good reminder to measure before assuming I/O-bound.) Suite green (359, +1 regression test for a real `UnboundLocalError` I introduced and caught by timing the deploy, not by tests). **Punch list carried in STATE.md Blockers** — none urgent, but the local Windows Task Scheduler job duplicating the cloud email is worth resolving soon. Next: `/gsd:plan-phase 20.5` (context already gathered from 2026-07-13).
 
 **Re-entry (2026-07-13, later same day).** Finished the project rename gamma-omm → vol-diagnostics that the folder move had left half-done: hub file renamed to `vol-diagnostics.md`, `app.py` page_title, docstrings/User-Agent in `engine/config.py`/`vol_index.py`/`run_gex.py`, Oracle deploy scripts (not yet live — Phase 21 hasn't run), wikilinks across all active `.planning/` docs, and `C:\dev\CLAUDE.md`/`INDEX.md`. GitHub repo renamed `AdamMooo/gamma-omm` → `AdamMooo/vol-diagnostics` (owner-only permission — Adam did it directly); local remote updated. **Actual root cause of the 4:30pm failure found:** it was never transient — Windows Task Scheduler's "GEX Daily Report" action still pointed at the dead `C:\dev\gamma-omm\...` path from before the folder move (`LastTaskResult=1`). Re-registered from an elevated PowerShell; confirmed pointing at `vol-diagnostics` and due to fire again today 4:30pm. Also ran `/gsd-discuss-phase 20.5` → [[.planning/phases/20.5-email-remodel/20.5-CONTEXT|20.5-CONTEXT]] (header redesign, mobile width, filter-drop transparency, 3 ship-blocker todos folded in from the 2026-05-11 audit). Next: `/gsd:plan-phase 20.5`.
 
