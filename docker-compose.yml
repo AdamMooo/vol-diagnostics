@@ -28,7 +28,10 @@ services:
       - ./.env:/app/.env:ro
     environment:
       - GEX_SEND=1
-    entrypoint: ["supercronic", "/app/crontab"]
+    # -no-reap: supercronic's PID-1 zombie reaper fails on Oracle Cloud's kernel
+    # ("Failed to fork exec: no such file or directory") — safe to disable since
+    # our cron jobs shell out sequentially with no daemonizing children.
+    entrypoint: ["supercronic", "-no-reap", "/app/crontab"]
     healthcheck:
       test: ["CMD", "python", "-m", "engine.health_check", "--strict"]
       interval: 60m
