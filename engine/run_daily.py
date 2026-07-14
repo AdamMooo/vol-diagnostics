@@ -56,10 +56,15 @@ def _already_collected_today(today: datetime.date) -> bool:
         return False
 
 
-def process_ticker(ticker: str, today: datetime.date | None = None) -> dict:
+def process_ticker(
+    ticker: str,
+    today: datetime.date | None = None,
+    risk_free_rate: float | None = None,
+    vvix: float | None = None,
+) -> dict:
     """Never raises — errors go in result."""
     try:
-        return compute_ticker(ticker, today=today)
+        return compute_ticker(ticker, today=today, risk_free_rate=risk_free_rate, vvix=vvix)
     except Exception as exc:
         print(f"  [WARN] {ticker}: {exc}")
         return {"summary": {"ticker": ticker, "error": str(exc)}}
@@ -218,10 +223,17 @@ def run(dry_run: bool = False, force: bool = False) -> None:
                          "VVIX may be stale (last good values shown).")
         print("  [WARN] vol-index feed did not refresh VIX — VRP/term/VVIX may be stale.")
 
+    # risk_free_rate and vvix are identical across SPY/QQQ/IWM — fetch each once
+    # (risk_free_rate is a ~4-5s yfinance call) instead of once per ticker.
+    from engine.compute import _get_risk_free_rate
+    from engine.vol.vol_metrics import compute_vvix_level
+    shared_rate = _get_risk_free_rate()
+    shared_vvix = compute_vvix_level()
+
     all_data: list[dict] = []
     for ticker in ALL_TICKERS:
         print(f"  {ticker}...", end=" ", flush=True)
-        data = process_ticker(ticker, today)
+        data = process_ticker(ticker, today, risk_free_rate=shared_rate, vvix=shared_vvix)
         all_data.append(data)
         s = data["summary"]
         if not s.get("error"):

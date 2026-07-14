@@ -103,9 +103,19 @@ def _compute_wall_shift(ticker: str, current_summary: dict, session_date: dateti
     }
 
 
-def compute_ticker(ticker: str, today: datetime.date | None = None) -> dict:
+def compute_ticker(
+    ticker: str,
+    today: datetime.date | None = None,
+    risk_free_rate: float | None = None,
+    vvix: float | None = None,
+) -> dict:
     """
     Full pipeline for one ticker.
+
+    risk_free_rate and vvix are both ticker-independent (same value for SPY/QQQ/IWM)
+    but expensive to (re)fetch — risk_free_rate is a ~4-5s yfinance network call. Pass
+    them in when computing multiple tickers in one run to fetch each exactly once;
+    omitted, each falls back to fetching its own (single-ticker callers unaffected).
 
     Returns:
         {
@@ -142,7 +152,7 @@ def compute_ticker(ticker: str, today: datetime.date | None = None) -> dict:
     expiry_oi_df = expiry_oi(gex_df, max_dte=config.GEX_MAX_DTE)
     expiry_oi_primary_df = expiry_oi(gex_df, max_dte=config.GEX_PRIMARY_DTE)
 
-    r = _get_risk_free_rate()
+    r = risk_free_rate if risk_free_rate is not None else _get_risk_free_rate()
     p_df = gamma_profile(gex_df, spot=snapshot.spot, r=r)
     surface_df = vol_surface_data(df, spot=snapshot.spot)
     surface_diag = surface_diagnostics(surface_df, snapshot.spot)
@@ -249,7 +259,7 @@ def compute_ticker(ticker: str, today: datetime.date | None = None) -> dict:
     summary["term_ratio_30d_3m"] = term_ratios["term_ratio_30d_3m"]
 
     # VVIX: vol-of-vol — second-order fear measure (SPY-proxy; VVIX is SPX-only).
-    vvix = compute_vvix_level()
+    vvix = vvix if vvix is not None else compute_vvix_level()
     summary["vvix"] = vvix
 
     # Net delta exposure: directional tilt of dealer delta hedge book.

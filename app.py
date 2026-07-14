@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, date, timedelta
 
 import pandas as pd
@@ -167,8 +167,17 @@ def _trust_readout_strings(surface_diag: dict | None) -> tuple[str, str, str]:
 
 
 @st.cache_data(ttl=config.CACHE_TTL_TICKER, show_spinner=False)
-def fetch_ticker(ticker: str) -> dict:
-    return compute_ticker(ticker)
+def _fetch_shared_ticker_inputs() -> tuple[float, float | None]:
+    """Risk-free rate + VVIX are identical across SPY/QQQ/IWM (~4-5s yfinance call for
+    the rate) — fetch once here instead of once per ticker inside compute_ticker()."""
+    from engine.compute import _get_risk_free_rate
+    from engine.vol.vol_metrics import compute_vvix_level
+    return _get_risk_free_rate(), compute_vvix_level()
+
+
+@st.cache_data(ttl=config.CACHE_TTL_TICKER, show_spinner=False)
+def fetch_ticker(ticker: str, risk_free_rate: float, vvix: float | None) -> dict:
+    return compute_ticker(ticker, risk_free_rate=risk_free_rate, vvix=vvix)
 
 
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
@@ -534,13 +543,18 @@ all_data: dict[str, dict] = {}
 errors: list[str] = []
 
 with st.spinner("Loading chains from CBOE..."):
-    for i, ticker in enumerate(selected_all):
-        if i > 0:
-            time.sleep(0.15)
-        try:
-            all_data[ticker] = fetch_ticker(ticker)
-        except Exception as exc:
-            errors.append(f"{ticker}: {exc}")
+    shared_rate, shared_vvix = _fetch_shared_ticker_inputs()
+    with ThreadPoolExecutor(max_workers=max(len(selected_all), 1)) as executor:
+        futures = {
+            executor.submit(fetch_ticker, ticker, shared_rate, shared_vvix): ticker
+            for ticker in selected_all
+        }
+        for future in as_completed(futures):
+            ticker = futures[future]
+            try:
+                all_data[ticker] = future.result()
+            except Exception as exc:
+                errors.append(f"{ticker}: {exc}")
 
 for err in errors:
     st.error(err)
