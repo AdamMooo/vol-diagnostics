@@ -8,20 +8,12 @@ FROM python:3.11-slim AS base
 WORKDIR /app
 
 # System deps for numpy/scipy/pandas (pre-compiled wheels available for arm64)
-# curl needed for healthchecks and supercronic download
-# chromium needed for kaleido PNG export (email charts) — kaleido's own Chrome-for-Testing
-# downloader only ships linux64 (x86_64) builds, no arm64, so Oracle's A1 shape needs the
-# distro's native chromium instead; choreographer (kaleido's browser driver) finds it
-# automatically at /usr/bin/chromium
+# curl needed for healthchecks. No chromium/kaleido here — this image only ever
+# runs the interactive dashboard, which never renders PNGs (that's run_daily's
+# email-attachment path, which now runs on GitHub Actions, not this box).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ curl chromium \
+    gcc g++ curl \
     && rm -rf /var/lib/apt/lists/*
-
-# Install supercronic (cron replacement for containers — no daemon, stdout logs)
-ARG TARGETARCH
-RUN SUPERCRONIC_URL="https://github.com/aptible/supercronic/releases/download/v0.2.33/supercronic-linux-${TARGETARCH}" \
-    && curl -fsSL "${SUPERCRONIC_URL}" -o /usr/local/bin/supercronic \
-    && chmod +x /usr/local/bin/supercronic
 
 # Install Python deps (no pywin32 on Linux — filtered out by platform marker)
 COPY requirements.txt .
@@ -32,7 +24,6 @@ COPY engine/ engine/
 COPY app.py .
 COPY assets/ assets/
 COPY research/ research/
-COPY crontab /app/crontab
 
 # Ensure out/ exists for volume mount target
 RUN mkdir -p /app/out

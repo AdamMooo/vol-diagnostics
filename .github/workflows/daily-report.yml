@@ -1,0 +1,73 @@
+name: Daily Vol Report
+
+# Runs the daily data collection + email pipeline on GitHub's runners instead of
+# the Oracle box — avoids the 1 vCPU/1GB Micro instance's headless-Chromium
+# hangs during PNG export, since GH runners have far more RAM/CPU to spare.
+#
+# History (out/gex_snapshots.parquet, out/surface_history/, etc.) is NOT stored
+# in git — it's rsynced down from the Oracle server before the run and back up
+# after, so the Oracle server's disk stays the one source of truth the dashboard
+# reads from. Git only ever holds code.
+
+on:
+  schedule:
+    - cron: "35 20 * * 1-5"  # 20:35 UTC = 4:35pm ET, weekdays — matches the old crontab
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force re-run even if today's data was already collected"
+        type: boolean
+        default: false
+
+jobs:
+  daily-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install chromium (for kaleido PNG export)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq chromium-browser || sudo apt-get install -y -qq chromium
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Set up SSH key for Oracle sync
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/oracle.key
+          chmod 600 ~/.ssh/oracle.key
+          ssh-keyscan -H "${{ secrets.ORACLE_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull current history down from Oracle
+        run: |
+          mkdir -p out
+          rsync -avz -e "ssh -i ~/.ssh/oracle.key" \
+            "ubuntu@${{ secrets.ORACLE_HOST }}:~/vol-diagnostics/out/" ./out/
+
+      - name: Run daily report
+        env:
+          GEX_EMAIL_TO: ${{ secrets.GEX_EMAIL_TO }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            python -m engine.run_daily --send --force
+          else
+            python -m engine.run_daily --send
+          fi
+
+      - name: Push updated history back up to Oracle
+        if: always()  # even if the email step failed, push whatever snapshots did save
+        run: |
+          rsync -avz -e "ssh -i ~/.ssh/oracle.key" \
+            ./out/ "ubuntu@${{ secrets.ORACLE_HOST }}:~/vol-diagnostics/out/"
+
+      - name: Health check
+        run: python -m engine.health_check --strict

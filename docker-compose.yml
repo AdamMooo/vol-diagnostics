@@ -1,5 +1,12 @@
 # Vol Diagnostics — Docker Compose
-# Services: dashboard (Streamlit), scheduler (daily data collection), caddy (HTTPS proxy)
+# Services: dashboard (Streamlit), caddy (HTTPS proxy)
+#
+# The daily data-collection/email job runs on GitHub Actions instead of a
+# container here (.github/workflows/daily-report.yml) — this box's 1 vCPU/1GB
+# couldn't reliably run headless Chromium for PNG export (hung mid-render on
+# 2026-07-14's first live run). GitHub's runners have far more RAM/CPU to spare.
+# History still lives on this server's disk (out/) as the one source of truth;
+# the workflow rsyncs it down before each run and back up after.
 
 services:
   dashboard:
@@ -18,26 +25,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-  scheduler:
-    build: .
-    container_name: vol-diagnostics-scheduler
-    restart: unless-stopped
-    volumes:
-      - ./out:/app/out
-      - ./.env:/app/.env:ro
-    environment:
-      - GEX_SEND=1
-    # -no-reap: supercronic's PID-1 zombie reaper fails on Oracle Cloud's kernel
-    # ("Failed to fork exec: no such file or directory") — safe to disable since
-    # our cron jobs shell out sequentially with no daemonizing children.
-    entrypoint: ["supercronic", "-no-reap", "/app/crontab"]
-    healthcheck:
-      test: ["CMD", "python", "-m", "engine.health_check", "--strict"]
-      interval: 60m
-      timeout: 30s
-      retries: 1
-      start_period: 6h
 
   caddy:
     image: caddy:2-alpine
