@@ -1,12 +1,7 @@
 # Caddyfile — reverse proxy for Vol Diagnostics dashboard
-# Replace YOUR_DOMAIN with your actual domain or use :80 for IP-only access.
-#
-# For Oracle Cloud with a domain:
-#   your-domain.com {
-#       reverse_proxy dashboard:8501
-#   }
-#
-# For IP-only access (no HTTPS):
-:80 {
+# nip.io resolves straight to the server's own IP, giving Caddy a real hostname
+# to get a Let's Encrypt cert for without needing a purchased domain. If the
+# server's IP ever changes, update this to match.
+40.233.113.63.nip.io {
     reverse_proxy dashboard:8501
 }
