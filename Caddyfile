@@ -1,4 +1,4 @@
-# Caddyfile — reverse proxy for Gamma OMM dashboard
+# Caddyfile — reverse proxy for Vol Diagnostics dashboard
 # Replace YOUR_DOMAIN with your actual domain or use :80 for IP-only access.
 #
 # For Oracle Cloud with a domain:

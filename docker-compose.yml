@@ -1,10 +1,10 @@
-# Gamma OMM — Docker Compose
+# Vol Diagnostics — Docker Compose
 # Services: dashboard (Streamlit), scheduler (daily data collection), caddy (HTTPS proxy)
 
 services:
   dashboard:
     build: .
-    container_name: gamma-dashboard
+    container_name: vol-diagnostics-dashboard
     restart: unless-stopped
     ports:
       - "8501:8501"
@@ -21,7 +21,7 @@ services:
 
   scheduler:
     build: .
-    container_name: gamma-scheduler
+    container_name: vol-diagnostics-scheduler
     restart: unless-stopped
     volumes:
       - ./out:/app/out
@@ -38,7 +38,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
-    container_name: gamma-caddy
+    container_name: vol-diagnostics-caddy
     restart: unless-stopped
     ports:
       - "80:80"

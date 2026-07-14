@@ -1,4 +1,4 @@
-# ── Gamma OMM — Vol Diagnostics Dashboard ──────────────────────────────────
+# ── Vol Diagnostics Dashboard ───────────────────────────────────────────────
 # Multi-stage build: slim Python image, no dev deps in prod.
 # Target: linux/arm64 (Oracle Cloud Free Tier ARM Ampere A1)
 #         linux/amd64 (local Docker Desktop)
@@ -9,8 +9,12 @@ WORKDIR /app
 
 # System deps for numpy/scipy/pandas (pre-compiled wheels available for arm64)
 # curl needed for healthchecks and supercronic download
+# chromium needed for kaleido PNG export (email charts) — kaleido's own Chrome-for-Testing
+# downloader only ships linux64 (x86_64) builds, no arm64, so Oracle's A1 shape needs the
+# distro's native chromium instead; choreographer (kaleido's browser driver) finds it
+# automatically at /usr/bin/chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ curl \
+    gcc g++ curl chromium \
     && rm -rf /var/lib/apt/lists/*
 
 # Install supercronic (cron replacement for containers — no daemon, stdout logs)

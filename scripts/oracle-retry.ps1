@@ -9,10 +9,11 @@ rotating through availability domains, until one accepts. This script does that.
 PREREQS (one-time):
   1. Install OCI CLI:
        Invoke-Expression ((Invoke-WebRequest https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.ps1 -UseBasicParsing).Content)
-  2. Configure it (creates ~/.oci/config + API key):
+  2. Configure it (creates ~/.oci/config + API key) under a named profile:
        oci setup config
-     Follow prompts; upload the generated public key in the OCI console under
-     your user → API Keys.
+     Follow prompts, name the profile "vol-diagnostics", use a blank/N-A
+     passphrase, and upload the generated public key in the OCI console
+     under your user → API Keys.
   3. Fill in the CONFIG block below with OCIDs from the OCI console.
 
 WHERE TO FIND EACH OCID:
@@ -30,13 +31,13 @@ WHERE TO FIND EACH OCID:
 $CompartmentId = "ocid1.tenancy.oc1..aaaaaaaadhfvtdnvcdkaznlke3bsv3ze6gb72cbazmrx7b6747hql3rabcea"
 $SubnetId      = "ocid1.subnet.oc1.ca-toronto-1.aaaaaaaalhg2zae2wqx4rbdmxhrj5wioxmxzf75eht2rhrtqndh2lh3v7p3q"  # public subnet-gamma-vcn
 $ImageId       = "ocid1.image.oc1.ca-toronto-1.aaaaaaaat2vwds3tqxv6jmx7bhvd4teowruvmhxxigg3pupgxghxz2dgeana"   # Ubuntu 24.04 aarch64
-$SshKeyPath    = "$env:USERPROFILE\.ssh\gamma-omm.pub"
+$SshKeyPath    = "$env:USERPROFILE\.ssh\vol-diagnostics.pub"
 
 $AvailabilityDomains = @(
     "MSYa:CA-TORONTO-1-AD-1"   # ca-toronto-1 has only one AD
 )
 
-$DisplayName  = "gamma-omm"
+$DisplayName  = "vol-diagnostics"
 $Shape        = "VM.Standard.A1.Flex"
 $Ocpus        = 2
 $MemoryGB     = 12
@@ -69,7 +70,7 @@ while ($true) {
     Write-Host "[$ts] attempt #$attempt — AD: $ad ... " -NoNewline
 
     $out = oci compute instance launch `
-        --auth security_token `
+        --profile vol-diagnostics `
         --availability-domain $ad `
         --compartment-id $CompartmentId `
         --shape $Shape `

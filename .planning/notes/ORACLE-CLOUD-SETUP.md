@@ -1,4 +1,4 @@
-# Oracle Cloud Free Tier — Gamma OMM Setup Guide
+# Oracle Cloud Free Tier — Vol Diagnostics Setup Guide
 
 Created: 2026-06-24
 Updated: 2026-06-25
@@ -23,7 +23,7 @@ Navigate to: **Compute → Instances → Create Instance**
 
 | Field | Set To |
 |-------|--------|
-| **Name** | `gamma-omm` |
+| **Name** | `vol-diagnostics` |
 | **Compartment** | root (default) |
 | **Availability domain** | leave default |
 
@@ -80,14 +80,14 @@ Steps:
 2. Oracle will create the key pair
 3. **⚠️ CRITICAL: Click "Download the private key" immediately**
 4. Save the `.key` file somewhere safe:
-   - Recommended: `C:\Users\AdamMorris\.ssh\gamma-omm.key`
+   - Recommended: `C:\Users\AdamMorris\.ssh\vol-diagnostics.key`
    - Backup: OneDrive, password manager, or USB
 5. You can also download the public key for your records
 6. **If you lose the private key, you are permanently locked out of the instance**
 
 You'll use this key later to connect:
 ```powershell
-ssh -i "C:\Users\AdamMorris\.ssh\gamma-omm.key" ubuntu@YOUR_PUBLIC_IP
+ssh -i "C:\Users\AdamMorris\.ssh\vol-diagnostics.key" ubuntu@YOUR_PUBLIC_IP
 ```
 
 ---
@@ -195,9 +195,9 @@ oci session authenticate            # pick region: ca-toronto-1
 
 The script's CONFIG block is already filled with this tenancy's OCIDs (compartment,
 public subnet, Ubuntu 24.04 aarch64 image, the single Toronto AD) and points at
-`~/.ssh/gamma-omm.pub`. Run it:
+`~/.ssh/vol-diagnostics.pub`. Run it:
 ```powershell
-cd C:\dev\gamma-omm
+cd C:\dev\vol-diagnostics
 .\scripts\oracle-retry.ps1
 ```
 
@@ -219,18 +219,18 @@ The VM runs independently of any laptop — once it exists, returning/wiping the
 machine you provisioned from costs nothing. To re-establish control from a fresh
 computer you need exactly three things:
 
-1. **The SSH private key** (`gamma-omm.key`) — the one irreplaceable secret. Keep a
+1. **The SSH private key** (`vol-diagnostics.key`) — the one irreplaceable secret. Keep a
    copy off this machine (personal drive / password manager). Lose it = locked out.
 2. **The repo** — `git clone` the private GitHub repo (read access + a PAT/deploy key).
 3. **The server's public IP** — write it down once the instance is running.
 
 Day-to-day management needs only SSH + the IP:
 ```powershell
-ssh -i "<path>\gamma-omm.key" ubuntu@YOUR_PUBLIC_IP
+ssh -i "<path>\vol-diagnostics.key" ubuntu@YOUR_PUBLIC_IP
 ```
 The OCI CLI is only needed to *provision or manage the instance itself* — not for
 deploying or operating the stack. Re-deriving the public key from the private key
-if you ever need it again: `ssh-keygen -y -f gamma-omm.key > gamma-omm.pub`.
+if you ever need it again: `ssh-keygen -y -f vol-diagnostics.key > vol-diagnostics.pub`.
 
 ---
 
@@ -238,7 +238,7 @@ if you ever need it again: `ssh-keygen -y -f gamma-omm.key > gamma-omm.pub`.
 
 ### 1. Get your public IP
 
-1. Go to **Compute → Instances → gamma-omm**
+1. Go to **Compute → Instances → vol-diagnostics**
 2. Wait for status to show **Running** (green)
 3. Copy the **Public IP address** from the instance details (e.g. `129.xx.xx.xx`)
 4. Save this IP — you'll need it for SSH, deploy, and accessing the dashboard
@@ -247,7 +247,7 @@ if you ever need it again: `ssh-keygen -y -f gamma-omm.key > gamma-omm.pub`.
 
 ```powershell
 # From Windows PowerShell or Terminal
-ssh -i "C:\Users\AdamMorris\.ssh\gamma-omm.key" ubuntu@YOUR_PUBLIC_IP
+ssh -i "C:\Users\AdamMorris\.ssh\vol-diagnostics.key" ubuntu@YOUR_PUBLIC_IP
 ```
 
 Notes:
@@ -255,7 +255,7 @@ Notes:
 - First connection will ask to accept the host fingerprint — type `yes`
 - If you get a "permissions too open" error on the key file:
   ```powershell
-  icacls "C:\Users\AdamMorris\.ssh\gamma-omm.key" /inheritance:r /grant:r "$env:USERNAME:(R)"
+  icacls "C:\Users\AdamMorris\.ssh\vol-diagnostics.key" /inheritance:r /grant:r "$env:USERNAME:(R)"
   ```
 
 ### 3. Open firewall ports (TWO places)
@@ -334,7 +334,7 @@ exit
 
 SSH back in and verify:
 ```bash
-ssh -i "C:\Users\AdamMorris\.ssh\gamma-omm.key" ubuntu@YOUR_PUBLIC_IP
+ssh -i "C:\Users\AdamMorris\.ssh\vol-diagnostics.key" ubuntu@YOUR_PUBLIC_IP
 
 docker --version
 # Expected: Docker version 27.x.x or similar
@@ -350,8 +350,8 @@ docker run hello-world
 
 ```bash
 # Clone the repo
-git clone https://github.com/AdamMooo/gamma-omm.git
-cd gamma-omm
+git clone https://github.com/AdamMooo/vol-diagnostics.git
+cd vol-diagnostics
 
 # Create out/ directories for data
 mkdir -p out/surface_history out/vol_index out/gex
@@ -409,12 +409,12 @@ docker compose logs caddy        # Reverse proxy
 From your Windows machine:
 ```powershell
 # Transfer all historical parquet data to the server
-scp -i "C:\Users\AdamMorris\.ssh\gamma-omm.key" -r C:\dev\gamma-omm\out\* ubuntu@YOUR_PUBLIC_IP:~/gamma-omm/out/
+scp -i "C:\Users\AdamMorris\.ssh\vol-diagnostics.key" -r C:\dev\vol-diagnostics\out\* ubuntu@YOUR_PUBLIC_IP:~/vol-diagnostics/out/
 ```
 
 Then on the server, restart to pick up the data:
 ```bash
-cd ~/gamma-omm
+cd ~/vol-diagnostics
 docker compose restart
 
 # Verify data loaded
@@ -427,7 +427,7 @@ The health check should report all tickers as OK with the latest snapshot date.
 
 | Task | Command |
 |------|---------|
-| Pull latest code + rebuild | `cd ~/gamma-omm && bash scripts/update.sh` |
+| Pull latest code + rebuild | `cd ~/vol-diagnostics && bash scripts/update.sh` |
 | View scheduler logs | `docker compose logs --tail=50 scheduler` |
 | Check health | `docker compose exec dashboard python -m engine.health_check` |
 | Force a manual daily run | `docker compose exec scheduler python -m engine.run_daily --send --force` |
@@ -502,5 +502,5 @@ If you want extra safety, the crontab already includes a health check that runs 
 ---
 <!-- LINKS:AUTO -->
 ## Related
-**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[_planning/vol-diagnostics/STATE|STATE]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->
