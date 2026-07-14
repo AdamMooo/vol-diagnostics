@@ -71,10 +71,11 @@ class TestOneDayDeltaIVPngs:
             patch("engine.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()) as mock_plot,
             patch("engine.run_daily.export_png", return_value=tmp_path / "out.png") as mock_export,
         ):
-            attachments = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
+            attachments, failed = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
 
         assert mock_export.call_count == 3
         assert len(attachments) == 3
+        assert failed == []
 
     def test_missing_prior_snapshot_skips_ticker(self, tmp_path: pathlib.Path) -> None:
         """QQQ skipped when nth_trading_day_back returns None for it."""
@@ -95,13 +96,15 @@ class TestOneDayDeltaIVPngs:
             patch("engine.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()),
             patch("engine.run_daily.export_png", side_effect=_export) as mock_export,
         ):
-            attachments = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
+            attachments, failed = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
 
         called_tickers = [c.args[1] for c in mock_export.call_args_list]
         assert "SPY" in called_tickers
         assert "IWM" in called_tickers
         assert "QQQ" not in called_tickers
         assert len(attachments) == 2
+        # QQQ was skipped (no prior snapshot), not a genuine export failure.
+        assert failed == []
 
     def test_empty_prior_df_skips_ticker(self, tmp_path: pathlib.Path) -> None:
         """Ticker skipped when load_surface_snapshot returns empty DataFrame."""
@@ -118,11 +121,12 @@ class TestOneDayDeltaIVPngs:
             patch("engine.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()),
             patch("engine.run_daily.export_png", return_value=tmp_path / "out.png") as mock_export,
         ):
-            attachments = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
+            attachments, failed = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
 
         called_tickers = [c.args[1] for c in mock_export.call_args_list]
         assert "IWM" not in called_tickers
         assert mock_export.call_count == 2
+        assert failed == []
 
     def test_export_png_failure_non_blocking(self, tmp_path: pathlib.Path) -> None:
         """When export_png returns None for one ticker, others still attach."""
@@ -140,10 +144,13 @@ class TestOneDayDeltaIVPngs:
             patch("engine.run_daily.plot_iv_change_heatmap", return_value=_mock_fig()),
             patch("engine.run_daily.export_png", side_effect=_export),
         ):
-            attachments = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
+            attachments, failed = _build_png_attachments(_make_all_data(), _TODAY, tmp_path)
 
         assert None not in attachments
         assert len(attachments) == 2
+        # The QQQ failure must be tracked, not silently dropped — this is what lets
+        # run_daily surface a partial-failure note instead of staying silent.
+        assert failed == ["QQQ"]
 
     def test_label_prior_format(self, tmp_path: pathlib.Path) -> None:
         """plot_iv_change_heatmap is called with label_prior='May 30'."""

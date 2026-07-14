@@ -74,8 +74,12 @@ def _build_png_attachments(
     all_data: list[dict],
     today: datetime.date,
     out_dir: pathlib.Path,
-) -> list:
+) -> tuple[list, list[str]]:
+    """Returns (attachments, failed_tickers). failed_tickers only counts tickers where
+    export was actually attempted and failed — not benign skips (no prior day, etc.) —
+    so a partial failure (e.g. 1-of-3) can be surfaced instead of only a total one."""
     attachments: list = []
+    failed: list[str] = []
     data_by_ticker = {d["summary"]["ticker"]: d for d in all_data}
     try:
         for ticker in INDEX_TICKERS:
@@ -103,12 +107,15 @@ def _build_png_attachments(
                 path = export_png(fig, ticker, "div_surface", today, out_dir)
                 if path is not None:
                     attachments.append(path)
+                else:
+                    failed.append(ticker)
             except Exception as exc:
                 print(f"  [WARN] PNG for {ticker} failed (non-blocking): {exc}")
+                failed.append(ticker)
     except Exception as exc:
         print(f"[WARN] PNG generation failed (non-blocking): {exc}")
-        return []
-    return attachments
+        return [], list(INDEX_TICKERS)
+    return attachments, failed
 
 
 def _fetch_price_history_yf(ticker: str, period: str = "3mo"):
@@ -133,9 +140,12 @@ def _build_price_level_attachments(
     all_data: list[dict],
     today: datetime.date,
     out_dir: pathlib.Path,
-) -> list:
-    """Per-ticker price-vs-levels PNG (dealer γ-flip/walls + OI walls). Non-blocking."""
+) -> tuple[list, list[str]]:
+    """Per-ticker price-vs-levels PNG (dealer γ-flip/walls + OI walls). Non-blocking.
+
+    Returns (attachments, failed_tickers) — see _build_png_attachments docstring."""
     attachments: list = []
+    failed: list[str] = []
     data_by_ticker = {d["summary"]["ticker"]: d for d in all_data}
     for ticker in INDEX_TICKERS:
         try:
@@ -149,9 +159,12 @@ def _build_price_level_attachments(
             path = export_png(fig, ticker, "price_levels", today, out_dir)
             if path is not None:
                 attachments.append(path)
+            else:
+                failed.append(ticker)
         except Exception as exc:
             print(f"  [WARN] price-level PNG for {ticker} failed (non-blocking): {exc}")
-    return attachments
+            failed.append(ticker)
+    return attachments, failed
 
 
 def _verify_stores_written(all_data: list[dict], today: datetime.date) -> None:
@@ -274,12 +287,19 @@ def run(dry_run: bool = False, force: bool = False) -> None:
                 "skew_change": None, "term_change": None, "as_of": None,
             }
 
-    # Generate PNG attachments (non-blocking — kaleido failure sends email without PNGs)
+    # Generate PNG attachments (non-blocking — kaleido failure sends email without PNGs).
+    # failed_pngs surfaces PARTIAL failures too, not just a total wipeout — a silent
+    # print()-only partial failure is exactly the shape of bug that hid the
+    # plotly/kaleido version mismatch for months before it was caught (2026-07-13).
     png_note: str | None = None
-    attachments = _build_png_attachments(all_data, today, OUT_DIR)
-    attachments += _build_price_level_attachments(all_data, today, OUT_DIR)
+    div_attachments, div_failed = _build_png_attachments(all_data, today, OUT_DIR)
+    price_attachments, price_failed = _build_price_level_attachments(all_data, today, OUT_DIR)
+    attachments = div_attachments + price_attachments
+    failed_pngs = sorted(set(div_failed) | set(price_failed))
     if not attachments and any(d.get("surface_df") is not None for d in all_data):
         png_note = "Surface charts unavailable — kaleido not installed or PNG export failed."
+    elif failed_pngs:
+        png_note = f"PNG export failed for {', '.join(failed_pngs)} — other charts unaffected."
 
     print(f"[run_daily] {len(attachments)} PNG attachment(s) ready.")
 
