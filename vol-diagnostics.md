@@ -39,22 +39,21 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 
 ## Runners (`runners/`)
 
-**Local Windows Task Scheduler job still active** — duplicates the GitHub Actions email (different recipient: work Outlook vs. personal Gmail). Decide whether to disable; also due a rename off "GEX Daily" (stale naming from before GEX got demoted to a secondary metric).
+**Local Windows Task Scheduler job retired (2026-07-14)** — `gex_daily.ps1` still exists for reference but the "GEX Daily Report" task itself was unregistered; GitHub Actions is the sole scheduler now. Data flows one-way: Oracle's disk is the source of truth, `scripts/sync-from-oracle.ps1` pulls a fresh copy down for local dev/viewing on demand (nothing local collects data anymore, so this can go stale — re-run it whenever you want current data locally).
 
 | File | Purpose | Schedule | Manage |
 |------|---------|----------|--------|
-| [[runners/gex_daily.ps1\|gex_daily.ps1]] | Registers / inspects the GEX Daily Report task. Runs `python -m engine.run_daily` → SPY/QQQ/IWM chains → HTML email via Outlook COM, parquet snapshot, observation block appended to today's daily note. | Mon–Fri 16:30 local (NYSE trading days only — `is_trading_day()` gates internally) | `gex_daily.ps1 activate \| deactivate \| status` (admin shell required for first registration) |
+| [[runners/gex_daily.ps1\|gex_daily.ps1]] | (Retired) Registered/inspected the old local "GEX Daily Report" task. Kept for reference only. | — | `gex_daily.ps1 activate` to re-register if ever needed (admin shell required) |
 
 **Sanity checks**
-- `gex_daily.ps1 status` → `State: Ready`, `Last result: 0` (any non-zero is an error code, e.g. `2147942402` = path not found)
-- Manual fire: `Start-ScheduledTask -TaskName "GEX Daily Report"`
+- Local data freshness: `.\scripts\sync-from-oracle.ps1` then check `out/gex_snapshots.parquet`'s latest date
 - Dry run without scheduler: `python -m engine.run_daily --dry-run`
 - GitHub Actions status: `gh run list --repo AdamMooo/vol-diagnostics --workflow=daily-report.yml`
 
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-14 21:35 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-14 21:49 UTC
 
 **Milestone:** v4.0 · **Status:** Not started · **STATE last_updated:** 2026-07-14T17:00:00.000Z
 
@@ -68,9 +67,9 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 - None. (Phase 14 was superseded by Phase 18 per the 2026-06-04 roadmap — GATE-01/02 carried forward; it is NOT incomplete work and does not block Phase 15.)
 
 ### Blockers
-- Local Windows Task Scheduler "GEX Daily Report" job (fires ~4:30pm local) is still active — will now duplicate the GitHub Actions daily email once both fire same day. Decide whether to disable the local one. Also worth renaming — "GEX Daily" is leftover naming from before GEX got demoted to a secondary metric, same shape of debt as the gamma-omm rename.
 - `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed in run_daily.py's PNG attachment builders — see below — but export_png() itself is still silent at the single-image level.)
 - Dashboard `PASSWORD` env var on the server is the user's personal main password, not a dedicated one — works, but worth a dedicated password given it's now internet-facing.
+- `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (leftover from before GEX got demoted to a secondary metric) — low priority since the task itself is now retired, script only kept for reference.
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
@@ -79,7 +78,7 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 
 **Re-entry (2026-07-14).** Phases 21+22 (v4.0 Cloud Hosting) done, out of sequence ahead of 20.5, via a long ad-hoc session (not a planned/executed GSD phase — see STATE.md decisions). **Dashboard live at https://40.233.113.63.nip.io** (Oracle free E2.1.Micro + Caddy/Let's Encrypt via nip.io, since bare IPs can't get a cert and A1.Flex ARM stayed capacity-constrained in Toronto — retry loop for A1 left running in background). Real bugs found and fixed along the way, all committed: kaleido's PNG export needs a native `chromium` apt package on Linux (Chrome-for-Testing has no linux-arm64 build); 5 dead deps dropped (matplotlib/seaborn/statsmodels/boto3/pandas-datareader — zero imports anywhere). Two measured dashboard perf fixes — deduped a redundant per-ticker risk-free-rate/VVIX fetch, and skipped the never-displayed `cv_rmse` cross-validation on the interactive path — cut a full 3-ticker load from ~36s to ~11s. (Tried parallelizing the ticker loop too; measured it *slower* than sequential on 1 vCPU and reverted.)
 
-**Scheduler architecture changed mid-session**: the daily scheduler container (supercronic) crash-looped on Oracle's kernel, got fixed (`-no-reap`), then its first live cron fire hung mid-PNG-export (1 vCPU/1GB couldn't run headless Chromium reliably) — at that point moved the whole daily job to **GitHub Actions** (`.github/workflows/daily-report.yml`) instead of continuing to fight the underpowered box. Oracle now only runs `dashboard` + `caddy`; the workflow rsyncs `out/` down before each run and back up after, keeping Oracle's disk as the one source of truth (data deliberately not in git). Took 6 test-trigger iterations to get fully green, each surfacing a real bug (rsync missing on both ends, root-owned files unreadable by the sync user, flaky `ssh-keyscan`, an empty `SMTP_PASS` secret from a failed paste) — first green run `29369841431`, verified the data round-tripped back to Oracle correctly. Suite green (359, +1 regression test for a real `UnboundLocalError` caught by timing the deploy, not by tests). **Punch list carried in STATE.md Blockers** — local Windows Task Scheduler job duplicating the email, and its "GEX Daily" naming is stale. Next: `/gsd:plan-phase 20.5` (context already gathered from 2026-07-13).
+**Scheduler architecture changed mid-session**: the daily scheduler container (supercronic) crash-looped on Oracle's kernel, got fixed (`-no-reap`), then its first live cron fire hung mid-PNG-export (1 vCPU/1GB couldn't run headless Chromium reliably) — at that point moved the whole daily job to **GitHub Actions** (`.github/workflows/daily-report.yml`) instead of continuing to fight the underpowered box. Oracle now only runs `dashboard` + `caddy`; the workflow rsyncs `out/` down before each run and back up after, keeping Oracle's disk as the one source of truth (data deliberately not in git). Took 6 test-trigger iterations to get fully green, each surfacing a real bug (rsync missing on both ends, root-owned files unreadable by the sync user, flaky `ssh-keyscan`, an empty `SMTP_PASS` secret from a failed paste) — first green run `29369841431`, verified the data round-tripped back to Oracle correctly. Suite green (359, +1 regression test for a real `UnboundLocalError` caught by timing the deploy, not by tests). Local Windows Task Scheduler job retired afterward (unregistered via admin PowerShell) — GitHub Actions is the sole scheduler now. Added `scripts/sync-from-oracle.ps1` so local dev can pull Oracle's data (the actual source of truth) on demand. **Remaining punch list in STATE.md Blockers** — png_export.py's single-image silent-failure pattern, dashboard password reuse, stale "GEX Daily" naming on the now-retired script. Next: `/gsd:plan-phase 20.5` (context already gathered from 2026-07-13).
 
 **Re-entry (2026-07-13, later same day).** Finished the project rename gamma-omm → vol-diagnostics that the folder move had left half-done: hub file renamed to `vol-diagnostics.md`, `app.py` page_title, docstrings/User-Agent in `engine/config.py`/`vol_index.py`/`run_gex.py`, Oracle deploy scripts (not yet live — Phase 21 hasn't run), wikilinks across all active `.planning/` docs, and `C:\dev\CLAUDE.md`/`INDEX.md`. GitHub repo renamed `AdamMooo/gamma-omm` → `AdamMooo/vol-diagnostics` (owner-only permission — Adam did it directly); local remote updated. **Actual root cause of the 4:30pm failure found:** it was never transient — Windows Task Scheduler's "GEX Daily Report" action still pointed at the dead `C:\dev\gamma-omm\...` path from before the folder move (`LastTaskResult=1`). Re-registered from an elevated PowerShell; confirmed pointing at `vol-diagnostics` and due to fire again today 4:30pm. Also ran `/gsd-discuss-phase 20.5` → [[.planning/phases/20.5-email-remodel/20.5-CONTEXT|20.5-CONTEXT]] (header redesign, mobile width, filter-drop transparency, 3 ship-blocker todos folded in from the 2026-05-11 audit). Next: `/gsd:plan-phase 20.5`.
 
