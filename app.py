@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, date, timedelta
 
 import pandas as pd
@@ -544,17 +543,15 @@ errors: list[str] = []
 
 with st.spinner("Loading chains from CBOE..."):
     shared_rate, shared_vvix = _fetch_shared_ticker_inputs()
-    with ThreadPoolExecutor(max_workers=max(len(selected_all), 1)) as executor:
-        futures = {
-            executor.submit(fetch_ticker, ticker, shared_rate, shared_vvix): ticker
-            for ticker in selected_all
-        }
-        for future in as_completed(futures):
-            ticker = futures[future]
-            try:
-                all_data[ticker] = future.result()
-            except Exception as exc:
-                errors.append(f"{ticker}: {exc}")
+    # Sequential, not threaded: measured on the Oracle E2.1.Micro (1 vCPU) box —
+    # threading made this slower (35.2s vs 26.4s sequential), since the GIL only
+    # releases during network I/O and most of this pipeline's time is CPU-bound
+    # (surface fitting, coherence diagnostics), which just fights over the one core.
+    for ticker in selected_all:
+        try:
+            all_data[ticker] = fetch_ticker(ticker, shared_rate, shared_vvix)
+        except Exception as exc:
+            errors.append(f"{ticker}: {exc}")
 
 for err in errors:
     st.error(err)
