@@ -202,7 +202,7 @@ def compute_skew(df: pd.DataFrame, spot: float, min_dte: int = config.SKEW_MIN_D
 
 
 
-def surface_diagnostics(surface_df, spot) -> dict:
+def surface_diagnostics(surface_df, spot, skip_cv: bool = False) -> dict:
     """Headless fit-honesty + surface-coherence QA for the vol surface (VALID-02/04).
 
     Pure (DataFrame in, dict out, no I/O). Returns:
@@ -214,6 +214,12 @@ def surface_diagnostics(surface_df, spot) -> dict:
     convexity only confirm the fitted surface is internally consistent. They never auto-repair.
     Degrades to NaN floats (coherence PASS / 0 violations) on empty / sparse / single-expiry
     input — never raises (a single expiry is a smile, not a surface; the RBF is singular there).
+
+    skip_cv: the leave-one-expiry-out CV loop refits an RBF per expiry (~0.5s each,
+    ~12s total for a full SPY chain) purely to populate cv_rmse in the persisted
+    snapshot history — it is never displayed live. The interactive dashboard passes
+    skip_cv=True (cv_rmse comes back NaN); run_daily's once-a-day batch run leaves
+    it False so the historical QA series in the parquet store keeps accumulating.
     """
     from scipy.interpolate import RBFInterpolator
     from engine.gex.analytics import coverage_mask
@@ -249,21 +255,26 @@ def surface_diagnostics(surface_df, spot) -> dict:
     max_resid = float(np.max(np.abs(resid)))
 
     # Leave-one-EXPIRY-out CV (adjacent strikes correlate and flatter leave-one-point-out).
-    expiries = np.unique(dte_v)
-    cv_sq = []
-    for e in expiries:
-        hold = dte_v == e
-        train = ~hold
-        if train.sum() < 4 or len(np.unique(dte_v[train])) < 2:
-            continue
-        tp = np.column_stack([dte_v[train], log_m[train]])
-        ts = tp.std(axis=0)
-        ts[ts < 1e-6] = 1.0
-        rbf_cv = RBFInterpolator(tp / ts, iv_v[train], kernel="thin_plate_spline",
-                                 smoothing=config.SURFACE_SMOOTHING)
-        hp = np.column_stack([dte_v[hold], log_m[hold]])
-        cv_sq.extend(((rbf_cv(hp / ts) - iv_v[hold]) ** 2).tolist())
-    cv_rmse = float(np.sqrt(np.mean(cv_sq))) if cv_sq else float("nan")
+    # Refits an RBF per expiry — expensive (~0.5s each) and only ever used for the
+    # persisted snapshot history, never displayed live, so the dashboard skips it.
+    if skip_cv:
+        cv_rmse = float("nan")
+    else:
+        expiries = np.unique(dte_v)
+        cv_sq = []
+        for e in expiries:
+            hold = dte_v == e
+            train = ~hold
+            if train.sum() < 4 or len(np.unique(dte_v[train])) < 2:
+                continue
+            tp = np.column_stack([dte_v[train], log_m[train]])
+            ts = tp.std(axis=0)
+            ts[ts < 1e-6] = 1.0
+            rbf_cv = RBFInterpolator(tp / ts, iv_v[train], kernel="thin_plate_spline",
+                                     smoothing=config.SURFACE_SMOOTHING)
+            hp = np.column_stack([dte_v[hold], log_m[hold]])
+            cv_sq.extend(((rbf_cv(hp / ts) - iv_v[hold]) ** 2).tolist())
+        cv_rmse = float(np.sqrt(np.mean(cv_sq))) if cv_sq else float("nan")
 
     # Coverage % on the standard grid (reuses the Plan-01 gate artifact).
     dte_max = min(float(dte_v.max()), float(config.SURFACE_DTE_MAX))

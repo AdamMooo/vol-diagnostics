@@ -176,7 +176,10 @@ def _fetch_shared_ticker_inputs() -> tuple[float, float | None]:
 
 @st.cache_data(ttl=config.CACHE_TTL_TICKER, show_spinner=False)
 def fetch_ticker(ticker: str, risk_free_rate: float, vvix: float | None) -> dict:
-    return compute_ticker(ticker, risk_free_rate=risk_free_rate, vvix=vvix)
+    # skip_cv=True: cv_rmse is never displayed on the dashboard, only persisted to
+    # the snapshot history by run_daily — skipping it here cuts ~12s/ticker of
+    # cross-validation RBF refits that would otherwise be wasted work.
+    return compute_ticker(ticker, risk_free_rate=risk_free_rate, vvix=vvix, skip_cv=True)
 
 
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)

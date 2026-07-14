@@ -108,6 +108,7 @@ def compute_ticker(
     today: datetime.date | None = None,
     risk_free_rate: float | None = None,
     vvix: float | None = None,
+    skip_cv: bool = False,
 ) -> dict:
     """
     Full pipeline for one ticker.
@@ -116,6 +117,10 @@ def compute_ticker(
     but expensive to (re)fetch — risk_free_rate is a ~4-5s yfinance network call. Pass
     them in when computing multiple tickers in one run to fetch each exactly once;
     omitted, each falls back to fetching its own (single-ticker callers unaffected).
+
+    skip_cv skips surface_diagnostics()'s leave-one-expiry-out cross-validation
+    (~12s of a ~17s total for a full SPY chain) — cv_rmse is only ever persisted to
+    the snapshot history, never displayed live, so the dashboard passes skip_cv=True.
 
     Returns:
         {
@@ -155,7 +160,7 @@ def compute_ticker(
     r = risk_free_rate if risk_free_rate is not None else _get_risk_free_rate()
     p_df = gamma_profile(gex_df, spot=snapshot.spot, r=r)
     surface_df = vol_surface_data(df, spot=snapshot.spot)
-    surface_diag = surface_diagnostics(surface_df, snapshot.spot)
+    surface_diag = surface_diagnostics(surface_df, snapshot.spot, skip_cv=skip_cv)
     print(f"[diag] {ticker}: coverage {surface_diag['coverage_pct']:.0f}%  "
           f"fit_rmse {surface_diag['fit_rmse']:.1f}pp  cv {surface_diag['cv_rmse']:.1f}pp  "
           f"coherence_violations {surface_diag['coherence_violations']}")
