@@ -1,5 +1,9 @@
-# Gamma OMM — Migrate parquet data to Oracle Cloud
+# Vol Diagnostics — Migrate parquet data to Oracle Cloud
 # Run from your local Windows machine after the remote instance is deployed.
+# For the reverse direction (pull current data down FROM Oracle), see
+# scripts/sync-from-oracle.ps1 — Oracle's disk is the actual source of truth
+# since the daily collection job moved to GitHub Actions on 2026-07-14; this
+# script is now mainly useful for one-off local backfills, not routine syncing.
 #
 # Usage:
 #   .\scripts\migrate-data.ps1 -IP "129.xx.xx.xx" -KeyFile "C:\path\to\ssh-key.key"
@@ -16,7 +20,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$KeyFile,
 
-    [string]$User = "opc",
+    [string]$User = "ubuntu",
     [string]$RemoteDir = "~/vol-diagnostics/out"
 )
 
@@ -33,7 +37,7 @@ if (-not (Test-Path $KeyFile)) {
     exit 1
 }
 
-Write-Host "=== Gamma OMM — Data Migration ===" -ForegroundColor Cyan
+Write-Host "=== Vol Diagnostics — Data Migration ===" -ForegroundColor Cyan
 Write-Host "Source: $LocalOut"
 Write-Host "Target: ${User}@${IP}:${RemoteDir}"
 Write-Host ""
