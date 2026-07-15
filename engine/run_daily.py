@@ -105,10 +105,7 @@ def _build_png_attachments(
                     label_today=label_today,
                 )
                 path = export_png(fig, ticker, "div_surface", today, out_dir)
-                if path is not None:
-                    attachments.append(path)
-                else:
-                    failed.append(ticker)
+                attachments.append(path)
             except Exception as exc:
                 print(f"  [WARN] PNG for {ticker} failed (non-blocking): {exc}")
                 failed.append(ticker)
@@ -157,10 +154,7 @@ def _build_price_level_attachments(
             price_df = _fetch_price_history_yf(ticker)
             fig = plot_price_with_levels(price_df, ticker, summary, spot)
             path = export_png(fig, ticker, "price_levels", today, out_dir)
-            if path is not None:
-                attachments.append(path)
-            else:
-                failed.append(ticker)
+            attachments.append(path)
         except Exception as exc:
             print(f"  [WARN] price-level PNG for {ticker} failed (non-blocking): {exc}")
             failed.append(ticker)

@@ -1,4 +1,4 @@
-"""PNG export from Plotly figures via kaleido. Non-blocking — returns None on any failure."""
+"""PNG export from Plotly figures via kaleido. Callers own failure handling — this raises."""
 from __future__ import annotations
 
 import datetime
@@ -15,8 +15,8 @@ def export_png(
     surface_type: str,
     date: datetime.date,
     out_dir: Path | None = None,
-) -> Path | None:
-    """Export a Plotly figure to PNG via kaleido. Returns path on success, None on failure.
+) -> Path:
+    """Export a Plotly figure to PNG via kaleido.
 
     Args:
         fig: Plotly Figure object (e.g. from plot_vol_surface or plot_iv_change_surface)
@@ -26,7 +26,11 @@ def export_png(
         out_dir: output directory; defaults to repo root / "out"
 
     Returns:
-        Path to saved PNG, or None if export failed.
+        Path to saved PNG.
+
+    Raises:
+        Whatever kaleido/plotly raises on export failure — callers already wrap
+        each export attempt in their own try/except and track failed tickers.
     """
     out_dir = out_dir or (Path(__file__).resolve().parents[2] / "out")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -36,9 +40,5 @@ def export_png(
     filename = f"{ticker.lower()}_{surface_type}_{date.strftime('%Y%m%d')}.png"
     png_path = out_dir / filename
 
-    try:
-        fig.write_image(str(png_path), format="png")
-        return png_path
-    except Exception as exc:
-        print(f"[WARN] PNG export failed ({surface_type}/{ticker}): {exc}")
-        return None
+    fig.write_image(str(png_path), format="png")
+    return png_path

@@ -129,14 +129,16 @@ class TestOneDayDeltaIVPngs:
         assert failed == []
 
     def test_export_png_failure_non_blocking(self, tmp_path: pathlib.Path) -> None:
-        """When export_png returns None for one ticker, others still attach."""
+        """When export_png raises for one ticker, others still attach."""
         from engine.run_daily import _build_png_attachments
 
         call_count = {"n": 0}
 
         def _export(fig, ticker, surface_type, date, out_dir=None):
             call_count["n"] += 1
-            return None if ticker == "QQQ" else tmp_path / f"{ticker}.png"
+            if ticker == "QQQ":
+                raise RuntimeError("kaleido not available")
+            return tmp_path / f"{ticker}.png"
 
         with (
             patch("engine.run_daily.nth_trading_day_back", return_value=_PRIOR_SPY),

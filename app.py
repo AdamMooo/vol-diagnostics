@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import os
+import secrets as secrets_module
 from datetime import datetime, date, timedelta
+from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -8,6 +11,9 @@ import pandas_market_calendars as mcal
 import pytz
 import streamlit as st
 import streamlit.components.v1 as components
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent / ".env", encoding="utf-8-sig", override=True)
 
 from engine import config
 from engine.surface.surface_interactive import (
@@ -46,15 +52,13 @@ st.set_page_config(
 def _check_password() -> bool:
     if st.session_state.get("authenticated"):
         return True
-    try:
-        expected = st.secrets.get("PASSWORD", "")
-    except Exception:
-        expected = ""
+    expected = os.getenv("PASSWORD", "")
     if not expected:
-        return True  # no password configured — open access
+        st.error("PASSWORD is not configured on the server — access blocked.")
+        return False
     st.markdown("## Option Diagnostics")
     pwd = st.text_input("Password", type="password", placeholder="Enter password")
-    if pwd == expected:
+    if pwd and secrets_module.compare_digest(pwd, expected):
         st.session_state.authenticated = True
         st.rerun()
     elif pwd:

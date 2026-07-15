@@ -40,28 +40,14 @@ class TestExportPng:
         assert result.name == "spy_surface_20260601.png"
         assert result.parent == tmp_path
 
-    def test_export_png_returns_none_on_failure(self, tmp_path: Path) -> None:
+    def test_export_png_raises_on_failure(self, tmp_path: Path) -> None:
         from engine.report.png_export import export_png
 
         fig = _make_fig()
         fig.write_image.side_effect = RuntimeError("kaleido not available")
 
-        result = export_png(fig, "SPY", "surface", _DATE, out_dir=tmp_path)
-
-        assert result is None
-
-    def test_export_png_logs_warn_on_failure(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture
-    ) -> None:
-        from engine.report.png_export import export_png
-
-        fig = _make_fig()
-        fig.write_image.side_effect = RuntimeError("kaleido not available")
-
-        export_png(fig, "SPY", "surface", _DATE, out_dir=tmp_path)
-
-        captured = capsys.readouterr()
-        assert "[WARN]" in captured.out
+        with pytest.raises(RuntimeError, match="kaleido not available"):
+            export_png(fig, "SPY", "surface", _DATE, out_dir=tmp_path)
 
     def test_export_png_pins_camera(self, tmp_path: Path) -> None:
         from engine import config
