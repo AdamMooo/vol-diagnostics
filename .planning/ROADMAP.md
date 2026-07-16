@@ -1,6 +1,6 @@
 # Roadmap: Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-24 · v3.3 SHIPPED · v3.4 SHIPPED · v3.5 SHIPPED · v4.0 active (Phase 19 done; 20–22 remaining)*
+*Last updated: 2026-07-16 · v3.3 SHIPPED · v3.4 SHIPPED · v3.5 SHIPPED · v4.0 active (Phase 19 done; 20.5 planned; 21-22 completed ad-hoc)*
 
 ## Milestones
 
@@ -294,7 +294,7 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
 
 **Goal**: The daily HTML email is rebuilt end-to-end — both what it shows and how it looks — so it reads as a tight, well-designed institutional briefing rather than the current field-by-field card dump.
 **Depends on**: Phase 18 (canonical card — `engine/report/card_model.py`, `engine/report/report.py`)
-**Requirements**: TBD — define via `/gsd-discuss-phase 20.5`
+**Requirements**: D-01, D-02, D-03, D-04, D-05, D-06, D-07 (CONTEXT.md decision IDs — no formal REQUIREMENTS.md IDs were assigned to this ad-hoc-inserted phase; the 4 ROADMAP success criteria below are the acceptance bar)
 **Success Criteria** (what must be TRUE):
 
   1. Content: section order, included fields, and PNG attachments reflect a deliberate priority (surfaces > walls > OI > gamma, per existing house guidance) rather than accretion of past phases.
@@ -302,7 +302,22 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
   3. Email and dashboard stay reconciled through the canonical card seam (`build_card_fields`/`build_card_read`) — no parallel field logic introduced in `report.py`.
   4. Suite stays green; visual result verified by sending a real test email (dry-run HTML + Outlook/SMTP render), not just unit tests.
 
-**Plans**: TBD — plan via `/gsd-plan-phase 20.5`
+**Plans**: 4 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 20.5-01-PLAN.md — Data layer: real snapshot fetch timestamp + OI-weighted filter-drop ratio, threaded into compute_ticker's summary dict (D-07)
+- [ ] 20.5-02-PLAN.md — PNG export resolution bump — KALEIDO_SCALE_FACTOR config constant applied in export_png() (D-06)
+
+**Wave 2** *(blocked on 20.5-01)*
+
+- [ ] 20.5-03-PLAN.md — Email header/footer remodel: snapshot-timestamp line + methodology caveat banner (D-01/D-02), mobile-safe 390px width (D-05), filter-drop footer disclosure (D-07)
+
+**Wave 3** *(blocked on 20.5-02, 20.5-03)*
+
+- [ ] 20.5-04-PLAN.md — Full-suite regression + real dry-run/send visual verification checkpoint
 
 ---
 
@@ -333,7 +348,7 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
 | 18. 3-Page Reorg + Email Parity + Gating | v3.5 | 3/3 | Complete | 2026-06-24 |
 | 19. Dockerize | v4.0 | 1/1 | Complete | 2026-06-24 |
 | 20. Data Health + Collection Hardening | v4.0 | 1/1 | Complete | 2026-06-25 |
-| 20.5. Email Remodel (INSERTED) | v4.0 | 0/TBD | Not started | - |
+| 20.5. Email Remodel (INSERTED) | v4.0 | 0/4 | Planned | - |
 | 21. Oracle Cloud Provision + Deploy | v4.0 | ad-hoc | Complete | 2026-07-14 |
 | 22. HTTPS + Remote Access | v4.0 | ad-hoc | Complete | 2026-07-14 |
 
@@ -350,9 +365,7 @@ Delivered: Dockerfile (Python 3.11-slim, multi-arch), docker-compose.yml (3 serv
 ---
 ---
 ---
----
----
----
+
 ---
 <!-- LINKS:AUTO -->
 ## Related
