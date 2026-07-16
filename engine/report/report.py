@@ -14,7 +14,8 @@ import datetime
 
 from engine import config
 from engine.report.card_model import (
-    build_card_read, _pct_from_spot, _fmt_pct as _fmt_signed_pct, format_oi_impact,
+    build_card_read, _pct_from_spot, _fmt_pct as _fmt_signed_pct,
+    _fmt_pct as _fmt_unsigned_pct, format_oi_impact,
 )
 
 # Sign-of-net-gex visual cue for the accent bar — reads from shared palette.
@@ -481,6 +482,20 @@ def build_email(
         f'Failed to load: {", ".join(failed)}</p>' if failed else ""
     )
 
+    # Filter-drop disclosure (D-07) — per-ticker % of raw chain OI dropped by
+    # quality filters, omitted entirely when unavailable (cold-start-safe; None
+    # must never render as "—%"/"NaN%").
+    filter_drop_entries = [
+        f"{r['ticker']} {_fmt_unsigned_pct(r['filter_drop_pct'], signed=False)}"
+        for r in index_results
+        if not r.get("error") and r.get("filter_drop_pct") is not None
+    ]
+    filter_drop_bullet = (
+        f"&bull; Filters removed {', '.join(filter_drop_entries)} of raw chain OI "
+        f"(illiquid/stale strikes; min OI / max IV floor).<br>"
+        if filter_drop_entries else ""
+    )
+
     methodology_footer = (
         f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.7;'
         f'margin-top:24px;padding-top:14px;border-top:1px solid {RULE_COLOR};">'
@@ -490,6 +505,7 @@ def build_email(
         '&bull; OI is T-1 and quotes are delayed (~15 min), so positioning is not live tape.<br>'
         '&bull; Positioning framing is 14 DTE primary, with ≤90 DTE secondary context.<br>'
         '&bull; VRP uses CBOE index-vol close minus RV20×100; scalar and percentile share one series.<br>'
+        f'{filter_drop_bullet}'
         '<br>'
         '<b>Deep methodology details</b><br>'
         '<b>VRP</b>: CBOE index-vol close (VIX/VXN/RVX) minus RV20×100 (vol points), with RV20 '
@@ -507,8 +523,6 @@ def build_email(
         '<i>strike</i> as a level; the one-sided magnitude is methodology-dependent.<br>'
         '&bull; <b>OI views use the filtered positioning set</b> (OI ≥ 100, IV ≤ 300%, DTE ≤ 90, '
         '0DTE excluded).<br>'
-        '&bull; <b>Sign &amp; order of magnitude are load-bearing; absolute GEX is not</b> — '
-        'other sources publish very different numbers on the same chain.<br>'
         '&bull; <b>Descriptive, not predictive.</b> Positioning + vol context only — no forecast, '
         'event study, or backtest (sample too short).<br>'
         '<b>Universe</b>: SPY / QQQ / IWM — names where the dealer-net-short convention is '
@@ -546,7 +560,7 @@ def build_email(
 <body style="{_SANS}margin:0;padding:0;background:#ffffff;">
 <table width="100%" cellpadding="0" cellspacing="0">
   <tr><td align="center" style="padding:20px 16px;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:720px;{_SANS}">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:390px;{_SANS}">
       <tr><td>
 
   {_section_header("Index Vol Diagnostics &middot; " + f"{date.strftime('%B')} {date.day}, {date.year}")}
