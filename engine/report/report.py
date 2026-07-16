@@ -14,13 +14,8 @@ import datetime
 
 from engine import config
 from engine.report.card_model import (
-    CardField, build_card_fields, build_card_read, split_compact_fields,
-    _fmt_b, _fmt_price, _fmt_pct, _fmt_skew,
-    _fmt_hedge_shares, _pct_from_spot, _wall_value,
-    _expected_1d_range_pct, _pin_location, _signed_color, format_oi_impact,
+    build_card_read, _pct_from_spot, _fmt_pct as _fmt_signed_pct, format_oi_impact,
 )
-from engine.data.validation import load_prior_snapshot
-from engine.data.oi_history import load_oi_history
 
 # Sign-of-net-gex visual cue for the accent bar — reads from shared palette.
 REGIME_COLOR = {
@@ -100,10 +95,40 @@ def _read_block(r: dict) -> str:
     return f'<div style="margin:6px 0 10px;">{chips}{lean}</div>'
 
 
+# ── Key Levels — single-column, mirrors the dashboard Regime tab ───────
+
+def _key_levels_block(r: dict) -> str:
+    spot = r.get("spot")
+    zgl = r.get("zero_gamma_level")
+    cw = r.get("call_wall")
+    pw = r.get("put_wall")
+    em_pct = r.get("expected_move_pct")
+
+    def _shift(key: str) -> str:
+        v = r.get(key)
+        return f" ({v:+.1f}% 5d)" if v is not None else ""
+
+    rows: list[tuple[str, str]] = []
+    if zgl is not None:
+        rows.append(("γ-flip", f"{zgl:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, zgl))}{_shift('zgl_5d_shift')}"))
+    if cw is not None:
+        rows.append(("Call wall", f"{cw:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, cw))}{_shift('call_wall_5d_shift')}"))
+    if pw is not None:
+        rows.append(("Put wall", f"{pw:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, pw))}{_shift('put_wall_5d_shift')}"))
+    if em_pct is not None:
+        rows.append(("Expected move", f"±{em_pct:.1f}%"))
+
+    if not rows:
+        return ""
+    rows_html = "".join(_kv_cell(label, value) for label, value in rows)
+    return _kv_table(rows_html)
+
+
 # ── Per-ticker card ───────────────────────────────────────────────────
 
 def _ticker_card(r: dict) -> str:
     label = TICKER_LABEL.get(r["ticker"], r["ticker"])
+    spot = r.get("spot")
 
     if r.get("error"):
         return (
@@ -125,79 +150,37 @@ def _ticker_card(r: dict) -> str:
     else:
         accent = "#64748b"
 
-    prior_row = load_prior_snapshot(ticker=r["ticker"], before_date=datetime.date.today())
-    fields = build_card_fields(today_summary=r, prior_summary=prior_row)
-
-    primary_fields, detail_fields = split_compact_fields(fields)
-    ordered_fields = [*primary_fields, *detail_fields]
-    left_fields = ordered_fields[:5]
-    right_fields = ordered_fields[5:]
-
-    left_rows = "".join(_kv_cell(f"{f.label} [{f.trust_tag}]", f.value) for f in left_fields)
-    right_rows = "".join(_kv_cell(f"{f.label} [{f.trust_tag}]", f.value) for f in right_fields)
-
+    spot_bit = (
+        f' <span style="{_MONO}font-size:13px;font-weight:400;color:{LABEL_GRAY};">'
+        f'&middot; spot {spot:,.0f}</span>' if spot else ""
+    )
     header = (
         f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
         f'style="border-collapse:collapse;">'
         f'<tr>'
         f'<td style="{_SANS}font-size:18px;font-weight:700;'
-        f'letter-spacing:0.3px;padding-bottom:2px;">{label}</td>'
-        f'</tr></table>'
-    )
-
-    body = (
-        f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
-        f'style="border-collapse:collapse;margin-top:6px;">'
-        f'<tr>'
-        f'<td valign="top" width="50%" style="padding-right:18px;">'
-        f'{_kv_table(left_rows)}</td>'
-        f'<td valign="top" width="50%" style="padding-left:18px;">'
-        f'{_kv_table(right_rows)}</td>'
+        f'letter-spacing:0.3px;padding-bottom:2px;">{label}{spot_bit}</td>'
         f'</tr></table>'
     )
 
     read_html = _read_block(r)
+    levels_html = _key_levels_block(r)
 
     # No card background — accent bar on the left is the only visual cue.
+    # Single-column, stacked — no side-by-side split, so it renders identically
+    # on mobile mail clients (the old 50/50 two-column grid broke on phones).
     return (
         f'<table width="100%" cellpadding="0" cellspacing="0" '
         f'style="border-collapse:collapse;margin-bottom:14px;'
         f'border-bottom:1px solid {RULE_COLOR};">'
         f'<tr>'
         f'<td width="4" style="background:{accent};width:4px;"></td>'
-        f'<td style="padding:8px 0 18px 16px;">{header}{read_html}{body}</td>'
+        f'<td style="padding:8px 0 18px 16px;">{header}{read_html}{levels_html}</td>'
         f'</tr></table>'
     )
 
 
 
-def _add_oi_history_context(expiry_oi_df: "pd.DataFrame | None", ticker: str) -> "pd.DataFrame | None":
-    """Attach 5d OI-share context columns when history is available."""
-    if expiry_oi_df is None:
-        return None
-    try:
-        if expiry_oi_df.empty:
-            return expiry_oi_df
-    except AttributeError:
-        return expiry_oi_df
-
-    enriched = expiry_oi_df.copy()
-    oi_hist = load_oi_history(ticker, days=5)
-    if oi_hist.empty or not {"expiry", "pct_of_total"}.issubset(set(oi_hist.columns)):
-        return enriched
-
-    avg_share = oi_hist.groupby("expiry", dropna=True)["pct_of_total"].mean()
-    avg_share_map = {str(k): float(v) for k, v in avg_share.items()}
-
-    enriched["avg_pct_of_total_5d"] = [
-        avg_share_map.get(str(expiry))
-        for expiry in enriched["expiry"].tolist()
-    ]
-    enriched["vs_avg_pct_of_total_5d"] = [
-        (float(pct) - avg_share_map[str(expiry)]) if str(expiry) in avg_share_map else None
-        for expiry, pct in zip(enriched["expiry"].tolist(), enriched["pct_of_total"].tolist())
-    ]
-    return enriched
 # ── OI by expiry table ────────────────────────────────────────────────
 
 def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
@@ -205,6 +188,12 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
 
     Returns None when expiry_oi_df is None or empty (caller omits silently).
     T-16.5-08: guard against malformed df via None/empty check + safe head(3).
+
+    Deliberately fewer columns than the dashboard's OI Impact tab (which also
+    shows raw OI count and 5d-avg-share context) — a mobile-width email table
+    can't fit 8 columns without forcing horizontal scroll/overlap, so this
+    keeps only Expiry/DTE/OI Share/P:C Ratio/Impact. Impact text is allowed to
+    wrap (no nowrap) since it's a phrase, not a number.
     """
     if expiry_oi_df is None:
         return None
@@ -217,42 +206,32 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
     top3 = expiry_oi_df.head(3)
 
     th_style = (
-        f'style="{_SANS}padding:4px 12px 4px 0;font-size:11px;'
+        f'style="{_SANS}padding:4px 10px 4px 0;font-size:11px;'
         f'color:{LABEL_GRAY};letter-spacing:0.5px;text-transform:uppercase;'
         f'text-align:left;"'
     )
     td_style = (
-        f'style="{_MONO}padding:4px 12px 4px 0;font-size:12px;'
+        f'style="{_MONO}padding:4px 10px 4px 0;font-size:12px;'
         f'white-space:nowrap;"'
+    )
+    td_impact_style = (
+        f'style="{_SANS}padding:4px 0 4px 0;font-size:12px;"'
     )
 
     header_row = (
         f'<tr>'
         f'<th {th_style}>Expiry</th>'
         f'<th {th_style}>DTE</th>'
-        f'<th {th_style}>OI</th>'
         f'<th {th_style}>OI Share</th>'
-        f'<th {th_style}>5d Avg Share</th>'
-        f'<th {th_style}>vs 5d Avg</th>'
         f'<th {th_style}>P:C Ratio</th>'
         f'<th {th_style}>Impact</th>'
         f'</tr>'
     )
 
-    def _k(v: float) -> str:
-        return f"{v/1000:.0f}K"
-
     def _fmt_pct(v) -> str:
         try:
             fv = float(v)
             return f"{fv:.1f}%"
-        except Exception:
-            return "—"
-
-    def _fmt_pp(v) -> str:
-        try:
-            fv = float(v)
-            return f"{fv:+.1f}pp"
         except Exception:
             return "—"
 
@@ -280,12 +259,9 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
             f'<tr>'
             f'<td {td_style}>{expiry_str}</td>'
             f'<td {td_style}>{dte}</td>'
-            f'<td {td_style}>{_k(row.get("oi", 0))}</td>'
             f'<td {td_style}>{_fmt_pct(row.get("pct_of_total"))}</td>'
-            f'<td {td_style}>{_fmt_pct(row.get("avg_pct_of_total_5d"))}</td>'
-            f'<td {td_style}>{_fmt_pp(row.get("vs_avg_pct_of_total_5d"))}</td>'
             f'<td {td_style}>{_fmt_ratio(row.get("put_call_ratio"))}</td>'
-            f'<td style="{_SANS}padding:4px 12px 4px 0;font-size:12px;">{impact}</td>'
+            f'<td {td_impact_style}>{impact}</td>'
             f'</tr>'
         )
 
@@ -462,7 +438,7 @@ def build_email(
         blocks = []
         for r in index_results:
             card_html = _ticker_card(r)
-            oi_table = _oi_summary_table(_add_oi_history_context(oi_data.get(r["ticker"]), r["ticker"]))
+            oi_table = _oi_summary_table(oi_data.get(r["ticker"]))
             blocks.append(card_html + (oi_table or ""))
         cards = "\n".join(blocks)
     else:
@@ -496,11 +472,8 @@ def build_email(
         'No categorical label — the absolute level is a convention, only the sign is load-bearing.<br>'
         '<b>γ-flip</b>: spot level where cumulative net GEX crosses zero. Threshold where the '
         'hedging environment flips sign — a model construct, not a price target.<br>'
-        '<b>Hedge Shares/$1</b>: shares dealers trade per $1 spot move to stay delta-neutral. '
-        'Positive = buy demand on up-moves; negative = sell pressure.<br>'
-        '<b>Call / Put Wall</b>: strike with the largest one-sided GEX (dealer model). '
-        '<b>OI Wall</b>: strike with the largest open interest (assumption-free). Use the '
-        '<i>strikes</i> as levels; one-sided magnitudes are methodology-dependent.<br>'
+        '<b>Call / Put Wall</b>: strike with the largest one-sided GEX (dealer model). Use the '
+        '<i>strike</i> as a level; the one-sided magnitude is methodology-dependent.<br>'
         '&bull; <b>OI views use the filtered positioning set</b> (OI ≥ 100, IV ≤ 300%, DTE ≤ 90, '
         '0DTE excluded).<br>'
         '&bull; <b>Sign &amp; order of magnitude are load-bearing; absolute GEX is not</b> — '
@@ -531,11 +504,12 @@ def build_email(
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="{_SANS}margin:0;padding:0;background:#ffffff;">
 <table width="100%" cellpadding="0" cellspacing="0">
-  <tr><td align="center" style="padding:20px;">
-    <table width="720" cellpadding="0" cellspacing="0" style="width:720px;max-width:720px;{_SANS}">
+  <tr><td align="center" style="padding:20px 16px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:720px;{_SANS}">
       <tr><td>
 
   {_section_header("Index Vol Diagnostics &middot; " + f"{date.strftime('%B')} {date.day}, {date.year}")}

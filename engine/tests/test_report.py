@@ -3,16 +3,16 @@ Behavioral tests for engine/report/report.py.
 
 Covers:
   - #ffffff body background (D-01)
-  - OI Call Wall / OI Put Wall rows in _ticker_card() (D-07, D-09)
+  - viewport meta tag + single-column card (mobile-safe rewrite, 2026-07-16)
+  - Key Levels block: gamma-flip / call wall / put wall / expected move
   - evolution_section_html() cold-start safety + rendering (D-10, D-11)
   - build_email() signature: evolution_data and png_note params
-  - VRP row, delta suffixes, wall type labels (CARD-02, CARD-03, CARD-04)
+  - read-block chips + lean (CARD-02, CARD-03, CARD-04 lineage)
 """
 from __future__ import annotations
 
 import datetime
 import re
-from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -29,8 +29,10 @@ def _minimal_result(
     call_wall: float | None = 510.0,
     put_wall: float | None = 490.0,
     zero_gamma_level: float | None = 495.0,
-    oi_call_wall: float | None = None,
-    oi_put_wall: float | None = None,
+    expected_move_pct: float | None = None,
+    zgl_5d_shift: float | None = None,
+    call_wall_5d_shift: float | None = None,
+    put_wall_5d_shift: float | None = None,
     vrp: float | None = None,
     rv20: float | None = None,
 ) -> dict:
@@ -42,8 +44,10 @@ def _minimal_result(
         "call_wall": call_wall,
         "put_wall": put_wall,
         "zero_gamma_level": zero_gamma_level,
-        "oi_call_wall": oi_call_wall,
-        "oi_put_wall": oi_put_wall,
+        "expected_move_pct": expected_move_pct,
+        "zgl_5d_shift": zgl_5d_shift,
+        "call_wall_5d_shift": call_wall_5d_shift,
+        "put_wall_5d_shift": put_wall_5d_shift,
         "price_change_pct": 0.5,
         "iv30": 18.0,
         "delta_hedge_flow": None,
@@ -57,38 +61,68 @@ def _all_none_evolution(ticker: str) -> dict:
     return {"level": None, "rms": None, "skew_change": None, "term_change": None, "as_of": None}
 
 
-# ── Task 1 tests: body background + OI wall rows ──────────────────────────────
+# ── Mobile-safety: viewport meta + single-column card ─────────────────────────
 
 def test_body_background_color():
     html = build_email([])
     assert "background:#ffffff" in html, "body tag must include explicit background:#ffffff"
 
 
-def test_oi_wall_rows_present():
-    r = _minimal_result(oi_call_wall=510.0, oi_put_wall=490.0)
+def test_build_email_has_viewport_meta():
+    html = build_email([])
+    assert 'name="viewport"' in html, "missing viewport meta tag — breaks mobile mail rendering"
+
+
+def test_ticker_card_has_no_side_by_side_split():
+    # Regression guard: the old card split fields into two width="50%" columns,
+    # which is what broke on phones. The rewritten card is single-column.
+    r = _minimal_result()
     html = _ticker_card(r)
-    assert re.search(r"OI CALL WALL", html, re.IGNORECASE), "OI CALL WALL row missing"
-    assert re.search(r"OI PUT WALL", html, re.IGNORECASE), "OI PUT WALL row missing"
+    assert 'width="50%"' not in html
 
 
-def test_oi_wall_rows_dash_when_none():
-    r = _minimal_result(oi_call_wall=None, oi_put_wall=None)
+def test_ticker_card_shows_spot_in_header():
+    r = _minimal_result(spot=512.34)
     html = _ticker_card(r)
-    # Both OI rows present but showing the em-dash for None
-    assert re.search(r"OI CALL WALL", html, re.IGNORECASE), "OI CALL WALL row missing even when None"
-    # Count em-dashes — at least one should appear from OI rows
-    assert html.count("—") >= 1, "Expected at least one em-dash for None OI wall"
+    assert "512" in html
 
 
-def test_oi_walls_below_gex_walls():
-    r = _minimal_result(oi_call_wall=510.0, oi_put_wall=490.0)
+# ── Key Levels block: gamma-flip / call wall / put wall / expected move ───────
+
+def test_key_levels_shows_zgl_call_put_and_expected_move():
+    r = _minimal_result(zero_gamma_level=495.0, call_wall=510.0, put_wall=490.0,
+                         expected_move_pct=1.8)
     html = _ticker_card(r)
-    # Find positions — GEX CALL WALL must come before OI CALL WALL (D-09)
-    gex_pos = html.lower().find("call wall")
-    oi_pos = html.lower().find("oi call wall")
-    assert gex_pos != -1, "CALL WALL (GEX) row not found"
-    assert oi_pos != -1, "OI CALL WALL row not found"
-    assert gex_pos < oi_pos, "GEX Call Wall must appear before OI Call Wall in HTML"
+    assert "γ-flip" in html
+    assert "Call wall" in html
+    assert "Put wall" in html
+    assert "Expected move" in html
+    assert "495" in html and "510" in html and "490" in html
+    assert "±1.8%" in html
+
+
+def test_key_levels_includes_pct_from_spot():
+    r = _minimal_result(spot=500.0, call_wall=510.0)
+    html = _ticker_card(r)
+    assert "+2.0%" in html  # (510-500)/500*100
+
+
+def test_key_levels_includes_5d_shift_when_present():
+    r = _minimal_result(call_wall=510.0, call_wall_5d_shift=1.5)
+    html = _ticker_card(r)
+    assert "+1.5% 5d" in html
+
+
+def test_key_levels_omits_5d_shift_when_absent():
+    r = _minimal_result(call_wall=510.0, call_wall_5d_shift=None)
+    html = _ticker_card(r)
+    assert "5d)" not in html
+
+
+def test_key_levels_omits_row_when_level_missing():
+    r = _minimal_result(zero_gamma_level=None)
+    html = _ticker_card(r)
+    assert "γ-flip" not in html
 
 
 # ── Read-block tests: email card shows the same read as the dashboard ─────────
@@ -207,75 +241,7 @@ def test_build_email_signature_accepts_new_params():
     assert html  # non-empty string
 
 
-# ── TestCanonicalCardEmail: CARD-02, CARD-03, CARD-04 ─────────────────────────
-
-class TestCanonicalCardEmail:
-
-    def _r(self, **kwargs) -> dict:
-        return _minimal_result(**kwargs)
-
-    def _render_no_prior(self, **kwargs) -> str:
-        with patch("engine.report.report.load_prior_snapshot", return_value=None):
-            return _ticker_card(self._r(**kwargs))
-
-    def _render_with_prior(self, prior: pd.Series, **kwargs) -> str:
-        with patch("engine.report.report.load_prior_snapshot", return_value=prior):
-            return _ticker_card(self._r(**kwargs))
-
-    # CARD-02: VRP row present
-
-    def test_vrp_row_present_with_value(self):
-        html = self._render_no_prior(vrp=2.7)
-        assert re.search(r"VRP", html, re.IGNORECASE), "VRP row missing when vrp=2.7"
-        assert "+2.7pp" in html, "VRP formatted value not found"
-
-    def test_vrp_row_present_when_none(self):
-        html = self._render_no_prior(vrp=None)
-        assert re.search(r"VRP", html, re.IGNORECASE), "VRP row missing when vrp=None"
-        assert "—" in html, "Em-dash for None VRP not found"
-
-    # CARD-04: wall type labels
-
-    def test_call_wall_model_label(self):
-        html = self._render_no_prior()
-        assert re.search(r"Call Wall.*\(model\)", html, re.IGNORECASE), \
-            "Call Wall (model) label not found"
-
-    def test_put_wall_model_label(self):
-        html = self._render_no_prior()
-        assert re.search(r"Put Wall.*\(model\)", html, re.IGNORECASE), \
-            "Put Wall (model) label not found"
-
-    def test_oi_call_wall_raw_oi_label(self):
-        html = self._render_no_prior(oi_call_wall=512.0)
-        assert re.search(r"OI Call Wall.*\(raw OI\)", html, re.IGNORECASE), \
-            "OI Call Wall (raw OI) label not found"
-
-    def test_oi_put_wall_raw_oi_label(self):
-        html = self._render_no_prior(oi_put_wall=488.0)
-        assert re.search(r"OI Put Wall.*\(raw OI\)", html, re.IGNORECASE), \
-            "OI Put Wall (raw OI) label not found"
-
-    # CARD-03: delta suffix present when prior row exists
-
-    def test_net_gex_delta_present_with_prior(self):
-        prior = pd.Series({"net_gex": 1.05e9, "front_skew": None, "iv30": None})
-        html = self._render_with_prior(prior, net_gex=1.20e9)
-        assert re.search(r"\(\+", html), "Net GEX positive delta suffix not found"
-
-    def test_net_gex_delta_absent_without_prior(self):
-        html = self._render_no_prior(net_gex=1.20e9)
-        assert "(+nan)" not in html, "Unexpected (+nan) in no-prior render"
-        assert "(+0" not in html, "Unexpected (+0...) in no-prior render"
-
-    # CARD-03: delta suffix absent (not NaN) when no prior row
-
-    def test_no_delta_nan_when_no_prior(self):
-        html = self._render_no_prior()
-        assert "nan" not in html.lower(), "NaN leaked into email HTML when no prior row"
-
-
-# ── OI summary table tests (plan 03) ─────────────────────────────────────────
+# ── OI summary table tests ─────────────────────────────────────────────────
 
 def _make_expiry_oi_df(n: int = 5) -> pd.DataFrame:
     """Build a minimal expiry_oi_df with the columns _oi_summary_table expects."""
@@ -338,12 +304,15 @@ def test_build_email_oi_data_included():
     assert "OI IMPACT BY EXPIRY" in html
 
 
-def test_oi_summary_table_contains_impact_columns():
+def test_oi_summary_table_contains_mobile_safe_columns():
+    """Trimmed to 5 columns (from 8) so the table fits a phone-width email."""
     df = _make_expiry_oi_df(3)
     result = _oi_summary_table(df)
     assert result is not None
-    for hdr in ("Expiry", "DTE", "OI", "P:C Ratio", "Impact"):
+    for hdr in ("Expiry", "DTE", "OI Share", "P:C Ratio", "Impact"):
         assert hdr in result
+    assert "5d Avg Share" not in result
+    assert "vs 5d Avg" not in result
 
 
 def test_oi_summary_table_impact_language_from_concentration():
@@ -353,44 +322,18 @@ def test_oi_summary_table_impact_language_from_concentration():
     assert result is not None
     assert "high concentration" in result.lower()
 
-def test_ticker_card_uses_compact_split_helper():
-    import inspect
-    import engine.report.report as report_mod
-    src = inspect.getsource(report_mod._ticker_card)
-    assert "split_compact_fields" in src
-
-
-def test_ticker_card_shows_trust_tags_for_compact_rows():
-    r = _minimal_result(vrp=2.7)
-    r["vrp_pct"] = 70
-    r["vrp_pct_n"] = 80
-    html = _ticker_card(r)
-    assert "market" in html
-    assert "building" in html
-    assert "model" in html
-    assert "smile" in html
-
-def test_oi_summary_table_shows_history_context_columns_when_present():
-    df = _make_expiry_oi_df(3)
-    df["avg_pct_of_total_5d"] = [18.0, 21.5, 20.0]
-    df["vs_avg_pct_of_total_5d"] = [2.0, -1.5, 0.0]
-    result = _oi_summary_table(df)
-    assert result is not None
-    for hdr in ("OI Share", "5d Avg Share", "vs 5d Avg"):
-        assert hdr in result
-    assert "+2.0pp" in result
-    assert "-1.5pp" in result
-
 
 def test_oi_summary_table_mentions_primary_14dte_lens():
     result = _oi_summary_table(_make_expiry_oi_df(3))
     assert result is not None
     assert "14 DTE primary" in result
 
+
 def test_build_email_includes_quick_and_deep_method_sections():
     html = build_email([_minimal_result()])
     assert "Quick assumptions" in html
     assert "Deep methodology details" in html
+
 
 def test_evolution_section_includes_largest_move_summary_row():
     evol_data = {
