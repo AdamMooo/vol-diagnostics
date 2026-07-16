@@ -380,6 +380,35 @@ def test_build_email_includes_quick_and_deep_method_sections():
     assert "Deep methodology details" in html
 
 
+# ── Task 2: mobile-safe width (D-05) + filter-drop footer disclosure (D-07) ───
+
+def test_build_email_uses_mobile_safe_390px_width():
+    html = build_email([_minimal_result()])
+    assert "max-width:390px" in html
+    assert "max-width:720px" not in html
+
+
+def test_filter_drop_bullet_present_when_pct_set():
+    r = _minimal_result(filter_drop_pct=4.2)
+    html = build_email([r])
+    assert "SPY" in html
+    assert "4.2%" in html
+    assert "raw chain OI" in html
+
+
+def test_filter_drop_bullet_absent_when_pct_none():
+    r = _minimal_result(filter_drop_pct=None)
+    html = build_email([r])
+    assert "raw chain OI" not in html
+
+
+def test_gex_magnitude_bullet_not_duplicated_in_footer():
+    # Promoted into the Task 1 banner — must not also live in methodology_footer's
+    # Deep-methodology tier. It still appears exactly once overall (inside the banner).
+    html = build_email([_minimal_result()])
+    assert html.count("Sign &amp; order of magnitude") == 1
+
+
 def test_evolution_section_includes_largest_move_summary_row():
     evol_data = {
         "SPY": {"level": 0.1, "rms": 0.2, "skew_change": -0.1, "term_change": 0.6, "as_of": datetime.date(2026, 5, 27)},
