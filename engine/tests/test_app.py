@@ -1,30 +1,6 @@
 from __future__ import annotations
 
 import pytest
-from unittest import mock
-
-
-def _minimal_summary(**overrides):
-    base = {
-        "ticker": "SPY",
-        "spot": 500.0,
-        "net_gex": 1e9,
-        "zero_gamma_level": 495.0,
-        "call_wall": 510.0,
-        "put_wall": 490.0,
-        "oi_call_wall": 512.0,
-        "oi_put_wall": 488.0,
-        "iv30": 18.0,
-        "price_change_pct": 0.5,
-        "front_skew": 3.2,
-        "delta_hedge_flow": None,
-        "rv20": 0.15,
-        "vrp": 2.7,
-    }
-    base.update(overrides)
-    return base
-
-
 
 
 def _import_app_module():
@@ -43,71 +19,6 @@ def _import_app_module():
         fake.get_calendar = lambda _name: _Calendar()
         sys.modules["pandas_market_calendars"] = fake
     return importlib.import_module("app")
-
-def _render_regime_card_html(summary_overrides=None, prior_row=None):
-    pytest.importorskip("streamlit")
-    summary = _minimal_summary(**(summary_overrides or {}))
-    col = mock.MagicMock()
-    app_mod = _import_app_module()
-
-    with mock.patch.object(app_mod, "_prior_snapshot_cached", return_value=prior_row):
-        app_mod.render_regime_card(col=col, summary=summary, spot=500.0)
-
-    calls = col.markdown.call_args_list
-    if not calls:
-        return ""
-    return calls[-1][0][0] if calls[-1][0] else ""
-
-
-def test_render_regime_card_uses_build_card_fields():
-    """Task 1 RED: render_regime_card must delegate to build_card_fields (imports present)."""
-    pytest.importorskip("streamlit")
-    app = _import_app_module()
-    import inspect
-    src = inspect.getsource(app.render_regime_card)
-    assert "build_card_fields" in src
-
-
-class TestRegimeCardCanonical:
-    """CARD-01/02/03/04: dashboard regime card parity with email card."""
-
-    def test_vrp_row_present_with_value(self):
-        """CARD-02: VRP row rendered when vrp is set."""
-        html = _render_regime_card_html()
-        assert "VRP" in html
-        assert "2.7" in html
-
-    def test_vrp_row_present_when_none(self):
-        """CARD-02: VRP row present even when vrp=None, value shown as dash."""
-        html = _render_regime_card_html({"vrp": None})
-        assert "VRP" in html
-        assert "—" in html  # em-dash
-
-    def test_wall_labels_model(self):
-        """D-11: secondary wall fields stay out of compact default card."""
-        html = _render_regime_card_html()
-        assert "Call Wall (model)" not in html
-        assert "Put Wall (model)" not in html
-
-    def test_wall_labels_raw_oi(self):
-        """D-11: secondary OI wall fields stay out of compact default card."""
-        html = _render_regime_card_html()
-        assert "OI Call Wall (raw OI)" not in html
-        assert "OI Put Wall (raw OI)" not in html
-
-    def test_delta_present_when_prior_row_supplied(self):
-        """CARD-03: net_gex delta suffix appears when prior row exists."""
-        import pandas as pd
-        prior = pd.Series({"net_gex": 1.05e9, "front_skew": 3.0, "iv30": 18.0})
-        html = _render_regime_card_html(prior_row=prior)
-        assert "(+" in html
-
-    def test_no_delta_when_no_prior_snapshot(self):
-        """CARD-03: no '(+nan)', '(+0.0)' when prior_row is None."""
-        html = _render_regime_card_html(prior_row=None)
-        assert "(+nan)" not in html
-        assert "(+0.0)" not in html
-
 
 def test_import_no_emailer_bleed():
     """DASH-01, DASH-06: import app does not pull in emailer or run_daily."""
@@ -153,27 +64,6 @@ def test_trust_readout_strings_handles_missing_and_nan():
     # entirely missing dict must not raise
     c2, r2, m2 = _trust_readout_strings(None)
     assert (c2, r2, m2) == ("Coverage —", "Fit RMS —", "Max —")
-
-
-
-def test_render_regime_card_uses_compact_split_helper():
-    """Task 2 RED: dashboard card should consume compact split helper from card_model."""
-    pytest.importorskip("streamlit")
-    app = _import_app_module()
-    import inspect
-    src = inspect.getsource(app.render_regime_card)
-    assert "split_compact_fields" in src
-
-
-def test_render_regime_card_renders_trust_tags_from_card_fields():
-    """Compact primary row is pure vol-surface content (Spot/IV30/VRP/Skew/Fly) —
-    "model"-tagged fields (Net GEX, walls) live in the demoted detail expander."""
-    html = _render_regime_card_html({"vrp_pct_n": 80})
-    assert "rc-tag" in html
-    assert "market" in html
-    assert "building" in html
-    assert "smile" in html
-
 
 
 

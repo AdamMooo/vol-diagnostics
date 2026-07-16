@@ -19,8 +19,7 @@ from engine.surface.surface_interactive import (
     build_diff_payload, render_diff_html,
     build_movie_payload, render_movie_html,
 )
-from engine.report.card_model import (CardField, build_card_fields, build_card_read, split_compact_fields, LABEL_GRAY, format_oi_impact)
-from engine.data.validation import load_prior_snapshot
+from engine.report.card_model import format_oi_impact
 from engine.data.oi_history import prior_oi_snapshot, load_oi_history
 from engine.compute import compute_ticker
 from engine.gex.analytics import (
@@ -57,24 +56,6 @@ _CSS = """
     border-bottom: 1px solid rgba(148,163,184,0.25);
     padding-bottom: 5px; margin-bottom: 10px; margin-top: 22px;
 }
-
-.rc {
-    border-radius: 8px; padding: 14px 16px; margin-bottom: 4px;
-    border-left: 5px solid;
-}
-.rc-ticker { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 8px; }
-/* Grid demoted to supporting detail beneath the read-line: smaller, dimmer, hairline-separated. */
-.rc-grid {
-    display: grid; grid-template-columns: auto 1fr; gap: 3px 16px; font-size: 0.72rem;
-    opacity: 0.78; border-top: 1px solid rgba(148,163,184,0.14); padding-top: 8px;
-}
-.rc-k { opacity: 0.55; }
-.rc-v { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
-.rc-tag {
-    font-size: 0.62rem; padding: 1px 6px; border-radius: 8px; margin-left: 6px;
-    border: 1px solid rgba(148,163,184,0.35); color: #94a3b8; opacity: 0.9;
-}
-.rc-obs { font-size: 0.72rem; opacity: 0.70; margin-top: 10px; line-height: 1.6; }
 
 .top-bar {
     display: flex; justify-content: space-between; align-items: baseline;
@@ -201,11 +182,6 @@ def _load_evolution_cached(ticker: str, horizon: int, days: int = 400) -> pd.Dat
 
 
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
-def _prior_snapshot_cached(ticker: str, before_date: date) -> "pd.Series | None":
-    return load_prior_snapshot(ticker=ticker, before_date=before_date)
-
-
-@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
 def _prior_oi_cached(ticker: str, before_date: date) -> pd.DataFrame:
     return prior_oi_snapshot(ticker, before_date)
 
@@ -247,78 +223,6 @@ def _evolution_largest_move_summary(metrics: dict | None) -> str:
     return f"Largest move: {label} {direction} ({value:+.2f}pp)."
 
 
-def render_regime_card(col, summary: dict, spot: float | None = None) -> None:
-    """Restrained card: uniform amber accent; the read-line (chips + lean) is the hero,
-    the field grid is demoted detail. No sign-based color (UI-REVIEW color-conflict fix)."""
-    ticker = summary["ticker"]
-    # Restrained palette (UI-REVIEW color-conflict fix): uniform amber accent + neutral bg.
-    # Direction/sign no longer colors the card — the read chips carry meaning in WORDS; the
-    # only place a red/blue (up/down) scale survives is the fenced ΔIV chart.
-    color = config.PALETTE["accent"]
-    bg = "rgba(148,163,184,0.05)"
-
-    prior_row = _prior_snapshot_cached(ticker=ticker, before_date=date.today())
-    fields = build_card_fields(today_summary=summary, prior_summary=prior_row)
-    fields = [f for f in fields if f.label != "γ-flip"]
-    primary_fields, detail_fields = split_compact_fields(fields)
-
-    grid_html = "".join(
-        f'<span class="rc-k">{f.label}<span class="rc-tag">{f.trust_tag}</span></span>'
-        f'<span class="rc-v">{f.value}</span>'
-        for f in primary_fields
-    )
-
-    # The "so what" read — skew %ile + 5d drift, each shown ONLY if its sample clears the
-    # credibility floor (a thin rank is worse than a blank). VRP is gated inside the builder.
-    # The gated inputs are computed once in compute_ticker (the canonical-card seam) so this
-    # card and the email card stay identical.
-    read = build_card_read(
-        summary,
-        skew_pct=summary.get("read_skew_pct"),
-        move_5d=summary.get("read_move_5d"),
-    )
-    # Restrained: amber = any signal chip, gray = neutral. Color is emphasis, not direction.
-    _amber = config.PALETTE["accent"]
-    _tone = {"positive": _amber, "negative": _amber, "neutral": LABEL_GRAY}
-    chips_html = "".join(
-        f'<span style="display:inline-block;padding:2px 8px;margin:0 5px 5px 0;border-radius:9px;'
-        f'font-size:0.74rem;background:rgba(217,119,6,0.10);color:{_tone.get(tone, LABEL_GRAY)};'
-        f'border:1px solid {_tone.get(tone, LABEL_GRAY)}40;">{txt}</span>'
-        for txt, tone in read.chips
-    )
-    # Read-line is the hero: larger, brighter, not buried. The field grid is demoted below.
-    read_html = (
-        f'<div style="margin:2px 0 10px;">{chips_html}'
-        f'<div style="font-size:0.98rem;color:#e6edf3;font-weight:500;margin-top:7px;'
-        f'line-height:1.4;">{read.lean}</div></div>'
-    )
-
-    col.markdown(f"""
-<div class="rc" style="background:{bg};border-left-color:{color};">
-  <div class="rc-ticker" style="color:{color};">{ticker}</div>
-  {read_html}
-  <div class="rc-grid">{grid_html}</div>
-</div>
-""", unsafe_allow_html=True)
-    with col.expander("More fields", expanded=False):
-        for f in detail_fields:
-            st.markdown(f"- **{f.label}** ({f.trust_tag}): {f.value}")
-
-
-def render_regime_cards(tickers: list[str], all_data: dict[str, dict],
-                        n_cols: int = 3) -> None:
-    data_list = [all_data[t] for t in tickers if t in all_data
-                 and not all_data[t]["summary"].get("error")]
-    if not data_list:
-        st.info("No data loaded.")
-        return
-    rows = [data_list[i:i + n_cols] for i in range(0, len(data_list), n_cols)]
-    for row in rows:
-        cols = st.columns(n_cols)
-        for col, data in zip(cols, row):
-            render_regime_card(col, data["summary"], spot=data.get("spot"))
-
-
 def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict]) -> None:
     """Page-1 hero: risk bar + narrative + key levels + vol metrics.
     Replaces the old cross-index briefing + positioning teaser + card grid."""
@@ -340,6 +244,8 @@ def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict])
     stabilizing = sum(1 for s in rows if (s.get("net_gex") is not None and s.get("net_gex") >= 0))
     rich = sum(1 for s in rows if (s.get("vrp") is not None and s.get("vrp") > 0))
     amplifying = n - stabilizing
+    spy_summary = next((s for s in rows if s.get("ticker") == "SPY"), rows[0])
+    vvix = spy_summary.get("vvix")
 
     # ── Risk Bar ──────────────────────────────────────────────────────────────
     if amplifying >= 2:
@@ -364,17 +270,12 @@ def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict])
             direction = "rising" if mv > 0 else "falling" if mv < 0 else "flat"
             surf_bit = f" · Surface {direction} 5d"
             break
+    vvix_bit = f" · VVIX {vvix:.0f}" if vvix is not None else ""
 
     st.markdown(f'''<div class="{bar_class}">
   <span class="risk-label">{bar_label}</span>
-  <span class="risk-detail">{bar_detail}{vrp_bit}{surf_bit}</span>
+  <span class="risk-detail">{bar_detail}{vrp_bit}{surf_bit}{vvix_bit}</span>
 </div>''', unsafe_allow_html=True)
-
-    # ── SPY context for the vol strip below (no inline narrative paragraph —
-    #    the risk bar, Key Levels, and vol strip carry the read) ───────────────
-    spy_summary = next((s for s in rows if s.get("ticker") == "SPY"), rows[0])
-    skew_pct = spy_summary.get("read_skew_pct")
-    term_9d = spy_summary.get("term_ratio_9d_30d")
 
     # ── Key Levels ────────────────────────────────────────────────────────────
     st.markdown('<div class="sec">Key Levels</div>', unsafe_allow_html=True)
@@ -412,36 +313,6 @@ def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict])
                 level_rows.append(f"Expected move **±{em_pct:.1f}%**")
             for lr in level_rows:
                 st.markdown(f"<span style='font-size:0.82rem;'>{lr}</span>", unsafe_allow_html=True)
-
-    # ── Vol Metrics Strip ─────────────────────────────────────────────────────
-    st.markdown('<div class="sec">Vol Environment</div>', unsafe_allow_html=True)
-
-    # Gather metrics from SPY (primary) with fallbacks
-    vrp_val = spy_summary.get("vrp")
-    vrp_pct = spy_summary.get("vrp_pct")
-    skew_val = spy_summary.get("front_skew")
-    vvix = spy_summary.get("vvix")
-
-    m1, m2, m3, m4 = st.columns(4)
-    with m1:
-        vrp_str = f"{vrp_val:+.1f}pp" if vrp_val is not None else "—"
-        if vrp_pct is not None:
-            vrp_str += f" ({vrp_pct}th)"
-        st.metric("VRP (SPY)", vrp_str)
-    with m2:
-        skew_str = f"{skew_val:+.1f}pp" if skew_val is not None else "—"
-        if skew_pct is not None:
-            skew_str += f" ({skew_pct}th)"
-        st.metric("Front Skew (SPY)", skew_str)
-    with m3:
-        if term_9d is not None:
-            term_state = "Backwardation" if term_9d > 1.0 else "Contango"
-            st.metric("VIX Term", f"{term_state} ({term_9d:.2f})")
-        else:
-            st.metric("VIX Term", "—")
-    with m4:
-        vvix_str = f"{vvix:.0f}" if vvix is not None else "—"
-        st.metric("VVIX", vvix_str)
 
 
 def _expected_latest_session(now_et: datetime) -> date:
