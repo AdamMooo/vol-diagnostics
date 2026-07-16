@@ -133,8 +133,9 @@ All phases complete:
 
 Punch list from the 2026-07-14 Oracle deploy, none blocking but all real:
 - `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed in run_daily.py's PNG attachment builders — see below — but export_png() itself is still silent at the single-image level.)
-- Dashboard `PASSWORD` env var on the server is the user's personal main password, not a dedicated one — works, but worth a dedicated password given it's now internet-facing.
 - `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (leftover from before GEX got demoted to a secondary metric) — low priority since the task itself is now retired, script only kept for reference.
+
+**Resolved 2026-07-16**: password gate removed entirely (`_check_password()` deleted from `app.py`, `PASSWORD` dropped from `.env`/`.env.example`) — dashboard is intentionally public now that it's headed to the user's personal website; no dedicated-password follow-up needed.
 
 **Resolved same day**: local Windows Task Scheduler "GEX Daily Report" job retired (unregistered via admin PowerShell) now that GitHub Actions is the sole scheduler. Added `scripts/sync-from-oracle.ps1` so local dev can pull a fresh copy of Oracle's data (the actual source of truth) on demand — nothing local collects data anymore, so it goes stale between syncs by design.
 

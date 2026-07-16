@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-import secrets as secrets_module
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
@@ -48,25 +46,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-
-def _check_password() -> bool:
-    if st.session_state.get("authenticated"):
-        return True
-    expected = os.getenv("PASSWORD", "")
-    if not expected:
-        st.error("PASSWORD is not configured on the server — access blocked.")
-        return False
-    st.markdown("## Option Diagnostics")
-    pwd = st.text_input("Password", type="password", placeholder="Enter password")
-    if pwd and secrets_module.compare_digest(pwd, expected):
-        st.session_state.authenticated = True
-        st.rerun()
-    elif pwd:
-        st.error("Incorrect password")
-    return False
-
-if not _check_password():
-    st.stop()
 
 _CSS = """
 <style>

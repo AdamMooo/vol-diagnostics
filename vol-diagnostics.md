@@ -53,7 +53,7 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-14 21:49 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-16 13:28 UTC
 
 **Milestone:** v4.0 · **Status:** Not started · **STATE last_updated:** 2026-07-14T17:00:00.000Z
 
@@ -68,7 +68,6 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 
 ### Blockers
 - `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed in run_daily.py's PNG attachment builders — see below — but export_png() itself is still silent at the single-image level.)
-- Dashboard `PASSWORD` env var on the server is the user's personal main password, not a dedicated one — works, but worth a dedicated password given it's now internet-facing.
 - `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (leftover from before GEX got demoted to a secondary metric) — low priority since the task itself is now retired, script only kept for reference.
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
