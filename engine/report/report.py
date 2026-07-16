@@ -14,7 +14,8 @@ import datetime
 
 from engine import config
 from engine.report.card_model import (
-    build_card_read, _pct_from_spot, _fmt_pct as _fmt_signed_pct, format_oi_impact,
+    build_card_read, _pct_from_spot, _fmt_pct as _fmt_signed_pct,
+    _fmt_pct as _fmt_unsigned_pct, format_oi_impact,
 )
 
 # Sign-of-net-gex visual cue for the accent bar — reads from shared palette.
@@ -285,6 +286,37 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
         f'</div>'
     )
 
+# ── Header block: snapshot timestamp + methodology caveat banner ──────
+
+def _snapshot_timestamp_line(r: dict) -> str:
+    """Plain, small, gray fact line — real fetch time + the two fixed freshness
+    facts (OI T-1, Greeks 15-min delayed). Omitted entirely when fetched_at is
+    unavailable (cold-start-safe) — never rendered as a placeholder."""
+    fetched_at = r.get("fetched_at")
+    if fetched_at is None:
+        return ""
+    ts = fetched_at.strftime("%Y-%m-%d %H:%M")
+    return (
+        f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};margin:0 0 10px;">'
+        f'Snapshot {ts} ET &middot; OI T-1 &middot; Greeks 15-min delayed</div>'
+    )
+
+
+def _methodology_caveat_banner() -> str:
+    """Static (never gated) framed block — visually distinct from the plain
+    timestamp line via a light tint + left accent bar, reusing the file's other
+    'framed block' vocabulary (the ticker-card accent bar)."""
+    amber = config.PALETTE["accent"]
+    return (
+        f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};'
+        f'background:#f1f5f9;border-left:3px solid {amber};'
+        f'padding:8px 12px;margin:0 0 16px;line-height:1.5;">'
+        f'<b>Methodology note:</b> Sign &amp; order of magnitude are load-bearing; '
+        f'absolute GEX is not — other sources publish very different numbers on the '
+        f'same chain.</div>'
+    )
+
+
 # ── Section header ────────────────────────────────────────────────────
 
 def _section_header(label: str) -> str:
@@ -450,6 +482,20 @@ def build_email(
         f'Failed to load: {", ".join(failed)}</p>' if failed else ""
     )
 
+    # Filter-drop disclosure (D-07) — per-ticker % of raw chain OI dropped by
+    # quality filters, omitted entirely when unavailable (cold-start-safe; None
+    # must never render as "—%"/"NaN%").
+    filter_drop_entries = [
+        f"{r['ticker']} {_fmt_unsigned_pct(r['filter_drop_pct'], signed=False)}"
+        for r in index_results
+        if not r.get("error") and r.get("filter_drop_pct") is not None
+    ]
+    filter_drop_bullet = (
+        f"&bull; Filters removed {', '.join(filter_drop_entries)} of raw chain OI "
+        f"(illiquid/stale strikes; min OI / max IV floor).<br>"
+        if filter_drop_entries else ""
+    )
+
     methodology_footer = (
         f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.7;'
         f'margin-top:24px;padding-top:14px;border-top:1px solid {RULE_COLOR};">'
@@ -459,6 +505,7 @@ def build_email(
         '&bull; OI is T-1 and quotes are delayed (~15 min), so positioning is not live tape.<br>'
         '&bull; Positioning framing is 14 DTE primary, with ≤90 DTE secondary context.<br>'
         '&bull; VRP uses CBOE index-vol close minus RV20×100; scalar and percentile share one series.<br>'
+        f'{filter_drop_bullet}'
         '<br>'
         '<b>Deep methodology details</b><br>'
         '<b>VRP</b>: CBOE index-vol close (VIX/VXN/RVX) minus RV20×100 (vol points), with RV20 '
@@ -476,14 +523,18 @@ def build_email(
         '<i>strike</i> as a level; the one-sided magnitude is methodology-dependent.<br>'
         '&bull; <b>OI views use the filtered positioning set</b> (OI ≥ 100, IV ≤ 300%, DTE ≤ 90, '
         '0DTE excluded).<br>'
-        '&bull; <b>Sign &amp; order of magnitude are load-bearing; absolute GEX is not</b> — '
-        'other sources publish very different numbers on the same chain.<br>'
         '&bull; <b>Descriptive, not predictive.</b> Positioning + vol context only — no forecast, '
         'event study, or backtest (sample too short).<br>'
         '<b>Universe</b>: SPY / QQQ / IWM — names where the dealer-net-short convention is '
         'empirically defensible.'
         '</div>'
     )
+
+    # Header block: snapshot-freshness timestamp + methodology caveat banner
+    # (D-01, D-02) — inserted directly below the section header, above Evolution.
+    primary = next((r for r in index_results if not r.get("error")), None)
+    ts_line = _snapshot_timestamp_line(primary) if primary else ""
+    caveat_banner = _methodology_caveat_banner()
 
     # Evolution section — omitted entirely on cold start (D-10, D-11)
     evol_html = ""
@@ -509,10 +560,12 @@ def build_email(
 <body style="{_SANS}margin:0;padding:0;background:#ffffff;">
 <table width="100%" cellpadding="0" cellspacing="0">
   <tr><td align="center" style="padding:20px 16px;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:720px;{_SANS}">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:390px;{_SANS}">
       <tr><td>
 
   {_section_header("Index Vol Diagnostics &middot; " + f"{date.strftime('%B')} {date.day}, {date.year}")}
+  {ts_line}
+  {caveat_banner}
   {evol_html}
   {cards}
   {failed_note}

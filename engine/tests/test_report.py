@@ -35,6 +35,8 @@ def _minimal_result(
     put_wall_5d_shift: float | None = None,
     vrp: float | None = None,
     rv20: float | None = None,
+    fetched_at: "datetime.datetime | None" = None,
+    filter_drop_pct: float | None = None,
 ) -> dict:
     """Minimal result dict sufficient for _ticker_card() to render without KeyError."""
     return {
@@ -54,6 +56,8 @@ def _minimal_result(
         "front_skew": None,
         "vrp": vrp,
         "rv20": rv20,
+        "fetched_at": fetched_at,
+        "filter_drop_pct": filter_drop_pct,
     }
 
 
@@ -241,6 +245,47 @@ def test_build_email_signature_accepts_new_params():
     assert html  # non-empty string
 
 
+# ── Header block: snapshot timestamp + methodology caveat banner (D-01, D-02) ─
+
+def test_snapshot_timestamp_present_when_fetched_at_set():
+    fetched_at = datetime.datetime(2026, 5, 11, 16, 15)
+    r = _minimal_result(fetched_at=fetched_at)
+    html = build_email([r])
+    assert "Snapshot 2026-05-11 16:15" in html
+    assert "OI T-1" in html
+    assert "Greeks 15-min delayed" in html
+
+
+def test_snapshot_timestamp_absent_when_fetched_at_missing():
+    r = _minimal_result(fetched_at=None)
+    html = build_email([r])
+    assert "Snapshot" not in html
+
+
+def test_methodology_caveat_banner_always_present():
+    # Static methodology fact — never gated on data availability.
+    html = build_email([_minimal_result(fetched_at=None)])
+    assert "Methodology note" in html
+    assert "load-bearing" in html
+
+
+def test_timestamp_line_and_banner_are_distinct_blocks():
+    fetched_at = datetime.datetime(2026, 5, 11, 16, 15)
+    r = _minimal_result(fetched_at=fetched_at)
+    html = build_email([r])
+    banner_start = html.find("Methodology note")
+    assert banner_start != -1
+    banner_div_start = html.rfind("<div", 0, banner_start)
+    banner_div_tag = html[banner_div_start:banner_start]
+    assert "background:#f1f5f9" in banner_div_tag
+
+    ts_start = html.find("Snapshot 2026-05-11 16:15")
+    assert ts_start != -1
+    ts_div_start = html.rfind("<div", 0, ts_start)
+    ts_div_tag = html[ts_div_start:ts_start]
+    assert "background:#f1f5f9" not in ts_div_tag
+
+
 # ── OI summary table tests ─────────────────────────────────────────────────
 
 def _make_expiry_oi_df(n: int = 5) -> pd.DataFrame:
@@ -333,6 +378,35 @@ def test_build_email_includes_quick_and_deep_method_sections():
     html = build_email([_minimal_result()])
     assert "Quick assumptions" in html
     assert "Deep methodology details" in html
+
+
+# ── Task 2: mobile-safe width (D-05) + filter-drop footer disclosure (D-07) ───
+
+def test_build_email_uses_mobile_safe_390px_width():
+    html = build_email([_minimal_result()])
+    assert "max-width:390px" in html
+    assert "max-width:720px" not in html
+
+
+def test_filter_drop_bullet_present_when_pct_set():
+    r = _minimal_result(filter_drop_pct=4.2)
+    html = build_email([r])
+    assert "SPY" in html
+    assert "4.2%" in html
+    assert "raw chain OI" in html
+
+
+def test_filter_drop_bullet_absent_when_pct_none():
+    r = _minimal_result(filter_drop_pct=None)
+    html = build_email([r])
+    assert "raw chain OI" not in html
+
+
+def test_gex_magnitude_bullet_not_duplicated_in_footer():
+    # Promoted into the Task 1 banner — must not also live in methodology_footer's
+    # Deep-methodology tier. It still appears exactly once overall (inside the banner).
+    html = build_email([_minimal_result()])
+    assert html.count("Sign &amp; order of magnitude") == 1
 
 
 def test_evolution_section_includes_largest_move_summary_row():
