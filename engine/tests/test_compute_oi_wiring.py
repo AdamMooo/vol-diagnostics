@@ -1,11 +1,13 @@
 """Tests for compute.py OI wiring: expiry_oi_df key + is_top_decile on s_df (16.5-01 Task 2)."""
 from __future__ import annotations
 
+import datetime
 import unittest.mock as mock
 import pandas as pd
 
 from engine import compute as compute_mod
 from engine import config
+from engine.session import ET
 
 
 def _make_mock_result(fake_oi_df=None):
@@ -42,7 +44,9 @@ def _make_mock_result(fake_oi_df=None):
     fake_snapshot.spot = 500.0
     fake_snapshot.iv30 = 20.0
     fake_snapshot.price_change_pct = -0.5
-    fake_snapshot.as_of = None
+    fake_snapshot.as_of = datetime.date(2024, 6, 17)
+    fake_snapshot.fetched_at = datetime.datetime(2024, 6, 17, 16, 15, tzinfo=ET)
+    fake_snapshot.filter_drop_pct = 4.2
     fake_snapshot.chains = fake_df
     fake_diag = {
         "coverage_pct": 80.0, "fit_rmse": 0.4, "max_resid": 1.2,
@@ -153,3 +157,17 @@ class TestPrimaryTenorWiring:
         summary = result["summary"]
         assert summary["positioning_primary_dte_max"] == config.GEX_PRIMARY_DTE
         assert summary["positioning_secondary_dte_max"] == config.GEX_MAX_DTE
+
+
+class TestSnapshotMetadataWiring:
+    def test_summary_as_of_matches_snapshot(self):
+        result = _make_mock_result()
+        assert result["summary"]["as_of"] == datetime.date(2024, 6, 17)
+
+    def test_summary_fetched_at_matches_snapshot(self):
+        result = _make_mock_result()
+        assert result["summary"]["fetched_at"] == datetime.datetime(2024, 6, 17, 16, 15, tzinfo=ET)
+
+    def test_summary_filter_drop_pct_matches_snapshot(self):
+        result = _make_mock_result()
+        assert result["summary"]["filter_drop_pct"] == 4.2
