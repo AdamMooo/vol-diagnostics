@@ -128,6 +128,11 @@ class TestBuildCardFieldsNoPrior:
         v = self.by_label["Skew (25Δ)"].value
         assert "(" not in v
 
+    def test_front_skew_states_direction(self):
+        # FULL_SUMMARY front_skew=3.8 (positive) -> puts richer than calls
+        v = self.by_label["Skew (25Δ)"].value
+        assert "puts pricier" in v
+
     def test_fly_full_lookback_format(self):
         v = self.by_label["25Δ Fly"].value
         assert v == "+0.8pp · 74th %ile"
@@ -227,11 +232,11 @@ class TestVRPCardField:
     def test_vrp_full_lookback_label(self):
         s = dict(FULL_SUMMARY)
         s["vrp_pct"] = 74
-        s["vrp_pct_n"] = 252
+        s["vrp_pct_n"] = config.VRP_DEEP_LOOKBACK_SESSIONS
         v = next(f for f in build_card_fields(s, None) if f.label == "VRP").value
         assert "+2.7pp" in v
         assert "74th %ile" in v
-        assert "252-session lookback" in v
+        assert f"{config.VRP_DEEP_LOOKBACK_SESSIONS}-session (~10yr) lookback" in v
         assert "building to" not in v
 
     def test_vrp_cold_start_label(self):
@@ -241,7 +246,7 @@ class TestVRPCardField:
         v = next(f for f in build_card_fields(s, None) if f.label == "VRP").value
         assert "74th %ile" in v
         assert "120 sessions" in v
-        assert "building to 252" in v
+        assert f"building to {config.VRP_DEEP_LOOKBACK_SESSIONS}" in v
 
     def test_vrp_insufficient_history_fallback(self):
         s = dict(FULL_SUMMARY)
@@ -270,6 +275,23 @@ class TestVRPCardField:
         s["vrp"] = -1.5
         f = next(f for f in build_card_fields(s, None) if f.label == "VRP")
         assert f.sign == "negative"
+
+
+class TestSkewDirectionWording:
+    def test_positive_skew_says_puts_pricier(self):
+        s = dict(FULL_SUMMARY, front_skew=3.8)
+        v = next(f for f in build_card_fields(s, None) if f.label == "Skew (25Δ)").value
+        assert "puts pricier" in v
+
+    def test_negative_skew_says_calls_pricier(self):
+        s = dict(FULL_SUMMARY, front_skew=-1.2)
+        v = next(f for f in build_card_fields(s, None) if f.label == "Skew (25Δ)").value
+        assert "calls pricier" in v
+
+    def test_zero_skew_says_flat(self):
+        s = dict(FULL_SUMMARY, front_skew=0.0)
+        v = next(f for f in build_card_fields(s, None) if f.label == "Skew (25Δ)").value
+        assert "flat" in v
 
 
 class TestCardFieldSigns:
@@ -434,6 +456,6 @@ class TestTrustTagContract:
         assert f.trust_tag == "building"
 
     def test_vrp_tag_history_when_lookback_met(self):
-        s = dict(FULL_SUMMARY, vrp_pct=70, vrp_pct_n=config.VRP_PERCENTILE_LOOKBACK)
+        s = dict(FULL_SUMMARY, vrp_pct=70, vrp_pct_n=config.VRP_DEEP_LOOKBACK_SESSIONS)
         f = next(x for x in build_card_fields(s, None) if x.label == "VRP")
         assert f.trust_tag == "history"

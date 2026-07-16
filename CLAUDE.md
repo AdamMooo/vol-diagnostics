@@ -22,7 +22,7 @@ Dealer-gamma + implied-vol diagnostics for an **index income-sleeve PM** (covere
 
 Descriptive only — no predictive/prescriptive claims.
 
-**Cold-start note:** chain-derived metrics (skew, surface, GEX) only accrue from our own daily snapshots (since ~2026-05-06); the VRP percentile is deep (CBOE vol-index 1990/2009 − yfinance RV20 over a 252-session window). The daily scheduler firing is what compounds the value.
+**Cold-start note:** chain-derived metrics (skew, surface, GEX) only accrue from our own daily snapshots (since ~2026-05-06); the VRP percentile rides the CBOE vol-index's real depth (VIX to 1990, VXN/RVX to 2009), ranked against a genuine ~10-year (2,520-session) window via `config.VRP_DEEP_LOOKBACK_SESSIONS` — not a short recent-regime window, so "cheap"/"rich" can't just mean "cheap relative to an already-elevated past year." The daily scheduler firing is what compounds the value.
 
 **Removed (commit `663f72f`, archive cleanup):** the v2.x sleeve-allocation framework (`run.py`, `build_report.py`, `signals.py`, `backtest.py`, `data_layer.py`, …) and the v1.0 `hmm.ipynb` — hmm was moved to the **purpose-factor-model** repo (formerly marco-quant). All recoverable from git history.
 

@@ -19,7 +19,7 @@ from engine.data.vol_index import load_vol_index
 from engine.vol.vol_metrics import compute_rv20
 
 
-def _fetch_closes_yf(ticker: str, period: str = "400d") -> "pd.Series | None":
+def _fetch_closes_yf(ticker: str, period: str = "2520d") -> "pd.Series | None":
     """Daily closes from yfinance, date-indexed oldest-first. None on any failure; never raises.
 
     Mirrors compute._fetch_spot_history_yf but returns a date-indexed Series over a wider
@@ -45,13 +45,17 @@ def _fetch_closes_yf(ticker: str, period: str = "400d") -> "pd.Series | None":
 def vrp_percentile(ticker: str, lookback: int | None = None) -> dict:
     """Today's vol-index-based VRP, its percentile rank, and the sample count.
 
+    Ranks today's VRP against ALL available aligned history by default (bounded below by
+    a config.VRP_DEEP_LOOKBACK_SESSIONS-session closes fetch, ~10 real trading years) --
+    not a short rolling window. A short window can only tell you a value is "cheap"
+    relative to a recent, possibly still-elevated regime; ranking against ~10yr instead
+    answers the question against the vol-index's actual depth (VIX to 1990, VXN/RVX to
+    2009). Pass an explicit `lookback` to rank against a shorter window instead.
+
     Returns {"vrp": float vol points, "pct": int 0-100, "n": int} when data is sufficient,
     else {"vrp": None, "pct": None, "n": 0} on empty vol-index, yfinance failure, or no
     date alignment. Never raises.
     """
-    if lookback is None:
-        lookback = config.VRP_PERCENTILE_LOOKBACK
-
     none_dict = {"vrp": None, "pct": None, "n": 0}
 
     sym = config.TICKER_VOL_INDEX[ticker]
@@ -59,7 +63,8 @@ def vrp_percentile(ticker: str, lookback: int | None = None) -> dict:
     if vi.empty:
         return none_dict
 
-    closes = _fetch_closes_yf(ticker, period="400d")
+    fetch_days = config.VRP_DEEP_LOOKBACK_SESSIONS + config.VRP_CLOSES_FETCH_BUFFER_DAYS
+    closes = _fetch_closes_yf(ticker, period=f"{fetch_days}d")
     if closes is None:
         return none_dict
 
@@ -84,6 +89,6 @@ def vrp_percentile(ticker: str, lookback: int | None = None) -> dict:
         return none_dict
 
     today_vrp = float(vrp_hist.iloc[-1])  # same definition as every history point
-    window = vrp_hist.iloc[-lookback:]
+    window = vrp_hist if lookback is None else vrp_hist.iloc[-lookback:]
     pct = int(percentileofscore(window.to_numpy(), today_vrp, kind="rank"))
     return {"vrp": today_vrp, "pct": pct, "n": len(window)}

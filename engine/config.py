@@ -220,8 +220,28 @@ DEFAULT_VOL_INDICES: list[str] = ["VIX", "VXN", "RVX", "VIX9D", "VIX3M", "VVIX"]
 # Index ETF → CBOE vol-index used as the implied-vol leg of VRP. Only these three have free vol-index history (SPY→VIX, QQQ→VXN, IWM→RVX).
 TICKER_VOL_INDEX: dict[str, str] = {"SPY": "VIX", "QQQ": "VXN", "IWM": "RVX"}
 
-# Rolling-session window for the VRP percentile rank; ~one trading year. Used by vrp_history.vrp_percentile.
+# Rolling-session window for the butterfly percentile rank; ~one trading year. Used by
+# compute.py's butterfly window and card_model._fmt_butterfly. The butterfly series is our
+# own daily snapshot history (cold-starting since ~2026-05-06), unlike VRP below which rides
+# the CBOE vol-index's real multi-decade depth -- the two percentiles are NOT the same window.
 VRP_PERCENTILE_LOOKBACK: int = 252
+
+# Target trading-session depth (~10 real years) for the VRP long-run percentile rank in
+# vrp_history.vrp_percentile(). A short rolling window (the old default here was
+# VRP_PERCENTILE_LOOKBACK) can label a value "cheap" only relative to a recent, possibly
+# still-elevated regime -- this ranks against the CBOE vol-index's actual depth instead
+# (VIX to 1990, VXN/RVX to 2009 -- all comfortably deeper than 10yr). This is the
+# ALIGNED-sample target (post RV20 warmup + calendar intersection with the vol-index),
+# not a raw fetch count -- see VRP_CLOSES_FETCH_BUFFER_DAYS for why the actual yfinance
+# fetch requests more than this.
+VRP_DEEP_LOOKBACK_SESSIONS: int = 2500
+
+# Extra calendar days requested beyond VRP_DEEP_LOOKBACK_SESSIONS when fetching yfinance
+# closes in vrp_history.py, so the post-alignment sample can actually reach the target above.
+# RV20 consumes the first 20 rows as warmup, and the vol-index/price calendars don't align
+# 1:1 (holidays, listing-date edges) -- empirically ~6-25 extra rows lost per ticker even
+# after the 20-day warmup. 40 days of buffer clears both with margin on SPY/QQQ/IWM.
+VRP_CLOSES_FETCH_BUFFER_DAYS: int = 40
 
 # Minimum sessions before publishing a butterfly percentile rank; below this, keep n only.
 BUTTERFLY_PERCENTILE_MIN_SESSIONS: int = 10

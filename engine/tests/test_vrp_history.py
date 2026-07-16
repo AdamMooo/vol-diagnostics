@@ -93,7 +93,7 @@ class TestHappyPath:
 
 class TestColdStart:
     def test_short_series_reports_actual_count(self, monkeypatch):
-        # Only ~30 business days → aligned series far shorter than 252 lookback.
+        # Only ~30 business days → aligned series far shorter than the ~10yr deep target.
         dates = list(pd.bdate_range("2026-01-02", periods=30))
         prices = [100.0 * (1.004 ** i) for i in range(len(dates))]
         vi_closes = [17.0 + 0.1 * i for i in range(len(dates))]
@@ -109,9 +109,68 @@ class TestColdStart:
 
         res = vrp_history.vrp_percentile("SPY")
         # 30 closes → RV20 available from index 20..29 → 10 aligned dates.
-        assert res["n"] < config.VRP_PERCENTILE_LOOKBACK
+        assert res["n"] < config.VRP_DEEP_LOOKBACK_SESSIONS
         assert res["n"] == 10
         assert res["vrp"] is not None
+
+
+class TestDeepWindow:
+    def test_default_uses_full_history_not_truncated(self, monkeypatch):
+        # 300 business days of aligned data -- more than the old 252-session cap used to
+        # allow. Confirms vrp_percentile() no longer truncates to a short rolling window.
+        dates = list(pd.bdate_range("2024-01-02", periods=300))
+        prices = [100.0 * (1.001 ** i) for i in range(len(dates))]
+        vi_closes = [18.0 + 0.01 * i for i in range(len(dates))]
+
+        monkeypatch.setattr(
+            vrp_history, "load_vol_index",
+            lambda sym: _vol_index_df(sym, dates, vi_closes),
+        )
+        monkeypatch.setattr(
+            vrp_history, "_fetch_closes_yf",
+            lambda ticker, period="400d": _closes_series(dates, prices),
+        )
+
+        res = vrp_history.vrp_percentile("SPY")
+        # 300 closes → RV20 available from index 20..299 → 280 aligned dates, all retained.
+        assert res["n"] == 280
+        assert res["n"] > config.VRP_PERCENTILE_LOOKBACK  # proves no truncation to the old 1yr cap
+
+    def test_explicit_lookback_still_truncates(self, monkeypatch):
+        # Passing an explicit lookback restores the short-window behavior for callers that want it.
+        dates = list(pd.bdate_range("2024-01-02", periods=300))
+        prices = [100.0 * (1.001 ** i) for i in range(len(dates))]
+        vi_closes = [18.0 + 0.01 * i for i in range(len(dates))]
+
+        monkeypatch.setattr(
+            vrp_history, "load_vol_index",
+            lambda sym: _vol_index_df(sym, dates, vi_closes),
+        )
+        monkeypatch.setattr(
+            vrp_history, "_fetch_closes_yf",
+            lambda ticker, period="400d": _closes_series(dates, prices),
+        )
+
+        res = vrp_history.vrp_percentile("SPY", lookback=50)
+        assert res["n"] == 50
+
+    def test_fetch_requests_deep_lookback_period(self, monkeypatch):
+        captured = {}
+
+        def fake_fetch(ticker, period="400d"):
+            captured["period"] = period
+            return None
+
+        dates = list(pd.bdate_range("2026-01-02", periods=5))
+        monkeypatch.setattr(
+            vrp_history, "load_vol_index",
+            lambda sym: _vol_index_df(sym, dates, [18.0] * len(dates)),
+        )
+        monkeypatch.setattr(vrp_history, "_fetch_closes_yf", fake_fetch)
+
+        vrp_history.vrp_percentile("SPY")
+        expected_days = config.VRP_DEEP_LOOKBACK_SESSIONS + config.VRP_CLOSES_FETCH_BUFFER_DAYS
+        assert captured["period"] == f"{expected_days}d"
 
 
 class TestFailurePaths:

@@ -43,9 +43,15 @@ def _fmt_pct(val: float | None, signed: bool = True, dp: int = 1) -> str:
 
 
 def _fmt_skew(val: float | None) -> str:
+    """25Δ skew is put_iv - call_iv (vol_metrics.compute_skew_25d) -- spell out which side
+    is richer so the sign convention doesn't have to be memorized to read the card."""
     if val is None:
         return "—"
-    return f"{val:+.1f}pp"
+    if val > 0:
+        return f"{val:+.1f}pp, puts pricier"
+    if val < 0:
+        return f"{val:+.1f}pp, calls pricier"
+    return "+0.0pp, flat"
 
 
 def _fmt_hedge_shares(val: float | None) -> str:
@@ -149,20 +155,22 @@ def _fmt_vrp(vrp: float | None, vrp_pct: int | None, vrp_pct_n: int | None) -> s
     """VRP card value: scalar (vol points) + labeled percentile, with cold-start/fallback.
 
     Reads only precomputed values (no I/O). Cases:
-      - vrp/pct present, n >= lookback: '+2.7pp - Nth %ile - <lookback>-session lookback'
+      - vrp/pct present, n >= lookback: '+2.7pp - Nth %ile - <lookback>-session (~Nyr) lookback'
       - cold-start (n < lookback):      '+2.7pp - Nth %ile - <n> sessions (building to <lookback>)'
       - vrp or pct None:                'insufficient history'
-    Lookback comes from config.VRP_PERCENTILE_LOOKBACK, never hard-coded.
+    Lookback comes from config.VRP_DEEP_LOOKBACK_SESSIONS (~10yr), never hard-coded -- the
+    percentile is ranked against the vol-index's real depth, not a short recent-regime window.
     """
     if vrp is None:
         return "insufficient history"
-    lookback = config.VRP_PERCENTILE_LOOKBACK
+    lookback = config.VRP_DEEP_LOOKBACK_SESSIONS
     if vrp_pct is None:
         return f"{vrp:+.1f}pp · insufficient history"
     base = f"{vrp:+.1f}pp · {vrp_pct}th %ile"
     if vrp_pct_n is not None and vrp_pct_n < lookback:
         return f"{base} · {vrp_pct_n} sessions (building to {lookback})"
-    return f"{base} · {lookback}-session lookback"
+    years = round(lookback / 252)
+    return f"{base} · {lookback}-session (~{years}yr) lookback"
 
 
 def _fmt_term_ratios(r9d30: float | None, r30_3m: float | None) -> str:
@@ -257,7 +265,7 @@ def resolve_trust_tag(label: str, today_summary: dict | None = None) -> str:
         return "market"
     if label == "VRP":
         vrp_n = summary.get("vrp_pct_n") or 0
-        return "history" if vrp_n >= config.VRP_PERCENTILE_LOOKBACK else "building"
+        return "history" if vrp_n >= config.VRP_DEEP_LOOKBACK_SESSIONS else "building"
     if "raw OI" in label:
         return "oi"
     if label in {"Skew (25Δ)", "25Δ Fly"}:
