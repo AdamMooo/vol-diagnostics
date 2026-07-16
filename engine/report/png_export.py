@@ -40,5 +40,5 @@ def export_png(
     filename = f"{ticker.lower()}_{surface_type}_{date.strftime('%Y%m%d')}.png"
     png_path = out_dir / filename
 
-    fig.write_image(str(png_path), format="png")
+    fig.write_image(str(png_path), format="png", scale=config.KALEIDO_SCALE_FACTOR)
     return png_path
