@@ -35,6 +35,8 @@ class ChainSnapshot:
     chains: pd.DataFrame  # columns: expiry, strike, type, oi, iv, bid, ask
     iv30: float = 0.0            # CBOE 30-day implied vol for the underlying
     price_change_pct: float = 0.0  # underlying day % change
+    fetched_at: datetime.datetime | None = None  # real ET-aware wall-clock fetch time
+    filter_drop_pct: float | None = None  # OI-weighted % of non-0DTE chain OI dropped by quality filters
 
 
 def _parse_symbol(sym: str, ticker: str) -> tuple[datetime.date, str, float] | None:
@@ -73,6 +75,7 @@ def load_chain(
     resp = requests.get(url, headers=_HEADERS, timeout=30)
     resp.raise_for_status()
     payload = resp.json()
+    fetched_at = datetime.datetime.now(ET)
 
     data = payload["data"]
     spot = float(data.get("current_price") or 0.0)
@@ -88,6 +91,8 @@ def load_chain(
     today = today if today is not None else datetime.datetime.now(ET).date()
 
     rows: list[dict] = []
+    raw_oi_total = 0
+    kept_oi_total = 0
     for opt in data["options"]:
         parsed = _parse_symbol(opt["option"], ticker)
         if parsed is None:
@@ -101,8 +106,12 @@ def load_chain(
         oi = int(opt.get("open_interest") or 0)
         iv = float(opt.get("iv") or 0.0)
 
+        raw_oi_total += oi
+
         if oi < min_oi or iv <= 0 or iv > max_iv:
             continue
+
+        kept_oi_total += oi
 
         rows.append(
             {
@@ -120,6 +129,11 @@ def load_chain(
             }
         )
 
+    filter_drop_pct = (
+        (raw_oi_total - kept_oi_total) / raw_oi_total * 100 if raw_oi_total > 0 else None
+    )
+
     chains = pd.DataFrame(rows)
     return ChainSnapshot(ticker=ticker, spot=spot, as_of=today, chains=chains,
-                         iv30=iv30, price_change_pct=price_change_pct)
+                         iv30=iv30, price_change_pct=price_change_pct,
+                         fetched_at=fetched_at, filter_drop_pct=filter_drop_pct)

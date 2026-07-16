@@ -125,6 +125,9 @@ def compute_ticker(
     Returns:
         {
           "summary":        dict — net_gex, zero_gamma_level, call/put_wall, iv30, rv20, vrp, day %
+                            as_of: datetime.date — session date the snapshot is filed under
+                            fetched_at: datetime.datetime | None — real ET-aware CBOE fetch time
+                            filter_drop_pct: float | None — OI-weighted % of non-0DTE chain OI dropped by quality filters
           "s_df":           DataFrame — strike-level GEX
           "p_df":           DataFrame — gamma profile
           "spot":           float
@@ -183,6 +186,9 @@ def compute_ticker(
     summary["ticker"] = ticker
     summary["iv30"] = snapshot.iv30
     summary["price_change_pct"] = snapshot.price_change_pct
+    summary["as_of"] = snapshot.as_of
+    summary["fetched_at"] = snapshot.fetched_at
+    summary["filter_drop_pct"] = snapshot.filter_drop_pct
     summary["front_skew"] = front_skew
     summary["coverage_pct"] = surface_diag["coverage_pct"]
     summary["fit_rmse"] = surface_diag["fit_rmse"]
