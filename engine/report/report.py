@@ -285,6 +285,37 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
         f'</div>'
     )
 
+# ── Header block: snapshot timestamp + methodology caveat banner ──────
+
+def _snapshot_timestamp_line(r: dict) -> str:
+    """Plain, small, gray fact line — real fetch time + the two fixed freshness
+    facts (OI T-1, Greeks 15-min delayed). Omitted entirely when fetched_at is
+    unavailable (cold-start-safe) — never rendered as a placeholder."""
+    fetched_at = r.get("fetched_at")
+    if fetched_at is None:
+        return ""
+    ts = fetched_at.strftime("%Y-%m-%d %H:%M")
+    return (
+        f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};margin:0 0 10px;">'
+        f'Snapshot {ts} ET &middot; OI T-1 &middot; Greeks 15-min delayed</div>'
+    )
+
+
+def _methodology_caveat_banner() -> str:
+    """Static (never gated) framed block — visually distinct from the plain
+    timestamp line via a light tint + left accent bar, reusing the file's other
+    'framed block' vocabulary (the ticker-card accent bar)."""
+    amber = config.PALETTE["accent"]
+    return (
+        f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};'
+        f'background:#f1f5f9;border-left:3px solid {amber};'
+        f'padding:8px 12px;margin:0 0 16px;line-height:1.5;">'
+        f'<b>Methodology note:</b> Sign &amp; order of magnitude are load-bearing; '
+        f'absolute GEX is not — other sources publish very different numbers on the '
+        f'same chain.</div>'
+    )
+
+
 # ── Section header ────────────────────────────────────────────────────
 
 def _section_header(label: str) -> str:
@@ -485,6 +516,12 @@ def build_email(
         '</div>'
     )
 
+    # Header block: snapshot-freshness timestamp + methodology caveat banner
+    # (D-01, D-02) — inserted directly below the section header, above Evolution.
+    primary = next((r for r in index_results if not r.get("error")), None)
+    ts_line = _snapshot_timestamp_line(primary) if primary else ""
+    caveat_banner = _methodology_caveat_banner()
+
     # Evolution section — omitted entirely on cold start (D-10, D-11)
     evol_html = ""
     if evolution_data is not None:
@@ -513,6 +550,8 @@ def build_email(
       <tr><td>
 
   {_section_header("Index Vol Diagnostics &middot; " + f"{date.strftime('%B')} {date.day}, {date.year}")}
+  {ts_line}
+  {caveat_banner}
   {evol_html}
   {cards}
   {failed_note}
