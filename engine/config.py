@@ -207,6 +207,11 @@ Applied before every write_image() call so all attachments look consistent.
 eye=(1.5, -1.5, 0.8) gives a readable perspective: moderate elevation, slight
 front-right offset that shows both the skew gradient and the DTE term structure."""
 
+KALEIDO_SCALE_FACTOR: float = 2.0
+"""Resolution multiplier applied to every kaleido write_image() call so PNG
+attachments stay legible when pinch-zoomed on a phone, independent of the
+fixed display width set in report.py (D-06, 2026-07 email remodel)."""
+
 # ── Vol-index data layer ─────────────────────────────────────────────────────
 
 # Default CBOE vol-index symbols fetched by refresh_vol_indices(). VIX9D/VIX3M are SPY term-structure siblings; VXN/RVX are QQQ/IWM 30-day levels. Add symbols here — not in vol_index.py — per D-02.

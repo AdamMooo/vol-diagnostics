@@ -80,3 +80,14 @@ class TestExportPng:
         export_png(_make_fig(), "IWM", "surface", _DATE, out_dir=new_dir)
 
         assert new_dir.exists()
+
+    def test_export_png_applies_scale_factor(self, tmp_path: Path) -> None:
+        from engine import config
+        from engine.report.png_export import export_png
+
+        fig = _make_fig()
+        result = export_png(fig, "SPY", "surface", _DATE, out_dir=tmp_path)
+
+        fig.write_image.assert_called_once_with(
+            str(result), format="png", scale=config.KALEIDO_SCALE_FACTOR
+        )
