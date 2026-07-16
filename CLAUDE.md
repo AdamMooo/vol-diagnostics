@@ -1,5 +1,5 @@
 # CLAUDE — Gamma OMM — Vol Diagnostics Dashboard
-Last updated: 2026-06-21 | Status: active milestone v3.5 (Index Vol-Context Rebuild)
+Last updated: 2026-07-16 | Status: v4.0 Cloud Hosting complete (Oracle deploy + email remodel shipped); next milestone TBD — predictive/prescriptive options-writing model track under discussion
 
 ## Repo Card
 
@@ -10,7 +10,7 @@ Last updated: 2026-06-21 | Status: active milestone v3.5 (Index Vol-Context Rebu
   - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 358 green.
+- **Tests:** `pytest engine/tests` — 364 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -41,10 +41,10 @@ pytest engine/tests                     # 358 tests
 
 ## Constraints
 
-- **No predictive claims:** descriptive of current environment + historical analog only.
+- **No predictive claims (current dashboard/email surfaces only):** descriptive of current environment + historical analog only. A predictive/prescriptive modeling track is the intended next milestone (see project hub) — this constraint governs the existing diagnostics surfaces, not that future work.
 - **Interpretability first:** conditional base rates primary, no hidden scoring or weighting.
 - **Strategy menu:** covered call, cash-covered put, collar, short straddle. Dispersion out of scope.
-- **No new signals:** six signals + fragility composite locked until team validates current set.
+- **No new signals (dashboard/email surfaces):** six signals + fragility composite locked. Sole-owner project now (no external team gate) — the discipline that stays is self-imposed statistical validation (multiple-testing correction, out-of-sample checks) before any new signal ships, not organizational sign-off.
 - **Windows paths:** use pathlib or `os.path.join` throughout.
 - **No PDIV / HMM this phase:** locked per scope cap.
 - **CBOE vol-index term siblings (verified 2026-06-23):** CBOE publishes VIX9D and VIX3M (SPY term-structure siblings). No 9D/3M variants exist for VXN (QQQ) or RVX (IWM) — CDN returns 403 for those symbols. Term-structure ratios are SPY-only; QQQ/IWM gracefully degrade.
