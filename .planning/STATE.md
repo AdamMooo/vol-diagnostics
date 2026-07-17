@@ -2,144 +2,58 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Cloud Hosting
-status: Not started
-stopped_at: Phase 20.5 context gathered; Phases 21-22 completed out-of-sequence via ad-hoc work
-last_updated: "2026-07-14T17:00:00.000Z"
-last_activity: 2026-07-14 -- Phases 21+22 (Oracle deploy + HTTPS) completed ad-hoc
+status: shipped
+stopped_at: v4.0 milestone archived; v5.0 ("Data Foundation") scoping paused before version confirmation
+last_updated: "2026-07-17T01:02:03.248Z"
+last_activity: 2026-07-17 -- Milestone v4.0 completed and archived
 progress:
-  total_phases: 12
-  completed_phases: 10
-  total_plans: 20
-  completed_plans: 18
-  percent: 83
+  total_phases: 22
+  completed_phases: 22
+  total_plans: 24
+  completed_plans: 24
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-04)
+See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** v4.0 Cloud Hosting — Docker on Oracle Cloud Free Tier
+**Current focus:** Awaiting v5.0 scoping (Data Foundation milestone)
 
 ## Current Position
 
-Milestone: v4.0
-Phase: 20.5
-Plan: 01
-Status: Not started
-Last activity: 2026-06-25 -- Phase 20 committed
+Milestone: v4.0 — SHIPPED 2026-07-17
+Next: v5.0 — scoping in progress, not yet committed to ROADMAP.md/REQUIREMENTS.md
 
-Progress: [█████░░░░░] 50%
-
-## v3.5 Milestone Summary (SHIPPED 2026-06-24)
-
-All phases complete:
-
-- Phase 15: Vol-Index Data Layer ✅
-- Phase 16: VRP Percentile ✅
-- Phase 16.5: OI Depth Expansion ✅
-- Phase 17: Term-Structure Regime ✅
-- Phase 17.1: Convexity & Expected Move ✅
-- Phase 18.1: Dashboard Trust & Clarity Hardening ✅
-- Phase 18: 3-Page Reorg + Email Parity + Gating ✅
-
-## v4.0 Phases Remaining
-
-| Phase | Status | Notes |
-|-------|--------|-------|
-| 19. Dockerize | ✅ Complete | Dockerfile, compose, Caddy, SMTP emailer |
-| 20. Data Health + Collection Hardening | ✅ Complete | Idempotent run_daily, supercronic, health-check |
-| 21. Oracle Cloud Provision + Deploy | ✅ Complete | Deployed to E2.1.Micro (A1.Flex stayed capacity-constrained); live at 40.233.113.63 |
-| 22. HTTPS + Remote Access | ✅ Complete | nip.io + Let's Encrypt (bare IP can't get a cert directly); https://40.233.113.63.nip.io |
-
-## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 35 (v3.1 ×3, v3.2 ×6, v3.3 ×12, phases 8–11) + 4 (v3.4 phases 12–13) + 13 (v3.5 phases 15–18) + 1 (v4.0 phase 19)
-- Average duration: ~7 min per plan
-- Current test count: 344
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 5. UAT Sign-Off & Cleanup | 3 | ~21 min | ~7 min |
-| 6. Whole-Chain Computation Engine | 4 | ~35 min | ~9 min |
-| 7. Institutional Dashboard Rendering | 2 | ~4 min | ~2 min |
-| 9. Surface Evolution Engine | 3 | - | - |
-| 10. Dashboard Restructure | 2 | - | - |
-| 11. Richer Daily Report | 4 | - | - |
-| Phase 12-canonical-card P01 | 15 min | 2 tasks | 4 files |
-| Phase 12-canonical-card P02 | 10 min | 2 tasks | 2 files |
-| Phase 12-canonical-card P03 | 10 min | 2 tasks | 2 files |
-| 13 | 1 | - | - |
-| 15 | 2 | - | - |
-| 16-vrp-percentile P01 | ~2 min | 2 tasks | 3 files |
-| 16-vrp-percentile P02 | ~12 min | 2 tasks | 4 files |
-| 16.5 | 3 | - | - |
-| Phase 17.1-convexity-expected-move P01 | 6 | 2 tasks | 7 files |
-| Phase 17.1 P02 | 38min | 2 tasks | 6 files |
-| Phase 18.1 P01 | 1380 | 2 tasks | 6 files |
-| Phase 18.1 P02 | 26min | 2 tasks | 8 files |
-| Phase 17 P01 | 12min | 5 tasks | 5 files |
+Progress: [██████████] 100% (v4.0 complete)
 
 ## Accumulated Context
 
-### Roadmap Evolution
+### Decisions (carried forward, still load-bearing)
 
-- Phase 18.1 inserted after Phase 18: Dashboard Trust and Clarity Hardening (URGENT)
-- Phase 20.5 inserted after Phase 20: Email Remodel -- full content + visual rebuild of the daily HTML email, inserted ahead of Phase 21 since Oracle deploy is blocked on capacity (URGENT)
+- 2026-07-16: VRP percentile ranks against ~10yr (`config.VRP_DEEP_LOOKBACK_SESSIONS`, 2500 sessions) instead of a rolling 252-session (~1yr) window — a short window can only say "cheap vs. a possibly-already-elevated recent regime"; CBOE vol-index actually holds decades of history.
+- 2026-07-16: Skew (25Δ) card field states direction explicitly ("puts pricier"/"calls pricier"/"flat") instead of a bare signed number.
+- 2026-07-16: CLAUDE.md's "locked until team validates" language dropped (no external team left, sole-owner + public) — self-imposed statistical-validation discipline kept.
+- 2026-07-14: Daily scheduler moved from an Oracle-hosted container to GitHub Actions after the Oracle Micro instance's first live cron fire hung mid-PNG-export (1 vCPU/1GB couldn't run headless Chromium reliably). Oracle now only runs `dashboard` + `caddy`; GitHub Actions rsyncs `out/` down/up around each run.
+- 2026-07-14: Deployed to Oracle E2.1.Micro (AMD64) rather than A1.Flex ARM — Toronto capacity stayed constrained; A1 retry loop left running in background in case it frees up.
+- 2026-05-16: v5.0 milestone scoped as "Data Foundation" (hardening collection/retention) rather than jumping straight to the options-writing/pricing model — user's own sequencing.
 
-### Decisions
-
-- 2026-07-14: Phases 21+22 completed out-of-sequence, ahead of Phase 20.5 (Email Remodel, still not started) — Oracle deploy was no longer capacity-blocked once the E2.1.Micro fallback shape was used, so it made sense to do it now rather than wait. Full stack (dashboard/scheduler/caddy) live at https://40.233.113.63.nip.io. Along the way: fixed kaleido PNG export needing native chromium on Linux (Chrome-for-Testing has no linux-arm64 build), fixed supercronic's PID-1 reaper crash-looping on Oracle's kernel (`-no-reap`), dropped 5 dead deps, and shipped two real dashboard perf fixes (rate/VVIX dedup + skip never-displayed cv_rmse cross-validation) cutting a 3-ticker load from ~36s to ~11s. Toronto A1.Flex retry loop left running in the background in case the bigger free ARM shape frees up later.
-- 2026-06-24: Phase 18-01 — Top-level dashboard routing is locked to Regime / Surfaces / Positioning; Evolution is nested under Surfaces.
-- 2026-06-24: Phase 18-01 — Page-1 hierarchy is cross-index briefing + short OI teaser above default three-card snapshot.
-- 2026-06-24: Phase 18-01 — Full OI/GEX mechanics remain on Positioning and heavy pages use single-ticker radios.
-- 2026-06-16: Phase 16-02 — Displayed VRP scalar switched from snapshot.iv30 − RV20 to vol_index − RV20 (LOCKED CONTEXT); scalar + percentile share one series and cannot drift. vrp_pct/vrp_pct_n precomputed in compute_ticker; build_card_fields stays I/O-free. One VRP CardField (index 8, after Skew) reaches both email and dashboard via the PAR-01 seam. _fetch_spot_history_yf widened 35d→400d.
-- 2026-06-16: Phase 16-01 — VRP percentile built from one vol-index-based series (`vol_index − RV20×100`, vol points); snapshot-IV30 `vrp` column never enters the history (VRP-03). `percentileofscore(kind="rank")` for uniformity with the skew percentile. Cold-start returns actual count n; failure paths return None-dict, never raise. Engine isolated in `gex/vrp_history.py` so 16-02 only wires it.
-- 2026-06-04: v3.5 roadmap — 4 phases (15–18). VIDX data layer first (foundation); VRP percentile and term-structure regime are separate phases (distinct deliverables, both depend on VIDX); 3-page reorg + email parity + gating last (presentation layer, depends on both metrics). GATE-01/02 folded into Phase 18 (display-layer safety net for the same page-1 reorg).
-- 2026-06-01: v3.4 1d-change framing — the 1-day ΔIV surface in the email is a DESCRIPTIVE daily glance, NOT a signal in the evolution engine. Does not reverse the 2026-05-30 "no 1d in evolution horizons" decision. Resolved via `nth_trading_day_back(ticker, today, 1)`.
-- 2026-06-01: Scheduler IS firing — Task Scheduler "GEX Daily Report" runs weekdays 4:30pm ET. SETUP FLAW: `DisallowStartIfOnBatteries=True` caused silent skips on battery. Fix: elevated PowerShell set both battery flags false + RestartCount=2/PT5M. RESOLVED 2026-06-01 (Adam ran it).
-- 2026-05-30: ΔIV horizons locked {5,10,20}; 1-day excluded from evolution engine.
-- 2026-05-30: Coverage mask = convex hull (not kNN) — parameter-free, 92%+ coverage.
-- [Phase ?]: CardField + build_card_fields() is single source of truth for card fields; both renderers iterate the list
-- [Phase ?]: iv30 already in _FLOAT_COLS/save_snapshot — no schema change; load_prior_snapshot was the missing piece
-- [Phase ?]: _wall_value in card_model.py is renderer-agnostic plain text; report.py adds HTML span in plan 02
-- [Phase ?]: _ticker_card() delegates field construction to build_card_fields(); no local field logic remains in report.py
-- [Phase ?]: render_regime_card delegates field construction to build_card_fields(); no local field logic remains in streamlit_app
-- [Phase ?]: patch target for load_prior_snapshot in dashboard tests is streamlit_app.load_prior_snapshot — from-import creates a direct reference
-- [Phase ?]: 17.1-01: Model-free expected move uses CBOE variance with invalid-mid and >=3-strike guard.
-- [Phase ?]: 17.1-01: Butterfly computed from same-expiry front skew put/call/atm inputs.
-- [Phase ?]: 17.1-01: Butterfly percentile uses rank method and is suppressed below 10 sessions while exposing n.
-- [Phase ?]: 17.1-02: OI impact language unified across dashboard/email using pct_of_total and put_call_ratio.
-- [Phase 17.1]: IV30 / EM now renders precomputed expected_move_pct with by-date DTE context.
-- [Phase 17.1]: 25Δ Fly added after skew with percentile/count-aware cold-start labeling.
-- [Phase 17.1]: OI impact language unified across dashboard/email using pct_of_total and put_call_ratio only.
-- [Phase 18.1]: CardField trust_tag and split_compact_fields are the canonical renderer contract for compact scorecards.
-- [Phase 18.1]: VRP trust framing is explicit and sample-aware: building before lookback, history at lookback.
-- [Phase 18.1]: Primary dealer-impact framing centralized as GEX_PRIMARY_DTE=14 and emitted via compute summary keys.
-- [Phase 18.1]: OI interpretation remains table-first with 5d share context shown in dashboard/email when history exists.
-- [Phase 17]: VIX term ratios (VIX9D/VIX, VIX/VIX3M) SPY-only; CBOE does not publish 9D/3M for VXN or RVX. Field conditionally emitted — omitted entirely for QQQ/IWM.
+Full decision history (v3.0–v4.0): `.planning/PROJECT.md` Strategic Decisions table + `.planning/milestones/v4.0-ROADMAP.md`.
 
 ### Pending Todos
 
-- None. (Phase 14 was superseded by Phase 18 per the 2026-06-04 roadmap — GATE-01/02 carried forward; it is NOT incomplete work and does not block Phase 15.)
+- None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).
 
 ### Blockers/Concerns
 
-Punch list from the 2026-07-14 Oracle deploy, none blocking but all real:
-- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed in run_daily.py's PNG attachment builders — see below — but export_png() itself is still silent at the single-image level.)
-- `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (leftover from before GEX got demoted to a secondary metric) — low priority since the task itself is now retired, script only kept for reference.
+None blocking. Carried-forward known debt (see Deferred Items):
 
-**Resolved 2026-07-16**: password gate removed entirely (`_check_password()` deleted from `app.py`, `PASSWORD` dropped from `.env`/`.env.example`) — dashboard is intentionally public now that it's headed to the user's personal website; no dedicated-password follow-up needed.
-
-**Resolved same day**: local Windows Task Scheduler "GEX Daily Report" job retired (unregistered via admin PowerShell) now that GitHub Actions is the sole scheduler. Added `scripts/sync-from-oracle.ps1` so local dev can pull a fresh copy of Oracle's data (the actual source of truth) on demand — nothing local collects data anymore, so it goes stale between syncs by design.
-
-**Architecture change, same day**: the daily scheduler moved from an Oracle-hosted container to GitHub Actions (`.github/workflows/daily-report.yml`) after the Oracle Micro instance's first live cron fire hung mid-PNG-export (1 vCPU/1GB couldn't run headless Chromium reliably). Oracle now only runs `dashboard` + `caddy`; GitHub Actions rsyncs `out/` down before each run and back up after, keeping Oracle's disk as the one source of truth (data was deliberately kept out of git). Verified working end-to-end via 6 manual test-trigger iterations, each surfacing a real bug: rsync missing on the GH runner, rsync missing on Oracle, root-owned parquet files unreadable by the `ubuntu` SSH user (fixed with `--rsync-path="sudo rsync"`), a flaky `ssh-keyscan` causing intermittent host-key failures (replaced with an SSH config entry), and an empty `SMTP_PASS` GitHub secret from a failed interactive paste (re-set with `--body`). First fully green run: `29369841431`.
+- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed one layer up in `run_daily.py`'s PNG attachment builders.)
+- `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (script retired, kept for reference only).
+- `out/` parquet stores live only on the Oracle server, no backup anywhere — flagged as a candidate v5.0 phase.
 
 ### Quick Tasks Completed
 
@@ -156,23 +70,29 @@ Punch list from the 2026-07-14 Oracle deploy, none blocking but all real:
 | v3.x | Large OI blocks expiring soon | Needs parameter-free design (no hand-tuned cutoff) | 2026-06-01 |
 | backlog | 999.1 Charm by DTE | Parked; awaiting research | 2026-05-12 |
 
+Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4.0; none blocked the close):
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 16.5 (16.5-HUMAN-UAT.md) | partial — 3 pending scenarios |
+| verification_gap | Phase 11 (11-VERIFICATION.md) | human_needed |
+| verification_gap | Phase 16.5 (16.5-VERIFICATION.md) | human_needed |
+| quick_task | 260514-fz2-dead-code-stale-ref-sweep | missing |
+| quick_task | 260621-v8g-ui-pass-2-polish-unify-axis-k-s-labels-f | missing |
+| todo | 2026-05-11-salvaged-from-legacy-task-board.md | pending |
+| todo | 2026-05-11-v3-2-pre-distribution-hardening.md | pending |
+| seed | SEED-001-short-end-gamma-concentration | dormant |
+
 ## Session Continuity
 
-Last session: 2026-07-14T17:00:00.000Z
-Stopped at: Phase 21+22 completed ad-hoc (Oracle deploy live); Phase 20.5 still context-gathered only, not planned/executed
-Resume queue: (1) **Phase 20.5: Email Remodel** — `/gsd:plan-phase 20.5` (context already gathered). (2) Punch list from today's deploy — see Blockers/Concerns above.
+Last session: 2026-07-17T01:02:03.248Z
+Stopped at: v4.0 milestone archived (roadmap + requirements archived to `.planning/milestones/v4.0-*`, PROJECT.md evolution review done, MILESTONES.md entry written).
+Resume queue: Continue `/gsd:new-milestone` from Step 3 (suggest v5.0, confirm with Adam) — scope already agreed: "Data Foundation" (data completeness audit, `out/` retention/backup, model-ready data schema definition), modeling deferred to a later milestone.
 
----
----
----
----
----
----
----
----
----
----
----
+## Operator Next Steps
+
+- Run `/gsd:new-milestone` to scope and commit v5.0 (Data Foundation).
+
 ---
 <!-- LINKS:AUTO -->
 ## Related

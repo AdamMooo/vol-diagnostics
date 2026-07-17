@@ -53,27 +53,24 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-16 17:58 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-17 01:05 UTC
 
-**Milestone:** v4.0 · **Status:** Not started · **STATE last_updated:** 2026-07-14T17:00:00.000Z
-
-### Current Position
-- **Phase:** 20.5
-- **Plan:** 01
-- **Status:** Not started
-- **Last activity:** 2026-06-25 -- Phase 20 committed
+**Milestone:** v4.0 · **Status:** shipped · **STATE last_updated:** 2026-07-17T01:02:03.248Z
 
 ### Pending Todos
-- None. (Phase 14 was superseded by Phase 18 per the 2026-06-04 roadmap — GATE-01/02 carried forward; it is NOT incomplete work and does not block Phase 15.)
+- None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).
 
 ### Blockers
-- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed in run_daily.py's PNG attachment builders — see below — but export_png() itself is still silent at the single-image level.)
-- `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (leftover from before GEX got demoted to a secondary metric) — low priority since the task itself is now retired, script only kept for reference.
+- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed one layer up in `run_daily.py`'s PNG attachment builders.)
+- `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (script retired, kept for reference only).
+- `out/` parquet stores live only on the Oracle server, no backup anywhere — flagged as a candidate v5.0 phase.
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
 
 ### Operator notes (handwritten — survives hub-sync)
+
+**Re-entry (2026-07-16).** Phase 20.5 (Email Remodel) executed end-to-end — 4 plans, Wave 1 parallel in worktrees, real dry-run email opened in-browser and visually approved. **v4.0 Cloud Hosting is now functionally complete** (19/20/20.5/21/22 all done) but never formally shipped via `/gsd:complete-milestone` — no `MILESTONES.md` entry, phase dirs not archived; open question for next session. Mid-session, a genuine content-clarity catch: "premium cheap" on the VRP chip had no stated comparison basis. Investigation found the claim in this file ("VRP percentile is deep") wasn't actually true — `vrp_history.py`'s RV20 alignment was hardcoded to a 400-day yfinance fetch, capping the usable percentile window to ~1.5yr despite CBOE vol-index data running back to 1990 (VIX) / 2009 (VXN, RVX). Fixed: widened to a real ~10yr window (`config.VRP_DEEP_LOOKBACK_SESSIONS = 2500` + a 40-day fetch buffer to clear RV20 warmup/calendar slack — commit `9f6f920`). Also made the Skew (25Δ) card field state direction explicitly ("puts pricier"/"calls pricier"/"flat") instead of a bare signed number, since `put_iv - call_iv`'s sign isn't self-evident. 7 new tests, suite still green (364). Separately dropped the stale "locked until team validates" governance line from this file's Constraints section (commit `786ce92`) — the dashboard is sole-owner/public now (password gate removed, Oracle-hosted), so there's no team to validate against; kept the actual statistical-validation discipline since that risk doesn't go away with ownership. That conversation escalated into scoping a **v5.0 "Data Foundation" milestone** via `/gsd:new-milestone` (harden data collection/retention — `out/` currently lives ONLY on the Oracle server, no backup — before attempting the options-writing/pricing model Adam actually wants). Scoping confirmed (data-foundation-only, modeling deferred) but paused before writing PROJECT.md/REQUIREMENTS.md/ROADMAP.md at Adam's request. Resume via `.planning/.continue-here.md`.
 
 **Re-entry (2026-07-15).** Ad-hoc low-hanging-fruit pass, punch list from the 2026-07-14 deploy (`7c0c06f`, suite green 358): (1) dashboard auth now fails closed — moved off `st.secrets` to `.env`-sourced `PASSWORD` via `python-dotenv`, blocks access if unset instead of opening it, and swapped `==` for `secrets.compare_digest`; local `.env` needed a `PASSWORD` added or this would've locked out local dev too. (2) `png_export.export_png()` now raises on failure instead of swallowing every exception into a `print()`+`None` — callers (`run_daily.py`'s two PNG builders) already wrap each export in their own try/except and track failed tickers, so the internal swallow was a redundant, less-visible duplicate layer; updated its two tests to assert raise instead of None+stdout. (3) Renamed the retired `gex_daily.ps1` task "GEX Daily Report" → "Index Vol Diagnostics Daily Report" — stale name, script is reference-only now. **Not yet done:** dedicated (non-personal) PASSWORD value on the Oracle server itself — the local `.env` fix doesn't touch that; still needs a `ssh`+`.env` edit on the box next time you're deploying.
 

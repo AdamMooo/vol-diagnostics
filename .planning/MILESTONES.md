@@ -1,5 +1,36 @@
 # Milestones — Options Quant
 
+## v4.0 Cloud Hosting (Shipped: 2026-07-17)
+
+**Phases:** 19, 20, 20.5, 21, 22 | **Plans:** 4 formal (Phase 20.5) + 4 ad-hoc phases (19, 20, 21, 22 executed directly, no formal plan docs)
+
+### Delivered
+
+Took the dashboard + daily email off a local laptop and onto the public internet, running unattended. Containerized the full stack, hardened daily data collection to survive restarts and double-fires, rebuilt the email end-to-end (content and mobile-safe design), and deployed live to Oracle Cloud's Always Free tier with real HTTPS.
+
+### Key Accomplishments
+
+1. Dockerized the full stack — Dockerfile, docker-compose (dashboard + scheduler + Caddy), volume-mounted parquet, SMTP emailer fallback
+2. Idempotent `run_daily` + supercronic scheduler + health-check script — safe to double-fire, verifies last-snapshot date per ticker
+3. Email rebuilt end-to-end — snapshot-freshness timestamp, methodology caveat banner, mobile-safe 390px width, filter-drop disclosure, higher-res PNG exports — verified via a real dry-run send
+4. Deployed live to Oracle Cloud (E2.1.Micro, Always Free) at `https://40.233.113.63.nip.io` with a real Let's Encrypt cert via nip.io (A1.Flex ARM stayed capacity-constrained; retry loop left running in background)
+5. Daily scheduler moved from an Oracle-hosted container to GitHub Actions after the Micro instance's first live cron fire hung mid-PNG-export (1 vCPU/1GB couldn't run headless Chromium reliably) — Oracle now just serves the dashboard + Caddy, GitHub Actions rsyncs `out/` down/up around each run
+6. Password gate removed — dashboard made intentionally public ahead of linking it from a personal site
+7. Ad-hoc fix along the way: VRP percentile widened from a rolling 1yr window to a real ~10yr lookback against CBOE's actual vol-index depth; skew field made directional
+
+### Stats
+
+- Timeline: 2026-06-24 → 2026-07-16 (22 days)
+- ~60 commits, 76 files changed, +4510/−1203 lines
+- Test count: 344 → 364
+
+### Known Deferred Items at Close (8 — see STATE.md Deferred Items)
+
+- Phase 16.5 UAT: 3 pending human scenarios; Phase 11 & 16.5 verification: human_needed
+- 2 stale quick-tasks, 2 pending todos, 1 dormant seed (SEED-001) — all pre-date v4.0
+
+---
+
 ## v3.5 — Index Vol-Context Rebuild
 
 **Shipped:** 2026-06-24
@@ -111,5 +142,5 @@ HMM GMM diagnostic on SPX. Pivoted because it never touched options-pricing data
 ---
 <!-- LINKS:AUTO -->
 ## Related
-**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[_planning/vol-diagnostics/STATE|STATE]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->

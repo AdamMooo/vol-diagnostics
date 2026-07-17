@@ -1,32 +1,20 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-06-04 — Milestone v3.5 started. Re-aim at the index income-sleeve PM: VRP percentile + VIX term-structure regime lead, 3-page reorg, email-parity snapshot. v3.4 superseded mid-flight (Phase 14 intent folded into v3.5).*
+*Last updated: 2026-07-17 — v4.0 Cloud Hosting shipped. v5.0 ("Data Foundation") scoping in progress.*
 
-## Current Milestone: v3.5 — Index Vol-Context Rebuild
+## Current State
 
-**Goal:** Re-aim the dashboard at the index income-sleeve PM — lead with the two metrics that actually change an option-writing decision (VRP percentile, VIX term-structure regime), and reorganize surfaces + GEX beneath them.
+**v4.0 Cloud Hosting shipped 2026-07-17.** The dashboard and daily email run unattended, hosted on Oracle Cloud (Always Free tier) at `https://40.233.113.63.nip.io`, with the data-collection scheduler on GitHub Actions. Password gate removed — dashboard is now intentionally public ahead of being linked from the user's personal site. Full detail: `.planning/milestones/v4.0-ROADMAP.md`.
 
-**Audience & trust line:** The discretionary user is a covered-call / put-write income PM writing **index overlays (SPY/QQQ/IWM, US-listed)**. VIX/VXN/RVX are the gold-standard free implied-vol history → percentile context is trustworthy here. Deliberately NOT extended to single names (no free historical IV; PMs use Bloomberg live for those). Index-overlay decision, full stop.
-
-**Target features:**
-- CBOE vol-index data layer — fetch + cache VIX/VXN/RVX (+ VIX9D/VIX3M) free historical CSVs; mirrors `data_loader` pattern, Bloomberg-swap-friendly
-- VRP percentile — historical VRP series (vol-index − RV20) ranked via `percentileofscore`; "premium is Nth-percentile rich"
-- VIX term-structure regime — VIX9D/VIX/VIX3M contango vs backwardation; raw ratio + percentile, no hidden scoring (interpretability rule)
-- 3-page reorg — page 1: VRP + term structure + simplified snapshot; page 2: surfaces; page 3: GEX. Nothing deleted, demoted
-- Email parity — page-1 snapshot renders numbers identical to the daily email (extend the Phase 12 canonical card)
-- Accumulation gating (from v3.4 Phase 14) — history-dependent UI behind session-count guards; cold-start safe
-
-**Data:** all free — CBOE vol-index CSVs (`cdn.cboe.com/api/global/us_indices/daily_prices/{SYM}_History.csv`) + yfinance underlying closes (RV20, already wired). No vendor, no Bloomberg.
-
-**Deferred (not in scope):** single-name VRP/percentile (no free IV history); put/call ratios, VVIX, cross-asset vol indices (noise for this user); conditional base-rate framework (v2.x track, pairs with VRP later).
+**Next milestone: v5.0 — Data Foundation** (not yet scoped into ROADMAP.md/REQUIREMENTS.md). Goal, per the user: harden data collection/retention *before* building the eventual options-writing/pricing model. Candidate phases discussed so far (session 2026-07-16, not yet committed): (1) data completeness audit + gap monitoring, (2) retention/backup for `out/` — currently lives ONLY on the Oracle server, no backup anywhere, (3) define what "model-ready" data looks like (schema, depth targets per series) so a later modeling milestone has a clear bar to build against. Resume via `/gsd:new-milestone`.
 
 ## What This Is
 
-A dealer gamma exposure (GEX) analysis platform. Computes dealer positioning across SPY/QQQ/IWM from live options chains (CBOE delayed quotes JSON — no API key), identifies gamma regime (positive/negative/neutral), locates structural levels (zero-gamma, call wall, put wall), and delivers daily context via both a scheduled HTML email and an interactive Streamlit dashboard.
+A vol/dealer-gamma diagnostics platform for an index income-sleeve PM (covered calls / cash-secured puts on SPY/QQQ/IWM). Computes VRP percentile (ranked against ~10yr of CBOE vol-index history), VIX term-structure, dealer positioning (GEX, capped ≤90 DTE) from live options chains (CBOE delayed quotes JSON — no API key), and delivers daily context via a scheduled HTML email and an interactive Streamlit dashboard, both cloud-hosted and running unattended.
 
 ## Core Value
 
-Given today's dealer positioning across SPY/QQQ/IWM — should a PM pay up for protection right now, and is the dealer-driven vol environment suppressing or amplifying moves? Actionable positioning context, not mathematical showcase.
+How expensive is protection right now, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves? Descriptive/interpretive only — no predictive claims (that's the deferred options-writing/pricing model track).
 
 ## Runtime & Stack
 
@@ -104,25 +92,37 @@ Given today's dealer positioning across SPY/QQQ/IWM — should a PM pay up for p
 - ✓ Carry/VRP block, 25Δ RR-history chart, and strike-GEX bar charts removed; Positioning tab is OI-led (`plot_oi_by_strike` with real call/put OI from `strike_oi`, gamma profile demoted to expander) — Phase 10
 - ✓ Headless `vrp_headline` / `evolution_5d_summary` / `positioning_levels` in `gex/vol_metrics.py` as Phase 11 email plug-in points — Phase 10
 
-### Active (v3.2 Phase 7)
+### Validated / Implemented (v3.5 Phases 15–18, 16.5, 17.1, 18.1 — shipped 2026-06-24)
 
-- [ ] NARR-01 — Positioning narrative (always-visible mechanical explanation of GEX sign)
-- [ ] NARR-02 — GEX percentile rank vs trailing history
-- [ ] CTX-01 — VRP display (IV30 − RV20) with hedging cost interpretation — computation done (Phase 6), rendering pending
-- [ ] CTX-02 — OI tilt (dollar-weighted put vs call OI)
-- [ ] CTX-03 — Front skew gauge with percentile rank
-- [ ] CUT-02 — Demote vol surface to collapsed/optional section
-- [ ] SURF-UX — Vol surface labels + grid interpolation cosmetic fix (user reported: too symmetric, labels unclear)
+- ✓ CTX-01 — VRP display superseded by VRP percentile (vol-index − RV20, ranked vs history) — Phase 16, deepened to ~10yr lookback ad-hoc 2026-07-16
+- ✓ CTX-02 — OI tilt → richer OI depth expansion (expiry concentration, day-over-day change, put/call split, top-decile flagging) — Phase 16.5
+- ✓ CTX-03 — Front skew gauge with percentile rank; directional labeling ("puts pricier"/"calls pricier") added ad-hoc 2026-07-16 — Phase 16/18.1
+- ✓ NARR-01/02 superseded by term-structure regime (VIX9D/VIX/VIX3M raw ratios) + convexity/expected-move (25Δ fly, ATM straddle EM) — Phases 17, 17.1
+- ✓ CUT-02 — 3-page reorg (Regime/Surfaces/Positioning); vol surface demoted off page 1 — Phase 18
+- ✓ SURF-UX — addressed via convex-hull coverage mask (honest NaN holes) — Phase 8/18
+- ✓ Dashboard/email trust hardening — compact trust-tagged scorecards, 14-DTE primary dealer-impact framing — Phase 18.1
+
+### Validated / Implemented (v4.0 Phases 19–22, 20.5 — shipped 2026-07-17)
+
+- ✓ Dockerized full stack — Dockerfile, docker-compose (dashboard + scheduler + Caddy), volume-mounted parquet — Phase 19
+- ✓ Idempotent daily collection — supercronic scheduler, health-check script — Phase 20
+- ✓ Email rebuilt end-to-end — content priority order, mobile-safe 390px layout, snapshot-freshness + methodology disclosure — Phase 20.5
+- ✓ Deployed live to Oracle Cloud (E2.1.Micro, Always Free) with real HTTPS via nip.io + Let's Encrypt — Phases 21–22
+- ✓ Daily scheduler moved to GitHub Actions after an Oracle chromium/PNG-export hang — ad-hoc, same milestone
+- ✓ Password gate removed — dashboard made intentionally public — ad-hoc 2026-07-16
+
+### Active
+
+- (none — v5.0 "Data Foundation" scoping in progress, not yet written to REQUIREMENTS.md)
 
 ### Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Bloomberg data swap | One-class change in data_loader.py — deferred to v4.x |
+| Bloomberg data swap | One-class change in data_loader.py — still deferred post-v4.0 |
 | Vomma / second-order vol Greeks | Less PM-readable than vanna |
-| New GEX signals / predictive scoring | Holm-Bonferroni bar is high |
+| New GEX signals / predictive scoring | Holm-Bonferroni-equivalent statistical-validation bar stays high even sole-owner |
 | Sleeve allocation framework (v2.x) | Separate track |
-| Automated Task Scheduler / Streamlit autostart | After PM desk validates dashboard |
 | Live intraday refresh | CBOE CDN is delayed — real-time needs paid feed |
 | Dispersion / implied-correlation | Out of scope |
 | Live execution / order routing | Research tool only |
@@ -144,16 +144,24 @@ Given today's dealer positioning across SPY/QQQ/IWM — should a PM pay up for p
 | 2026-05-05 | New milestone v3.0 — GEX Interactive Dashboard | GEX POC is production-grade; direction is depth (Greeks, flow, dashboard) not more signals |
 | 2026-05-11 | Expected-1d-sigma display (from IV30) | Answers "how much might this move today?" without eyeballing gamma charts |
 | 2026-05-11 | Single max-strike walls (not GEX-weighted cluster) | Empirically observable; no arbitrary band parameters |
+| 2026-06-16 | VRP scalar + percentile share one vol-index-based series (never snapshot IV30) | Prevents the displayed VRP number and its percentile rank from ever drifting apart |
+| 2026-06-23 | 14-DTE primary dealer-impact framing (GEX_PRIMARY_DTE), ≤90 DTE context kept | Most dealer-relevant tenor as the headline, full window still visible |
+| 2026-06-24 | Dashboard routing locked to Regime / Surfaces / Positioning | Page-1 hierarchy: cross-index briefing + OI teaser above the 3-card snapshot |
+| 2026-07-14 | Daily scheduler moved from an Oracle container to GitHub Actions | Oracle Micro (1 vCPU/1GB) couldn't run headless Chromium for PNG export reliably; Oracle now only serves dashboard + Caddy |
+| 2026-07-16 | VRP percentile ranked against ~10yr (`VRP_DEEP_LOOKBACK_SESSIONS`), not a rolling 1yr window | A short window can only say "cheap vs. a possibly-already-elevated recent regime" — CBOE vol-index actually holds decades of history |
+| 2026-07-16 | CLAUDE.md's "locked until team validates" language dropped; self-imposed statistical-validation discipline kept | No external team left to validate against post password-gate removal + Oracle deploy — still sole-owner, still no unvalidated signals |
 
 ## Known Open Items
 
 | Item | Description | Status | Next Action |
 |------|-------------|--------|---|
-| Phase 6 (Charm by DTE) | Pending — ready to plan/execute | Blocked on Phase 5 complete ✅ + refactor sign-off | Plan Phase 6 |
-| Phase 7 (Test coverage) | Pending — 24 current tests; target ~35–40 | Blocked on Phase 6 complete | Plan Phase 7 |
-| Phase 8 (Pre-Dist Hardening) | Partial out-of-phase (2026-05-11); ~2 requirements remain (timestamp, filter-drop) | In progress | Integrate out-of-phase work; complete DIST-01 + DIST-04 |
-| American-style BS for IWM | IWM uses European model — acknowledged with expected early exercise risk signal | Acceptable for POC | Revisit in v4.x if PM feedback warrants |
-| NDX skew identity | NDX/SPX share same CBOE SKEW signal in sleeve framework | v2.x track — not blocking | Defer to v2.x roadmap |
+| Charm by DTE | Backlog 999.1 | Parked | Awaiting validated methodology |
+| Test coverage expansion | Backlog 999.2 | Depends on 999.1 | — |
+| Pre-distribution hardening | Backlog 999.3 | ~50% done out-of-phase, ~50% deferred | — |
+| American-style BS for IWM | IWM uses European model — acknowledged early-exercise risk | Acceptable, unresolved | Revisit if it matters for a future modeling milestone |
+| `engine/report/png_export.py` silent export failures | Swallows failures into a `print()` warning, returns None | Known debt (2026-07-14 punch list) | Low priority — partial-failure visibility already fixed one layer up in `run_daily.py` |
+| Phase 16.5 UAT/verification gaps | 3 pending human scenarios; Phase 11 & 16.5 also flagged human_needed | Acknowledged at v4.0 close, deferred | See STATE.md Deferred Items |
+| `out/` has no backup | Lives only on the Oracle server | Real risk flagged for v5.0 | Candidate v5.0 phase |
 
 ## Evolution
 
@@ -166,6 +174,15 @@ Given today's dealer positioning across SPY/QQQ/IWM — should a PM pay up for p
 ---
 
 ## Previous Milestones
+
+### v4.0 — Cloud Hosting (shipped 2026-07-17)
+Containerized the full stack, hardened daily collection (idempotent + supercronic + health-check), rebuilt the email end-to-end (content + mobile-safe design), and deployed live to Oracle Cloud (Always Free E2.1.Micro) with real HTTPS. Scheduler later moved to GitHub Actions after an Oracle chromium hang. Password gate removed — dashboard now public. 5 phases (19, 20, 20.5, 21, 22), ~60 commits, 22 days. Full detail: `.planning/milestones/v4.0-ROADMAP.md`.
+
+### v3.5 — Index Vol-Context Rebuild (shipped 2026-06-24)
+Re-aimed the dashboard at the index income-sleeve PM: VRP percentile (vol-index − RV20, ranked vs history), VIX term-structure regime (SPY-only per CBOE), model-free expected move + 25Δ butterfly, richer OI depth analytics, trust-tagged compact scorecards, full 3-page reorg (Regime/Surfaces/Positioning). 8 phases (15–18 plus 16.5/17.1/18.1 inserts), 344 tests. Full detail: `.planning/milestones/v3.5-ROADMAP.md` (if archived) or ROADMAP.md phase history.
+
+### v3.4 — Email-First Daily Report Polish (shipped 2026-06-02, Phase 14 superseded mid-flight)
+Canonical card shared by email + dashboard (single source of truth for card fields); 1-day ΔIV email PNGs replacing static surface images. Accumulation-gating intent (Phase 14) carried forward into v3.5 Phase 18 rather than executed standalone.
 
 ### v3.3 — Surface Evolution & Daily Intelligence (shipped 2026-06-01)
 Foundation-first surface validation: convex-hull coverage mask as the single source of truth (honest NaN holes), fit residuals. Surface evolution engine — ΔIV decomposed into level/rms/skew/term over 5/10/20 trading-day horizons, persisted daily. Dashboard restructured 5→4 tabs (Surface / Calculus+VRP / Evolution / Positioning). Richer daily email — surface + ΔIV PNG attachments (kaleido 1.3.0), OI call/put wall rows. 12 plans across phases 8–11. Accumulation note: surface_history began 2026-05-28, so evolution/percentile features are cold-started until ~5–20 trading days accrue — the gap that motivated v3.4's single-snapshot pivot.
