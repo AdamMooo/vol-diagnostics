@@ -1,12 +1,21 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-07-17 — v4.0 Cloud Hosting shipped. v5.0 ("Data Foundation") scoping in progress.*
+*Last updated: 2026-07-17 — v5.0 Data Foundation started.*
+
+## Current Milestone: v5.0 — Data Foundation
+
+**Goal:** Harden data collection and retention before building the eventual options-writing/pricing model — robust data first, models second, the actual options-writing goal third.
+
+**Target features:**
+- Data completeness audit + gap monitoring across the collected series (surface_history, vol_index, oi_history, gex_snapshots)
+- Retention/backup for `out/` — currently lives ONLY on the Oracle server, no backup anywhere
+- Define what "model-ready" data looks like (schema, depth targets per series) so a later modeling milestone has a clear bar to build against
+
+**Explicitly deferred:** the options-writing/pricing model itself — this milestone is infra/robustness only, not modeling.
 
 ## Current State
 
 **v4.0 Cloud Hosting shipped 2026-07-17.** The dashboard and daily email run unattended, hosted on Oracle Cloud (Always Free tier) at `https://40.233.113.63.nip.io`, with the data-collection scheduler on GitHub Actions. Password gate removed — dashboard is now intentionally public ahead of being linked from the user's personal site. Full detail: `.planning/milestones/v4.0-ROADMAP.md`.
-
-**Next milestone: v5.0 — Data Foundation** (not yet scoped into ROADMAP.md/REQUIREMENTS.md). Goal, per the user: harden data collection/retention *before* building the eventual options-writing/pricing model. Candidate phases discussed so far (session 2026-07-16, not yet committed): (1) data completeness audit + gap monitoring, (2) retention/backup for `out/` — currently lives ONLY on the Oracle server, no backup anywhere, (3) define what "model-ready" data looks like (schema, depth targets per series) so a later modeling milestone has a clear bar to build against. Resume via `/gsd:new-milestone`.
 
 ## What This Is
 
@@ -111,9 +120,11 @@ How expensive is protection right now, where on the surface is that expensivenes
 - ✓ Daily scheduler moved to GitHub Actions after an Oracle chromium/PNG-export hang — ad-hoc, same milestone
 - ✓ Password gate removed — dashboard made intentionally public — ad-hoc 2026-07-16
 
-### Active
+### Active (v5.0 Data Foundation)
 
-- (none — v5.0 "Data Foundation" scoping in progress, not yet written to REQUIREMENTS.md)
+- [ ] Data completeness audit + gap monitoring across collected series
+- [ ] Retention/backup for `out/` (Oracle-only today, no backup)
+- [ ] "Model-ready" data definition (schema, depth targets per series)
 
 ### Out of Scope
 

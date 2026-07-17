@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.0
-milestone_name: Cloud Hosting
-status: shipped
-stopped_at: v4.0 milestone archived; v5.0 ("Data Foundation") scoping paused before version confirmation
-last_updated: "2026-07-17T01:02:03.248Z"
-last_activity: 2026-07-17 -- Milestone v4.0 completed and archived
+milestone: v5.0
+milestone_name: Data Foundation
+status: planning
+last_updated: "2026-07-17T01:34:00.848Z"
+last_activity: 2026-07-17
 progress:
-  total_phases: 22
-  completed_phases: 22
-  total_plans: 24
-  completed_plans: 24
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 
 ## Current Position
 
-Milestone: v4.0 — SHIPPED 2026-07-17
-Next: v5.0 — scoping in progress, not yet committed to ROADMAP.md/REQUIREMENTS.md
-
-Progress: [██████████] 100% (v4.0 complete)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-17 — Milestone v5.0 started
 
 ## Accumulated Context
 
@@ -95,6 +94,8 @@ Resume queue: Continue `/gsd:new-milestone` from Step 3 (suggest v5.0, confirm w
 
 ---
 <!-- LINKS:AUTO -->
+
 ## Related
+
 **Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->
