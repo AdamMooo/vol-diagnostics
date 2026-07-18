@@ -53,9 +53,15 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-17 01:05 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-17 01:58 UTC
 
-**Milestone:** v4.0 · **Status:** shipped · **STATE last_updated:** 2026-07-17T01:02:03.248Z
+**Milestone:** v5.0 · **Status:** planning · **STATE last_updated:** 2026-07-17T00:00:00.000Z
+
+### Current Position
+- **Phase:** Not started (roadmap drafted, Phase 23 up first)
+- **Plan:** —
+- **Status:** Roadmap created, awaiting approval
+- **Last activity:** 2026-07-17 — Roadmap extended for v5.0 (Phases 23–27; added 26 Codebase Organization & Dead Code Removal, 27 Existing Computation Rigor Hardening)
 
 ### Pending Todos
 - None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).
@@ -63,7 +69,7 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ### Blockers
 - `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed one layer up in `run_daily.py`'s PNG attachment builders.)
 - `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (script retired, kept for reference only).
-- `out/` parquet stores live only on the Oracle server, no backup anywhere — flagged as a candidate v5.0 phase.
+- `out/` parquet stores live only on the Oracle server, no backup anywhere — now Phase 24 of v5.0 (no longer just a flagged risk).
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
