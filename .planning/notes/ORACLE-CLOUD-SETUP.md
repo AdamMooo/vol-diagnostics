@@ -1,7 +1,7 @@
 # Oracle Cloud Free Tier — Vol Diagnostics Setup Guide
 
 Created: 2026-06-24
-Updated: 2026-06-25
+Updated: 2026-07-21
 
 ## What's Free (Always Free Tier — never expires)
 
@@ -497,6 +497,58 @@ If you want extra safety, the crontab already includes a health check that runs 
 | **Monthly total** | **$0.00** |
 
 > The Always Free tier never expires. As long as you stay within these limits, Oracle will not charge you.
+
+---
+
+## Object Storage Backup Setup (Phase 23)
+
+`out/` (all parquet history — `gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`) currently
+lives only on the Oracle VM's disk. This section wires up a daily backup to Oracle Object Storage so that
+history survives loss of the VM (BACKUP-01/02). It reuses the same **Always Free 20 GB Object Storage**
+allowance already listed in "What's Free" above — no new cost.
+
+### 1. Create the bucket
+
+Navigate to: **Storage → Object Storage & Archive Storage → Buckets → Create Bucket**
+
+| Field | Value |
+|-------|-------|
+| **Name** | `vol-diagnostics-backup` |
+| **Compartment** | same compartment as the `vol-diagnostics` VM |
+| **Visibility** | **Private** |
+
+> **⚠️ CRITICAL: Visibility must be set to Private, never Public.** A public bucket would expose all
+> historical vol-diagnostics data to anyone who knows the bucket name/namespace. Double-check this setting
+> before leaving the Create Bucket screen — this is the one step Claude cannot verify remotely, since
+> checking bucket ACLs requires credentialed OCI console/CLI access.
+
+### 2. Generate a Customer Secret Key
+
+Navigate to: **Identity & Security → Users → (your user) → Customer Secret Keys → Generate Secret Key**
+
+- Copy both the **Access Key** and the **Secret Key** immediately — the secret is shown only once at
+  generation time. If you lose it, delete the key and generate a new one.
+
+### 3. Find your Object Storage namespace
+
+- Shown at the top of the bucket list page in the console (**Storage → Object Storage & Archive Storage → Buckets**), or
+- Run `oci os ns get` if the OCI CLI is already configured locally (see Step 5b above for CLI setup).
+
+### 4. Add GitHub repository secrets
+
+Navigate to: **GitHub repo → Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret Name | Description |
+|-------------|-------------|
+| `OCI_ACCESS_KEY_ID` | Customer Secret Key's Access Key, from Step 2 above |
+| `OCI_CUSTOMER_SECRET_KEY` | Customer Secret Key's Secret Key, from Step 2 above (shown once — copy immediately) |
+| `OCI_NAMESPACE` | Object Storage namespace, from Step 3 above |
+
+### 5. One-time setup, automatic thereafter
+
+Once the bucket exists and the 3 secrets are added, `.github/workflows/daily-report.yml`'s
+`Backup out/ to Oracle Object Storage` step runs automatically on every scheduled or manually
+dispatched run — no manual step needed going forward (ROADMAP success criterion #8).
 
 ---
 ---

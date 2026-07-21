@@ -78,6 +78,15 @@ jobs:
             python -m engine.run_daily --send
           fi
 
+      - name: Backup out/ to Oracle Object Storage
+        if: always()  # even if the email step failed, back up whatever snapshots did save
+        env:
+          OCI_ACCESS_KEY_ID: ${{ secrets.OCI_ACCESS_KEY_ID }}
+          OCI_CUSTOMER_SECRET_KEY: ${{ secrets.OCI_CUSTOMER_SECRET_KEY }}
+          OCI_NAMESPACE: ${{ secrets.OCI_NAMESPACE }}
+        run: |
+          python -m engine.backup_to_oci --bucket vol-diagnostics-backup --region ca-toronto-1 --source ./out
+
       - name: Push updated history back up to Oracle
         if: always()  # even if the email step failed, push whatever snapshots did save
         run: |
