@@ -17,10 +17,14 @@ from datetime import date, timedelta
 
 import pandas_market_calendars as mcal
 
+from engine.config import TICKER_VOL_INDEX
+from engine.data.oi_history import list_oi_dates
 from engine.data.surface_history import list_available_dates
-from engine.data.validation import load_history
+from engine.data.validation import list_snapshot_dates, load_history
+from engine.data.vol_index import load_vol_index
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
+SERIES_NAMES = ["gex_snapshots", "surface_history", "vol_index", "oi_history"]
 
 
 def _last_expected_session(today: date | None = None) -> date:
@@ -100,6 +104,105 @@ def check_health(verbose: bool = True) -> dict:
     return {"healthy": all_healthy, "expected": str(expected), "tickers": results}
 
 
+def get_nyse_sessions(start_date: date, end_date: date) -> set[date]:
+    """All NYSE trading days between start_date and end_date (inclusive)."""
+    nyse = mcal.get_calendar("NYSE")
+    sched = nyse.schedule(
+        start_date=start_date.strftime("%Y-%m-%d"),
+        end_date=end_date.strftime("%Y-%m-%d"),
+    )
+    return set(d.date() for d in sched.index)
+
+
+def _series_dates(ticker: str, series: str) -> set[date]:
+    """Dispatch to the appropriate store reader and return its dates as a set."""
+    if series == "gex_snapshots":
+        return set(list_snapshot_dates(ticker))
+    elif series == "surface_history":
+        return set(list_available_dates(ticker))
+    elif series == "vol_index":
+        symbol = TICKER_VOL_INDEX.get(ticker)
+        if not symbol:
+            return set()
+        hist = load_vol_index(symbol)
+        if hist.empty:
+            return set()
+        return set(hist["date"])
+    elif series == "oi_history":
+        return set(list_oi_dates(ticker))
+    else:
+        raise ValueError(f"Unknown series: {series}")
+
+
+def _full_history_scan(dates: set[date], dates_by_series: dict[str, set[date]], series: str) -> dict:
+    """Walk the NYSE session calendar across a series' full stored date range,
+    reporting any session with no corresponding row (per D-04: catches gaps
+    that a tail-only check would miss).
+
+    For vol_index (D-05), a missing session is only flagged when at least one
+    of the other 3 series DID collect data that date — otherwise it's treated
+    as an expected CBOE/NYSE non-publish day, not a gap.
+    """
+    if not dates:
+        return {"earliest": None, "latest": None, "total_sessions": 0, "gaps": [], "gap_count": 0}
+
+    earliest, latest = min(dates), max(dates)
+    sessions = get_nyse_sessions(earliest, latest)
+    missing = sorted(sessions - dates)
+
+    gaps = []
+    for d in missing:
+        if series == "vol_index":
+            other_collected = any(
+                d in dates_by_series[s] for s in ("gex_snapshots", "surface_history", "oi_history")
+            )
+            if not other_collected:
+                continue
+            gaps.append((d, "data missing (other series collected this date; CBOE gap unexpected)"))
+        else:
+            gaps.append((d, "data missing"))
+
+    return {
+        "earliest": str(earliest),
+        "latest": str(latest),
+        "total_sessions": len(sessions),
+        "gaps": [{"date": str(d), "reason": r} for d, r in gaps],
+        "gap_count": len(gaps),
+    }
+
+
+def full_history_report(verbose: bool = True) -> dict:
+    """Full-history gap scan across all 4 series x 3 tickers.
+
+    Returns {"clean": bool, "series": {ticker: {series: scan_dict}}}.
+    """
+    all_clean = True
+    series_result: dict[str, dict[str, dict]] = {}
+
+    for ticker in INDEX_TICKERS:
+        # Compute once per ticker (not once per series-pair comparison) to avoid
+        # redundant parquet reads — see Pitfall 4 in 23-RESEARCH.md.
+        dates_by_series = {series: _series_dates(ticker, series) for series in SERIES_NAMES}
+        ticker_result = {}
+
+        for series in SERIES_NAMES:
+            scan = _full_history_scan(dates_by_series[series], dates_by_series, series)
+            ticker_result[series] = scan
+            if scan["gap_count"] > 0:
+                all_clean = False
+
+            if verbose:
+                print(f"[{series}] {ticker}")
+                print(f"  Earliest: {scan['earliest']}, Latest: {scan['latest']}, "
+                      f"Sessions: {scan['total_sessions']}, Gaps: {scan['gap_count']}")
+                for gap in scan["gaps"]:
+                    print(f"    - {gap['date']} ({gap['reason']})")
+
+        series_result[ticker] = ticker_result
+
+    return {"clean": all_clean, "series": series_result}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Gamma OMM health check")
     parser.add_argument("--strict", action="store_true",
@@ -109,12 +212,14 @@ def main():
     args = parser.parse_args()
 
     result = check_health(verbose=not args.json)
+    fh_result = full_history_report(verbose=not args.json)
+    combined_healthy = result["healthy"] and fh_result["clean"]
 
     if args.json:
         import json
-        print(json.dumps(result, indent=2))
+        print(json.dumps({"tail_check": result, "full_history": fh_result}, indent=2))
 
-    if args.strict and not result["healthy"]:
+    if args.strict and not combined_healthy:
         sys.exit(1)
 
 
