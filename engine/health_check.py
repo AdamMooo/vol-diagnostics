@@ -17,7 +17,7 @@ from datetime import date, timedelta
 
 import pandas_market_calendars as mcal
 
-from engine.config import TICKER_VOL_INDEX
+from engine.config import TICKER_VOL_INDEX, VRP_DEEP_LOOKBACK_SESSIONS
 from engine.data.oi_history import list_oi_dates
 from engine.data.surface_history import list_available_dates
 from engine.data.validation import list_snapshot_dates, load_history
@@ -25,6 +25,22 @@ from engine.data.vol_index import load_vol_index
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 SERIES_NAMES = ["gex_snapshots", "surface_history", "vol_index", "oi_history"]
+
+# Model-ready minimum session-depth targets per series. Numbers must match
+# .planning/notes/MODEL-READY-DATA-SPEC.md exactly (Plan 23-04, SCHEMA-01/02) --
+# gex_snapshots: GARCH(1,1) sample-size convention (Ng & Lam 2006, 500-1000
+# observations, 750 = literature midpoint). surface_history/oi_history: RV20
+# 251-trading-day (~1yr) "one seasonal cycle" convention -- these are per-day
+# cross-sectional stores, not return series, so a GARCH minimum doesn't apply.
+# vol_index: reuses VRP_DEEP_LOOKBACK_SESSIONS -- CBOE-published external
+# history already exceeds any plausible modeling requirement, restated here
+# only for traceability with the spec doc.
+MODEL_READY_TARGETS = {
+    "gex_snapshots": 750,
+    "surface_history": 251,
+    "vol_index": VRP_DEEP_LOOKBACK_SESSIONS,
+    "oi_history": 251,
+}
 
 
 def _last_expected_session(today: date | None = None) -> date:
@@ -203,13 +219,54 @@ def full_history_report(verbose: bool = True) -> dict:
     return {"clean": all_clean, "series": series_result}
 
 
+def depth_audit(verbose: bool = True) -> dict:
+    """Report current data depth vs. model-ready targets, per ticker/series.
+
+    Informational only (SCHEMA-02) -- never feeds the --strict exit code;
+    a data-foundation phase's series will legitimately be below target for
+    a long time and that must never fail the daily CI gate.
+
+    Returns {"all_ready": bool, "series": {ticker: {series: {depth, target, meets_target}}}}.
+    """
+    all_ready = True
+    series_result: dict[str, dict[str, dict]] = {}
+
+    for ticker in INDEX_TICKERS:
+        ticker_result = {}
+        for series in SERIES_NAMES:
+            depth = len(_series_dates(ticker, series))
+            target = MODEL_READY_TARGETS[series]
+            meets = depth >= target
+            if not meets:
+                all_ready = False
+            ticker_result[series] = {"depth": depth, "target": target, "meets_target": meets}
+
+            if verbose:
+                label = "MEETS" if meets else "SHORT"
+                print(f"[{series}] {ticker}: {depth}/{target} -- {label}")
+
+        series_result[ticker] = ticker_result
+
+    return {"all_ready": all_ready, "series": series_result}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Gamma OMM health check")
     parser.add_argument("--strict", action="store_true",
                         help="Exit 1 if any ticker is stale/missing")
     parser.add_argument("--json", action="store_true",
                         help="Output JSON instead of human-readable")
+    parser.add_argument("--depth-audit", action="store_true",
+                        help="Report current data depth vs. model-ready targets "
+                             "(informational only -- does not affect --strict exit code)")
     args = parser.parse_args()
+
+    if args.depth_audit:
+        depth_result = depth_audit(verbose=not args.json)
+        if args.json:
+            import json
+            print(json.dumps(depth_result, indent=2))
+        return
 
     result = check_health(verbose=not args.json)
     fh_result = full_history_report(verbose=not args.json)
