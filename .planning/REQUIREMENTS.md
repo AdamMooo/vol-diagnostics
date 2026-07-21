@@ -9,8 +9,8 @@ Requirements for the v5.0 Data Foundation milestone — hardening data collectio
 
 ### Data Completeness & Gap Monitoring (DATA)
 
-- [ ] **DATA-01**: A report/script identifies missing-session gaps per data series (`gex_snapshots`, `surface_history`, `vol_index`, `oi_history`) per ticker
-- [ ] **DATA-02**: Gap findings are surfaced somewhere visible (health-check output or a dashboard panel), not just sitting silently in parquet
+- [x] **DATA-01**: A report/script identifies missing-session gaps per data series (`gex_snapshots`, `surface_history`, `vol_index`, `oi_history`) per ticker
+- [x] **DATA-02**: Gap findings are surfaced somewhere visible (health-check output or a dashboard panel), not just sitting silently in parquet
 
 ### Retention & Backup (BACKUP)
 
@@ -56,8 +56,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 23 | Pending |
-| DATA-02 | Phase 23 | Pending |
+| DATA-01 | Phase 23 (23-01) | Done |
+| DATA-02 | Phase 23 (23-01) | Done |
 | BACKUP-01 | Phase 24 | Pending |
 | BACKUP-02 | Phase 24 | Pending |
 | SCHEMA-01 | Phase 25 | Pending |

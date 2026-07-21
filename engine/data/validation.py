@@ -130,3 +130,22 @@ def load_history(ticker: str, days: int = 30) -> pd.DataFrame:
     except Exception as exc:
         print(f"[validation] load_history failed: {exc}")
         return pd.DataFrame()
+
+
+def list_snapshot_dates(ticker: str) -> list[datetime.date]:
+    """Return sorted list of available dates for ticker (newest first).
+
+    Mirrors surface_history.list_available_dates / oi_history.list_oi_dates.
+    Needed because load_history() is tail-limited (days=N) and cannot support
+    a full-history gap scan. Returns [] when store absent or on any exception.
+    """
+    if not STORE.exists():
+        return []
+    try:
+        hist = pd.read_parquet(STORE, columns=["date", "ticker"])
+        hist = hist[hist["ticker"] == ticker]
+        dates = pd.to_datetime(hist["date"]).dt.date.unique()
+        return sorted(set(dates), reverse=True)
+    except Exception as exc:
+        print(f"[validation] list_snapshot_dates failed for {ticker}: {exc}")
+        return []

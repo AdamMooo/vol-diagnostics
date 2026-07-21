@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import datetime
 import pathlib
+import sys
+import unittest.mock as mock
 from unittest.mock import patch, MagicMock
 
 import pandas as pd
+import pandas_market_calendars as mcal
 import pytest
 
 
@@ -135,3 +138,154 @@ class TestHealthCheck:
         assert result["healthy"] is False
         # At least one ticker should show STALE
         assert any("STALE" in info["status"] for info in result["tickers"].values())
+
+
+# ---------------------------------------------------------------------------
+# full-history gap scan tests
+# ---------------------------------------------------------------------------
+
+class TestFullHistoryGapScan:
+    """Tests for the full-history gap scanner (D-03/D-04/D-05)."""
+
+    def _surface_df(self, dates, ticker="SPY"):
+        return pd.DataFrame({
+            "date": dates,
+            "ticker": [ticker] * len(dates),
+            "spot": [500.0] * len(dates),
+            "dte": [30.0] * len(dates),
+            "strike": [500.0] * len(dates),
+            "moneyness": [1.0] * len(dates),
+            "log_moneyness": [0.0] * len(dates),
+            "iv_pct": [20.0] * len(dates),
+        })
+
+    def test_no_false_positives_on_complete_history(self, tmp_path, monkeypatch):
+        """A complete daily history for a 2-week NYSE window has zero gaps."""
+        import engine.data.surface_history as sh_mod
+        monkeypatch.setattr(sh_mod, "STORE_DIR", tmp_path)
+
+        nyse = mcal.get_calendar("NYSE")
+        sched = nyse.schedule(start_date="2026-06-01", end_date="2026-06-14")
+        sessions = sorted(d.date() for d in sched.index)
+
+        df = self._surface_df(sessions)
+        df.to_parquet(tmp_path / "surface_SPY.parquet", index=False)
+
+        from engine.health_check import _series_dates, _full_history_scan
+        dates = _series_dates("SPY", "surface_history")
+        dates_by_series = {"surface_history": dates}
+        scan = _full_history_scan(dates, dates_by_series, "surface_history")
+        assert scan["gap_count"] == 0
+
+    def test_detects_gap_in_middle_of_history(self, tmp_path, monkeypatch):
+        """A session dropped from the middle of the range (not the tail) is flagged."""
+        import engine.data.surface_history as sh_mod
+        monkeypatch.setattr(sh_mod, "STORE_DIR", tmp_path)
+
+        nyse = mcal.get_calendar("NYSE")
+        sched = nyse.schedule(start_date="2026-06-01", end_date="2026-06-14")
+        sessions = sorted(d.date() for d in sched.index)
+        assert len(sessions) >= 5
+
+        dropped_date = sessions[len(sessions) // 2]
+        kept_sessions = [d for d in sessions if d != dropped_date]
+
+        df = self._surface_df(kept_sessions)
+        df.to_parquet(tmp_path / "surface_SPY.parquet", index=False)
+
+        from engine.health_check import _series_dates, _full_history_scan
+        dates = _series_dates("SPY", "surface_history")
+        dates_by_series = {"surface_history": dates}
+        scan = _full_history_scan(dates, dates_by_series, "surface_history")
+        assert scan["gap_count"] == 1
+        assert str(dropped_date) in [g["date"] for g in scan["gaps"]]
+
+    def test_vol_index_holiday_not_flagged_when_no_other_series_collected(self):
+        """A session missing from ALL series (CBOE/NYSE holiday) is not a vol_index gap."""
+        from engine.health_check import _full_history_scan, get_nyse_sessions
+        sessions = sorted(get_nyse_sessions(datetime.date(2026, 6, 1), datetime.date(2026, 6, 10)))
+        assert len(sessions) >= 4
+        d1, d2, d3, d4 = sessions[0], sessions[1], sessions[2], sessions[3]
+
+        # d3 is missing from every series — simulates a day nothing was published.
+        other_dates = {d1, d2, d4}
+        dates_by_series = {
+            "vol_index": other_dates,
+            "gex_snapshots": other_dates,
+            "surface_history": other_dates,
+            "oi_history": other_dates,
+        }
+        scan = _full_history_scan(other_dates, dates_by_series, "vol_index")
+        gap_dates = [g["date"] for g in scan["gaps"]]
+        assert str(d3) not in gap_dates
+
+    def test_vol_index_flagged_when_other_series_collected(self):
+        """A session missing ONLY from vol_index (other 3 series collected it) is flagged."""
+        from engine.health_check import _full_history_scan, get_nyse_sessions
+        sessions = sorted(get_nyse_sessions(datetime.date(2026, 6, 1), datetime.date(2026, 6, 10)))
+        assert len(sessions) >= 4
+        d1, d2, d3, d4 = sessions[0], sessions[1], sessions[2], sessions[3]
+
+        vol_index_dates = {d1, d2, d4}  # d3 missing from vol_index only
+        full_dates = {d1, d2, d3, d4}
+        dates_by_series = {
+            "vol_index": vol_index_dates,
+            "gex_snapshots": full_dates,
+            "surface_history": full_dates,
+            "oi_history": full_dates,
+        }
+        scan = _full_history_scan(vol_index_dates, dates_by_series, "vol_index")
+        gap_reasons = {g["date"]: g["reason"] for g in scan["gaps"]}
+        assert str(d3) in gap_reasons
+        assert "other series collected" in gap_reasons[str(d3)]
+
+    def test_series_dates_gex_snapshots_filters_by_ticker(self, tmp_path):
+        """_series_dates('SPY', 'gex_snapshots') returns only SPY's dates, not QQQ's."""
+        store = tmp_path / "gex_snapshots.parquet"
+        df = pd.DataFrame({
+            "date": [datetime.date(2026, 6, 1), datetime.date(2026, 6, 2), datetime.date(2026, 6, 1)],
+            "ticker": ["SPY", "SPY", "QQQ"],
+        })
+        df.to_parquet(store, index=False)
+
+        with mock.patch("engine.data.validation.STORE", store):
+            from engine.health_check import _series_dates
+            result = _series_dates("SPY", "gex_snapshots")
+
+        assert result == {datetime.date(2026, 6, 1), datetime.date(2026, 6, 2)}
+
+
+# ---------------------------------------------------------------------------
+# combined --strict gate tests
+# ---------------------------------------------------------------------------
+
+class TestHealthCheckStrict:
+    """Tests for main()'s combined tail-check + full-history --strict gate."""
+
+    def test_strict_exits_nonzero_when_full_history_has_gaps(self, monkeypatch):
+        from engine.health_check import main
+        monkeypatch.setattr(
+            "engine.health_check.check_health",
+            lambda verbose=True: {"healthy": True, "expected": "2026-06-01", "tickers": {}},
+        )
+        monkeypatch.setattr(
+            "engine.health_check.full_history_report",
+            lambda verbose=True: {"clean": False, "series": {}},
+        )
+        monkeypatch.setattr(sys, "argv", ["health_check", "--strict"])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 1
+
+    def test_strict_exits_zero_when_both_clean(self, monkeypatch):
+        from engine.health_check import main
+        monkeypatch.setattr(
+            "engine.health_check.check_health",
+            lambda verbose=True: {"healthy": True, "expected": "2026-06-01", "tickers": {}},
+        )
+        monkeypatch.setattr(
+            "engine.health_check.full_history_report",
+            lambda verbose=True: {"clean": True, "series": {}},
+        )
+        monkeypatch.setattr(sys, "argv", ["health_check", "--strict"])
+        main()  # should not raise SystemExit
