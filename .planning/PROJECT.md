@@ -45,6 +45,8 @@ How expensive is protection right now, where on the surface is that expensivenes
 | `streamlit_app.py` | Interactive dashboard — Live + Historical tabs; defensible display only | 2026-05-11 (refactor: removed VEX/CHEX, regime label, badges) |
 | `out/gex_snapshots.parquet` | Historical GEX snapshot store (30+ days) | Growing daily |
 
+`.planning/notes/MODEL-READY-DATA-SPEC.md` — Model-ready depth/schema targets for the next modeling milestone (Phase 23, D-09).
+
 ## Requirements
 
 ### Validated / Implemented (v3.0–v3.1)
