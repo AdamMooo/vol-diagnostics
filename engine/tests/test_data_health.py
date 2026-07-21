@@ -289,3 +289,75 @@ class TestHealthCheckStrict:
         )
         monkeypatch.setattr(sys, "argv", ["health_check", "--strict"])
         main()  # should not raise SystemExit
+
+
+# ---------------------------------------------------------------------------
+# model-readiness depth audit tests (Plan 23-04, SCHEMA-01/02)
+# ---------------------------------------------------------------------------
+
+class TestModelReadinessAudit:
+    """Tests for depth_audit() -- current data depth vs. model-ready targets."""
+
+    def test_reports_meets_when_depth_at_or_above_target(self):
+        from engine.health_check import depth_audit
+        import datetime as dt
+
+        def fake_series_dates(ticker, series):
+            if series == "surface_history":
+                return {dt.date(2020, 1, 1) + dt.timedelta(days=i) for i in range(251)}
+            return set()
+
+        with patch("engine.health_check._series_dates", side_effect=fake_series_dates):
+            result = depth_audit(verbose=False)
+
+        for ticker in ("SPY", "QQQ", "IWM"):
+            assert result["series"][ticker]["surface_history"]["meets_target"] is True
+
+    def test_reports_short_when_depth_below_target(self):
+        from engine.health_check import depth_audit
+        import datetime as dt
+
+        def fake_series_dates(ticker, series):
+            if series == "gex_snapshots":
+                return {dt.date(2020, 1, 1) + dt.timedelta(days=i) for i in range(10)}
+            return set()
+
+        with patch("engine.health_check._series_dates", side_effect=fake_series_dates):
+            result = depth_audit(verbose=False)
+
+        for ticker in ("SPY", "QQQ", "IWM"):
+            info = result["series"][ticker]["gex_snapshots"]
+            assert info["meets_target"] is False
+            assert info["depth"] == 10
+
+    def test_all_four_series_all_three_tickers_present(self):
+        from engine.health_check import depth_audit, SERIES_NAMES
+        import datetime as dt
+
+        fixed = {dt.date(2020, 1, 1) + dt.timedelta(days=i) for i in range(300)}
+        with patch("engine.health_check._series_dates", return_value=fixed):
+            result = depth_audit(verbose=False)
+
+        assert set(result["series"].keys()) == {"SPY", "QQQ", "IWM"}
+        for ticker in ("SPY", "QQQ", "IWM"):
+            assert set(result["series"][ticker].keys()) == set(SERIES_NAMES)
+
+    def test_vol_index_target_matches_config_constant(self):
+        from engine.health_check import MODEL_READY_TARGETS
+        from engine.config import VRP_DEEP_LOOKBACK_SESSIONS
+
+        assert MODEL_READY_TARGETS["vol_index"] == VRP_DEEP_LOOKBACK_SESSIONS
+
+    def test_all_ready_false_when_any_series_short(self):
+        from engine.health_check import depth_audit
+        import datetime as dt
+
+        def fake_series_dates(ticker, series):
+            if series == "gex_snapshots" and ticker == "SPY":
+                return {dt.date(2020, 1, 1)}  # far short of target
+            return {dt.date(2020, 1, 1) + dt.timedelta(days=i) for i in range(3000)}
+
+        with patch("engine.health_check._series_dates", side_effect=fake_series_dates):
+            result = depth_audit(verbose=False)
+
+        assert result["all_ready"] is False
