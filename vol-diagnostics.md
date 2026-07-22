@@ -53,15 +53,15 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-17 01:58 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-22 01:25 UTC
 
-**Milestone:** v5.0 · **Status:** planning · **STATE last_updated:** 2026-07-17T00:00:00.000Z
+**Milestone:** v5.0 · **Status:** executing · **STATE last_updated:** 2026-07-21T19:54:55.477Z
 
 ### Current Position
-- **Phase:** Not started (roadmap drafted, Phase 23 up first)
-- **Plan:** —
-- **Status:** Roadmap created, awaiting approval
-- **Last activity:** 2026-07-17 — Roadmap extended for v5.0 (Phases 23–27; added 26 Codebase Organization & Dead Code Removal, 27 Existing Computation Rigor Hardening)
+- **Phase:** 23 (data-completeness-backup-model-readiness) — EXECUTING
+- **Plan:** 1 of 4
+- **Status:** Executing Phase 23
+- **Last activity:** 2026-07-21 -- Phase 23 execution started
 
 ### Pending Todos
 - None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).
@@ -69,12 +69,14 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ### Blockers
 - `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed one layer up in `run_daily.py`'s PNG attachment builders.)
 - `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (script retired, kept for reference only).
-- `out/` parquet stores live only on the Oracle server, no backup anywhere — now Phase 24 of v5.0 (no longer just a flagged risk).
+- `out/` parquet stores live only on the Oracle server, no backup anywhere — now part of Phase 23 of v5.0 (no longer just a flagged risk).
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
 
 ### Operator notes (handwritten — survives hub-sync)
+
+**Paused mid-phase (2026-07-21).** Executed Phase 23 (Data Completeness, Backup & Model-Readiness Audit — first phase of v5.0) via `/gsd-execute-phase 23`, 2 waves, 4 plans, all dispatched in parallel git worktrees with zero cross-plan file overlap. **23-01** extended `engine/health_check.py` into a full-history 4-series (gex_snapshots/surface_history/vol_index/oi_history) gap scanner across SPY/QQQ/IWM. **23-02** built boto3-based `engine/backup_to_oci.py`/`restore_from_oci.py` for OCI Object Storage backup/restore (BACKUP-01/02), fully unit-tested against mocked S3 — no real OCI credentials needed for the logic itself. **23-04** wrote `.planning/notes/MODEL-READY-DATA-SPEC.md` (grounded per-series depth targets, e.g. 750 sessions for gex_snapshots per GARCH(1,1) literature) + `depth_audit()`, reusing 23-01's session-counting rather than re-implementing it. All three merged clean; 390/390 tests green post-merge. **23-03** wired the backup step into the existing `daily-report.yml` job (Task 1, merged, commit `6062180`) but its Task 2 is a blocking human-action checkpoint — OCI console (bucket + Customer Secret Key) + 3 GitHub repo secrets — that Claude correctly refused to attempt itself; paused there via `/gsd-pause-work`. Resume via `.planning/phases/23-data-completeness-backup-model-readiness/.continue-here.md`.
 
 **Re-entry (2026-07-16).** Phase 20.5 (Email Remodel) executed end-to-end — 4 plans, Wave 1 parallel in worktrees, real dry-run email opened in-browser and visually approved. **v4.0 Cloud Hosting is now functionally complete** (19/20/20.5/21/22 all done) but never formally shipped via `/gsd:complete-milestone` — no `MILESTONES.md` entry, phase dirs not archived; open question for next session. Mid-session, a genuine content-clarity catch: "premium cheap" on the VRP chip had no stated comparison basis. Investigation found the claim in this file ("VRP percentile is deep") wasn't actually true — `vrp_history.py`'s RV20 alignment was hardcoded to a 400-day yfinance fetch, capping the usable percentile window to ~1.5yr despite CBOE vol-index data running back to 1990 (VIX) / 2009 (VXN, RVX). Fixed: widened to a real ~10yr window (`config.VRP_DEEP_LOOKBACK_SESSIONS = 2500` + a 40-day fetch buffer to clear RV20 warmup/calendar slack — commit `9f6f920`). Also made the Skew (25Δ) card field state direction explicitly ("puts pricier"/"calls pricier"/"flat") instead of a bare signed number, since `put_iv - call_iv`'s sign isn't self-evident. 7 new tests, suite still green (364). Separately dropped the stale "locked until team validates" governance line from this file's Constraints section (commit `786ce92`) — the dashboard is sole-owner/public now (password gate removed, Oracle-hosted), so there's no team to validate against; kept the actual statistical-validation discipline since that risk doesn't go away with ownership. That conversation escalated into scoping a **v5.0 "Data Foundation" milestone** via `/gsd:new-milestone` (harden data collection/retention — `out/` currently lives ONLY on the Oracle server, no backup — before attempting the options-writing/pricing model Adam actually wants). Scoping confirmed (data-foundation-only, modeling deferred) but paused before writing PROJECT.md/REQUIREMENTS.md/ROADMAP.md at Adam's request. Resume via `.planning/.continue-here.md`.
 

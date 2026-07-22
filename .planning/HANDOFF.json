@@ -1,34 +1,33 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-16T21:06:47.174Z",
-  "phase": null,
-  "phase_name": null,
-  "phase_dir": null,
-  "plan": null,
-  "task": null,
-  "total_tasks": null,
+  "timestamp": "2026-07-21T20:51:22.092Z",
+  "phase": "23",
+  "phase_name": "data-completeness-backup-model-readiness",
+  "phase_dir": ".planning/phases/23-data-completeness-backup-model-readiness",
+  "plan": "23-03",
+  "task": 2,
+  "total_tasks": 2,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Phase 20.5 (Email Remodel) — all 4 plans executed, verified, tested", "status": "done", "commit": "c23497d"},
-    {"id": 2, "name": "Ad-hoc fix: VRP percentile widened from 252-session rolling window to a real ~10yr lookback; skew field states put/call direction explicitly", "status": "done", "commit": "9f6f920"},
-    {"id": 3, "name": "Docs sync: dropped stale 'team validates' governance gate from CLAUDE.md now that this is a sole-owner project; kept the statistical-validation discipline", "status": "done", "commit": "786ce92"},
-    {"id": 4, "name": "v5.0 milestone gathering (via /gsd:new-milestone) — goal + scope decided via conversation and one AskUserQuestion", "status": "in_progress", "progress": "Scope locked: v5.0 = 'Data Foundation' milestone, modeling deferred to a later milestone. Candidate phases discussed (not yet finalized/committed to ROADMAP): (1) data completeness audit + gap monitoring, (2) retention/backup for out/ (currently Oracle-only, no backup), (3) define 'model-ready' data schema/depth targets per series. Workflow paused before Step 3 (version confirmation) — no PROJECT.md/REQUIREMENTS.md/ROADMAP.md changes written yet for v5.0."}
+    {"id": "23-01", "name": "Full-history 4-series gap scanner", "status": "done", "commit": "26a19a3"},
+    {"id": "23-02", "name": "OCI backup/restore boto3 modules", "status": "done", "commit": "5ee7e65"},
+    {"id": "23-03-task-1", "name": "Wire backup step into daily-report.yml + document OCI setup", "status": "done", "commit": "6062180"},
+    {"id": "23-04", "name": "Model-readiness spec + depth_audit()", "status": "done", "commit": "202055f"}
   ],
   "remaining_tasks": [
-    {"id": 5, "name": "Resolve open question: run /gsd:complete-milestone on v4.0 first (never formally closed — no MILESTONES.md entry, phase dirs not archived) before opening v5.0?", "status": "not_started"},
-    {"id": 6, "name": "Continue /gsd:new-milestone from Step 3 (Determine Milestone Version, suggest v5.0) through Step 11 (roadmap creation + approval)", "status": "not_started"}
+    {"id": "23-03-task-2", "name": "Create OCI credentials, add GitHub secrets, verify backup step runs green", "status": "blocked_on_human"}
   ],
-  "blockers": [],
+  "blockers": [
+    {"description": "23-03 Task 2 requires OCI console access (bucket + Customer Secret Key) and adding 3 GitHub repo secrets — Claude cannot perform credentialed actions on the user's behalf", "type": "human_action", "workaround": "none — must be done by Adam"}
+  ],
   "human_actions_pending": [
-    {"action": "Decide whether to close v4.0 via /gsd:complete-milestone before starting v5.0", "context": "v4.0's phases (19, 20, 20.5, 21, 22) are all functionally complete but the milestone was never formally shipped — MILESTONES.md has no v4.0 entry and phase directories aren't archived. Asked at session end; Adam deferred to tomorrow without answering.", "blocking": true}
+    {"action": "Create private 'vol-diagnostics-backup' OCI Object Storage bucket, generate Customer Secret Key, find namespace, add OCI_ACCESS_KEY_ID/OCI_CUSTOMER_SECRET_KEY/OCI_NAMESPACE as GitHub repo secrets, then trigger the 'Daily Vol Report' workflow manually and confirm the backup step is green", "context": "Exact steps documented in .planning/notes/ORACLE-CLOUD-SETUP.md, section 'Object Storage Backup Setup (Phase 23)' (~line 503)", "blocking": true}
   ],
   "decisions": [
-    {"decision": "VRP percentile now ranks against ~10yr (config.VRP_DEEP_LOOKBACK_SESSIONS=2500, +40-day fetch buffer) instead of a rolling 252-session (~1yr) window", "rationale": "A short rolling window can only say a value is 'cheap' relative to a recent, possibly still-elevated regime — user's exact objection. CBOE vol-index actually holds decades of history (VIX to 1990, VXN/RVX to 2009) that was going unused because the RV20 alignment fetch was hardcoded to 400 days.", "phase": "ad-hoc"},
-    {"decision": "Skew (25Δ) card field now states 'puts pricier'/'calls pricier'/'flat' instead of a bare signed number", "rationale": "put_iv - call_iv sign convention isn't self-evident; user asked directly whether puts or calls were rich relative to each other.", "phase": "ad-hoc"},
-    {"decision": "CLAUDE.md's 'no new signals... locked until team validates' constraint reworded to drop the organizational-approval framing, keep the self-imposed statistical-validation discipline", "rationale": "Dashboard password gate was removed and it's now a sole-owner public project (post Oracle deploy) — there's no 'team' left to validate against. The methodological reason (avoid shipping an unvalidated/overfit signal) doesn't disappear with ownership, so that part stays.", "phase": "ad-hoc"},
-    {"decision": "v5.0 milestone scoped as 'Data Foundation' (hardening collection/retention) rather than jumping straight to the options-writing/pricing model", "rationale": "User's own framing: 'focus on that goal... take steps to ensure robust data collection and models... then progress to that goal' — sequencing data robustness before modeling. surface_history is only ~2 months deep and out/ currently lives ONLY on the Oracle server with no backup, both real risks to build a model on top of.", "phase": "v5.0 (not yet in ROADMAP)"}
+    {"decision": "boto3 (>=1.34,<2.0) chosen for OCI Object Storage's S3-compatible API rather than the oci SDK", "rationale": "Object Storage's S3-compat endpoint lets backup/restore be tested entirely with mocked S3 calls — no real OCI credentials needed to prove the logic correct", "phase": "23"},
+    {"decision": "Backup step lands in the existing daily-report.yml job, not a second scheduled workflow", "rationale": "Per D-07 in 23-CONTEXT.md — one job, backup runs immediately after 'Run daily report' with if: always()", "phase": "23"}
   ],
-  "uncommitted_files": [".planning/ROADMAP.md", ".planning/STATE.md"],
-  "next_action": "Ask Adam whether to run /gsd:complete-milestone on v4.0 before continuing /gsd:new-milestone for v5.0. If yes, run that first. Either way, then resume /gsd:new-milestone at Step 3 (version confirmation, suggest v5.0) with the already-agreed 'Data Foundation' scope from this session.",
-  "context_notes": "Uncommitted ROADMAP.md/STATE.md changes are EXPECTED, not a loose end -- this project's config has commit_docs=false, so the roadmap.update-plan-progress tracking writes for Phase 20.5's four plans were deliberately left uncommitted per existing project convention (same as at session start). Do not treat as a blocker or try to force-commit them without checking that convention first."
+  "uncommitted_files": [],
+  "next_action": "Wait for Adam to reply 'approved' (or describe a failure) after completing the OCI bucket + GitHub secrets setup and confirming the backup step is green in a triggered Actions run. Then spawn a fresh continuation executor to write 23-03-SUMMARY.md, update tracking, and run phase verification (gsd-verifier) since all 4 plans will be complete.",
+  "context_notes": "Wave 1 (23-01, 23-02) and the autonomous half of Wave 2 (23-04, plus 23-03's Task 1) are all merged to main with 390/390 tests green post-merge. Only 23-03's Task 2 — a blocking human-action checkpoint — remains. This is the last gate before phase 23 can be verified and closed."
 }
