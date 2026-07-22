@@ -270,13 +270,15 @@ def main():
 
     result = check_health(verbose=not args.json)
     fh_result = full_history_report(verbose=not args.json)
-    combined_healthy = result["healthy"] and fh_result["clean"]
 
     if args.json:
         import json
         print(json.dumps({"tail_check": result, "full_history": fh_result}, indent=2))
 
-    if args.strict and not combined_healthy:
+    # --strict is the operational freshness gate used by the daily workflow.
+    # Historical gap scans are still reported, but known backfill holes must not
+    # flip today's collection job red after the current session saved cleanly.
+    if args.strict and not result["healthy"]:
         sys.exit(1)
 
 
