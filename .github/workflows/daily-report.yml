@@ -80,6 +80,7 @@ jobs:
 
       - name: Backup out/ to Oracle Object Storage
         if: always()  # even if the email step failed, back up whatever snapshots did save
+        continue-on-error: true  # supplementary backup only — OCI_* secrets not configured yet; don't fail the job over it
         env:
           OCI_ACCESS_KEY_ID: ${{ secrets.OCI_ACCESS_KEY_ID }}
           OCI_CUSTOMER_SECRET_KEY: ${{ secrets.OCI_CUSTOMER_SECRET_KEY }}
