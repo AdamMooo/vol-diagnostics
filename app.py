@@ -462,12 +462,8 @@ def _render_surface_momentum(selected_all: list[str], all_data: dict) -> None:
 
 
 @st.fragment
-def _surface_today_section(selected_all: list[str], all_data: dict) -> None:
-    surf_today_tkr = st.radio(
-        "Surface ticker", selected_all, horizontal=True,
-        key="surf_today_tkr", label_visibility="collapsed",
-    )
-    for ticker in [surf_today_tkr]:  # one heavy surface at a time (perf)
+def _surface_today_section(sel_tkr: str, all_data: dict) -> None:
+    for ticker in [sel_tkr]:  # one heavy surface at a time (perf)
         if ticker not in all_data:
             continue
         data = all_data[ticker]
@@ -491,7 +487,7 @@ def _surface_today_section(selected_all: list[str], all_data: dict) -> None:
 
 
 @st.fragment
-def _surface_compare_section(selected_all: list[str], all_data: dict) -> None:
+def _surface_compare_section(sel_tkr: str, all_data: dict) -> None:
     _horizon_options = {
         "live": 0,
         "1d": 1,
@@ -501,11 +497,7 @@ def _surface_compare_section(selected_all: list[str], all_data: dict) -> None:
         "30d": 30,
         "60d": 60,
     }
-    surf_cmp_tkr = st.radio(
-        "Compare ticker", selected_all, horizontal=True,
-        key="surf_cmp_tkr", label_visibility="collapsed",
-    )
-    for ticker in [surf_cmp_tkr]:  # one heavy surface at a time (perf)
+    for ticker in [sel_tkr]:  # one heavy surface at a time (perf)
         if ticker not in all_data:
             continue
         data = all_data[ticker]
@@ -602,19 +594,14 @@ def _surface_compare_section(selected_all: list[str], all_data: dict) -> None:
 
 
 @st.fragment
-def _evolution_section(selected_all: list[str], all_data: dict) -> None:
+def _evolution_section(sel_tkr: str, all_data: dict) -> None:
+    evo_tkr = sel_tkr
     st.caption("Surface by session — play or scrub the slider.")
-    ec1, ec2 = st.columns([2, 2])
-    with ec1:
-        evo_tkr = st.radio(
-            "Evolution ticker", selected_all, horizontal=True,
-            key="evo_tkr", label_visibility="collapsed",
-        )
-    with ec2:
-        evo_mode_label = st.radio(
-            "Mode", ["Level (IV)", "Change vs ref"], horizontal=True,
-            key="evo_mode", label_visibility="collapsed",
-        )
+    evo_mode_label = st.segmented_control(
+        "Mode", ["Level (IV)", "Change vs ref"],
+        default="Level (IV)", required=True,
+        key="evo_mode", label_visibility="collapsed",
+    )
     evo_mode = "change" if evo_mode_label.startswith("Change") else "level"
 
     summary_line = _evolution_largest_move_summary(_latest_evolution_row_cached(evo_tkr))
@@ -669,8 +656,9 @@ if sel_index:
 
     # ── Surfaces (Today / Compare / Evolution) ───────────────────────────────
     with tab_surfaces:
-        surf_tkr = st.radio(
-            "Surface ticker", selected_all, horizontal=True,
+        surf_tkr = st.segmented_control(
+            "Surface ticker", selected_all,
+            default=selected_all[0], required=True,
             key="surf_main_tkr", label_visibility="collapsed",
         )
         # ── Momentum strip — trend headline before any surface detail ────────
@@ -679,13 +667,13 @@ if sel_index:
         sub_today, sub_compare, sub_evolution = st.tabs(["Today", "Compare", "Evolution"])
 
         with sub_today:
-            _surface_today_section(selected_all, all_data)
+            _surface_today_section(surf_tkr, all_data)
 
         with sub_compare:
-            _surface_compare_section(selected_all, all_data)
+            _surface_compare_section(surf_tkr, all_data)
 
         with sub_evolution:
-            _evolution_section(selected_all, all_data)
+            _evolution_section(surf_tkr, all_data)
 
     # ── Positioning ───────────────────────────────────────────────────────────
     with tab_positioning:
@@ -694,8 +682,9 @@ if sel_index:
             "γ-flip/walls = model (dealer net-short) · OI = raw"
         )
 
-        pos_tkr = st.radio(
-            "Positioning ticker", selected_all, horizontal=True,
+        pos_tkr = st.segmented_control(
+            "Positioning ticker", selected_all,
+            default=selected_all[0], required=True,
             key="positioning_tkr", label_visibility="collapsed",
         )
 

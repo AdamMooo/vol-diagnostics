@@ -107,7 +107,7 @@ def test_phase18_page_tabs_routes_evolution_under_surfaces_only():
     import inspect
     src = inspect.getsource(app)
     i_surfaces = src.index('with tab_surfaces:')
-    i_evo_call = src.index('_evolution_section(selected_all, all_data)')
+    i_evo_call = src.index('_evolution_section(surf_tkr, all_data)')
     assert i_surfaces < i_evo_call
 
 def test_phase18_cross_index_teaser_and_trust_tag_regime_briefing_contract():
