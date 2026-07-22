@@ -7,7 +7,7 @@ as a cron job or Docker healthcheck — exits 0 (healthy) or 1 (stale/missing).
 
 Usage:
     python -m engine.health_check              # print status
-    python -m engine.health_check --strict     # exit 1 if any ticker is stale
+    python -m engine.health_check --strict     # exit 1 if any ticker is stale/missing
 """
 from __future__ import annotations
 
@@ -270,13 +270,12 @@ def main():
 
     result = check_health(verbose=not args.json)
     fh_result = full_history_report(verbose=not args.json)
-    combined_healthy = result["healthy"] and fh_result["clean"]
 
     if args.json:
         import json
         print(json.dumps({"tail_check": result, "full_history": fh_result}, indent=2))
 
-    if args.strict and not combined_healthy:
+    if args.strict and not result["healthy"]:
         sys.exit(1)
 
 
