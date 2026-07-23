@@ -270,4 +270,19 @@ MONITOR_CREDIBILITY_FLOOR_SESSIONS: int = 252
 computed and labeled with n regardless of this floor — this constant gates alerting
 only, not rank computation."""
 
+MONITOR_ALERT_BAND_ENTRY: int = 97
+"""PROVISIONAL — Plan 03's calibration CLI will replace with a replay-derived value
+and update this comment with the evidence. Severity rank at/above which an alert
+enters "in_entry" from "out"."""
+
+MONITOR_ALERT_BAND_ESCALATE: int = 99
+"""PROVISIONAL — Plan 03's calibration CLI will replace with a replay-derived value
+and update this comment with the evidence. Severity rank at/above which an alert
+already "in_entry" escalates to "in_escalate" (re-fires)."""
+
+MONITOR_ALERT_BAND_EXIT: int = 87
+"""PROVISIONAL — Plan 03's calibration CLI will replace with a replay-derived value
+and update this comment with the evidence. Severity rank below which an alert in
+"in_entry"/"in_escalate" clears back to "out" (hysteresis: exit < entry)."""
+
 
