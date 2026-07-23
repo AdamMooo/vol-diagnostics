@@ -1,0 +1,126 @@
+"""Tests for engine/monitor/monitor_store.py -- parquet stores + orchestration.
+
+Uses store param-overrides for testability, mirroring engine/data/validation.py's
+`store` param-override pattern.
+"""
+from __future__ import annotations
+
+import datetime
+
+import pandas as pd
+import pytest
+
+from engine.monitor import monitor_store
+
+
+@pytest.fixture
+def ranks_store(tmp_path):
+    return tmp_path / "ranks.parquet"
+
+
+@pytest.fixture
+def events_store(tmp_path):
+    return tmp_path / "alert_events.parquet"
+
+
+class TestSaveMonitorRow:
+    def test_idempotent_on_date_ticker_metric(self, ranks_store):
+        row = {
+            "date": datetime.date(2026, 1, 5), "ticker": "SPY", "metric": "vrp",
+            "value": 1.2, "level_rank_deep": 90, "n_deep": 300,
+            "level_rank_1yr": 88, "n_1yr": 252, "change_rank": 50, "change_n": 247,
+            "band_state_deep": "out", "band_state_1yr": "out", "band_state_change": "out",
+        }
+        monitor_store.save_monitor_row(row, store=ranks_store)
+        monitor_store.save_monitor_row(row, store=ranks_store)
+        hist = pd.read_parquet(ranks_store)
+        assert len(hist) == 1
+
+
+class TestSaveAlertEvent:
+    def test_append_only_no_dedup(self, events_store):
+        event = {
+            "date": datetime.date(2026, 1, 5), "ticker": "SPY", "metric": "vrp",
+            "rank_kind": "level_deep", "alert_type": "entry",
+            "rank_at_transition": 98, "prior_state": "out",
+        }
+        monitor_store.save_alert_event(event, store=events_store)
+        monitor_store.save_alert_event(event, store=events_store)
+        hist = pd.read_parquet(events_store)
+        assert len(hist) == 2
+
+
+class TestLoadPriorMonitorRow:
+    def test_returns_most_recent_row_before_date(self, ranks_store):
+        rows = [
+            {
+                "date": d, "ticker": "SPY", "metric": "vrp",
+                "value": 1.0, "level_rank_deep": 50, "n_deep": 300,
+                "level_rank_1yr": 50, "n_1yr": 252, "change_rank": 50, "change_n": 247,
+                "band_state_deep": "in_entry", "band_state_1yr": "out", "band_state_change": "out",
+            }
+            for d in (datetime.date(2026, 1, 3), datetime.date(2026, 1, 4))
+        ]
+        for r in rows:
+            monitor_store.save_monitor_row(r, store=ranks_store)
+        result = monitor_store.load_prior_monitor_row("SPY", "vrp", datetime.date(2026, 1, 5), store=ranks_store)
+        assert result is not None
+        assert result["date"] == datetime.date(2026, 1, 4)
+        assert result["band_state_deep"] == "in_entry"
+
+    def test_returns_none_when_store_absent(self, ranks_store):
+        assert monitor_store.load_prior_monitor_row("SPY", "vrp", datetime.date(2026, 1, 5), store=ranks_store) is None
+
+
+class TestComputeAndSaveMonitorRows:
+    def test_never_raises_when_metric_history_missing(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(monitor_store, "RANKS_STORE", tmp_path / "ranks.parquet")
+        monkeypatch.setattr(monitor_store, "ALERT_EVENTS_STORE", tmp_path / "alert_events.parquet")
+        monkeypatch.setattr(monitor_store.metrics, "load_metric_series", lambda ticker, metric: None)
+
+        written = monitor_store.compute_and_save_monitor_rows(
+            "SPY", {"ticker": "SPY"}, datetime.date(2026, 1, 5),
+            band_entry=97, band_escalate=99, band_exit=87,
+        )
+        assert isinstance(written, int)
+        assert written >= 0
+
+    def test_writes_row_per_metric_for_ticker(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(monitor_store, "RANKS_STORE", tmp_path / "ranks.parquet")
+        monkeypatch.setattr(monitor_store, "ALERT_EVENTS_STORE", tmp_path / "alert_events.parquet")
+
+        history = pd.Series(range(1, 301), dtype=float)
+
+        def fake_loader(ticker, metric):
+            return history
+
+        monkeypatch.setattr(monitor_store.metrics, "load_metric_series", fake_loader)
+        monkeypatch.setattr(monitor_store, "save_monitor_row", lambda row: pd.DataFrame())
+
+        # patch save_monitor_row/save_alert_event to write to tmp stores directly
+        def save_row(row, store=None):
+            path = store if store is not None else monitor_store.RANKS_STORE
+            path.parent.mkdir(parents=True, exist_ok=True)
+            df = pd.DataFrame([row])
+            if path.exists():
+                df = pd.concat([pd.read_parquet(path), df], ignore_index=True)
+            df.to_parquet(path, index=False)
+
+        def save_event(event, store=None):
+            path = store if store is not None else monitor_store.ALERT_EVENTS_STORE
+            path.parent.mkdir(parents=True, exist_ok=True)
+            df = pd.DataFrame([event])
+            if path.exists():
+                df = pd.concat([pd.read_parquet(path), df], ignore_index=True)
+            df.to_parquet(path, index=False)
+
+        monkeypatch.setattr(monitor_store, "save_monitor_row", save_row)
+        monkeypatch.setattr(monitor_store, "save_alert_event", save_event)
+
+        written = monitor_store.compute_and_save_monitor_rows(
+            "SPY", {"ticker": "SPY"}, datetime.date(2026, 1, 5),
+            band_entry=97, band_escalate=99, band_exit=87,
+        )
+        # SPY has 7 metrics in METRIC_INVENTORY: vrp, skew_25d, fly_25d,
+        # surface_level, surface_rms, term_9d_30, term_30_3m
+        assert written == 7
