@@ -32,6 +32,8 @@ from engine.surface.surface_evolution import load_evolution
 from engine.vol.vol_metrics import evolution_5d_summary
 from engine.data.vol_index import refresh_vol_indices
 from engine.session import ET, is_trading_day, latest_session, MARKET_OPEN_HOUR, MARKET_OPEN_MIN
+from engine.monitor import monitor_store
+from engine import config
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ALL_TICKERS = INDEX_TICKERS
@@ -221,6 +223,20 @@ def run(dry_run: bool = False, force: bool = False) -> None:
             print(f"  {ticker}: {rows} evolution row(s) written")
         except Exception as exc:
             print(f"  [WARN] {ticker} evolution failed (non-blocking): {exc}")
+
+    print("\n[run_daily] Computing severity monitor rows...")
+    all_data_by_ticker = {d["summary"]["ticker"]: d for d in all_data}
+    for ticker in ALL_TICKERS:
+        try:
+            n = monitor_store.compute_and_save_monitor_rows(
+                ticker, all_data_by_ticker[ticker]["summary"], today,
+                band_entry=config.MONITOR_ALERT_BAND_ENTRY,
+                band_escalate=config.MONITOR_ALERT_BAND_ESCALATE,
+                band_exit=config.MONITOR_ALERT_BAND_EXIT,
+            )
+            print(f"  {ticker}: {n} monitor row(s) written")
+        except Exception as exc:
+            print(f"  [WARN] {ticker} monitor failed (non-blocking): {exc}")
 
     # Gather evolution scalars for email section (non-blocking per-ticker)
     evolution_data: dict = {}
