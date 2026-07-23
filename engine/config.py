@@ -270,19 +270,40 @@ MONITOR_CREDIBILITY_FLOOR_SESSIONS: int = 252
 computed and labeled with n regardless of this floor — this constant gates alerting
 only, not rank computation."""
 
-MONITOR_ALERT_BAND_ENTRY: int = 97
-"""PROVISIONAL — Plan 03's calibration CLI will replace with a replay-derived value
-and update this comment with the evidence. Severity rank at/above which an alert
-enters "in_entry" from "out"."""
+MONITOR_ALERT_BAND_ENTRY: int = 90
+"""Calibrated 2026-07-22 via `python -m engine.monitor.calibration --dry-run`, replayed
+against stored history at that date: 15,699 aligned sessions across the 5 of 17
+METRIC_INVENTORY pairs that clear MONITOR_CREDIBILITY_FLOOR_SESSIONS (VRP x3 tickers,
+term_9d_30/term_30_3m on SPY — both riding the CBOE vol-index's multi-decade depth per
+D-08; the 12 chain-derived skew/fly/surface metrics are still cold-starting at 19-41
+sessions since ~2026-05 and were skipped by the replay, not by intuition). Grid tested:
+entry in [90,95,97,98,99] x hysteresis gap in [5,10,15]. Result: eps/week is monotonically
+below D-05's ~1/week target across the WHOLE grid (band 90/gap 5 closest at 0.186 eps/week,
+flicker_ratio 0.047) — the deep vol-index history genuinely doesn't produce the ~weekly false
+alarm the a priori D-05 budget assumed once ranked against its own full depth, not a
+symptom of thin data on the metrics that qualified. Re-run once chain metrics cross the
+252-session floor (~2027-05, D-08) to re-check whether adding those 12 metrics shifts the
+aggregate rate toward the target; entry may need to move higher (lower percentile threshold)
+if it does not. Severity rank at/above which an alert enters "in_entry" from "out"."""
 
-MONITOR_ALERT_BAND_ESCALATE: int = 99
-"""PROVISIONAL — Plan 03's calibration CLI will replace with a replay-derived value
-and update this comment with the evidence. Severity rank at/above which an alert
-already "in_entry" escalates to "in_escalate" (re-fires)."""
+MONITOR_ALERT_BAND_ESCALATE: int = 94
+"""Calibrated 2026-07-22 alongside MONITOR_ALERT_BAND_ENTRY (see that constant's comment
+for full replay evidence: 15,699 sessions, 5/17 qualifying metrics, band 90/gap 5 recommendation).
+escalate = entry + (99 - entry) // 2 per the calibration grid's convention. Severity rank at/above
+which an alert already "in_entry" escalates to "in_escalate" (re-fires)."""
 
-MONITOR_ALERT_BAND_EXIT: int = 87
-"""PROVISIONAL — Plan 03's calibration CLI will replace with a replay-derived value
-and update this comment with the evidence. Severity rank below which an alert in
-"in_entry"/"in_escalate" clears back to "out" (hysteresis: exit < entry)."""
+MONITOR_ALERT_BAND_EXIT: int = 85
+"""Calibrated 2026-07-22 alongside MONITOR_ALERT_BAND_ENTRY (see that constant's comment
+for full replay evidence). exit = entry - MONITOR_ALERT_HYSTERESIS_GAP; the flicker-ratio
+analysis across gaps [5,10,15] showed gap=5 already gives the lowest flicker_ratio (0.047)
+for band_entry=90 among the tested widths — wider gaps did not further reduce flicker at
+this band. Severity rank below which an alert in "in_entry"/"in_escalate" clears back to
+"out" (hysteresis: exit < entry)."""
+
+MONITOR_ALERT_HYSTERESIS_GAP: int = 5
+"""Calibrated 2026-07-22 (see MONITOR_ALERT_BAND_ENTRY comment for full replay evidence).
+entry - exit. Chosen from the calibration replay's flicker analysis, not intuition
+(RESEARCH.md Pitfall 3) — re-run `python -m engine.monitor.calibration` once chain-metric
+history deepens (~2027-05) to confirm this still minimizes flicker_ratio."""
 
 
