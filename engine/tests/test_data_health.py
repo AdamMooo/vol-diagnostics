@@ -260,9 +260,9 @@ class TestFullHistoryGapScan:
 # ---------------------------------------------------------------------------
 
 class TestHealthCheckStrict:
-    """Tests for main()'s combined tail-check + full-history --strict gate."""
+    """Tests for main()'s freshness-only --strict gate."""
 
-    def test_strict_exits_nonzero_when_full_history_has_gaps(self, monkeypatch):
+    def test_strict_ignores_full_history_gaps_when_tail_is_healthy(self, monkeypatch):
         from engine.health_check import main
         monkeypatch.setattr(
             "engine.health_check.check_health",
@@ -273,11 +273,9 @@ class TestHealthCheckStrict:
             lambda verbose=True: {"clean": False, "series": {}},
         )
         monkeypatch.setattr(sys, "argv", ["health_check", "--strict"])
-        with pytest.raises(SystemExit) as exc_info:
-            main()
-        assert exc_info.value.code == 1
+        main()  # should not raise SystemExit
 
-    def test_strict_exits_zero_when_both_clean(self, monkeypatch):
+    def test_strict_exits_zero_when_tail_and_history_are_clean(self, monkeypatch):
         from engine.health_check import main
         monkeypatch.setattr(
             "engine.health_check.check_health",
@@ -289,6 +287,21 @@ class TestHealthCheckStrict:
         )
         monkeypatch.setattr(sys, "argv", ["health_check", "--strict"])
         main()  # should not raise SystemExit
+
+    def test_strict_exits_nonzero_when_tail_check_is_unhealthy(self, monkeypatch):
+        from engine.health_check import main
+        monkeypatch.setattr(
+            "engine.health_check.check_health",
+            lambda verbose=True: {"healthy": False, "expected": "2026-06-01", "tickers": {}},
+        )
+        monkeypatch.setattr(
+            "engine.health_check.full_history_report",
+            lambda verbose=True: {"clean": True, "series": {}},
+        )
+        monkeypatch.setattr(sys, "argv", ["health_check", "--strict"])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 1
 
 
 # ---------------------------------------------------------------------------
