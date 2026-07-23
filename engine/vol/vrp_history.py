@@ -42,6 +42,51 @@ def _fetch_closes_yf(ticker: str, period: str = "2520d") -> "pd.Series | None":
         return None
 
 
+def vrp_history_series(ticker: str) -> "pd.Series | None":
+    """Build the full vol-index-based VRP series (date-indexed ascending, vol points).
+
+    Same series vrp_percentile() ranks against internally -- the single source of
+    truth so the scalar and its rank (and any other consumer, e.g. engine.monitor.metrics)
+    share one definition. Returns None on empty vol-index, yfinance failure, or no date
+    alignment. Never raises.
+    """
+    try:
+        sym = config.TICKER_VOL_INDEX[ticker]
+        vi = load_vol_index(sym)
+        if vi.empty:
+            return None
+
+        fetch_days = config.VRP_DEEP_LOOKBACK_SESSIONS + config.VRP_CLOSES_FETCH_BUFFER_DAYS
+        closes = _fetch_closes_yf(ticker, period=f"{fetch_days}d")
+        if closes is None:
+            return None
+
+        vi_close = vi.set_index("date")["close"]  # vol points, date-only index
+
+        # Rolling RV20 aligned to each close date with >=21 prior prices (21 prices -> 20 returns).
+        cl = closes.sort_index()
+        rv: dict = {}
+        for i in range(20, len(cl)):
+            window = cl.iloc[i - 20: i + 1].reset_index(drop=True)
+            rv[cl.index[i]] = compute_rv20(window)
+        if not rv:
+            return None
+        rv_series = pd.Series(rv)
+
+        aligned = pd.DataFrame({"vi": vi_close, "rv": rv_series}).dropna()
+        if aligned.empty:
+            return None
+
+        vrp_hist = aligned["vi"] - aligned["rv"] * 100  # both vol points
+        if vrp_hist.empty:
+            return None
+
+        return vrp_hist
+    except Exception as exc:
+        print(f"[vrp_history] vrp_history_series failed for {ticker}: {exc}")
+        return None
+
+
 def vrp_percentile(ticker: str, lookback: int | None = None) -> dict:
     """Today's vol-index-based VRP, its percentile rank, and the sample count.
 
@@ -58,34 +103,8 @@ def vrp_percentile(ticker: str, lookback: int | None = None) -> dict:
     """
     none_dict = {"vrp": None, "pct": None, "n": 0}
 
-    sym = config.TICKER_VOL_INDEX[ticker]
-    vi = load_vol_index(sym)
-    if vi.empty:
-        return none_dict
-
-    fetch_days = config.VRP_DEEP_LOOKBACK_SESSIONS + config.VRP_CLOSES_FETCH_BUFFER_DAYS
-    closes = _fetch_closes_yf(ticker, period=f"{fetch_days}d")
-    if closes is None:
-        return none_dict
-
-    vi_close = vi.set_index("date")["close"]  # vol points, date-only index
-
-    # Rolling RV20 aligned to each close date with >=21 prior prices (21 prices -> 20 returns).
-    cl = closes.sort_index()
-    rv: dict = {}
-    for i in range(20, len(cl)):
-        window = cl.iloc[i - 20: i + 1].reset_index(drop=True)
-        rv[cl.index[i]] = compute_rv20(window)
-    if not rv:
-        return none_dict
-    rv_series = pd.Series(rv)
-
-    aligned = pd.DataFrame({"vi": vi_close, "rv": rv_series}).dropna()
-    if aligned.empty:
-        return none_dict
-
-    vrp_hist = aligned["vi"] - aligned["rv"] * 100  # both vol points
-    if vrp_hist.empty:
+    vrp_hist = vrp_history_series(ticker)
+    if vrp_hist is None or vrp_hist.empty:
         return none_dict
 
     today_vrp = float(vrp_hist.iloc[-1])  # same definition as every history point

@@ -253,4 +253,21 @@ below this, not shown with a caveat. VRP rides the deep vol-index history (n≈2
 this trivially; chain-derived metrics (skew/surface) only accrue from our own snapshots and
 appear once they cross it. Raise toward 252 for the same bar as VRP."""
 
+# ── Monitor: severity ranking + alerting (Phase 26) ─────────────────────────────
+
+MONITOR_ONEYR_LOOKBACK_SESSIONS: int = 252
+"""The '1-yr' leg of the dual-lookback level rank (D-02). Computed independently
+alongside the deep lookback so a regime shift shows up as disagreement between the
+two ranks rather than being smoothed away by a single long window."""
+
+MONITOR_CHANGE_K_SESSIONS: int = 5
+"""5-day |Δ| change horizon for the two-sided change-severity rank (D-03). A single
+k=5 horizon, not per-direction and not multi-horizon — keeps the change signal to one
+number per metric."""
+
+MONITOR_CREDIBILITY_FLOOR_SESSIONS: int = 252
+"""Minimum sample size n before an alert is eligible to fire (D-08). Ranks are always
+computed and labeled with n regardless of this floor — this constant gates alerting
+only, not rank computation."""
+
 
