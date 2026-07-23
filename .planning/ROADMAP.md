@@ -11,7 +11,7 @@
 - ✅ **v3.4 Email-First Daily Report Polish** — Phases 12–14 (shipped 2026-06-02)
 - ✅ **v3.5 Index Vol-Context Rebuild** — Phases 15–18 (shipped 2026-06-24)
 - ✅ **v4.0 Cloud Hosting** — Phases 19–22, 20.5 (shipped 2026-07-17) — see [[.planning/milestones/v4.0-ROADMAP|archive]]
-- **v5.0 Data Foundation** — Phases 23–25 (in progress) — data completeness/gap monitoring + `out/` backup+restore + model-ready data definition/depth audit (merged into Phase 23), codebase cleanup, existing-computation rigor hardening
+- **v5.0 Data Foundation** — Phases 23–27 (in progress) — data completeness/gap monitoring + `out/` backup+restore + model-ready data definition/depth audit (merged into Phase 23), codebase cleanup, existing-computation rigor hardening, severity-statistics/alert engine + microstructure monitor UI (Phases 26–27, added 2026-07-23)
 - **Backlog (999.x)** — Charm, test coverage, pre-distribution; awaiting research
 
 ## Phases
@@ -31,6 +31,8 @@
 - [ ] **Phase 23: Data Completeness, Backup & Model-Readiness Audit** - Detect gaps, back up `out/` off the single Oracle VM, and measure current data against a written model-ready bar
 - [ ] **Phase 24: Codebase Organization & Dead Code Removal** - Sweep `engine/` for dead code/stale references, review module organization, sync CLAUDE.md
 - [ ] **Phase 25: Existing Computation Rigor Hardening** - Verify VRP/RV20/surface-fit/skew-term computations against methodology, harden edge cases
+- [ ] **Phase 26: Severity Statistics & Alert Engine** - ECDF percentile ranks (levels + k-day changes, dual lookback) over existing metrics; transition-with-hysteresis alerts; bands from a false-alarm budget calibrated on stored history
+- [ ] **Phase 27: Microstructure Monitor UI** - Distribution-board landing + per-row evidence panels on the dashboard; event-shaped email alerts; email boilerplate cut
 
 ## Phase Details
 
@@ -77,6 +79,29 @@
   4. No new predictive/prescriptive model logic is introduced — changes are limited to correctness/hardening of the existing four computations, consistent with MODEL-01/02 staying deferred
 **Plans**: TBD
 
+### Phase 26: Severity Statistics & Alert Engine
+**Goal**: Every existing metric carries an honest "how unusual is this" measure — ECDF percentile ranks on levels and k-day changes (dual deep/1yr lookback), a transition-with-hysteresis alert rule, and alert bands derived from a false-alarm budget calibrated by replaying the ranker over stored history. No new signals — a severity transform over already-computed values.
+**Requirements**: TBD
+**Depends on:** Nothing hard (reads existing `out/` stores; benefits from Phase 23 gap detection but does not require it)
+**Canonical refs:** `.planning/notes/microstructure-monitor-design.md`, `.planning/research/questions.md` (alert band calibration)
+**Plans:** 3 plans
+
+Plans:
+- [ ] 26-01-PLAN.md — Severity ranking foundation: config constants, monitor schema, ECDF ranker (dual lookback + k=5 change), per-metric loaders
+- [ ] 26-02-PLAN.md — Hysteresis alert state machine + out/monitor/ persistence + run_daily wiring
+- [ ] 26-03-PLAN.md — Calibration CLI (episodes/week replay) + finalize config.py alert bands
+
+### Phase 27: Microstructure Monitor UI
+**Goal**: The dashboard lands on a distribution board (percentile strip + 10-session trail per metric×ticker, ~15 rows) with per-row evidence panels (metric history with bands + mechanism view: smile / diff surface / implied-vs-realized pair); the daily email becomes event-shaped (band entries + escalations only, near-empty on normal days) with methodology boilerplate cut to a single link. Existing Surfaces/Positioning tabs unchanged as the exploration layer; net-GEX sign shown as a state chip, not a ranked row.
+**Requirements**: TBD
+**Depends on:** Phase 26 (consumes its severity ranks and alert events)
+**Canonical refs:** `.planning/notes/microstructure-monitor-design.md`, `.planning/todos/pending/email-boilerplate-cut.md`
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 27 to break down)
+
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -97,6 +122,8 @@ All phases through v4.0 (22 phases, 24 tracked plans + several ad-hoc) are compl
 | 999.2 Test Coverage | Backlog | Depends on 999.1 |
 | 999.3 Pre-Distribution | Partial | 50% out-of-phase; 50% deferred — folded into Phase 24 |
 
+---
+---
 ---
 <!-- LINKS:AUTO -->
 ## Related
