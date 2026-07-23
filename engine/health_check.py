@@ -45,7 +45,14 @@ MODEL_READY_TARGETS = {
 
 def _last_expected_session(today: date | None = None) -> date:
     """Most recent NYSE trading day that should have a snapshot by now."""
-    today = today or date.today()
+    from datetime import datetime
+    import pytz
+    now_et = datetime.now(pytz.timezone("America/New_York"))
+    # "today" must be the US/Eastern market date, not the system/UTC date --
+    # GitHub Actions runners are UTC, so e.g. 8:41pm ET is already past
+    # midnight UTC (next calendar day), which would falsely mark today's
+    # just-collected snapshot as one day stale.
+    today = today or now_et.date()
     nyse = mcal.get_calendar("NYSE")
     sched = nyse.schedule(
         start_date=(today - timedelta(days=14)).strftime("%Y-%m-%d"),
@@ -55,9 +62,6 @@ def _last_expected_session(today: date | None = None) -> date:
     if not sessions:
         return today
     # Today's session only counts if market is closed (after 4:35pm ET)
-    from datetime import datetime
-    import pytz
-    now_et = datetime.now(pytz.timezone("America/New_York"))
     if sessions[-1] == today and now_et.hour < 17:
         return sessions[-2] if len(sessions) >= 2 else today
     return sessions[-1]
