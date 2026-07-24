@@ -93,6 +93,42 @@ class TestCheckAlertTransition:
         assert alert_type is None
         assert new_state == "out"
 
+    def test_data_missing_holds_in_escalate_despite_zero_n(self):
+        # Production stale-day shape: no reading today arrives as rank=None, n=0.
+        # Must hold the active alert, NOT collapse to "out" via the floor gate (CR-02).
+        alert_type, new_state = check_alert_transition(
+            today_rank=None, n=0, yesterday_state="in_escalate",
+            entry=ENTRY, escalate=ESCALATE, exit_=EXIT, data_missing=True,
+        )
+        assert alert_type is None
+        assert new_state == "in_escalate"
+
+    def test_data_missing_holds_in_entry_despite_zero_n(self):
+        alert_type, new_state = check_alert_transition(
+            today_rank=None, n=0, yesterday_state="in_entry",
+            entry=ENTRY, escalate=ESCALATE, exit_=EXIT, data_missing=True,
+        )
+        assert alert_type is None
+        assert new_state == "in_entry"
+
+    def test_data_missing_stays_out_when_already_out(self):
+        alert_type, new_state = check_alert_transition(
+            today_rank=None, n=0, yesterday_state="out",
+            entry=ENTRY, escalate=ESCALATE, exit_=EXIT, data_missing=True,
+        )
+        assert alert_type is None
+        assert new_state == "out"
+
+    def test_reading_present_below_floor_still_resets_active_state(self):
+        # Floor gate semantics preserved: a real reading with too-short history
+        # is still "out" (distinct from data_missing, which holds).
+        alert_type, new_state = check_alert_transition(
+            today_rank=98, n=FLOOR - 1, yesterday_state="in_escalate",
+            entry=ENTRY, escalate=ESCALATE, exit_=EXIT, data_missing=False,
+        )
+        assert alert_type is None
+        assert new_state == "out"
+
     def test_three_rank_kinds_independent_no_cross_talk(self):
         deep = check_alert_transition(
             today_rank=98, n=FLOOR, yesterday_state="out",

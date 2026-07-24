@@ -148,5 +148,63 @@ class TestComputeAndSaveMonitorRows:
         assert written == 7
         assert len(saved_rows) == 7
         assert all(row["value"] is None for row in saved_rows)
+        # CR-03: a stale day must not fabricate a change rank from history's own
+        # last diff — every rank is None when there is no reading today.
+        assert all(row["change_rank"] is None for row in saved_rows)
+        assert all(row["level_rank_deep"] is None for row in saved_rows)
         captured = capsys.readouterr()
         assert "stale" in captured.out
+
+    def test_stale_day_does_not_fire_change_alert(self, monkeypatch, tmp_path):
+        # CR-03 integration: flat history with a single large jump in the final
+        # k-window makes the fabricated change (abs_changes.iloc[-1]) rank ~100 and
+        # fire an "entry" from "out" under the buggy code. With the fix, no reading
+        # today => no change rank => no alert.
+        monkeypatch.setattr(monitor_store, "RANKS_STORE", tmp_path / "ranks.parquet")
+        monkeypatch.setattr(monitor_store, "ALERT_EVENTS_STORE", tmp_path / "alert_events.parquet")
+
+        today = datetime.date(2026, 1, 5)
+        stale_last = today - datetime.timedelta(days=1)
+        dates = pd.date_range(end=stale_last, periods=300, freq="D").date
+        values = [100.0] * 299 + [1100.0]  # flat, then a lone spike in the last k-window
+        history = pd.Series(values, index=dates, dtype=float)
+        monkeypatch.setattr(monitor_store.metrics, "load_metric_series", lambda ticker, metric: history)
+
+        events = []
+        monkeypatch.setattr(monitor_store, "save_alert_event", lambda event, store=None: events.append(event))
+
+        monitor_store.compute_and_save_monitor_rows(
+            "SPY", {"ticker": "SPY"}, today,
+            band_entry=97, band_escalate=99, band_exit=87,
+        )
+        assert not any(e["rank_kind"] == "change" for e in events)
+
+    def test_stale_day_holds_active_level_alert(self, monkeypatch, tmp_path):
+        # CR-02 integration: an in_escalate alert from a prior day must be HELD on
+        # a stale day, not collapsed to "out" by the credibility-floor gate.
+        monkeypatch.setattr(monitor_store, "RANKS_STORE", tmp_path / "ranks.parquet")
+        monkeypatch.setattr(monitor_store, "ALERT_EVENTS_STORE", tmp_path / "alert_events.parquet")
+
+        today = datetime.date(2026, 1, 5)
+        prior_row = {
+            "date": today - datetime.timedelta(days=1), "ticker": "SPY", "metric": "vrp",
+            "value": 1.0, "level_rank_deep": 99, "n_deep": 300,
+            "level_rank_1yr": 99, "n_1yr": 252, "change_rank": 50, "change_n": 247,
+            "band_state_deep": "in_escalate", "band_state_1yr": "out", "band_state_change": "out",
+        }
+        monitor_store.save_monitor_row(prior_row, store=monitor_store.RANKS_STORE)
+
+        stale_last = today - datetime.timedelta(days=1)
+        dates = pd.date_range(end=stale_last, periods=300, freq="D").date
+        history = pd.Series(range(1, 301), index=dates, dtype=float)
+        monkeypatch.setattr(monitor_store.metrics, "load_metric_series", lambda ticker, metric: history)
+        monkeypatch.setattr(monitor_store, "save_alert_event", lambda event, store=None: None)
+
+        monitor_store.compute_and_save_monitor_rows(
+            "SPY", {"ticker": "SPY"}, today,
+            band_entry=97, band_escalate=99, band_exit=87,
+        )
+
+        saved = pd.read_parquet(monitor_store.RANKS_STORE)
+        vrp_today = saved[(saved["metric"] == "vrp") & (saved["date"] == today)].iloc[0]
+        assert vrp_today["band_state_deep"] == "in_escalate"
