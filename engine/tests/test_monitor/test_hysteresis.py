@@ -61,9 +61,33 @@ class TestCheckAlertTransition:
         assert alert_type is None
         assert new_state == "out"
 
-    def test_none_rank_never_raises_and_returns_out(self):
+    def test_none_rank_holds_in_escalate_state(self):
         alert_type, new_state = check_alert_transition(
             today_rank=None, n=FLOOR, yesterday_state="in_escalate",
+            entry=ENTRY, escalate=ESCALATE, exit_=EXIT,
+        )
+        assert alert_type is None
+        assert new_state == "in_escalate"
+
+    def test_none_rank_holds_in_entry_state(self):
+        alert_type, new_state = check_alert_transition(
+            today_rank=None, n=FLOOR, yesterday_state="in_entry",
+            entry=ENTRY, escalate=ESCALATE, exit_=EXIT,
+        )
+        assert alert_type is None
+        assert new_state == "in_entry"
+
+    def test_none_rank_stays_out_when_already_out(self):
+        alert_type, new_state = check_alert_transition(
+            today_rank=None, n=FLOOR, yesterday_state="out",
+            entry=ENTRY, escalate=ESCALATE, exit_=EXIT,
+        )
+        assert alert_type is None
+        assert new_state == "out"
+
+    def test_none_rank_resets_regardless_of_state_below_credibility_floor(self):
+        alert_type, new_state = check_alert_transition(
+            today_rank=None, n=FLOOR - 1, yesterday_state="in_escalate",
             entry=ENTRY, escalate=ESCALATE, exit_=EXIT,
         )
         assert alert_type is None

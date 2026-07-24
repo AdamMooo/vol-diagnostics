@@ -32,7 +32,12 @@ def check_alert_transition(
     Returns (alert_type, new_state) where alert_type is "entry", "escalation",
     or None (no fire this transition).
     """
-    if today_rank is None or n < credibility_floor:
+    if n < credibility_floor:
+        return None, "out"
+
+    if today_rank is None:
+        if yesterday_state in ("in_entry", "in_escalate"):
+            return None, yesterday_state
         return None, "out"
 
     if yesterday_state == "out":
