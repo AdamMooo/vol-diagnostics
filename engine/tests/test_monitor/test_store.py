@@ -124,3 +124,29 @@ class TestComputeAndSaveMonitorRows:
         # SPY has 7 metrics in METRIC_INVENTORY: vrp, skew_25d, fly_25d,
         # surface_level, surface_rms, term_9d_30, term_30_3m
         assert written == 7
+
+    def test_stale_history_skips_value_and_warns(self, monkeypatch, tmp_path, capsys):
+        monkeypatch.setattr(monitor_store, "RANKS_STORE", tmp_path / "ranks.parquet")
+        monkeypatch.setattr(monitor_store, "ALERT_EVENTS_STORE", tmp_path / "alert_events.parquet")
+
+        today = datetime.date(2026, 1, 5)
+        stale_last = today - datetime.timedelta(days=1)
+        dates = pd.date_range(end=stale_last, periods=300, freq="D").date
+        history = pd.Series(range(1, 301), index=dates, dtype=float)
+
+        monkeypatch.setattr(monitor_store.metrics, "load_metric_series", lambda ticker, metric: history)
+
+        saved_rows = []
+        monkeypatch.setattr(monitor_store, "save_monitor_row", lambda row, store=None: saved_rows.append(row))
+        monkeypatch.setattr(monitor_store, "save_alert_event", lambda event, store=None: None)
+
+        written = monitor_store.compute_and_save_monitor_rows(
+            "SPY", {"ticker": "SPY"}, today,
+            band_entry=97, band_escalate=99, band_exit=87,
+        )
+
+        assert written == 7
+        assert len(saved_rows) == 7
+        assert all(row["value"] is None for row in saved_rows)
+        captured = capsys.readouterr()
+        assert "stale" in captured.out

@@ -100,7 +100,11 @@ def compute_and_save_monitor_rows(
             history = metrics.load_metric_series(ticker, metric_name)
             today_value = summary.get(metric_name)
             if today_value is None and history is not None and not history.empty:
-                today_value = float(history.iloc[-1])
+                last_date = history.index[-1]
+                if last_date == today:
+                    today_value = float(history.iloc[-1])
+                else:
+                    print(f"[monitor] {ticker}/{metric_name}: history stale (last={last_date}); skipping value")
 
             level_res = ranker.compute_level_ranks(history, today_value)
             change_res = ranker.compute_change_rank(history, today_value)
