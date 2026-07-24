@@ -106,8 +106,16 @@ def compute_and_save_monitor_rows(
                 else:
                     print(f"[monitor] {ticker}/{metric_name}: history stale (last={last_date}); skipping value")
 
+            # No valid reading today: don't let compute_change_rank fabricate a rank
+            # from history's own last diff (that mode is for the calibration replay
+            # caller, not for a live stale day), and signal hysteresis to hold.
+            data_missing = today_value is None
+
             level_res = ranker.compute_level_ranks(history, today_value)
-            change_res = ranker.compute_change_rank(history, today_value)
+            if data_missing:
+                change_res = {"change_rank": None, "change_n": 0}
+            else:
+                change_res = ranker.compute_change_rank(history, today_value)
 
             prior = load_prior_monitor_row(ticker, metric_name, today) or {}
             prior_deep = prior.get("band_state_deep", "out")
@@ -116,15 +124,15 @@ def compute_and_save_monitor_rows(
 
             alert_deep, state_deep = hysteresis.check_alert_transition(
                 level_res["level_rank_deep"], level_res["n_deep"], prior_deep,
-                band_entry, band_escalate, band_exit,
+                band_entry, band_escalate, band_exit, data_missing=data_missing,
             )
             alert_1yr, state_1yr = hysteresis.check_alert_transition(
                 level_res["level_rank_1yr"], level_res["n_1yr"], prior_1yr,
-                band_entry, band_escalate, band_exit,
+                band_entry, band_escalate, band_exit, data_missing=data_missing,
             )
             alert_change, state_change = hysteresis.check_alert_transition(
                 change_res["change_rank"], change_res["change_n"], prior_change,
-                band_entry, band_escalate, band_exit,
+                band_entry, band_escalate, band_exit, data_missing=data_missing,
             )
 
             row = {

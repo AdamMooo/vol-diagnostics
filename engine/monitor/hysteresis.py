@@ -26,12 +26,25 @@ def check_alert_transition(
     escalate: int,
     exit_: int,
     credibility_floor: int = config.MONITOR_CREDIBILITY_FLOOR_SESSIONS,
+    *,
+    data_missing: bool = False,
 ) -> tuple[str | None, str]:
     """Pure state-transition function. Never raises.
 
     Returns (alert_type, new_state) where alert_type is "entry", "escalation",
     or None (no fire this transition).
+
+    data_missing means there is no valid reading today (stale/absent data), which
+    is distinct from an out-of-credibility reading: a missing day always arrives as
+    n=0 and must be intercepted BEFORE the credibility floor, otherwise an active
+    alert would collapse to "out" and re-fire on recovery. On a missing day we hold
+    an active alert and never fire.
     """
+    if data_missing:
+        if yesterday_state in ("in_entry", "in_escalate"):
+            return None, yesterday_state
+        return None, "out"
+
     if n < credibility_floor:
         return None, "out"
 
