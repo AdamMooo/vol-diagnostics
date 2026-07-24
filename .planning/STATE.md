@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Data Foundation
-status: executing
-stopped_at: Phase 23 planned — 4 plans (23-01 gap scanner, 23-02 backup/restore modules, 23-03 GH Actions wiring + OCI credential checkpoint, 23-04 model-readiness spec + depth audit). Depth targets in 23-04 are grounded in RESEARCH.md literature (GARCH/RV20/percentile conventions), not arbitrary.
-last_updated: "2026-07-21T19:54:55.477Z"
-last_activity: 2026-07-21 -- Phase 23 execution started
+status: ready_to_plan
+stopped_at: Phase 26 complete (5/5) — ready to discuss Phase 27
+last_updated: 2026-07-24T19:03:55.560Z
+last_activity: 2026-07-24 -- Phase 26 execution started
 progress:
-  total_phases: 3
+  total_phases: 5
   completed_phases: 0
-  total_plans: 4
-  completed_plans: 0
+  total_plans: 9
+  completed_plans: 8
   percent: 0
 ---
 
@@ -21,16 +21,26 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 23 — data-completeness-backup-model-readiness
+**Current focus:** Phase 27 — microstructure monitor ui
 
 ## Current Position
 
-Phase: 23 (data-completeness-backup-model-readiness) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 23
-Last activity: 2026-07-21 -- Phase 23 execution started
+Phase: 27 (microstructure-monitor-ui) — not started
+Plan: Not started
+
+Two threads open in v5.0:
+
+- **Phase 26 (severity-stats-alert-engine)** — ✅ COMPLETE 2026-07-24. 5/5 plans; 449 tests green. Two gap-closure rounds: 26-04/26-05 closed CR-01 + WR-01…07 (bands recalibrated to 90/94/85/5, now backed by trustworthy eps/week=0.704 vs the biased 0.186); an inline round then closed 2 follow-on criticals a post-fix code review caught (CR-02 hysteresis hold unreachable, CR-03 stale-data change-alert). `26-VERIFICATION.md` = passed.
+- **Phase 23 (data-completeness-backup-model-readiness)** — 3/4 plans merged, 390 tests green. 23-03 Task 2 PAUSED on human OCI checkpoint (bucket + 3 GitHub secrets). Blocked on Adam, not on code.
+
+Status: Ready to plan Phase 27
+Last activity: 2026-07-24 -- Phase 26 complete
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- 2026-07-23: Phases 26 (Severity Statistics & Alert Engine) and 27 (Microstructure Monitor UI) added to v5.0 — product reframed from descriptive daily report to market-microstructure exception monitor. Design decisions in `.planning/notes/microstructure-monitor-design.md` (ECDF severity ranks, transition-with-hysteresis alerts, false-alarm-budgeted bands, distribution-board UI, event-shaped email). Tier-2 conditional base rates stay deferred behind the v5.0 validation work.
 
 ### Decisions (carried forward, still load-bearing)
 
@@ -87,18 +97,19 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 
 ## Session Continuity
 
-Last session: 2026-07-21T19:50:39.960Z
-Stopped at: Phase 23 planned — 4 plans (23-01 gap scanner, 23-02 backup/restore modules, 23-03 GH Actions wiring + OCI credential checkpoint, 23-04 model-readiness spec + depth audit). Depth targets in 23-04 are grounded in RESEARCH.md literature (GARCH/RV20/percentile conventions), not arbitrary.
-Resume queue: `/gsd:execute-phase 23`.
+Last session: 2026-07-24 (resume)
+Stopped at: Phase 26 COMPLETE — gap closure done across 3 rounds (26-04/26-05 + inline CR-02/CR-03 fix, commits 95dd58e/82e5e80). 449 tests green, 26-VERIFICATION = passed. Monitor is now production-safe on stale-data days.
+Resume queue: Phase 27 (microstructure-monitor-ui) — has CONTEXT? check; likely `/gsd:discuss-phase 27` then plan.
 
 ## Operator Next Steps
 
-- `/gsd:execute-phase 23` to run the 4 plans. Note: 23-03 pauses for a human checkpoint — you'll need to create an Oracle Object Storage bucket + 3 GitHub Actions secrets (OCI_ACCESS_KEY_ID, OCI_CUSTOMER_SECRET_KEY, OCI_NAMESPACE) before it can complete.
+- **Phase 27 (Microstructure Monitor UI)** — consumes Phase 26's severity ranks + alert events: distribution-board landing, per-row evidence panels, event-shaped email, boilerplate cut. `/gsd:discuss-phase 27` (recommended) → `/gsd:plan-phase 27`. Canonical refs: `.planning/notes/microstructure-monitor-design.md`, `.planning/todos/pending/email-boilerplate-cut.md`.
+- **Phase 23 close-out (blocked on you)** — OCI console + GitHub secrets setup (`.planning/notes/ORACLE-CLOUD-SETUP.md` → "Object Storage Backup Setup (Phase 23)"), reply "approved", and I'll write 23-03-SUMMARY + verify. Still the only open item in Phase 23.
+- Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug.
 
 ---
+---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->

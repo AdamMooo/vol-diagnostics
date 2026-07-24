@@ -31,7 +31,7 @@
 - [ ] **Phase 23: Data Completeness, Backup & Model-Readiness Audit** - Detect gaps, back up `out/` off the single Oracle VM, and measure current data against a written model-ready bar
 - [ ] **Phase 24: Codebase Organization & Dead Code Removal** - Sweep `engine/` for dead code/stale references, review module organization, sync CLAUDE.md
 - [ ] **Phase 25: Existing Computation Rigor Hardening** - Verify VRP/RV20/surface-fit/skew-term computations against methodology, harden edge cases
-- [ ] **Phase 26: Severity Statistics & Alert Engine** - ECDF percentile ranks (levels + k-day changes, dual lookback) over existing metrics; transition-with-hysteresis alerts; bands from a false-alarm budget calibrated on stored history (verification found gaps 2026-07-22; gap closure plans 26-04/05 in progress)
+- [x] **Phase 26: Severity Statistics & Alert Engine** - ECDF percentile ranks (levels + k-day changes, dual lookback) over existing metrics; transition-with-hysteresis alerts; bands from a false-alarm budget calibrated on stored history (verification found gaps 2026-07-22; gap closure plans 26-04/05 in progress) (completed 2026-07-24)
 - [ ] **Phase 27: Microstructure Monitor UI** - Distribution-board landing + per-row evidence panels on the dashboard; event-shaped email alerts; email boilerplate cut
 
 ## Phase Details
@@ -94,7 +94,7 @@
 **Requirements**: TBD
 **Depends on:** Nothing hard (reads existing `out/` stores; benefits from Phase 23 gap detection but does not require it)
 **Canonical refs:** `.planning/notes/microstructure-monitor-design.md`, `.planning/research/questions.md` (alert band calibration)
-**Plans:** 5 plans (3 complete; 2 gap-closure plans pending -- see 26-VERIFICATION.md)
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -111,11 +111,11 @@ Plans:
 
 **Wave 4 (gap closure)** *(independent correctness fixes -- CR-01, WR-04, WR-05, WR-06)*
 
-- [ ] 26-04-PLAN.md — Stale-value fallback date guard, hysteresis state-hold on None rank, change-rank off-by-one fix, surface-evolution horizon decoupling
+- [x] 26-04-PLAN.md — Stale-value fallback date guard, hysteresis state-hold on None rank, change-rank off-by-one fix, surface-evolution horizon decoupling
 
 **Wave 5 (gap closure)** *(blocked on Wave 4 completion -- depends on engine/config.py; re-runs calibration under corrected methodology)*
 
-- [ ] 26-05-PLAN.md — Calibration methodology fixes (WR-01/02/03), hermetic test (WR-07), re-run calibration and finalize config.py bands
+- [x] 26-05-PLAN.md — Calibration methodology fixes (WR-01/02/03), hermetic test (WR-07), re-run calibration and finalize config.py bands
 
 ### Phase 27: Microstructure Monitor UI
 
