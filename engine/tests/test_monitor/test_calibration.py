@@ -65,7 +65,17 @@ class TestCountEpisodesPerWeek:
 
 
 class TestCalibrate:
-    def test_runs_across_grid_and_returns_sorted_results(self):
+    def test_runs_across_grid_and_returns_sorted_results(self, monkeypatch):
+        import engine.monitor.calibration as calib_mod
+
+        def _synthetic_loader(ticker, metric_name):
+            n = 300
+            seed = (hash((ticker, metric_name)) % 1000) / 1000.0
+            values = [50.0 + 10.0 * ((i * 0.017 + seed) % 1.0) for i in range(n)]
+            return pd.Series(values, index=_dates(n))
+
+        monkeypatch.setattr(calib_mod.metrics, "load_metric_series", _synthetic_loader)
+
         result = calibrate(candidate_bands=[90, 97], hysteresis_gaps=[5, 10])
         assert "results" in result
         results = result["results"]

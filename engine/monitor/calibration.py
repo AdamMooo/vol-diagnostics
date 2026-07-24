@@ -44,7 +44,7 @@ def replay_metric(
         start = min(credibility_floor, len(clean) - 1) if len(clean) > 1 else 0
 
         for i in range(start, len(clean)):
-            history_so_far = clean.iloc[:i]
+            history_so_far = clean.iloc[:i + 1]
             today_value = clean.iloc[i]
             today_date = clean.index[i]
 
