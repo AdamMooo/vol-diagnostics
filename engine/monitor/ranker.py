@@ -65,8 +65,17 @@ def compute_change_rank(
     today_value: float | None = None,
     k: int = config.MONITOR_CHANGE_K_SESSIONS,
     lookback: int | None = None,
+    *,
+    today_in_history: bool = True,
 ) -> dict:
-    """Two-sided |Δk| severity rank: magnitude only, sign discarded (D-03). Never raises."""
+    """Two-sided |Δk| severity rank: magnitude only, sign discarded (D-03). Never raises.
+
+    today_in_history controls the k-sessions-ago comparator when today_value is passed
+    explicitly: True (default, matches production -- monitor_store's history already
+    includes today's row by the time this runs) uses clean.iloc[-1-k]; False (today_value
+    passed separately from a history not yet containing it, e.g. a replay/calibration
+    caller) uses clean.iloc[-k].
+    """
     none_dict = {"change_rank": None, "change_n": 0}
     try:
         if history is None:
@@ -87,9 +96,7 @@ def compute_change_rank(
         if today_value is None:
             todays_change = float(abs_changes.iloc[-1])
         else:
-            prior = clean.iloc[-1 - k] if len(clean) > k else None
-            if prior is None:
-                return none_dict
+            prior = clean.iloc[-1 - k] if today_in_history else clean.iloc[-k]
             todays_change = abs(float(today_value) - float(prior))
 
         change_rank = int(percentileofscore(window.to_numpy(), todays_change, kind="rank"))

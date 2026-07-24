@@ -102,3 +102,37 @@ class TestComputeChangeRank:
         assert res["change_n"] > 0
         assert res["change_n"] < config.MONITOR_CREDIBILITY_FLOOR_SESSIONS
         assert res["change_rank"] is not None
+
+    def test_today_in_history_true_uses_tail_as_today(self):
+        # Default contract: today_value already equals clean.iloc[-1] (history
+        # includes today), so the k-sessions-ago comparator is clean.iloc[-1-k].
+        rng = np.random.default_rng(42)
+        history = pd.Series(rng.normal(size=50).cumsum())
+        k = 5
+        today_value = float(history.iloc[-1])
+        res = ranker.compute_change_rank(history, today_value=today_value, k=k)
+        expected_prior = history.iloc[-1 - k]
+        expected_change = abs(today_value - expected_prior)
+        from scipy.stats import percentileofscore
+        abs_changes = history.diff(k).abs().dropna()
+        expected_rank = int(percentileofscore(abs_changes.to_numpy(), expected_change, kind="rank"))
+        assert res["change_rank"] == expected_rank
+
+    def test_today_in_history_false_uses_series_tail_as_k_sessions_ago(self):
+        # today_value passed separately, history does NOT yet include it (e.g. a
+        # replay caller): k-sessions-ago comparator is clean.iloc[-k], not -1-k.
+        rng = np.random.default_rng(42)
+        history = pd.Series(rng.normal(size=50).cumsum())
+        k = 5
+        today_value = float(history.iloc[-1]) + 3.0
+        res = ranker.compute_change_rank(
+            history, today_value=today_value, k=k, today_in_history=False,
+        )
+        expected_prior = history.iloc[-k]
+        expected_change = abs(today_value - expected_prior)
+        from scipy.stats import percentileofscore
+        abs_changes = history.diff(k).abs().dropna()
+        expected_rank = int(percentileofscore(abs_changes.to_numpy(), expected_change, kind="rank"))
+        assert res["change_rank"] == expected_rank
+        # The two contracts pick a genuinely different comparator (-k vs -1-k).
+        assert history.iloc[-1 - k] != history.iloc[-k]

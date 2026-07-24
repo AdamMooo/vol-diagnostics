@@ -115,9 +115,9 @@ def load_metric_series(ticker: str, metric_name: str) -> "pd.Series | None":
         if metric_name == "fly_25d":
             return _gex_snapshot_column(ticker, "butterfly")
         if metric_name == "surface_level":
-            return _evolution_column(ticker, "level", config.MONITOR_CHANGE_K_SESSIONS)
+            return _evolution_column(ticker, "level", config.MONITOR_SURFACE_EVOLUTION_HORIZON)
         if metric_name == "surface_rms":
-            return _evolution_column(ticker, "rms", config.MONITOR_CHANGE_K_SESSIONS)
+            return _evolution_column(ticker, "rms", config.MONITOR_SURFACE_EVOLUTION_HORIZON)
         if metric_name in ("term_9d_30", "term_30_3m"):
             return _term_ratio_series(ticker, metric_name)
         return None

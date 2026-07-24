@@ -265,6 +265,13 @@ MONITOR_CHANGE_K_SESSIONS: int = 5
 k=5 horizon, not per-direction and not multi-horizon — keeps the change signal to one
 number per metric."""
 
+MONITOR_SURFACE_EVOLUTION_HORIZON: int = 5
+"""The surface-evolution store's `horizon` column filter used by the surface_level/
+surface_rms monitor metrics (WR-06). Deliberately decoupled from
+MONITOR_CHANGE_K_SESSIONS even though both currently equal 5 — tuning one must not
+silently break the other (mismatched values make surface_level/surface_rms return
+None with no error, since the horizon filter would match zero rows)."""
+
 MONITOR_CREDIBILITY_FLOOR_SESSIONS: int = 252
 """Minimum sample size n before an alert is eligible to fire (D-08). Ranks are always
 computed and labeled with n regardless of this floor — this constant gates alerting

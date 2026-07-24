@@ -10,6 +10,7 @@ import datetime
 import pandas as pd
 import pytest
 
+from engine import config
 from engine.monitor import metrics
 from engine.vol import vrp_history
 
@@ -75,6 +76,15 @@ class TestSurfaceEvolution:
         monkeypatch.setattr(metrics, "_load_surface_evolution", lambda: _evolution_df(horizon=10))
         series = metrics.load_metric_series("SPY", "surface_level")
         assert series is None or len(series) == 0
+
+    def test_horizon_decoupled_from_change_k_sessions(self, monkeypatch):
+        # WR-06: surface_level/surface_rms filter on MONITOR_SURFACE_EVOLUTION_HORIZON
+        # (still 5), unaffected by a change to the unrelated MONITOR_CHANGE_K_SESSIONS.
+        monkeypatch.setattr(config, "MONITOR_CHANGE_K_SESSIONS", 20)
+        monkeypatch.setattr(metrics, "_load_surface_evolution", lambda: _evolution_df(horizon=5))
+        series = metrics.load_metric_series("SPY", "surface_level")
+        assert series is not None
+        assert len(series) == 10
 
 
 class TestTermRatios:
