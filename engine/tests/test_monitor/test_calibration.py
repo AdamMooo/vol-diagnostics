@@ -9,6 +9,7 @@ import pandas as pd
 from engine.monitor.calibration import (
     calibrate,
     count_episodes_per_week,
+    flicker_ratio,
     replay_metric,
 )
 
@@ -60,8 +61,29 @@ class TestReplayMetric:
 class TestCountEpisodesPerWeek:
     def test_converts_event_count_to_weekly_rate(self):
         events = [{"date": d, "alert_type": "entry", "rank": 98} for d in _dates(5)]
-        rate = count_episodes_per_week(events, total_sessions=500)
-        assert rate == len(events) / (500 / 5)
+        rate = count_episodes_per_week(events, calendar_weeks=100.0)
+        assert rate == len(events) / 100.0
+
+
+class TestFlickerRatio:
+    def test_session_index_gap_wins_over_calendar_day_gap(self):
+        # prev on a Thursday (session_idx=0), curr 3 sessions later lands on the
+        # Tuesday of the following week (session_idx=3) -- 5 calendar days apart,
+        # which would exceed FLICKER_WINDOW_SESSIONS(=3) under a calendar-day
+        # measure, but is exactly at the window under a session-index measure.
+        events = [
+            {"date": pd.Timestamp("2020-01-02"), "alert_type": "entry", "rank": 91, "session_idx": 0},
+            {"date": pd.Timestamp("2020-01-07"), "alert_type": "entry", "rank": 92, "session_idx": 3},
+        ]
+        assert (pd.Timestamp("2020-01-07") - pd.Timestamp("2020-01-02")).days == 5
+        assert flicker_ratio(events) == 0.5
+
+    def test_escalation_counts_as_prior_event(self):
+        events = [
+            {"date": pd.Timestamp("2020-01-02"), "alert_type": "escalation", "rank": 96, "session_idx": 0},
+            {"date": pd.Timestamp("2020-01-03"), "alert_type": "entry", "rank": 91, "session_idx": 1},
+        ]
+        assert flicker_ratio(events) == 0.5
 
 
 class TestCalibrate:

@@ -62,7 +62,10 @@ def replay_metric(
                 credibility_floor=credibility_floor,
             )
             if alert_type is not None:
-                events.append({"date": today_date, "alert_type": alert_type, "rank": today_rank})
+                events.append({
+                    "date": today_date, "alert_type": alert_type, "rank": today_rank,
+                    "session_idx": i,
+                })
 
         return events
     except Exception as exc:
@@ -70,29 +73,35 @@ def replay_metric(
         return events
 
 
-def count_episodes_per_week(events: list[dict], total_sessions: int) -> float:
-    """len(events) / (total_sessions / 5) -- 5 trading sessions/week."""
-    if total_sessions <= 0:
+def count_episodes_per_week(events: list[dict], calendar_weeks: float) -> float:
+    """len(events) / calendar_weeks -- calendar_weeks is the monitor-wide span
+    (union of qualifying metrics' post-floor date ranges, in weeks), NOT a
+    pooled per-metric session count (WR-01: pooling sessions across concurrent
+    metrics inflates the effective denominator ~Nx for N qualifying metrics)."""
+    if calendar_weeks <= 0:
         return 0.0
-    return len(events) / (total_sessions / 5)
+    return len(events) / calendar_weeks
 
 
 def flicker_ratio(events: list[dict]) -> float:
-    """Fraction of "entry" events that re-fire within FLICKER_WINDOW_SESSIONS
-    sessions of a prior entry/escalation for the SAME metric -- the
-    bouncing-near-the-band signature (RESEARCH.md Pitfall 3). Events must
-    already be scoped to one metric when calling this."""
-    entries = [e for e in events if e["alert_type"] == "entry"]
-    if len(entries) < 2:
+    """Fraction of "entry"/"escalation" events that re-fire within
+    FLICKER_WINDOW_SESSIONS sessions of a prior entry/escalation for the SAME
+    metric -- the bouncing-near-the-band signature (RESEARCH.md Pitfall 3).
+    Gaps are measured in session-index distance (not calendar days), since
+    FLICKER_WINDOW_SESSIONS is a trading-session window and calendar-day gaps
+    disagree with it across weekends (WR-02). Events must already be scoped
+    to one metric when calling this."""
+    prior_events = [e for e in events if e["alert_type"] in ("entry", "escalation")]
+    if len(prior_events) < 2:
         return 0.0
 
     flickers = 0
-    for prev, curr in zip(entries, entries[1:]):
-        gap_days = abs((curr["date"] - prev["date"]).days)
-        if gap_days <= FLICKER_WINDOW_SESSIONS:
+    for prev, curr in zip(prior_events, prior_events[1:]):
+        gap = curr["session_idx"] - prev["session_idx"]
+        if gap <= FLICKER_WINDOW_SESSIONS:
             flickers += 1
 
-    return flickers / len(entries)
+    return flickers / len(prior_events)
 
 
 def calibrate(
@@ -102,8 +111,12 @@ def calibrate(
     """Run replay_metric across ALL METRIC_INVENTORY pairs for every
     (entry, gap) combination (escalate = midpoint between entry and 99).
     Aggregates episodes/week and flicker_ratio ACROSS all metrics per band
-    combination (D-05's budget is monitor-wide, not per-metric). Never
-    raises -- metrics with no/short history are skipped."""
+    combination (D-05's budget is monitor-wide, not per-metric): episodes/week
+    is len(all_events) / calendar_weeks, where calendar_weeks spans the union
+    of qualifying metrics' post-credibility-floor date ranges (WR-01) -- NOT a
+    per-metric session count pooled across concurrent metrics, which inflates
+    the effective denominator ~Nx for N qualifying metrics. Never raises --
+    metrics with no/short history are skipped."""
     if candidate_bands is None:
         candidate_bands = [90, 95, 97, 98, 99]
     if hysteresis_gaps is None:
@@ -125,7 +138,8 @@ def calibrate(
 
             all_events: list[dict] = []
             all_flicker_ratios: list[float] = []
-            total_sessions = 0
+            min_date = None
+            max_date = None
 
             for (metric_name, ticker), history in series_cache.items():
                 if history is None or history.dropna().empty:
@@ -140,9 +154,14 @@ def calibrate(
                 )
                 all_events.extend(events)
                 all_flicker_ratios.append(flicker_ratio(events))
-                total_sessions += len(clean)
 
-            episodes_per_week = count_episodes_per_week(all_events, total_sessions) if total_sessions else 0.0
+                post_floor_start = clean.index[config.MONITOR_CREDIBILITY_FLOOR_SESSIONS]
+                post_floor_end = clean.index[-1]
+                min_date = post_floor_start if min_date is None else min(min_date, post_floor_start)
+                max_date = post_floor_end if max_date is None else max(max_date, post_floor_end)
+
+            calendar_weeks = (max_date - min_date).days / 7 if min_date is not None else 0.0
+            episodes_per_week = count_episodes_per_week(all_events, calendar_weeks)
             avg_flicker = (
                 sum(all_flicker_ratios) / len(all_flicker_ratios) if all_flicker_ratios else 0.0
             )
