@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Data Foundation
-status: completed
+status: executing
 stopped_at: Phase 26 COMPLETE — gap closure done across 3 rounds (26-04/26-05 + inline CR-02/CR-03 fix, commits 95dd58e/82e5e80). 449 tests green, 26-VERIFICATION = passed. Monitor is now production-safe on stale-data days.
-last_updated: "2026-07-26T22:35:31.833Z"
-last_activity: 2026-07-26 -- Phase 24 marked complete
+last_updated: "2026-07-26T23:14:32.903Z"
+last_activity: 2026-07-26 -- Phase 25 execution started
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 11
+  total_plans: 14
   completed_plans: 10
   percent: 40
 ---
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 24 — codebase-organization-dead-code-removal
+**Current focus:** Phase 25 — existing-computation-rigor-hardening
 
 ## Current Position
 
-Phase: 24 — COMPLETE
-Plan: 2 of 2
+Phase: 25 (existing-computation-rigor-hardening) — EXECUTING
+Plan: 1 of 3
 
 Two threads open in v5.0:
 
 - **Phase 26 (severity-stats-alert-engine)** — ✅ COMPLETE 2026-07-24. 5/5 plans; 449 tests green. Two gap-closure rounds: 26-04/26-05 closed CR-01 + WR-01…07 (bands recalibrated to 90/94/85/5, now backed by trustworthy eps/week=0.704 vs the biased 0.186); an inline round then closed 2 follow-on criticals a post-fix code review caught (CR-02 hysteresis hold unreachable, CR-03 stale-data change-alert). `26-VERIFICATION.md` = passed.
 - **Phase 23 (data-completeness-backup-model-readiness)** — 3/4 plans merged, 390 tests green. 23-03 Task 2 PAUSED on human OCI checkpoint (bucket + 3 GitHub secrets). Blocked on Adam, not on code.
 
-Status: Phase 24 complete
-Last activity: 2026-07-26 -- Phase 24 marked complete
+Status: Executing Phase 25
+Last activity: 2026-07-26 -- Phase 25 execution started
 
 ## Accumulated Context
 

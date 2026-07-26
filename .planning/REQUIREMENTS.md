@@ -64,8 +64,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCHEMA-02 | Phase 25 | Pending |
 | CLEAN-01 | Phase 24 | Complete |
 | CLEAN-02 | Phase 24 | Complete |
-| RIGOR-01 | Phase 27 | Pending |
-| RIGOR-02 | Phase 27 | Pending |
+| RIGOR-01 | Phase 25 (25-01/02/03) | Pending |
+| RIGOR-02 | Phase 25 (25-01/02/03) | Pending |
 
 **Coverage:**
 - v1 requirements: 10 total

@@ -93,10 +93,18 @@ Plans:
 
   1. Each of VRP, RV20, vol surface fit, and skew/term-structure has its implementation checked against its documented formula/methodology (e.g. Carr & Wu VRP, Black-Scholes surface fit), with any discrepancy either fixed or explicitly logged as an intentional deviation
   2. Edge cases — thin/cold-start data, missing strikes, single-quote days, degenerate surfaces — are exercised by new tests, and each produces a defined result (graceful NaN/skip) or fails loudly, never a silently-wrong number
-  3. `pytest engine/tests` shows new tests specifically covering these edge cases (test count increases from the current 364), and 100% still pass
+  3. `pytest engine/tests` shows new tests specifically covering these edge cases (test count increases from the current 449 baseline), and 100% still pass
   4. No new predictive/prescriptive model logic is introduced — changes are limited to correctness/hardening of the existing four computations, consistent with MODEL-01/02 staying deferred
 
-**Plans**: TBD
+**Plans**: 3 plans (all Wave 1 — disjoint files, run in parallel)
+
+Plans:
+
+**Wave 1**
+
+- [ ] 25-01-PLAN.md — vol_metrics.py hardening: term-structure insufficient-data sentinel, compute_term_ratios NaN-close guard, remove dead compute_vrp, + RV20/skew/term edge tests (RIGOR-01, RIGOR-02)
+- [ ] 25-02-PLAN.md — surface_interactive.py try/except symmetry on build_surface_payload/build_diff_payload (near-singular RBF fit → None) + adversarial-chain tests (RIGOR-01, RIGOR-02)
+- [ ] 25-03-PLAN.md — VRP honest-deviation docstring + glossary footnote (keep computation/label), VRP NaN/single-point edge tests, + 25-METHODOLOGY-AUDIT.md record for all four computations (RIGOR-01, RIGOR-02)
 
 ### Phase 26: Severity Statistics & Alert Engine
 
@@ -145,7 +153,7 @@ Plans:
 |-------|-----------------|--------|-----------|
 | 23. Data Completeness, Backup & Model-Readiness Audit | 3/4 | In Progress|  |
 | 24. Codebase Organization & Dead Code Removal | 2/2 | Complete   | 2026-07-26 |
-| 25. Existing Computation Rigor Hardening | 0/TBD | Not started | - |
+| 25. Existing Computation Rigor Hardening | 0/3 | In Progress | - |
 
 All phases through v4.0 (22 phases, 24 tracked plans + several ad-hoc) are complete. See `.planning/milestones/v4.0-ROADMAP.md` for full phase-level detail on the prior milestone; earlier milestones are archived similarly under `.planning/milestones/`.
 
