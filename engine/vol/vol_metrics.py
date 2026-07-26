@@ -194,6 +194,8 @@ def compute_term_structure(df: pd.DataFrame, spot: float) -> dict:
     ATM selection per expiry: OTM call nearest to spot preferred; falls back to put.
 
     Classification (applied in order):
+        insufficient_data — fewer than 2 term points; no curve shape is defined
+                            (a distinct sentinel, NOT the substantive "normal" claim)
         flat     — max_iv - min_iv < 1.0 * (max_dte - min_dte) / 30
         humped   — middle-third average ATM IV > both front-third and back-third averages
         inverted — back IV < front IV (negative total slope)
@@ -238,7 +240,7 @@ def compute_term_structure(df: pd.DataFrame, spot: float) -> dict:
 
 def _classify_term_structure(points: list[dict]) -> str:
     if len(points) < 2:
-        return "normal"
+        return "insufficient_data"
 
     ivs = [p["atm_iv"] for p in points]
     dtes = [p["dte"] for p in points]
