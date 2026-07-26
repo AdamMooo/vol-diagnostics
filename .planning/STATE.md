@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Data Foundation
-status: verifying
-stopped_at: Phase 25 — all 3 plans executed (25-03 done). VRP logged as intentional deviation (docstring + email glossary), VRP edge tests (E7/E8) added, 25-METHODOLOGY-AUDIT.md written covering all 4 computations. 465 tests green. Ready for phase verification.
-last_updated: "2026-07-26T23:59:00.000Z"
-last_activity: 2026-07-26
+status: completed
+stopped_at: Phase 26 COMPLETE — gap closure done across 3 rounds (26-04/26-05 + inline CR-02/CR-03 fix, commits 95dd58e/82e5e80). 449 tests green, 26-VERIFICATION = passed. Monitor is now production-safe on stale-data days.
+last_updated: "2026-07-26T23:38:19.149Z"
+last_activity: 2026-07-26 -- Phase 25 marked complete
 progress:
   total_phases: 5
   completed_phases: 3
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 
 ## Current Position
 
-Phase: 25 (existing-computation-rigor-hardening) — ALL PLANS EXECUTED, ready for verification
+Phase: 25 — COMPLETE
 Plan: 3 of 3 complete (25-01 hardening + 25-02 surface try/except + 25-03 VRP-doc/audit)
 
 Two threads open in v5.0:
@@ -33,8 +33,8 @@ Two threads open in v5.0:
 - **Phase 26 (severity-stats-alert-engine)** — ✅ COMPLETE 2026-07-24. 5/5 plans; 449 tests green. Two gap-closure rounds: 26-04/26-05 closed CR-01 + WR-01…07 (bands recalibrated to 90/94/85/5, now backed by trustworthy eps/week=0.704 vs the biased 0.186); an inline round then closed 2 follow-on criticals a post-fix code review caught (CR-02 hysteresis hold unreachable, CR-03 stale-data change-alert). `26-VERIFICATION.md` = passed.
 - **Phase 23 (data-completeness-backup-model-readiness)** — 3/4 plans merged, 390 tests green. 23-03 Task 2 PAUSED on human OCI checkpoint (bucket + 3 GitHub secrets). Blocked on Adam, not on code.
 
-Status: Phase complete — ready for verification
-Last activity: 2026-07-26
+Status: Phase 25 complete
+Last activity: 2026-07-26 -- Phase 25 marked complete
 
 ## Accumulated Context
 
@@ -111,6 +111,8 @@ Resume queue: Phase 27 (microstructure-monitor-ui) — has CONTEXT? check; likel
 ---
 ---
 <!-- LINKS:AUTO -->
+
 ## Related
+
 **Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->
