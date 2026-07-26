@@ -105,7 +105,7 @@ python -m engine.run_daily              # all 3 tickers → HTML email
 | `engine/surface/surface_interactive.py` | Interactive surface engine: `build_surface_payload`/`build_diff_payload`/`build_movie_payload` + `render_*_html` (client-side plotly.js embedded via `components.html`) |
 | `engine/surface/surface_evolution.py` | ΔIV scalar engine — level, rms, skew_change, term_change vs rolling-mean baseline |
 | `engine/surface/surface_sweep.py` | Surface-sweep diagnostic renderer (`python -m engine.surface.surface_sweep`) |
-| `engine/vol/vol_metrics.py` | `compute_rv20`, `compute_vrp`, skew/term helpers |
+| `engine/vol/vol_metrics.py` | `compute_rv20`, skew/term helpers |
 | `engine/vol/vrp_history.py` | Deep VRP percentile: `vol_index − RV20×100` over a 252-session window (does NOT touch the chain) |
 | `engine/report/card_model.py` | Canonical card: `build_card_fields` (fields) + `build_card_read` (read chips + soft-lean, credibility-gated). Single source for dashboard + email |
 | `engine/report/report.py` | HTML email builder — cards, ΔIV surface PNG attachments, glossary |

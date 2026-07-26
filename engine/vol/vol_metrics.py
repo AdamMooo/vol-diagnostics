@@ -296,22 +296,6 @@ def compute_rv20(spot_history: pd.Series) -> float | None:
     return float(np.sqrt(252) * log_returns.std(ddof=1))
 
 
-def compute_vrp(iv30: float | None, rv20: float | None) -> float | None:
-    """
-    Volatility risk premium: iv30 - rv20.
-
-    Both arguments must be decimal fractions (e.g., 0.18 for 18% vol, not 18.0).
-    The caller is responsible for normalising iv30 from percentage to decimal before
-    calling this function.
-
-    Returns None if either input is None.
-    Result is in decimal fraction units (e.g., 0.022 for ~2.2 vol points).
-    """
-    if iv30 is None or rv20 is None:
-        return None
-    return iv30 - rv20
-
-
 # ── Phase 11 email plug-in points (D-15) ─────────────────────────────────────
 # Pure functions — no I/O, no Streamlit calls, plain Python return types.
 

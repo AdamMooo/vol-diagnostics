@@ -1,4 +1,4 @@
-"""Tests for vol_metrics.py — skew_25d, term_structure, rv20, vrp."""
+"""Tests for vol_metrics.py — skew_25d, term_structure, rv20, vvix_level."""
 from __future__ import annotations
 from unittest.mock import patch
 import numpy as np
@@ -10,7 +10,6 @@ from engine.vol.vol_metrics import (
     compute_term_structure,
     _classify_term_structure,
     compute_rv20,
-    compute_vrp,
     compute_vvix_level,
 )
 
@@ -176,26 +175,25 @@ class TestComputeRv20:
     def test_rv20_cold_start(self):
         assert compute_rv20(pd.Series([100.0] * 20)) is None
 
+    def test_rv20_nan_price_returns_none(self):
+        # E2: a NaN anywhere in the 21-price window → None (never a NaN vol)
+        prices = [100.0 + i for i in range(21)]
+        prices[10] = float("nan")
+        assert compute_rv20(pd.Series(prices)) is None
 
-# ---------------------------------------------------------------------------
-# TestComputeVrp
-# ---------------------------------------------------------------------------
+    def test_rv20_nonpositive_price_returns_none(self):
+        # E2: a ≤0 price makes log-return undefined → None
+        prices = [100.0 + i for i in range(21)]
+        prices[5] = 0.0
+        assert compute_rv20(pd.Series(prices)) is None
+        prices[5] = -3.0
+        assert compute_rv20(pd.Series(prices)) is None
 
-class TestComputeVrp:
-    def test_vrp_sign(self):
-        # Both args are decimal fractions per compute_vrp contract.
-        # iv30=0.18 (18% vol), rv20=0.158 (~15.8% vol) → VRP ~0.022 (~2.2 vol points).
-        assert compute_vrp(0.18, 0.158) == pytest.approx(0.022)
-
-    def test_vrp_realistic_range(self):
-        # Typical SPY VRP is 1–10 vol points in decimal (0.01–0.10).
-        result = compute_vrp(0.18, 0.158)
+    def test_rv20_identical_prices_is_zero(self):
+        # E3: zero realized vol is a valid answer — exactly 0.0, not None and not NaN
+        result = compute_rv20(pd.Series([100.0] * 21))
+        assert result == pytest.approx(0.0)
         assert result is not None
-        assert 0.001 < result < 0.10
-
-    def test_vrp_none_propagation(self):
-        assert compute_vrp(None, 20.0) is None
-        assert compute_vrp(25.0, None) is None
 
 
 class TestComputeModelFreeEm:
