@@ -1,5 +1,13 @@
 """VRP-percentile engine — builds one internally-consistent, VRP-03-clean series.
 
+What "VRP" means here (intentional methodology deviation — 25-CONTEXT.md, locked
+2026-07-26): this is `vol_index_close − RV20×100`, implied minus realized vol in *points*
+— a practitioner vol-risk-premium proxy, NOT the Carr & Wu (2009) variance-swap VRP
+(`IV² − RV²`, variance units). The vol-point spread is theoretically aligned for vanilla
+covered-call/CSP writing (vanilla premium ≈ linear in IV via vega) and more interpretable
+for the income-sleeve PM, so the computation and the "VRP" label are kept as-is by design;
+this docstring is the honest first-use definition, not a bug to fix.
+
 The percentile is computed from `vol_index_close − RV20×100` (vol points) at every
 aligned historical date. The CBOE-IV30 `vrp` column from the stored options payload is
 NEVER read here — mixing it into the history is the VRP-03 violation this module exists
