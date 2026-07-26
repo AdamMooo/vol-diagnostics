@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Data Foundation
-status: executing
-stopped_at: Phase 26 COMPLETE — gap closure done across 3 rounds (26-04/26-05 + inline CR-02/CR-03 fix, commits 95dd58e/82e5e80). 449 tests green, 26-VERIFICATION = passed. Monitor is now production-safe on stale-data days.
-last_updated: "2026-07-26T23:27:04.054Z"
+status: verifying
+stopped_at: Phase 25 — all 3 plans executed (25-03 done). VRP logged as intentional deviation (docstring + email glossary), VRP edge tests (E7/E8) added, 25-METHODOLOGY-AUDIT.md written covering all 4 computations. 465 tests green. Ready for phase verification.
+last_updated: "2026-07-26T23:59:00.000Z"
 last_activity: 2026-07-26
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 14
-  completed_plans: 12
-  percent: 40
+  completed_plans: 13
+  percent: 60
 ---
 
 # Project State
@@ -25,15 +25,15 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 
 ## Current Position
 
-Phase: 25 (existing-computation-rigor-hardening) — EXECUTING
-Plan: 3 of 3
+Phase: 25 (existing-computation-rigor-hardening) — ALL PLANS EXECUTED, ready for verification
+Plan: 3 of 3 complete (25-01 hardening + 25-02 surface try/except + 25-03 VRP-doc/audit)
 
 Two threads open in v5.0:
 
 - **Phase 26 (severity-stats-alert-engine)** — ✅ COMPLETE 2026-07-24. 5/5 plans; 449 tests green. Two gap-closure rounds: 26-04/26-05 closed CR-01 + WR-01…07 (bands recalibrated to 90/94/85/5, now backed by trustworthy eps/week=0.704 vs the biased 0.186); an inline round then closed 2 follow-on criticals a post-fix code review caught (CR-02 hysteresis hold unreachable, CR-03 stale-data change-alert). `26-VERIFICATION.md` = passed.
 - **Phase 23 (data-completeness-backup-model-readiness)** — 3/4 plans merged, 390 tests green. 23-03 Task 2 PAUSED on human OCI checkpoint (bucket + 3 GitHub secrets). Blocked on Adam, not on code.
 
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-26
 
 ## Accumulated Context
@@ -46,6 +46,7 @@ Last activity: 2026-07-26
 
 - 2026-07-21: Merged old Phases 23 (Data Completeness & Gap Monitoring), 24 (Backup & Restore), and 25 (Model-Ready Data Definition & Depth Audit) into a single Phase 23 ("Data Completeness, Backup & Model-Readiness Audit") — all three sat on the same "make the data trustworthy before modeling" arc and the old 25 already depended on 23's logic, so planning/executing them as one phase avoids an artificial seam. Old Phase 26 renumbered to 24, old Phase 27 renumbered to 25 (still depends on the new 24, unchanged relationship). v5.0 is now a 3-phase milestone (23–25) instead of 5.
 - 2026-07-17: v5.0 roadmap extended with what were then Phase 26 (Codebase Organization & Dead Code Removal) and Phase 27 (Existing Computation Rigor Hardening; now 24/25 per the 2026-07-21 merge above), covering CLEAN-01/02 and RIGOR-01/02 respectively. The dependency (rigor audit reads more cleanly post-cleanup) is unchanged. RIGOR-01/02 harden the EXISTING VRP/RV20/surface-fit/skew-term computations only — explicitly not a new predictive model (MODEL-01/02 stay deferred).
+- 2026-07-26: VRP kept as the vol-point spread (`vol_index − RV20×100`) with the "VRP" label — documented as an intentional methodology deviation (a practitioner IV−RV proxy, NOT the Carr-Wu variance-swap VRP `IV²−RV²`) at first use in `vrp_history.py` docstring + email glossary, rather than renamed or switched to variance units (25-03). Full per-computation certification in `25-METHODOLOGY-AUDIT.md`.
 - 2026-07-16: VRP percentile ranks against ~10yr (`config.VRP_DEEP_LOOKBACK_SESSIONS`, 2500 sessions) instead of a rolling 252-session (~1yr) window — a short window can only say "cheap vs. a possibly-already-elevated recent regime"; CBOE vol-index actually holds decades of history.
 - 2026-07-16: Skew (25Δ) card field states direction explicitly ("puts pricier"/"calls pricier"/"flat") instead of a bare signed number.
 - 2026-07-16: CLAUDE.md's "locked until team validates" language dropped (no external team left, sole-owner + public) — self-imposed statistical-validation discipline kept.
@@ -97,7 +98,7 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 
 ## Session Continuity
 
-Last session: 2026-07-26T22:22:36.745Z
+Last session: 2026-07-26T23:32:16.223Z
 Stopped at: Phase 26 COMPLETE — gap closure done across 3 rounds (26-04/26-05 + inline CR-02/CR-03 fix, commits 95dd58e/82e5e80). 449 tests green, 26-VERIFICATION = passed. Monitor is now production-safe on stale-data days.
 Resume queue: Phase 27 (microstructure-monitor-ui) — has CONTEXT? check; likely `/gsd:discuss-phase 27` then plan.
 
@@ -110,8 +111,6 @@ Resume queue: Phase 27 (microstructure-monitor-ui) — has CONTEXT? check; likel
 ---
 ---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->
