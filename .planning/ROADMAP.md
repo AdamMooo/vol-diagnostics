@@ -72,7 +72,17 @@
   4. `pytest engine/tests` still passes 100% after all removals (no live code accidentally deleted)
   5. CLAUDE.md's `engine/` package tree section is edited in the same pass to reflect the actual on-disk structure
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 24-01-PLAN.md — Static-analysis dead-code sweep (vulture + pyflakes) over engine/ + app.py, triage every finding, remove genuine dead code, prove suite still 449-green (CLEAN-01, criteria 1 + 4)
+
+**Wave 2** *(blocked on Wave 1 — CLAUDE.md sync must reflect the post-removal file set)*
+
+- [ ] 24-02-PLAN.md — Sync CLAUDE.md engine tree/table to on-disk reality (add monitor/ + Phase-23 modules, fix test count); close out fz2 quick-task + 999.3 Pre-Distribution backlog item (CLEAN-02 + CLEAN-01, criteria 2 + 3 + 5)
 
 ### Phase 25: Existing Computation Rigor Hardening
 
@@ -134,7 +144,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 23. Data Completeness, Backup & Model-Readiness Audit | 3/4 | In Progress|  |
-| 24. Codebase Organization & Dead Code Removal | 0/TBD | Not started | - |
+| 24. Codebase Organization & Dead Code Removal | 0/2 | Planned | - |
 | 25. Existing Computation Rigor Hardening | 0/TBD | Not started | - |
 
 All phases through v4.0 (22 phases, 24 tracked plans + several ad-hoc) are complete. See `.planning/milestones/v4.0-ROADMAP.md` for full phase-level detail on the prior milestone; earlier milestones are archived similarly under `.planning/milestones/`.
@@ -153,8 +163,6 @@ All phases through v4.0 (22 phases, 24 tracked plans + several ad-hoc) are compl
 ---
 ---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/vol-diagnostics/STATE|STATE]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->
