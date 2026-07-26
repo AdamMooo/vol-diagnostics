@@ -78,7 +78,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 24-01-PLAN.md — Static-analysis dead-code sweep (vulture + pyflakes) over engine/ + app.py, triage every finding, remove genuine dead code, prove suite still 449-green (CLEAN-01, criteria 1 + 4)
+- [x] 24-01-PLAN.md — Static-analysis dead-code sweep (vulture + pyflakes) over engine/ + app.py, triage every finding, remove genuine dead code, prove suite still 449-green (CLEAN-01, criteria 1 + 4)
 
 **Wave 2** *(blocked on Wave 1 — CLAUDE.md sync must reflect the post-removal file set)*
 
@@ -144,7 +144,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 23. Data Completeness, Backup & Model-Readiness Audit | 3/4 | In Progress|  |
-| 24. Codebase Organization & Dead Code Removal | 0/2 | Planned | - |
+| 24. Codebase Organization & Dead Code Removal | 1/2 | In Progress|  |
 | 25. Existing Computation Rigor Hardening | 0/TBD | Not started | - |
 
 All phases through v4.0 (22 phases, 24 tracked plans + several ad-hoc) are complete. See `.planning/milestones/v4.0-ROADMAP.md` for full phase-level detail on the prior milestone; earlier milestones are archived similarly under `.planning/milestones/`.

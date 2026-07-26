@@ -24,7 +24,7 @@ Requirements for the v5.0 Data Foundation milestone — hardening data collectio
 
 ### Codebase Organization & Dead Code (CLEAN)
 
-- [ ] **CLEAN-01**: Dead code, unused imports/functions, and stale references are removed across `engine/` (folds in the stale `260514-fz2-dead-code-stale-ref-sweep` quick-task and backlog item 999.3 Pre-Distribution)
+- [x] **CLEAN-01**: Dead code, unused imports/functions, and stale references are removed across `engine/` (folds in the stale `260514-fz2-dead-code-stale-ref-sweep` quick-task and backlog item 999.3 Pre-Distribution)
 - [ ] **CLEAN-02**: Module/package organization is reviewed for consistency; CLAUDE.md orientation docs stay in sync with the actual structure
 
 ### Existing Computation Rigor (RIGOR)
@@ -62,7 +62,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BACKUP-02 | Phase 24 | Pending |
 | SCHEMA-01 | Phase 25 | Pending |
 | SCHEMA-02 | Phase 25 | Pending |
-| CLEAN-01 | Phase 26 | Pending |
+| CLEAN-01 | Phase 26 | Complete |
 | CLEAN-02 | Phase 26 | Pending |
 | RIGOR-01 | Phase 27 | Pending |
 | RIGOR-02 | Phase 27 | Pending |
