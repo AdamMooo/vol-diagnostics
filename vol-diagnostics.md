@@ -4,7 +4,7 @@ project: vol-diagnostics
 ---
 # Vol Diagnostics — Market Intelligence Dashboard
 
-Vol/dealer microstructure dashboard for SPY, QQQ, IWM — index income-sleeve PM diagnostics. Current metrics: VRP percentile (vol-index − RV20 vs 252-session history), IV30, 25Δ skew, 3D implied vol surface (OTM convention, log-moneyness), surface evolution (ΔIV at 5/10/20 horizons), net GEX (≤90 DTE), γ-flip, OI walls. Descriptive only — no trade signals.
+Vol/dealer microstructure dashboard for SPY, QQQ, IWM — index income-sleeve PM diagnostics. Current metrics: VRP percentile (vol-index − RV20 vs 252-session history), IV30, 25Δ skew, 3D implied vol surface (OTM convention, log-moneyness), surface evolution (ΔIV at 5/10/20 horizons), net GEX (≤90 DTE), γ-flip, OI walls. A severity-rank + hysteresis alert engine (`engine/monitor`, Phase 26) ranks these by ECDF percentile and latches entry/escalate/exit alerts. Descriptive only — no trade signals.
 
 ## Running the Dashboard
 
@@ -53,7 +53,7 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-24 19:05 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-26 21:58 UTC
 
 **Milestone:** v5.0 · **Status:** ready_to_plan · **STATE last_updated:** 2026-07-24T19:03:55.560Z
 

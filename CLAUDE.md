@@ -1,5 +1,5 @@
 # CLAUDE — Gamma OMM — Vol Diagnostics Dashboard
-Last updated: 2026-07-16 | Status: v4.0 Cloud Hosting complete (Oracle deploy + email remodel shipped); next milestone TBD — predictive/prescriptive options-writing model track under discussion
+Last updated: 2026-07-26 | Status: v5.0 Data Foundation in progress — Phase 26 (severity-rank + hysteresis alert engine, `engine/monitor/`) complete; Phase 27 (monitor UI) next
 
 ## Repo Card
 
@@ -10,7 +10,7 @@ Last updated: 2026-07-16 | Status: v4.0 Cloud Hosting complete (Oracle deploy + 
   - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 364 green.
+- **Tests:** `pytest engine/tests` — 449 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -34,7 +34,7 @@ python -m venv .venv
 pip install -r requirements.txt
 streamlit run app.py                    # interactive dashboard
 python -m engine.run_gex --ticker SPY   # single-ticker smoke test to stdout
-pytest engine/tests                     # 358 tests
+pytest engine/tests                     # 449 tests
 ```
 
 `requirements.txt` tracks the stack. Add packages there when needed.
@@ -64,7 +64,8 @@ engine/
   surface/   surface_interactive  surface_evolution  surface_sweep
   vol/       vol_metrics  vrp_history
   report/    card_model  report  png_export  emailer  observation
-  tests/     (358 green)
+  monitor/   schema  ranker  hysteresis  monitor_store  calibration   # Phase 26 severity-rank + hysteresis alert engine
+  tests/     (449 green)
 ```
 
 **Tickers: SPY, QQQ, IWM only.** Full chain pulled per ticker — no moneyness filter, no OI cutoff.

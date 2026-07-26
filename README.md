@@ -1,4 +1,4 @@
-# Gamma OMM — Vol & Dealer Microstructure Dashboard
+# Vol Diagnostics — Vol & Dealer Microstructure Monitor for SPY/QQQ/IWM
 
 Implied-vol and dealer-gamma diagnostics for **SPY, QQQ, IWM** — built for an index income-sleeve PM (covered calls / cash-secured puts). It pulls live CBOE delayed-quote chains plus the free CBOE vol-index history, and surfaces how expensive protection is, where on the surface that expensiveness sits, how the surface is moving, and how dealer positioning is likely to behave.
 
@@ -47,7 +47,17 @@ python -m engine.run_gex --ticker IWM
 | **Positioning** | OI-led — GEX is demoted (capped ≤90 DTE, labeled a model construct); call/put walls labeled **(model)** vs **(raw OI)** so the two are never confused |
 | **Methodology & Assumptions** | Full caveat block: free CBOE feed (no OPRA), CBOE American option model, live `^IRX` rate, all filters explicit, model-construct tags on γ-flip + walls, dealer-positioning assumption |
 
-Chains are fetched from the CBOE CDN on first load (no auth) and cached 5 minutes per ticker. A parquet snapshot written daily by `run_daily` feeds the history and evolution views.
+Chains are fetched from the CBOE CDN on first load (no auth) and cached 6 hours per ticker (`config.CACHE_TTL_TICKER`). A parquet snapshot written daily by `run_daily` feeds the history and evolution views.
+
+## Severity monitor & alerts
+
+`engine/monitor/` ranks each metric×ticker pair by ECDF percentile — a dual level rank (deep history + trailing 1yr) plus a two-sided k=5 change rank — and drives a hysteresis state machine (entry / escalate / exit at percentile bands 90 / 94 / 85, gap 5) so alerts latch cleanly instead of flickering. Bands are calibrated to a false-alarm budget of ~1 episode/week; re-run the calibration over stored history any time:
+
+```powershell
+python -m engine.monitor.calibration
+```
+
+Two deliberate design points: metrics only rank once they clear a 252-session credibility floor (today only ~5 of 17 pairs qualify — VRP across the three underlyings plus two SPY term ratios; the chain-derived metrics cold-started ~2026-05 and mature toward ~2027), and **silence is information** — no alert firing is itself a read on the environment. The severity output is computed daily inside `run_daily`; the dedicated monitor UI is Phase 27 (in progress).
 
 ## Defensibility
 
@@ -86,12 +96,7 @@ The data source is isolated to `engine/data/data_loader.py` — a Bloomberg swap
 
 ## Scheduling
 
-The daily report is registered as a Windows Task Scheduler job via [`runners/gex_daily.ps1`](runners/gex_daily.ps1), firing Mon–Fri 16:30 local on NYSE trading days only (gated internally by `is_trading_day()`).
-
-```powershell
-runners\gex_daily.ps1 status     # State: Ready, Last result: 0
-Start-ScheduledTask -TaskName "GEX Daily Report"   # manual fire
-```
+The daily report runs on **GitHub Actions** (`.github/workflows/daily-report.yml`), firing weekdays after the NYSE close (trading days gated internally by `is_trading_day()`). The former local Windows Task Scheduler job (`runners/gex_daily.ps1`) was retired 2026-07-14 and is kept only for manual local fires.
 
 ## Tests
 
@@ -99,4 +104,4 @@ Start-ScheduledTask -TaskName "GEX Daily Report"   # manual fire
 python -m pytest engine/tests/ -q
 ```
 
-246 tests covering data loading, GEX aggregation, gamma profile, analytics, the vol surface and its evolution, VRP history, email rendering, the canonical card, the snapshot store, and dashboard boot.
+449 tests covering data loading, GEX aggregation, gamma profile, analytics, the vol surface and its evolution, VRP history, the severity monitor (ranker, hysteresis, calibration), email rendering, the canonical card, the snapshot store, and dashboard boot.
