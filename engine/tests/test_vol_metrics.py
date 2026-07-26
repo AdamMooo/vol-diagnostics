@@ -3,7 +3,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-from engine.vol.vol_metrics import compute_model_free_em, compute_skew_25d, compute_term_structure, compute_rv20, compute_vrp
+from engine.vol.vol_metrics import (
+    compute_model_free_em,
+    compute_skew_25d,
+    compute_term_structure,
+    _classify_term_structure,
+    compute_rv20,
+    compute_vrp,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +113,48 @@ class TestComputeTermStructure:
     def test_term_structure_keys(self, term_df):
         result = compute_term_structure(term_df, spot=500.0)
         assert set(result.keys()) == {"points", "classification", "front_atm_iv", "back_atm_iv"}
+
+
+# ---------------------------------------------------------------------------
+# TestTermStructureEdgeCases
+# ---------------------------------------------------------------------------
+
+class TestTermStructureEdgeCases:
+    def test_classify_empty_is_insufficient(self):
+        # <2 points cannot support a curve-shape claim → distinct sentinel, not "normal"
+        assert _classify_term_structure([]) == "insufficient_data"
+
+    def test_classify_single_point_is_insufficient(self):
+        assert _classify_term_structure([{"dte": 30.0, "atm_iv": 18.0}]) == "insufficient_data"
+
+    def test_single_expiry_chain_insufficient_sentinel(self):
+        # One expiry → one point → sentinel, but front/back atm_iv still populated
+        df = pd.DataFrame([
+            {"expiry": "2024-06-07", "T_years": 0.08, "type": "call", "strike": 500.0, "delta": 0.50, "iv": 0.18, "oi": 100},
+        ])
+        result = compute_term_structure(df, spot=500.0)
+        assert result["classification"] == "insufficient_data"
+        assert result["front_atm_iv"] == pytest.approx(18.0)
+        assert result["back_atm_iv"] == pytest.approx(18.0)
+
+    def test_empty_dataframe_returns_sentinel_and_none(self):
+        # E9: literally empty chain (columns present, no rows)
+        empty = pd.DataFrame(columns=["expiry", "T_years", "type", "strike", "delta", "iv", "oi"])
+        result = compute_term_structure(empty, spot=500.0)
+        assert result == {
+            "points": [],
+            "classification": "insufficient_data",
+            "front_atm_iv": None,
+            "back_atm_iv": None,
+        }
+
+    def test_missing_t_years_column_raises_keyerror(self):
+        # E10: absent "T_years" column is a defined KeyError contract, not a silent miscompute
+        df = pd.DataFrame([
+            {"expiry": "2024-06-07", "type": "call", "strike": 500.0, "delta": 0.50, "iv": 0.18, "oi": 100},
+        ])
+        with pytest.raises(KeyError):
+            compute_term_structure(df, spot=500.0)
 
 
 # ---------------------------------------------------------------------------
