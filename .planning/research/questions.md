@@ -19,3 +19,11 @@ For a 20-day window on SPY/QQQ/IWM, the simple estimator is probably fine, but s
 verify it doesn't produce misleading VRP readings during gap-heavy regimes.
 **Status:** Open
 **Priority:** Low — simple estimator is standard; Yang-Zhang is a nice-to-have
+
+## Alert band calibration (2026-07-23, monitor explore)
+What false-alarm budget → which percentile bands? With ~30 daily tests (3 tickers × ~5
+metrics × level+change), expected daily false alarms at a given band = 30 × (1 − band).
+Before hardcoding 95th/98th, empirically calibrate on stored histories: replay the ECDF
+ranker over the deep vol-index series + accrued chain snapshots, count alerts/week per
+candidate band + hysteresis width, and pick from observed alarm rates, not vibes.
+Also check: how much does serial dependence cluster the alarms (episodes vs independent days)?

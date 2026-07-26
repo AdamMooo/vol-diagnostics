@@ -53,15 +53,15 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-22 01:25 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-24 19:05 UTC
 
-**Milestone:** v5.0 · **Status:** executing · **STATE last_updated:** 2026-07-21T19:54:55.477Z
+**Milestone:** v5.0 · **Status:** ready_to_plan · **STATE last_updated:** 2026-07-24T19:03:55.560Z
 
 ### Current Position
-- **Phase:** 23 (data-completeness-backup-model-readiness) — EXECUTING
-- **Plan:** 1 of 4
-- **Status:** Executing Phase 23
-- **Last activity:** 2026-07-21 -- Phase 23 execution started
+- **Phase:** 27 (microstructure-monitor-ui) — not started
+- **Plan:** Not started
+- **Status:** Ready to plan Phase 27
+- **Last activity:** 2026-07-24 -- Phase 26 complete
 
 ### Pending Todos
 - None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).
@@ -75,6 +75,8 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 <!-- GSD-HUB:END -->
 
 ### Operator notes (handwritten — survives hub-sync)
+
+**Phase 26 COMPLETE (2026-07-24).** Severity Statistics & Alert Engine shipped and verified — `engine/monitor/` (17-metric schema, dual-lookback ECDF ranker, hysteresis alert state machine gated by the 252-session credibility floor, `out/monitor/` stores wired into `run_daily.py`, permanent calibration CLI). 449 tests green, `26-VERIFICATION.md` = passed. Bands ENTRY=90/ESCALATE=94/EXIT=85/GAP=5, now backed by a corrected false-alarm calibration (0.704 eps/week vs the biased 0.186, against a ~1/week budget). Closure took three rounds: 26-04/26-05 fixed the original CR-01 + WR-01…07; a **post-fix sonnet code review** then caught two criticals the autonomous fixes left — **CR-02** (WR-04's hysteresis hold-branch was unreachable: `rank=None` always couples with `n=0`, so the credibility gate intercepted, and CR-01 made the duplicate-alert bug fire more often) and **CR-03** (CR-01's stale guard never covered `compute_change_rank`, so stale data still fired change alerts) — fixed inline TDD (commits 95dd58e/82e5e80) with a `data_missing` signal distinguishing "no reading today" (hold) from "below floor" (out). Rigor lesson (in auto-memory): the haiku verifier rubber-stamped `passed`; only the parallel code review caught the reachability bugs. Accepted behavior: an active alert holds indefinitely across a persistent data outage (self-heals on data return). Only 5/17 metrics clear the credibility floor today (chain-derived reach it ~2027-05). Next milestone work: Phase 27 (Microstructure Monitor UI) consumes these ranks/alerts.
 
 **Paused mid-phase (2026-07-21).** Executed Phase 23 (Data Completeness, Backup & Model-Readiness Audit — first phase of v5.0) via `/gsd-execute-phase 23`, 2 waves, 4 plans, all dispatched in parallel git worktrees with zero cross-plan file overlap. **23-01** extended `engine/health_check.py` into a full-history 4-series (gex_snapshots/surface_history/vol_index/oi_history) gap scanner across SPY/QQQ/IWM. **23-02** built boto3-based `engine/backup_to_oci.py`/`restore_from_oci.py` for OCI Object Storage backup/restore (BACKUP-01/02), fully unit-tested against mocked S3 — no real OCI credentials needed for the logic itself. **23-04** wrote `.planning/notes/MODEL-READY-DATA-SPEC.md` (grounded per-series depth targets, e.g. 750 sessions for gex_snapshots per GARCH(1,1) literature) + `depth_audit()`, reusing 23-01's session-counting rather than re-implementing it. All three merged clean; 390/390 tests green post-merge. **23-03** wired the backup step into the existing `daily-report.yml` job (Task 1, merged, commit `6062180`) but its Task 2 is a blocking human-action checkpoint — OCI console (bucket + Customer Secret Key) + 3 GitHub repo secrets — that Claude correctly refused to attempt itself; paused there via `/gsd-pause-work`. Resume via `.planning/phases/23-data-completeness-backup-model-readiness/.continue-here.md`.
 
