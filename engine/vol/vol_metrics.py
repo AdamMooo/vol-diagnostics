@@ -314,41 +314,6 @@ def compute_vrp(iv30: float | None, rv20: float | None) -> float | None:
 # Pure functions — no I/O, no Streamlit calls, plain Python return types.
 
 
-def vrp_headline(
-    iv30_pct: float | None,
-    rv20_pct: float | None,
-    vrp_pp: float | None,
-    percentile: int | None,
-) -> str:
-    """Plain-read VRP string for dashboard and Phase 11 email.
-
-    Args:
-        iv30_pct: IV30 as percentage points (e.g. 18.5 for 18.5% vol)
-        rv20_pct: RV20 as percentage points (e.g. 15.8)
-        vrp_pp:   IV30 − RV20 in percentage points (e.g. 2.7)
-        percentile: historical percentile of VRP vs 30-session lookback (0–100)
-
-    Returns:
-        Plain-language read. Cold-start string when vrp_pp or percentile is None.
-    """
-    if vrp_pp is None or percentile is None:
-        return "VRP: insufficient history (accumulates from run_daily)"
-
-    if abs(vrp_pp) < 0.5:
-        return f"vol near fair ({vrp_pp:+.1f}pp, {percentile}th %ile)"
-
-    if vrp_pp > 0:
-        return (
-            f"vol rich +{vrp_pp:.1f}pp, {percentile}th %ile"
-            " — premium-selling favored, protection is expensive"
-        )
-
-    return (
-        f"vol cheap {vrp_pp:.1f}pp, {percentile}th %ile"
-        " — protection cheap relative to realized"
-    )
-
-
 def evolution_5d_summary(evol_df: pd.DataFrame) -> dict:
     """Extract the most recent row of a 5-day evolution DataFrame.
 

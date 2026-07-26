@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import datetime
 
+import pandas as pd
+
 from engine import config
 from engine.report.card_model import (
     build_card_read, _pct_from_spot, _fmt_pct as _fmt_signed_pct,

@@ -7,6 +7,8 @@ Both callers wrap this function:
 """
 from __future__ import annotations
 
+import datetime
+
 import pandas as pd
 
 from engine import config
@@ -36,7 +38,6 @@ def _fetch_spot_history_yf(ticker: str, days: int = 400) -> "pd.Series | None":
     """
     try:
         import yfinance as yf
-        import pandas as pd
         yf_ticker = ticker.replace(".", "-")
         hist = yf.Ticker(yf_ticker).history(period=f"{days}d")
         if hist.empty or "Close" not in hist.columns:
