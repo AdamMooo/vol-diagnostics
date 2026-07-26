@@ -22,8 +22,13 @@ Audit confirmed all other flagged stale-ref terms (`plot_overview`, `expected_1d
 
 - `gex/run_gex.py` — removed matplotlib imports, replaced savefig/plt.close/plt.show with write_html/fig.show
 
+## Verified resolved in Phase 24 (2026-07-26)
+
+Confirmed complete during the Phase 24 (24-02) close-out — STATE.md's stale "missing"
+flag was corrected to "resolved". No re-work; the 2026-05-14 fix (commit 22ec33a) stands.
+
 ---
 <!-- LINKS:AUTO -->
 ## Related
-**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[_planning/vol-diagnostics/STATE|STATE]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->

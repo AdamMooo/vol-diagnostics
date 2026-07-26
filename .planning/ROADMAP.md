@@ -157,7 +157,7 @@ All phases through v4.0 (22 phases, 24 tracked plans + several ad-hoc) are compl
 |-------|--------|-------|
 | 999.1 Charm Research | Parked | Awaiting validated methodology |
 | 999.2 Test Coverage | Backlog | Depends on 999.1 |
-| 999.3 Pre-Distribution | Partial | 50% out-of-phase; 50% deferred — folded into Phase 24 |
+| 999.3 Pre-Distribution | Closed | Closed in Phase 24 (24-02). Shipped out-of-phase: (a) snapshot timestamp header, (b) methodology caveat banner, (d) filter-drop transparency. Deferred: (c) "Regime sharpness" GEX slope field — counter to "no new signals"/GEX-demoted direction. |
 
 ---
 ---

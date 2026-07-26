@@ -89,10 +89,10 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 | uat_gap | Phase 16.5 (16.5-HUMAN-UAT.md) | partial — 3 pending scenarios |
 | verification_gap | Phase 11 (11-VERIFICATION.md) | human_needed |
 | verification_gap | Phase 16.5 (16.5-VERIFICATION.md) | human_needed |
-| quick_task | 260514-fz2-dead-code-stale-ref-sweep | missing — now folded into v5.0 Phase 24 (CLEAN-01) |
+| quick_task | 260514-fz2-dead-code-stale-ref-sweep | resolved — completed 2026-05-14 (commit 22ec33a), confirmed during Phase 24 |
 | quick_task | 260621-v8g-ui-pass-2-polish-unify-axis-k-s-labels-f | missing |
 | todo | 2026-05-11-salvaged-from-legacy-task-board.md | pending |
-| todo | 2026-05-11-v3-2-pre-distribution-hardening.md | pending — now folded into v5.0 Phase 24 (CLEAN-01) |
+| todo | 2026-05-11-v3-2-pre-distribution-hardening.md | resolved 2026-07-26 (Phase 24 / backlog 999.3) — items a/b/d shipped out-of-phase, item c (regime sharpness) deferred; moved to todos/done/ |
 | seed | SEED-001-short-end-gamma-concentration | dormant |
 
 ## Session Continuity
@@ -110,8 +110,6 @@ Resume queue: Phase 27 (microstructure-monitor-ui) — has CONTEXT? check; likel
 ---
 ---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->

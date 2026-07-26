@@ -2,10 +2,26 @@
 created: 2026-05-11T22:30:00Z
 title: v3.2 — Pre-Distribution Hardening (audit follow-ups)
 area: gamma-omm
+status: resolved
+resolved: 2026-07-26
+resolved_by: Phase 24 (24-02) close-out — backlog 999.3
 files:
   - _audits/methodology-review-2026-05-11.md
   - .planning/ROADMAP.md
 ---
+
+## Resolution (2026-07-26, Phase 24 / backlog 999.3)
+
+Closed as part of the Phase 24 codebase-cleanup pass. Three of four items shipped
+out-of-phase (verified in current source); the fourth is formally deferred. No
+feature work was re-run in Phase 24 — this is a disposition-only close-out.
+
+| Item | Disposition | Evidence |
+|------|-------------|----------|
+| (a) Snapshot timestamp in email header | **SHIPPED** | `engine/report/report.py:291-303` renders "Snapshot {ts} ET · OI T-1 · Greeks 15-min delayed"; `snapshot.as_of` threaded through `engine/compute.py:190`. |
+| (b) Methodology caveat banner above cards | **SHIPPED** | `engine/report/report.py:307` `_methodology_caveat_banner()`, rendered below header (`report.py:539,570`). |
+| (c) Gamma-profile slope steepness / "Regime sharpness" row | **DEFERRED** | Not implemented — no `sharpness`/slope-steepness field anywhere in `engine/`. Counter to current product direction (GEX demoted to a model construct, "no new signals" locked per CLAUDE.md); a new GEX-derived signal would need statistical validation first. |
+| (d) Filter-drop transparency | **SHIPPED** | `engine/report/report.py:496` "Filters removed {…} of raw chain OI"; `min_oi`/`max_iv` drop at `engine/data/data_loader.py:111`. |
 
 ## Problem
 
@@ -51,5 +67,5 @@ All four items below should ship in one PR.
 ---
 <!-- LINKS:AUTO -->
 ## Related
-**Project:** [[_planning/gamma-omm/ROADMAP|ROADMAP]] · [[_planning/gamma-omm/STATE|STATE]] · [[gamma-omm/gamma-omm|Hub]]
+**Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[_planning/vol-diagnostics/STATE|STATE]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->
