@@ -29,7 +29,7 @@
 ### v5.0 Data Foundation
 
 - [ ] **Phase 23: Data Completeness, Backup & Model-Readiness Audit** - Detect gaps, back up `out/` off the single Oracle VM, and measure current data against a written model-ready bar
-- [ ] **Phase 24: Codebase Organization & Dead Code Removal** - Sweep `engine/` for dead code/stale references, review module organization, sync CLAUDE.md
+- [x] **Phase 24: Codebase Organization & Dead Code Removal** - Sweep `engine/` for dead code/stale references, review module organization, sync CLAUDE.md (completed 2026-07-26)
 - [ ] **Phase 25: Existing Computation Rigor Hardening** - Verify VRP/RV20/surface-fit/skew-term computations against methodology, harden edge cases
 - [x] **Phase 26: Severity Statistics & Alert Engine** - ECDF percentile ranks (levels + k-day changes, dual lookback) over existing metrics; transition-with-hysteresis alerts; bands from a false-alarm budget calibrated on stored history (verification found gaps 2026-07-22; gap closure plans 26-04/05 in progress) (completed 2026-07-24)
 - [ ] **Phase 27: Microstructure Monitor UI** - Distribution-board landing + per-row evidence panels on the dashboard; event-shaped email alerts; email boilerplate cut
@@ -82,7 +82,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — CLAUDE.md sync must reflect the post-removal file set)*
 
-- [ ] 24-02-PLAN.md — Sync CLAUDE.md engine tree/table to on-disk reality (add monitor/ + Phase-23 modules, fix test count); close out fz2 quick-task + 999.3 Pre-Distribution backlog item (CLEAN-02 + CLEAN-01, criteria 2 + 3 + 5)
+- [x] 24-02-PLAN.md — Sync CLAUDE.md engine tree/table to on-disk reality (add monitor/ + Phase-23 modules, fix test count); close out fz2 quick-task + 999.3 Pre-Distribution backlog item (CLEAN-02 + CLEAN-01, criteria 2 + 3 + 5)
 
 ### Phase 25: Existing Computation Rigor Hardening
 
@@ -144,7 +144,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 23. Data Completeness, Backup & Model-Readiness Audit | 3/4 | In Progress|  |
-| 24. Codebase Organization & Dead Code Removal | 1/2 | In Progress|  |
+| 24. Codebase Organization & Dead Code Removal | 2/2 | Complete   | 2026-07-26 |
 | 25. Existing Computation Rigor Hardening | 0/TBD | Not started | - |
 
 All phases through v4.0 (22 phases, 24 tracked plans + several ad-hoc) are complete. See `.planning/milestones/v4.0-ROADMAP.md` for full phase-level detail on the prior milestone; earlier milestones are archived similarly under `.planning/milestones/`.
