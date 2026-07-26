@@ -59,12 +59,13 @@ shared config stay at the package root; everything else is grouped by domain:**
 ```
 engine/
   config.py  compute.py  session.py  run_daily.py  run_gex.py   # root: config + orchestration seam
+  health_check.py  backup_to_oci.py  restore_from_oci.py        # root: ops — data freshness + OCI backup/restore (Phase 23)
   data/      data_loader  vol_index  validation  surface_history  oi_history  store
   gex/       greeks_engine  exposure_engine  analytics       # dealer-gamma subdomain
   surface/   surface_interactive  surface_evolution  surface_sweep
   vol/       vol_metrics  vrp_history
   report/    card_model  report  png_export  emailer  observation
-  monitor/   schema  ranker  hysteresis  monitor_store  calibration   # Phase 26 severity-rank + hysteresis alert engine
+  monitor/   schema  ranker  metrics  hysteresis  monitor_store  calibration   # Phase 26 severity-rank + hysteresis alert engine
   tests/     (449 green)
 ```
 
@@ -88,10 +89,16 @@ python -m engine.run_daily              # all 3 tickers → HTML email
 | `engine/compute.py` | Shared pipeline `compute_ticker(ticker)` — single source of truth for daily + streamlit |
 | `engine/run_gex.py` | Single-ticker CLI — fetch → compute → print summary → save PNGs |
 | `engine/run_daily.py` | Daily orchestrator — SPY/QQQ/IWM, parquet snapshot, HTML email with ΔIV surface PNGs |
+| `engine/session.py` | Shared NYSE trading-session helpers — one source of truth for latest/collection session, DTE, freshness cutoffs (`pandas_market_calendars`) |
+| `engine/health_check.py` | Data-pipeline health check — verifies daily snapshots current across tickers + model-ready session-depth targets; `--strict` exits 1 on stale/missing (cron/Docker healthcheck) |
+| `engine/backup_to_oci.py` | Backs up `out/` to Oracle Cloud Object Storage via S3-compatible API (BACKUP-01); creds from env only, never logged |
+| `engine/restore_from_oci.py` | Restores `out/` from an OCI backup (BACKUP-02); refuses to overwrite populated dest without `--force`, hard-fails on corrupt download |
 | `engine/data/data_loader.py` | CBOE delayed quotes JSON → `ChainSnapshot` (gamma from CBOE) |
 | `engine/data/vol_index.py` | CBOE vol-index CSV store (VIX/VXN/RVX + VIX9D/VIX3M) — deep daily history |
 | `engine/data/validation.py` | Parquet snapshot store: `save_snapshot()` + `load_history()` (drives 30-day ZGL chart) |
 | `engine/data/surface_history.py` | Surface snapshot store: per-ticker chain parquet, `list_available_dates`, `nth_trading_day_back` |
+| `engine/data/oi_history.py` | Per-expiry OI snapshot store (`out/oi_history/oi_{ticker}.parquet`) — idempotent daily append of call/put OI aggregates |
+| `engine/data/store.py` | Shared parquet-store I/O — `atomic_to_parquet` (temp file + `os.replace`) so an interrupted write never truncates accumulated history |
 | `engine/gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` to sweep spot |
 | `engine/gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; `strike_gex`, `gamma_profile` |
 | `engine/gex/analytics.py` | `summarise()` → net GEX, zero-γ level, call/put walls, δ-flow; plotly charts |
@@ -105,6 +112,12 @@ python -m engine.run_daily              # all 3 tickers → HTML email
 | `engine/report/png_export.py` | Plotly → PNG (kaleido) for email attachments |
 | `engine/report/emailer.py` | SMTP send |
 | `engine/report/observation.py` | Appends a GEX observation block to today's daily note (idempotent) |
+| `engine/monitor/schema.py` | Monitor dataclasses (`MonitorRow`, `AlertEvent`) + `METRIC_INVENTORY` — the canonical (metric, ticker) severity-rank set (net GEX excluded per D-10) |
+| `engine/monitor/ranker.py` | Pure ECDF severity ranker (no I/O) — dual-lookback deep+1yr level rank + two-sided k=5 change rank via `percentileofscore` |
+| `engine/monitor/metrics.py` | Per-metric history loader dispatch — `load_metric_series(ticker, metric)` returns date-indexed series, reusing existing store readers; never raises |
+| `engine/monitor/hysteresis.py` | Pure alert state machine — `check_alert_transition` (out → in_entry → in_escalate) with hysteresis on exit; bands passed in from config |
+| `engine/monitor/monitor_store.py` | Monitor parquet stores (`ranks.parquet` + `alert_events.parquet`) — `compute_and_save_monitor_rows` orchestration seam `run_daily` calls; idempotent, never raises per metric |
+| `engine/monitor/calibration.py` | Calibration CLI — replays ranker + hysteresis over stored history, reports alert episodes/week per band/width grid; prints config-ready snippet, never auto-writes config.py |
 | `app.py` | Browser dashboard (SPY/QQQ/IWM only) — cards+read, interactive surface (Today/Compare), surface video (Evolution), positioning |
 
 Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color. **GEX/positioning is capped at ≤90 DTE (`config.GEX_MAX_DTE`)** — the dealer-relevant tenor; the long-dated tail is investor-written call flow (mis-signed by the dealer-short convention) and is excluded. The dashboard surface uses its own `SURFACE_INTERACTIVE_*` smoothing/clip, isolated from the email/evolution path.
