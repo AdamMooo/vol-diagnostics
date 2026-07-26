@@ -102,7 +102,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 25-01-PLAN.md — vol_metrics.py hardening: term-structure insufficient-data sentinel, compute_term_ratios NaN-close guard, remove dead compute_vrp, + RV20/skew/term edge tests (RIGOR-01, RIGOR-02)
+- [x] 25-01-PLAN.md — vol_metrics.py hardening: term-structure insufficient-data sentinel, compute_term_ratios NaN-close guard, remove dead compute_vrp, + RV20/skew/term edge tests (RIGOR-01, RIGOR-02)
 - [ ] 25-02-PLAN.md — surface_interactive.py try/except symmetry on build_surface_payload/build_diff_payload (near-singular RBF fit → None) + adversarial-chain tests (RIGOR-01, RIGOR-02)
 - [ ] 25-03-PLAN.md — VRP honest-deviation docstring + glossary footnote (keep computation/label), VRP NaN/single-point edge tests, + 25-METHODOLOGY-AUDIT.md record for all four computations (RIGOR-01, RIGOR-02)
 
@@ -153,7 +153,7 @@ Plans:
 |-------|-----------------|--------|-----------|
 | 23. Data Completeness, Backup & Model-Readiness Audit | 3/4 | In Progress|  |
 | 24. Codebase Organization & Dead Code Removal | 2/2 | Complete   | 2026-07-26 |
-| 25. Existing Computation Rigor Hardening | 0/3 | In Progress | - |
+| 25. Existing Computation Rigor Hardening | 1/3 | In Progress|  |
 
 All phases through v4.0 (22 phases, 24 tracked plans + several ad-hoc) are complete. See `.planning/milestones/v4.0-ROADMAP.md` for full phase-level detail on the prior milestone; earlier milestones are archived similarly under `.planning/milestones/`.
 

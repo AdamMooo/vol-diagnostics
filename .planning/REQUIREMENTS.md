@@ -29,8 +29,8 @@ Requirements for the v5.0 Data Foundation milestone — hardening data collectio
 
 ### Existing Computation Rigor (RIGOR)
 
-- [ ] **RIGOR-01**: Existing statistical/quant computations (VRP, RV20, vol surface fit, skew/term structure) are reviewed for correctness against their documented methodology, with edge cases (thin data, cold-start, missing strikes) checked
-- [ ] **RIGOR-02**: Test coverage is expanded for these computations' edge cases, not just the happy path
+- [x] **RIGOR-01**: Existing statistical/quant computations (VRP, RV20, vol surface fit, skew/term structure) are reviewed for correctness against their documented methodology, with edge cases (thin data, cold-start, missing strikes) checked
+- [x] **RIGOR-02**: Test coverage is expanded for these computations' edge cases, not just the happy path
 
 ## v2 Requirements
 
@@ -64,8 +64,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCHEMA-02 | Phase 25 | Pending |
 | CLEAN-01 | Phase 24 | Complete |
 | CLEAN-02 | Phase 24 | Complete |
-| RIGOR-01 | Phase 25 (25-01/02/03) | Pending |
-| RIGOR-02 | Phase 25 (25-01/02/03) | Pending |
+| RIGOR-01 | Phase 25 (25-01/02/03) | Complete |
+| RIGOR-02 | Phase 25 (25-01/02/03) | Complete |
 
 **Coverage:**
 - v1 requirements: 10 total
