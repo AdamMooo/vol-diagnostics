@@ -1,5 +1,6 @@
 """Tests for vol_metrics.py — skew_25d, term_structure, rv20, vrp."""
 from __future__ import annotations
+from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,6 +11,7 @@ from engine.vol.vol_metrics import (
     _classify_term_structure,
     compute_rv20,
     compute_vrp,
+    compute_vvix_level,
 )
 
 
@@ -242,6 +244,27 @@ class TestComputeModelFreeEm:
             "em_expiry": "2026-07-17",
             "em_dte": 10,
         }
+
+
+class TestComputeVvixLevel:
+    @patch(
+        "engine.data.vol_index.load_vol_index",
+        return_value=pd.DataFrame([{"symbol": "VVIX", "date": "2026-06-23", "close": float("nan")}]),
+    )
+    def test_vvix_nan_close_is_none(self, mock_load):
+        # Identical latent bug to _latest_close: a NaN last-row close must be None, not a truthy NaN float
+        assert compute_vvix_level() is None
+
+    @patch(
+        "engine.data.vol_index.load_vol_index",
+        return_value=pd.DataFrame([{"symbol": "VVIX", "date": "2026-06-23", "close": 95.5}]),
+    )
+    def test_vvix_valid_close_returns_float(self, mock_load):
+        assert compute_vvix_level() == pytest.approx(95.5)
+
+    @patch("engine.data.vol_index.load_vol_index", return_value=pd.DataFrame())
+    def test_vvix_empty_store_is_none(self, mock_load):
+        assert compute_vvix_level() is None
 
 
 class TestSkewAtmAnchor:

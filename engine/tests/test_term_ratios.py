@@ -52,6 +52,32 @@ def test_compute_term_ratios_missing_data(mock_load):
     assert result["term_ratio_30d_3m"] is None
 
 
+def _mock_nan_close(symbol: str) -> pd.DataFrame:
+    """Last-row close is NaN — simulates a partial/corrupt CBOE fetch."""
+    return pd.DataFrame([{"symbol": symbol, "date": "2026-06-23", "close": float("nan")}])
+
+
+def _mock_zero_close(symbol: str) -> pd.DataFrame:
+    """Last-row close is 0.0 — a nonsensical vol-index quote."""
+    return pd.DataFrame([{"symbol": symbol, "date": "2026-06-23", "close": 0.0}])
+
+
+@patch("engine.data.vol_index.load_vol_index", side_effect=_mock_nan_close)
+def test_compute_term_ratios_nan_close_is_none(mock_load):
+    """E13: a NaN last-row close yields None (not a truthy NaN float)."""
+    result = compute_term_ratios("SPY")
+    assert result["term_ratio_9d_30d"] is None
+    assert result["term_ratio_30d_3m"] is None
+
+
+@patch("engine.data.vol_index.load_vol_index", side_effect=_mock_zero_close)
+def test_compute_term_ratios_zero_close_is_none(mock_load):
+    """E14: a 0.0 last-row close yields None (division would be undefined/degenerate)."""
+    result = compute_term_ratios("SPY")
+    assert result["term_ratio_9d_30d"] is None
+    assert result["term_ratio_30d_3m"] is None
+
+
 # ── _fmt_term_ratios ──────────────────────────────────────────────────────
 
 def test_fmt_term_ratios_both_contango():
