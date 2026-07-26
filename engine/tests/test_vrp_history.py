@@ -211,3 +211,67 @@ class TestFailurePaths:
         )
         res = vrp_history.vrp_percentile("SPY")
         assert res == {"vrp": None, "pct": None, "n": 0}
+
+
+class TestEdgeCases:
+    """E7 (NaN close scattered mid-series) and E8 (single aligned point, n=1).
+
+    Both assert *defined* output — a real dict with non-NaN numbers — never a silent
+    NaN or a crash. These document the existing dropna (line 76) + percentileofscore
+    (line 112) behavior on degenerate history the happy-path tests never exercised.
+    """
+
+    def test_nan_mid_series_close_dropped_no_nan_output(self, monkeypatch):
+        # E7: a NaN vol-index close on a non-last historical date. `aligned = ...dropna()`
+        # drops that one row → fewer aligned points, no NaN leaking into the output dict.
+        dates = list(pd.bdate_range("2026-01-02", periods=60))
+        prices = [100.0 * (1.004 ** i) for i in range(len(dates))]
+        vi_closes = [18.0 + 0.05 * i for i in range(len(dates))]
+        # RV20 aligns on indices 20..59 (40 points). Blank a vol-index close mid-series,
+        # inside that aligned band and NOT the last date, so exactly one row is dropped.
+        vi_closes[30] = float("nan")
+
+        monkeypatch.setattr(
+            vrp_history, "load_vol_index",
+            lambda sym: _vol_index_df(sym, dates, vi_closes),
+        )
+        monkeypatch.setattr(
+            vrp_history, "_fetch_closes_yf",
+            lambda ticker, period="400d": _closes_series(dates, prices),
+        )
+
+        res = vrp_history.vrp_percentile("SPY")
+
+        # 40 aligned points minus the one NaN row → 39. Output carries no NaN.
+        assert res["n"] == 39
+        assert res["vrp"] is not None
+        assert not np.isnan(res["vrp"])
+        assert isinstance(res["pct"], int)
+        assert 0 <= res["pct"] <= 100
+
+    def test_single_aligned_point_defined_dict(self, monkeypatch):
+        # E8: exactly one aligned VRP point (n=1). 21 closes → RV20 available only at the
+        # last date (index 20); vol-index covers all 21 → dropna keeps one row.
+        dates = list(pd.bdate_range("2026-01-02", periods=21))
+        prices = [100.0 * (1.004 ** i) for i in range(len(dates))]
+        vi_closes = [18.0 + 0.05 * i for i in range(len(dates))]
+
+        monkeypatch.setattr(
+            vrp_history, "load_vol_index",
+            lambda sym: _vol_index_df(sym, dates, vi_closes),
+        )
+        monkeypatch.setattr(
+            vrp_history, "_fetch_closes_yf",
+            lambda ticker, period="400d": _closes_series(dates, prices),
+        )
+
+        res = vrp_history.vrp_percentile("SPY")
+
+        # percentileofscore of a 1-element window (kind="rank") ranks the sole point at 100 —
+        # a defined int, not a crash or NaN.
+        assert res["n"] == 1
+        assert res["vrp"] is not None
+        assert not np.isnan(res["vrp"])
+        assert isinstance(res["pct"], int)
+        assert 0 <= res["pct"] <= 100
+        assert res["pct"] == 100
