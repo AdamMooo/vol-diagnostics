@@ -80,10 +80,13 @@ def build_surface_payload(
     dte_grid = np.linspace(dte_min, dte_max, GRID_DTE)
     otm_grid = np.linspace(-clip, clip, GRID_LM)
 
-    rbf, std = _fit_rbf(d_fit["dte"].to_numpy(), d_fit["log_moneyness"].to_numpy(),
-                        d_fit["iv_pct"].to_numpy(), smoothing)
     DTE, OTM = np.meshgrid(dte_grid, otm_grid)  # (n_otm, n_dte)
-    IV = np.clip(rbf(np.column_stack([DTE.ravel(), OTM.ravel()]) / std).reshape(DTE.shape), 0.0, None)
+    try:  # near-singular fit (duplicate/near-duplicate points) must degrade, not crash — mirrors build_movie_payload
+        rbf, std = _fit_rbf(d_fit["dte"].to_numpy(), d_fit["log_moneyness"].to_numpy(),
+                            d_fit["iv_pct"].to_numpy(), smoothing)
+        IV = np.clip(rbf(np.column_stack([DTE.ravel(), OTM.ravel()]) / std).reshape(DTE.shape), 0.0, None)
+    except Exception:
+        return None
 
     mask = coverage_mask(d_fit, spot, dte_grid, otm_grid, dte_floor=fit_floor, clip=clip)
     IV = np.where(mask, IV, np.nan)
@@ -252,10 +255,13 @@ def build_diff_payload(
     DTE, OTM = np.meshgrid(dte_grid, otm_grid)
     grid = np.column_stack([DTE.ravel(), OTM.ravel()])
 
-    rbf_a, sa = _fit_rbf(da["dte"].to_numpy(), da["log_moneyness"].to_numpy(), da["iv_pct"].to_numpy(), smoothing)
-    rbf_b, sb = _fit_rbf(db["dte"].to_numpy(), db["log_moneyness"].to_numpy(), db["iv_pct"].to_numpy(), smoothing)
-    IVa = np.clip(rbf_a(grid / sa).reshape(DTE.shape), 0.0, None)
-    IVb = np.clip(rbf_b(grid / sb).reshape(DTE.shape), 0.0, None)
+    try:  # near-singular fit on either date must degrade, not crash — mirrors build_movie_payload
+        rbf_a, sa = _fit_rbf(da["dte"].to_numpy(), da["log_moneyness"].to_numpy(), da["iv_pct"].to_numpy(), smoothing)
+        rbf_b, sb = _fit_rbf(db["dte"].to_numpy(), db["log_moneyness"].to_numpy(), db["iv_pct"].to_numpy(), smoothing)
+        IVa = np.clip(rbf_a(grid / sa).reshape(DTE.shape), 0.0, None)
+        IVb = np.clip(rbf_b(grid / sb).reshape(DTE.shape), 0.0, None)
+    except Exception:
+        return None
 
     mask = (coverage_mask(da, spot_a, dte_grid, otm_grid, dte_floor=fit_floor, clip=clip) &
             coverage_mask(db, spot_b, dte_grid, otm_grid, dte_floor=fit_floor, clip=clip))
