@@ -146,6 +146,42 @@ class TestMoviePayloadLevel:
         assert "{payload}" not in html and "{modelabel}" not in html
 
 
+# ── adversarial / degenerate inputs (25-02 hardening) ────────────────────────
+
+class TestSurfaceEdgeCases:
+    """E17 singular fit, E18 spot<=0, E19 missing column — defined results, never silently-wrong."""
+
+    @staticmethod
+    def _dup_chain() -> pd.DataFrame:
+        # Exact-duplicate (dte, log_moneyness) rows → near-singular RBF design matrix.
+        # smoothing=0.0 (below) removes the regulariser so the singularity is deterministic.
+        d = _surface_df()
+        dup = d[d["dte"] == 7.0].iloc[[0]]  # dte>=fit_floor so it survives into the fit set
+        return pd.concat([d, dup, dup, dup], ignore_index=True)
+
+    def test_singular_fit_surface_is_none(self):
+        # E17: pre-fix this raised scipy LinAlgError; post-fix it degrades to None.
+        assert build_surface_payload(self._dup_chain(), 100.0, smoothing=0.0) is None
+
+    def test_singular_fit_diff_is_none(self):
+        # E17: either side triggering a singular fit degrades the whole diff to None.
+        assert build_diff_payload(
+            self._dup_chain(), 100.0, _surface_df(base_iv=15.0), 100.0, smoothing=0.0,
+        ) is None
+
+    def test_spot_non_positive_defined_no_raise(self):
+        # E18: spot<=0 yields a defined result (None here), never an uncaught crash mid-render.
+        for bad_spot in (0.0, -5.0):
+            res = build_surface_payload(_surface_df(), bad_spot)
+            assert res is None or isinstance(res, dict)
+
+    def test_missing_column_raises_keyerror(self):
+        # E19: a corrupt schema (missing structural column) must fail loudly, not silently.
+        broken = _surface_df().drop(columns=["log_moneyness"])
+        with pytest.raises(KeyError):
+            build_surface_payload(broken, 100.0)
+
+
 class TestMoviePayloadChange:
     def setup_method(self):
         self.p = build_movie_payload(_snaps(3), ticker="SPY", mode="change")
