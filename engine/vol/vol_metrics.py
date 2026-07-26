@@ -390,7 +390,10 @@ def compute_term_ratios(ticker: str) -> dict:
         df = load_vol_index(symbol)
         if df.empty:
             return None
-        return float(df.iloc[-1]["close"])
+        close = df.iloc[-1]["close"]
+        if pd.isna(close):
+            return None
+        return float(close)
 
     close_9d = _latest_close(sym_9d)
     close_30d = _latest_close(sym_30d)
@@ -446,7 +449,10 @@ def compute_vvix_level() -> float | None:
     df = load_vol_index("VVIX")
     if df.empty:
         return None
-    return float(df.iloc[-1]["close"])
+    close = df.iloc[-1]["close"]
+    if pd.isna(close):
+        return None
+    return float(close)
 
 
 # ── Net Delta Exposure ─────────────────────────────────────────────────────
