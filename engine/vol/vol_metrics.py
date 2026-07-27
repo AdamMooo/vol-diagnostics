@@ -300,16 +300,8 @@ def compute_rv20(spot_history: pd.Series) -> float | None:
 # Pure functions — no I/O, no Streamlit calls, plain Python return types.
 
 
-def evolution_5d_summary(evol_df: pd.DataFrame) -> dict:
-    """Extract the most recent row of a 5-day evolution DataFrame.
-
-    evol_df: output of load_evolution(ticker, horizon=5) — columns include
-        level, rms, skew_change, term_change, date. Sorted descending by date
-        (most recent row first).
-
-    Returns dict with keys: level, rms, skew_change, term_change, as_of.
-    All values are None when evol_df is empty.
-    """
+def evolution_summary(evol_df: pd.DataFrame) -> dict:
+    """Extract the most recent row of an evolution DataFrame."""
     if evol_df is None or evol_df.empty:
         return {
             "level": None,
@@ -341,6 +333,11 @@ def evolution_5d_summary(evol_df: pd.DataFrame) -> dict:
         "term_change": _safe("term_change"),
         "as_of": as_of,
     }
+
+
+def evolution_5d_summary(evol_df: pd.DataFrame) -> dict:
+    """Back-compat wrapper used by existing email/dashboard seams."""
+    return evolution_summary(evol_df)
 
 
 # ── VIX Term-Structure Ratios ─────────────────────────────────────────────

@@ -354,6 +354,29 @@ def _evolution_largest_move_line(ticker: str, metrics: dict) -> str:
     return f"{ticker}: {label} {direction} ({value:+.2f}pp)."
 
 
+def _evolution_horizon_summary_line(evolution_data: dict) -> str:
+    def _fmt_level(v: float | None) -> str:
+        import math
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            return "—"
+        return f"{v:+.2f}pp"
+
+    horizons = ("5d", "10d", "30d")
+    parts: list[str] = []
+    for horizon in horizons:
+        vals = []
+        for ticker in ("SPY", "QQQ", "IWM"):
+            level = (
+                evolution_data.get(ticker, {})
+                .get("horizons", {})
+                .get(horizon, {})
+                .get("level")
+            )
+            vals.append(_fmt_level(level))
+        parts.append(f"{horizon} [{vals[0]}/{vals[1]}/{vals[2]}]")
+    return " | ".join(parts)
+
+
 def evolution_section_html(evolution_data: dict) -> str | None:
     """Build the Surface Evolution cross-ticker table for the email top section.
 
@@ -452,8 +475,13 @@ def evolution_section_html(evolution_data: dict) -> str | None:
         f'<p style="{_SANS}font-size:13px;margin:2px 0 8px;color:{LABEL_GRAY};">'
         f'<b>What changed most today:</b> {move_lines}</p>'
     )
+    horizon_summary_html = (
+        f'<p style="{_SANS}font-size:12px;margin:2px 0 10px;color:{LABEL_GRAY};">'
+        f'<b>Level by horizon (SPY/QQQ/IWM):</b> '
+        f'{_evolution_horizon_summary_line(evolution_data)}</p>'
+    )
 
-    return _section_header("Surface Evolution — 5-day") + lead_html + summary_html + table
+    return _section_header("Surface Evolution — 5-day") + lead_html + summary_html + horizon_summary_html + table
 
 
 # ── Main ──────────────────────────────────────────────────────────────
@@ -530,7 +558,6 @@ def build_email(
 </table>
 </body></html>
 """
-
 
 
 

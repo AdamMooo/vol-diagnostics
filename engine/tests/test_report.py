@@ -415,3 +415,30 @@ def test_evolution_section_includes_largest_move_summary_row():
     html = evolution_section_html(evol_data)
     assert html is not None
     assert "What changed most today" in html
+
+
+def test_evolution_section_includes_5d_10d_30d_horizon_summary():
+    evol_data = {
+        "SPY": {
+            "level": 0.1, "rms": 0.2, "skew_change": -0.1, "term_change": 0.6, "as_of": datetime.date(2026, 5, 27),
+            "horizons": {
+                "5d": {"level": 0.10}, "10d": {"level": 0.20}, "30d": {"level": 0.30},
+            },
+        },
+        "QQQ": {
+            "level": 0.0, "rms": 0.1, "skew_change": 0.0, "term_change": 0.1, "as_of": datetime.date(2026, 5, 27),
+            "horizons": {
+                "5d": {"level": -0.10}, "10d": {"level": -0.20}, "30d": {"level": -0.30},
+            },
+        },
+        "IWM": {
+            "level": -0.1, "rms": 0.1, "skew_change": 0.1, "term_change": -0.1, "as_of": datetime.date(2026, 5, 27),
+            "horizons": {
+                "5d": {"level": 0.00}, "10d": {"level": 0.05}, "30d": {"level": -0.05},
+            },
+        },
+    }
+    html = evolution_section_html(evol_data)
+    assert html is not None
+    assert "Level by horizon (SPY/QQQ/IWM)" in html
+    assert "5d [" in html and "10d [" in html and "30d [" in html

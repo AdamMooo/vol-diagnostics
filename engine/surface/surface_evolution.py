@@ -54,7 +54,7 @@ STORE = pathlib.Path(__file__).resolve().parents[2] / "out" / "surface_evolution
 
 _FLOAT_COLS = ("level", "rms", "skew_change", "term_change", "coverage")
 
-HORIZONS = (5, 10, 20)
+HORIZONS = (5, 10, 20, 30)
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +244,7 @@ def update_evolution(ticker: str, date: datetime.date) -> int:
     Step 1.  Load today's surface and spot.  Return early if empty or spot is None.
     Step 2.  Construct shared grid axes ONCE from today's surface.
     Step 3.  Compute today's IV grid and coverage mask on those shared axes.
-    For each horizon N in HORIZONS (5, 10, 20):
+    For each horizon N in HORIZONS (5, 10, 20, 30):
       Step 4.  Resolve all N prior session dates.  Skip horizon if the Nth date is None.
       Step 5.  Load each prior day's surface+spot; compute its grid and mask on the SAME axes.
       Step 6.  Stack prior grids → nanmean baseline.  Skip horizon if stack is empty.

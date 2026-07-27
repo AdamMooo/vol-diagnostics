@@ -29,7 +29,7 @@ from engine.report import observation
 from engine.report.png_export import export_png
 from engine.gex.analytics import plot_iv_change_heatmap
 from engine.surface.surface_evolution import load_evolution
-from engine.vol.vol_metrics import evolution_5d_summary
+from engine.vol.vol_metrics import evolution_summary
 from engine.data.vol_index import refresh_vol_indices
 from engine.session import ET, is_trading_day, latest_session, MARKET_OPEN_HOUR, MARKET_OPEN_MIN
 from engine.monitor import monitor_store
@@ -242,13 +242,27 @@ def run(dry_run: bool = False, force: bool = False) -> None:
     evolution_data: dict = {}
     for ticker in INDEX_TICKERS:
         try:
-            evol_df = load_evolution(ticker, horizon=5, days=30)
-            evolution_data[ticker] = evolution_5d_summary(evol_df)
+            evol_5 = evolution_summary(load_evolution(ticker, horizon=5, days=30))
+            evol_10 = evolution_summary(load_evolution(ticker, horizon=10, days=30))
+            evol_30 = evolution_summary(load_evolution(ticker, horizon=30, days=30))
+            evolution_data[ticker] = {
+                **evol_5,
+                "horizons": {
+                    "5d": evol_5,
+                    "10d": evol_10,
+                    "30d": evol_30,
+                },
+            }
         except Exception as exc:
             print(f"  [WARN] {ticker} evolution gather failed (non-blocking): {exc}")
             evolution_data[ticker] = {
                 "level": None, "rms": None,
                 "skew_change": None, "term_change": None, "as_of": None,
+                "horizons": {
+                    "5d": {"level": None, "rms": None, "skew_change": None, "term_change": None, "as_of": None},
+                    "10d": {"level": None, "rms": None, "skew_change": None, "term_change": None, "as_of": None},
+                    "30d": {"level": None, "rms": None, "skew_change": None, "term_change": None, "as_of": None},
+                },
             }
 
     # Generate PNG attachments (non-blocking — kaleido failure sends email without PNGs).
