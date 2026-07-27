@@ -41,13 +41,13 @@ def backup_to_oracle(bucket: str, region: str, namespace: str, source_dir: Path)
             continue
         key = str(file_path.relative_to(source_dir.parent)).replace(os.sep, "/")
         print(f"[backup_to_oci] uploading {key} ...")
-        with file_path.open("rb") as body:
-            client.put_object(
-                Bucket=bucket,
-                Key=key,
-                Body=body,
-                ContentLength=file_path.stat().st_size,
-            )
+        payload = file_path.read_bytes()
+        client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=payload,
+            ContentLength=len(payload),
+        )
         uploaded += 1
     print(f"[backup_to_oci] complete. {uploaded} file(s) uploaded to {bucket}.")
     return uploaded
