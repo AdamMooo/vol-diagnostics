@@ -172,3 +172,123 @@ def test_phase27_load_current_ranks_cached_is_inventory_shaped():
     df = app._load_current_ranks_cached()
     assert len(df) == len(METRIC_INVENTORY)
     assert {"level_rank_deep", "n_deep", "change_rank"}.issubset(df.columns)
+
+
+# ── Phase 27 Plan 03: evidence panel ─────────────────────────────────────────────
+def test_phase27_evidence_panel_wiring_contract():
+    """SC-2/SC-6: the panel is dispatched from the board selection, draws the
+    config alert bands, and reuses the existing surface/VRP builders (no new
+    signal). The Plan 02 stub caption is gone."""
+    app = _import_app_module()
+    import inspect
+    src = inspect.getsource(app)
+    assert "def _render_evidence_panel" in src
+    assert "MONITOR_ALERT_BAND_ENTRY" in src
+    assert "selected_monitor_row" in src
+    # Mechanism views reuse existing builders verbatim (SC-6, no new math).
+    assert "build_diff_payload" in src
+    assert "build_surface_payload" in src
+    assert "vrp_components" in src
+    # The board calls the real panel, not the Plan 02 placeholder.
+    assert "_render_evidence_panel(selected, all_data)" in src
+    assert "Evidence panel — Plan 03." not in src
+
+
+def test_phase27_rank_history_is_rank_space_with_bands():
+    """SC-2: the rank-history chart is drawn in rank-space (0-100) with the three
+    config band constants as horizontal reference lines — never value-space."""
+    import pandas as pd
+    from engine import config
+    app = _import_app_module()
+    trail = pd.DataFrame({
+        "date": pd.to_datetime(["2026-07-20", "2026-07-21", "2026-07-22"]).date,
+        "level_rank_deep": [80, 88, 92],
+        "level_rank_1yr": [70, 75, None],
+        "change_rank": [50, 95, 60],
+        "n_deep": [10, 10, 10],
+        "n_1yr": [5, 5, 5],
+    })
+    fig = app._rank_history_figure(trail)
+    assert tuple(fig.layout.yaxis.range) == (0, 100)  # rank axis, not value
+    band_ys = {round(s.y0) for s in fig.layout.shapes}
+    assert {config.MONITOR_ALERT_BAND_ENTRY,
+            config.MONITOR_ALERT_BAND_ESCALATE,
+            config.MONITOR_ALERT_BAND_EXIT}.issubset(band_ys)
+    assert len(fig.data) == 3  # deep / 1yr / change traces
+
+
+def test_phase27_rank_history_sparse_and_empty_safe():
+    """Cold-start: 1-2 points render (as markers) and an empty trail renders an
+    empty 0-100 axis with the bands still drawn — never raises."""
+    import pandas as pd
+    app = _import_app_module()
+    one = pd.DataFrame({
+        "date": pd.to_datetime(["2026-07-22"]).date,
+        "level_rank_deep": [92], "level_rank_1yr": [None], "change_rank": [60],
+    })
+    fig_one = app._rank_history_figure(one)
+    assert len(fig_one.data) == 2  # deep + change (1yr all-NaN dropped)
+    fig_empty = app._rank_history_figure(pd.DataFrame())
+    assert len(fig_empty.data) == 0
+    assert len(fig_empty.layout.shapes) == 3  # bands still present
+
+
+def test_phase27_credibility_caption_flags_shallow_history():
+    """SC-5: below the credibility floor the caption warns it's not a deep-history
+    rarity claim; at/above the floor it's a plain n readout."""
+    from engine import config
+    app = _import_app_module()
+    floor = config.MONITOR_CREDIBILITY_FLOOR_SESSIONS
+    shallow = app._credibility_caption(10, 5)
+    assert "n=10" in shallow and "not a deep-history rarity claim" in shallow
+    deep = app._credibility_caption(floor + 5, floor)
+    assert "rarity" not in deep
+
+
+def test_phase27_metric_mechanism_covers_all_families():
+    """Dispatch maps every METRIC_INVENTORY family to its mechanism view; unknown
+    metrics fall back to the plain ratio value-history line."""
+    app = _import_app_module()
+    assert app._metric_mechanism("skew_25d") == "smile"
+    assert app._metric_mechanism("fly_25d") == "smile"
+    assert app._metric_mechanism("surface_level") == "diff"
+    assert app._metric_mechanism("surface_rms") == "diff"
+    assert app._metric_mechanism("vrp") == "vrp"
+    assert app._metric_mechanism("term_9d_30") == "ratio"
+    assert app._metric_mechanism("term_30_3m") == "ratio"
+    assert app._metric_mechanism("unknown") == "ratio"
+
+
+def test_phase27_mechanism_figures_degrade_on_none_source():
+    """T-27-05: each mechanism figure returns None (→ caption, not an exception)
+    when its source data is None/empty/malformed."""
+    import pandas as pd
+    app = _import_app_module()
+    assert app._vrp_iv_rv_figure(None) is None
+    assert app._vrp_iv_rv_figure(pd.DataFrame()) is None
+    assert app._term_ratio_figure(pd.DataFrame(), "x") is None
+    assert app._smile_overlay_figure(None, None, "t", "p") is None
+    assert app._smile_slice(None) is None
+    assert app._smile_slice({"ks_grid": [1.0], "smile_fit": [[None]]}) is None
+
+
+def test_phase27_mechanism_figures_build_from_valid_source():
+    """Happy path: VRP legs, term ratio, and the smile overlay each build a
+    figure with the expected trace count from the existing reshaped data."""
+    import pandas as pd
+    app = _import_app_module()
+    vc = pd.DataFrame(
+        {"vi": [18.0, 19.0], "rv": [0.15, 0.16], "vrp": [3.0, 3.0]},
+        index=pd.to_datetime(["2026-07-20", "2026-07-21"]),
+    )
+    assert len(app._vrp_iv_rv_figure(vc).data) == 2  # implied + realized
+    tr = pd.DataFrame({
+        "date": pd.to_datetime(["2026-07-20", "2026-07-21"]).date,
+        "value": [1.05, 1.10],
+    })
+    assert len(app._term_ratio_figure(tr, "Term").data) == 1
+    pt = {"ks_grid": [0.9, 1.0, 1.1], "smile_fit": [[20.0, 18.0, None]]}
+    pp = {"ks_grid": [0.9, 1.0, 1.1], "smile_fit": [[21.0, 19.0, 17.0]]}
+    assert len(app._smile_overlay_figure(pt, pp, "today", "5d").data) == 2
+    # today-only (prior payload None) still draws the single today line.
+    assert len(app._smile_overlay_figure(pt, None, "today", "5d").data) == 1

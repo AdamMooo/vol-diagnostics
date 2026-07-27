@@ -34,6 +34,7 @@ from engine.surface.surface_evolution import load_evolution
 from engine.session import latest_session, DATA_CUTOFF_HOUR, DATA_CUTOFF_MIN
 from engine.monitor import monitor_reader
 from engine.monitor.schema import METRIC_INVENTORY
+from engine.vol.vrp_history import vrp_components
 
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
@@ -215,6 +216,14 @@ def _load_rank_trail_cached(ticker: str, metric: str, n: int = 10) -> list:
     return [float(x) for x in trail["level_rank_deep"] if pd.notna(x)]
 
 
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _load_rank_trail_full_cached(ticker: str, metric: str) -> pd.DataFrame:
+    """Full ascending rank history for one pair (n=None) — feeds the evidence
+    panel's rank-space band chart and the term-ratio value history. Returns an
+    EMPTY DataFrame (never None) on absent/corrupt store or an unknown pair."""
+    return monitor_reader.load_rank_trail(ticker, metric, n=None)
+
+
 def _evolution_largest_move_summary(metrics: dict | None) -> str:
     import math
     if not metrics:
@@ -387,6 +396,270 @@ def _to_int_or_none(v):
     return int(v) if pd.notna(v) else None
 
 
+# ── Evidence panel (Phase 27 Plan 03) ───────────────────────────────────────────
+# Each metric family drives a mechanism view; dispatch off the metric name.
+_METRIC_MECHANISM = {
+    "skew_25d": "smile",
+    "fly_25d": "smile",
+    "surface_level": "diff",
+    "surface_rms": "diff",
+    "vrp": "vrp",
+    "term_9d_30": "ratio",
+    "term_30_3m": "ratio",
+}
+
+
+def _metric_mechanism(metric: str) -> str:
+    """Map a monitor metric to its evidence mechanism view: 'smile' (skew/fly),
+    'diff' (surface_level/rms), 'vrp' (IV-vs-RV pair), or 'ratio' (term). Unknown
+    metrics fall back to 'ratio' (a plain value-history line, no engine reuse)."""
+    return _METRIC_MECHANISM.get(metric, "ratio")
+
+
+def _credibility_caption(n_deep, n_1yr) -> str:
+    """SC-5: history-depth caption for the panel. When the deep window is below
+    MONITOR_CREDIBILITY_FLOOR_SESSIONS, flag that a shown rank is NOT a
+    deep-history rarity claim so a shallow rank isn't mis-read as rare."""
+    floor = config.MONITOR_CREDIBILITY_FLOOR_SESSIONS
+    nd = int(n_deep) if pd.notna(n_deep) else 0
+    n1 = int(n_1yr) if pd.notna(n_1yr) else 0
+    base = f"n_deep={nd} · n_1yr={n1}"
+    if nd < floor:
+        return (f"{base} — shallow history (n={nd} < {floor}); "
+                "not a deep-history rarity claim.")
+    return base
+
+
+def _rank_history_figure(trail: pd.DataFrame) -> "go.Figure":
+    """The 'bands drawn' chart — MUST be in rank-space (0-100). Plots the
+    level_rank_deep / level_rank_1yr / change_rank time series on a single 0-100
+    axis with the config alert-band constants as horizontal reference lines
+    (entry/escalate/exit). RESEARCH Pitfall 2: 90/94/85 are percentiles, meaningful
+    ONLY on this rank axis — never draw them on a raw metric-value chart. Sparse-safe:
+    1-2 points render as markers; an empty trail renders an empty 0-100 axis."""
+    fig = go.Figure()
+    has_rows = trail is not None and not trail.empty
+    x = trail["date"] if (has_rows and "date" in trail.columns) else []
+    for col, name, color in (
+        ("level_rank_deep", "deep %ile", "#d97706"),
+        ("level_rank_1yr", "1yr %ile", "#4dd2ff"),
+        ("change_rank", "Δ %ile", "#9ca3af"),
+    ):
+        if has_rows and col in trail.columns and trail[col].notna().any():
+            fig.add_trace(go.Scatter(
+                x=x, y=trail[col], mode="lines+markers", name=name,
+                line=dict(color=color, width=2), connectgaps=False,
+            ))
+    for y, name, dash in (
+        (config.MONITOR_ALERT_BAND_ESCALATE, "escalate", "dash"),
+        (config.MONITOR_ALERT_BAND_ENTRY, "entry", "dot"),
+        (config.MONITOR_ALERT_BAND_EXIT, "exit", "dot"),
+    ):
+        fig.add_hline(y=y, line_dash=dash, line_color="#6b7280",
+                      annotation_text=name, annotation_position="right")
+    fig.update_yaxes(range=[0, 100], title_text="rank (0-100 %ile)")
+    fig.update_layout(
+        height=300, margin=dict(l=40, r=60, t=20, b=30),
+        legend=dict(orientation="h", yanchor="bottom", y=1.0),
+        hovermode="x unified",
+    )
+    return fig
+
+
+def _smile_slice(payload: "dict | None"):
+    """Near-expiry fitted smile slice (K/S grid, IV) from a build_surface_payload
+    result, dropping masked (None) points. Returns (xs, ys) or None."""
+    if not payload:
+        return None
+    ks = payload.get("ks_grid") or []
+    smile = payload.get("smile_fit") or []
+    if not ks or not smile:
+        return None
+    xs, ys = [], []
+    for k, v in zip(ks, smile[0]):  # smile_fit[0] = nearest fitted DTE index
+        if v is not None:
+            xs.append(k)
+            ys.append(v)
+    if not xs:
+        return None
+    return xs, ys
+
+
+def _smile_overlay_figure(payload_today, payload_prior,
+                          label_today, label_prior) -> "go.Figure | None":
+    """Skew/fly mechanism view: near-expiry smile today vs N-days-ago, built from
+    the EXISTING build_surface_payload slices (no new RBF/fit). None when today's
+    payload can't be built (caller shows a caption)."""
+    today = _smile_slice(payload_today)
+    if today is None:
+        return None
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=today[0], y=today[1], mode="lines+markers",
+                             name=label_today, line=dict(color="#d97706", width=2)))
+    prior = _smile_slice(payload_prior)
+    if prior is not None:
+        fig.add_trace(go.Scatter(
+            x=prior[0], y=prior[1], mode="lines+markers", name=label_prior,
+            line=dict(color="#4dd2ff", width=2, dash="dot")))
+    fig.update_xaxes(title_text="K/S")
+    fig.update_yaxes(title_text="IV (vol pts)")
+    fig.update_layout(height=320, margin=dict(l=40, r=20, t=20, b=30),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.0))
+    return fig
+
+
+def _vrp_iv_rv_figure(components: "pd.DataFrame | None") -> "go.Figure | None":
+    """VRP mechanism view: the implied (vi) and realized (rv×100) legs over time
+    from vrp_components — a reshape of the existing VRP series, no new math. None
+    when components is None/empty/malformed (caller shows a caption)."""
+    if components is None or components.empty:
+        return None
+    if "vi" not in components.columns or "rv" not in components.columns:
+        return None
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=components.index, y=components["vi"], mode="lines",
+                             name="implied (vi)", line=dict(color="#d97706", width=2)))
+    fig.add_trace(go.Scatter(x=components.index, y=components["rv"] * 100, mode="lines",
+                             name="realized (rv×100)", line=dict(color="#4dd2ff", width=2)))
+    fig.update_yaxes(title_text="vol pts")
+    fig.update_layout(height=320, margin=dict(l=40, r=20, t=20, b=30),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.0),
+                      hovermode="x unified")
+    return fig
+
+
+def _term_ratio_figure(trail: pd.DataFrame, label: str) -> "go.Figure | None":
+    """Term mechanism view: the raw ratio VALUE history (monitor trail `value`
+    column) as a single line — no new engine code. None when the trail has no
+    usable value column (caller shows a caption)."""
+    if trail is None or trail.empty or "value" not in trail.columns:
+        return None
+    y = trail["value"]
+    if not y.notna().any():
+        return None
+    x = trail["date"] if "date" in trail.columns else trail.index
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=x, y=y, mode="lines+markers", name=label,
+                             line=dict(color="#d97706", width=2), connectgaps=False))
+    fig.update_yaxes(title_text="ratio")
+    fig.update_layout(height=300, margin=dict(l=40, r=20, t=20, b=30),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.0))
+    return fig
+
+
+def _resolve_prior_surface(ticker: str, n: int):
+    """Resolve the N-trading-days-ago stored surface for the mechanism views
+    (mirrors _surface_compare_section's anchor/nth_trading_day_back lookup).
+    Returns (surface_df, spot, label) or (None, None, None) when unavailable."""
+    available = _available_dates_cached(ticker)
+    if not available:
+        return None, None, None
+    anchor = available[0]
+    date_n = nth_trading_day_back(ticker, anchor, n)
+    if date_n is None:
+        return None, None, None
+    sdf, sp = load_surface_snapshot(ticker, date_n)
+    if sdf is None or sdf.empty:
+        return None, None, None
+    return sdf, sp, date_n.strftime("%b %d")
+
+
+@st.fragment
+def _render_evidence_panel(selected, all_data: dict) -> None:
+    """Interrogate layer: the trail answers 'is it moving?'; this panel answers
+    'why, and how rare?'. Reads st.session_state.selected_monitor_row = (ticker,
+    metric) set by the Plan 02 board, draws the rank-space band chart (SC-2/SC-5),
+    then dispatches to the correct mechanism view per metric family — reusing the
+    existing surface/VRP builders verbatim (no new signal, SC-6). Every branch
+    degrades to a caption on None/sparse source (cold-start safe) — never raises."""
+    selected = st.session_state.get("selected_monitor_row", selected)
+    if not selected:
+        st.caption("Select a row to open its evidence panel.")
+        return
+    ticker, metric = selected
+    st.markdown(
+        f'<div class="sec">Evidence — {ticker} '
+        f'{_METRIC_LABELS.get(metric, metric)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Rank-space history with alert bands (SC-2/SC-5) ──
+    trail = _load_rank_trail_full_cached(ticker, metric)
+    st.plotly_chart(_rank_history_figure(trail), width="stretch")
+    if trail is not None and not trail.empty:
+        last = trail.iloc[-1]
+        st.caption(_credibility_caption(last.get("n_deep"), last.get("n_1yr")))
+        if len(trail) <= 2:
+            plural = "s" if len(trail) != 1 else ""
+            st.caption(
+                f"Sparse history ({len(trail)} session{plural}) — rank points shown "
+                "as markers; bands fill in as run_daily accrues sessions."
+            )
+    else:
+        st.caption("No rank history stored yet for this pair (cold-start).")
+
+    # ── Mechanism view per metric family (reuse existing builders, SC-6) ──
+    mech = _metric_mechanism(metric)
+    data = all_data.get(ticker) or {}
+    horizon = config.MONITOR_SURFACE_EVOLUTION_HORIZON
+
+    if mech == "diff":
+        st.markdown(f"**Surface evolution (today vs {horizon}d)**")
+        surface_today = data.get("surface_df")
+        spot_today = data.get("spot")
+        sdf_p, spot_p, label_p = _resolve_prior_surface(ticker, horizon)
+        if surface_today is None or surface_today.empty or sdf_p is None:
+            st.caption(f"{ticker}: insufficient surface history for the diff view.")
+        else:
+            if spot_p is None:
+                spot_p = spot_today
+            diff = build_diff_payload(
+                surface_today, spot_today, sdf_p, spot_p,
+                ticker=ticker, label_a="today", label_b=label_p or f"{horizon}d",
+            )
+            if diff is not None:
+                components.html(render_diff_html(diff), height=640, scrolling=False)
+            else:
+                st.caption(f"{ticker}: diff surface too sparse to fit.")
+
+    elif mech == "smile":
+        st.markdown(f"**Near-expiry smile (today vs {horizon}d)**")
+        surface_today = data.get("surface_df")
+        spot_today = data.get("spot")
+        sdf_p, spot_p, label_p = _resolve_prior_surface(ticker, horizon)
+        payload_today = (
+            build_surface_payload(surface_today, spot_today, ticker=ticker)
+            if surface_today is not None and not surface_today.empty else None
+        )
+        payload_prior = (
+            build_surface_payload(
+                sdf_p, spot_p if spot_p is not None else spot_today, ticker=ticker)
+            if sdf_p is not None else None
+        )
+        fig = _smile_overlay_figure(
+            payload_today, payload_prior, "today", label_p or f"{horizon}d")
+        if fig is None:
+            st.caption(f"{ticker}: insufficient surface data for the smile overlay.")
+        else:
+            st.plotly_chart(fig, width="stretch")
+
+    elif mech == "vrp":
+        st.markdown("**Implied vs realized (VRP legs)**")
+        fig = _vrp_iv_rv_figure(vrp_components(ticker))
+        if fig is None:
+            st.caption(f"{ticker}: VRP legs unavailable (no vol-index / alignment yet).")
+        else:
+            st.plotly_chart(fig, width="stretch")
+
+    else:  # ratio (term_9d_30 / term_30_3m)
+        st.markdown("**Term ratio history**")
+        fig = _term_ratio_figure(trail, _METRIC_LABELS.get(metric, metric))
+        if fig is None:
+            st.caption(f"{ticker}: no ratio value history stored yet.")
+        else:
+            st.plotly_chart(fig, width="stretch")
+
+
 @st.fragment
 def _distribution_board_section(all_data: dict) -> None:
     """Landing surface: one row per METRIC_INVENTORY pair (≤17) with deep + 1yr
@@ -483,14 +756,9 @@ def _distribution_board_section(all_data: dict) -> None:
         st.session_state.selected_monitor_row = selected
 
     if selected:
-        st.markdown(
-            f'<div class="sec">Evidence — {selected[0]} '
-            f'{_METRIC_LABELS.get(selected[1], selected[1])}</div>',
-            unsafe_allow_html=True,
-        )
-        st.caption("Evidence panel — Plan 03.")
+        _render_evidence_panel(selected, all_data)
     else:
-        st.caption("Select a row to open its evidence panel (Plan 03).")
+        st.caption("Select a row to open its evidence panel.")
 
 
 # ── Boot ──────────────────────────────────────────────────────────────────────
