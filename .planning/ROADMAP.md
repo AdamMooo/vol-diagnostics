@@ -15,7 +15,7 @@ Plans:
 **Wave 2** *(both depend on 27-01; disjoint files — parallel)*
 
 - [x] 27-02-PLAN.md — Distribution-board landing in app.py: METRIC_INVENTORY-driven board (rank marks + trail sparklines) + net-GEX chip + risk-bar removal + freshness dot + row-selection state (SC-1, SC-3, SC-5, SC-7)
-- [ ] 27-04-PLAN.md — Event-shaped email in report.py/run_daily.py: alerts section (entries/escalations + Δ-vs-yesterday) + nothing-unusual fallback + boilerplate→single Methodology link + OI/key-levels cut + tests (SC-4, SC-6)
+- [x] 27-04-PLAN.md — Event-shaped email (HYBRID, Adam-approved deviation): alerts banner (entries/escalations + Δ-vs-yesterday) riding above the retained rich descriptive email — empty on quiet days rather than replacing the report; boilerplate→single Methodology link (config.DASHBOARD_METHODOLOGY_URL); OI/key-levels RETAINED (not cut — cold-start would make alerts-only email near-empty for weeks) + tests (SC-4, SC-6)
 
 **Wave 3** *(depends on 27-01 + 27-02 — shares app.py with the board)*
 
