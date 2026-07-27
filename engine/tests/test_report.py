@@ -245,21 +245,24 @@ def test_build_email_signature_accepts_new_params():
     assert html  # non-empty string
 
 
-# ── Header block: snapshot timestamp (methodology banner removed) ────────────
+# ── Header block: end-of-day settled-data line (after-close framing) ─────────
 
 def test_snapshot_timestamp_present_when_fetched_at_set():
     fetched_at = datetime.datetime(2026, 5, 11, 16, 15)
     r = _minimal_result(fetched_at=fetched_at)
     html = build_email([r])
-    assert "Snapshot 2026-05-11 16:15" in html
-    assert "OI T-1" in html
-    assert "Greeks 15-min delayed" in html
+    # After-close framing: settled session, no intraday-staleness language.
+    assert "Close of Mon, May 11, 2026" in html
+    assert "settled end-of-day data" in html
+    assert "OI T-1" not in html
+    assert "Greeks 15-min delayed" not in html
 
 
 def test_snapshot_timestamp_absent_when_fetched_at_missing():
     r = _minimal_result(fetched_at=None)
     html = build_email([r])
-    assert "Snapshot" not in html
+    assert "Close of" not in html
+    assert "settled end-of-day data" not in html
 
 
 def test_methodology_caveat_banner_removed():
@@ -400,28 +403,38 @@ def test_evolution_section_includes_largest_move_summary_row():
     assert "What changed most today" in html
 
 
-def test_evolution_section_includes_5d_10d_30d_horizon_summary():
+def test_evolution_section_includes_all_horizon_detail_and_legend():
     evol_data = {
         "SPY": {
             "level": 0.1, "rms": 0.2, "skew_change": -0.1, "term_change": 0.6, "as_of": datetime.date(2026, 5, 27),
             "horizons": {
-                "5d": {"level": 0.10}, "10d": {"level": 0.20}, "30d": {"level": 0.30},
+                "5d": {"level": 0.10, "rms": 0.20, "skew_change": -0.10, "term_change": 0.60},
+                "10d": {"level": 0.20, "rms": 0.25, "skew_change": -0.05, "term_change": 0.30},
+                "30d": {"level": 0.30, "rms": 0.30, "skew_change": 0.00, "term_change": 0.10},
             },
         },
         "QQQ": {
             "level": 0.0, "rms": 0.1, "skew_change": 0.0, "term_change": 0.1, "as_of": datetime.date(2026, 5, 27),
             "horizons": {
-                "5d": {"level": -0.10}, "10d": {"level": -0.20}, "30d": {"level": -0.30},
+                "5d": {"level": -0.10, "rms": 0.10, "skew_change": 0.00, "term_change": 0.10},
+                "10d": {"level": -0.20, "rms": 0.15, "skew_change": 0.02, "term_change": 0.05},
+                "30d": {"level": -0.30, "rms": 0.20, "skew_change": 0.05, "term_change": 0.00},
             },
         },
         "IWM": {
             "level": -0.1, "rms": 0.1, "skew_change": 0.1, "term_change": -0.1, "as_of": datetime.date(2026, 5, 27),
             "horizons": {
-                "5d": {"level": 0.00}, "10d": {"level": 0.05}, "30d": {"level": -0.05},
+                "5d": {"level": 0.00, "rms": 0.10, "skew_change": 0.10, "term_change": -0.10},
+                "10d": {"level": 0.05, "rms": 0.12, "skew_change": 0.08, "term_change": -0.05},
+                "30d": {"level": -0.05, "rms": 0.15, "skew_change": 0.06, "term_change": 0.00},
             },
         },
     }
     html = evolution_section_html(evol_data)
     assert html is not None
-    assert "Level by horizon (SPY/QQQ/IWM)" in html
-    assert "5d [" in html and "10d [" in html and "30d [" in html
+    # All three horizons shown as first-class detail rows.
+    assert "5-day" in html and "10-day" in html and "30-day" in html
+    # Legend explains what each metric means.
+    assert "Level" in html and "Disp" in html
+    # Per-horizon 30d value flows through (not just 5d).
+    assert "+0.30pp" in html

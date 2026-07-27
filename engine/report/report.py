@@ -106,17 +106,18 @@ def _read_block(r: dict) -> str:
 
 def _pct_bar(pct: int | None, color: str) -> str:
     """A thin 0-100 percentile track with a filled portion — renders in every
-    mail client (nested tables, no images). Gives the VRP a real visual anchor
-    without external chart attachments."""
+    mail client (nested tables, no images). bgcolor attributes back up the CSS
+    for Outlook's Word engine. Gives VRP a real visual anchor without images."""
     if pct is None:
         return ""
     pct = max(0, min(100, int(pct)))
     return (
-        f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
         f'style="border-collapse:collapse;margin-top:5px;"><tr>'
-        f'<td style="background:{color};height:4px;width:{pct}%;font-size:0;line-height:0;'
-        f'border-radius:2px;">&nbsp;</td>'
-        f'<td style="background:{BAR_TRACK};height:4px;font-size:0;line-height:0;">&nbsp;</td>'
+        f'<td bgcolor="{color}" style="background:{color};height:4px;width:{pct}%;'
+        f'font-size:0;line-height:0;border-radius:2px;">&nbsp;</td>'
+        f'<td bgcolor="{BAR_TRACK}" style="background:{BAR_TRACK};height:4px;'
+        f'font-size:0;line-height:0;">&nbsp;</td>'
         f'</tr></table>'
     )
 
@@ -255,12 +256,12 @@ def _ticker_card(r: dict) -> str:
     # keyed to the net-GEX sign. Single-column, stacked — renders identically on
     # mobile mail clients.
     return (
-        f'<table width="100%" cellpadding="0" cellspacing="0" '
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
         f'style="border-collapse:separate;margin-bottom:16px;'
         f'border:1px solid {RULE_COLOR};border-radius:8px;overflow:hidden;'
         f'background:#ffffff;">'
         f'<tr>'
-        f'<td width="4" style="background:{accent};width:4px;"></td>'
+        f'<td width="4" bgcolor="{accent}" style="background:{accent};width:4px;"></td>'
         f'<td style="padding:14px 16px 16px;">{header}{read_html}{metrics_html}</td>'
         f'</tr></table>'
     )
@@ -371,19 +372,20 @@ def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
         f'</div>'
     )
 
-# ── Header block: snapshot timestamp + methodology caveat banner ──────
+# ── Header block: end-of-day settled-data line ────────────────────────
 
 def _snapshot_timestamp_line(r: dict) -> str:
-    """Plain, small, gray fact line — real fetch time + the two fixed freshness
-    facts (OI T-1, Greeks 15-min delayed). Omitted entirely when fetched_at is
-    unavailable (cold-start-safe) — never rendered as a placeholder."""
+    """After-close framing. This is an end-of-day brief sent after the market
+    has settled, so intraday-staleness language (OI T-1 / greeks delayed) is
+    irrelevant — everything shown is the settled close. We state the settlement
+    session plainly. Omitted (cold-start-safe) when fetched_at is unavailable."""
     fetched_at = r.get("fetched_at")
     if fetched_at is None:
         return ""
-    ts = fetched_at.strftime("%Y-%m-%d %H:%M")
+    session = fetched_at.strftime("%a, %b %d, %Y")
     return (
         f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};margin:0 0 10px;">'
-        f'Snapshot {ts} ET &middot; OI T-1 &middot; Greeks 15-min delayed</div>'
+        f'Close of {session} &middot; settled end-of-day data</div>'
     )
 
 
@@ -404,9 +406,9 @@ def _masthead(date: datetime.date) -> str:
     Sets the fintech research-desk tone before any content."""
     date_str = f"{date.strftime('%A, %B')} {date.day}, {date.year}"
     return (
-        f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
         f'style="border-collapse:collapse;">'
-        f'<tr><td style="background:{MAST_BG};padding:20px 22px;'
+        f'<tr><td bgcolor="{MAST_BG}" style="background:{MAST_BG};padding:20px 22px;'
         f'border-radius:8px 8px 0 0;">'
         f'<div style="{_SANS}color:#ffffff;font-size:19px;font-weight:700;'
         f'letter-spacing:0.4px;">Index Vol Diagnostics</div>'
@@ -426,7 +428,7 @@ def _footer() -> str:
         f'<div style="border-top:1px solid {RULE_COLOR};margin-top:20px;padding-top:12px;">'
         f'<div style="{_SANS}font-size:10px;color:{LABEL_GRAY};line-height:1.5;">'
         f'Descriptive only, not advice &middot; VRP ranked vs ~10yr &middot; '
-        f'OI T-1, greeks 15-min delayed &middot; trust GEX direction, not level.'
+        f'settled end-of-day close &middot; trust GEX direction, not level.'
         f'</div></div>'
     )
 
@@ -510,47 +512,62 @@ def _evolution_largest_move_line(ticker: str, metrics: dict) -> str:
     return f"{ticker}: {label} {direction} ({value:+.2f}pp)."
 
 
-def _evolution_horizon_summary_line(evolution_data: dict) -> str:
-    def _fmt_level(v: float | None) -> str:
-        import math
-        if v is None or (isinstance(v, float) and math.isnan(v)):
-            return "—"
-        return f"{v:+.2f}pp"
-
-    horizons = ("5d", "10d", "30d")
-    parts: list[str] = []
-    for horizon in horizons:
-        vals = []
-        for ticker in ("SPY", "QQQ", "IWM"):
-            level = (
-                evolution_data.get(ticker, {})
-                .get("horizons", {})
-                .get(horizon, {})
-                .get("level")
-            )
-            vals.append(_fmt_level(level))
-        parts.append(f"{horizon} [{vals[0]}/{vals[1]}/{vals[2]}]")
-    return " | ".join(parts)
+_EVOLUTION_HORIZONS = (("5d", "5-day"), ("10d", "10-day"), ("30d", "30-day"))
+_EVOLUTION_SCALAR_KEYS = ("level", "rms", "skew_change", "term_change")
 
 
-def evolution_section_html(evolution_data: dict) -> str | None:
-    """Build the Surface Evolution cross-ticker table for the email top section.
+def _pp(v: float | None) -> str:
+    import math
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return "—"
+    return f"{v:+.2f}pp"
 
-    evolution_data: {'SPY': {level, rms, skew_change, term_change, as_of}, 'QQQ': ..., 'IWM': ...}
 
-    Returns None (omit entirely) on cold start — when all scalars across all tickers are None.
-    Returns an HTML string otherwise.
-    """
-    _SCALAR_KEYS = ("level", "rms", "skew_change", "term_change")
-
-    all_none = all(
-        all(ticker_data.get(k) is None for k in _SCALAR_KEYS)
-        for ticker_data in evolution_data.values()
+def _evolution_legend() -> str:
+    """One compact block explaining what each metric measures and its read —
+    so a reader knows the meaning and impact without external notes."""
+    items = (
+        ("Level", "whole surface up/down &mdash; vol broadly richer / cheaper"),
+        ("Disp", "smile dispersion widening / compressing across strikes"),
+        ("Skew &Delta;", "downside vs upside repricing (crash bid on / off)"),
+        ("Term &Delta;", "front vs back tenor &mdash; near-dated stress vs calm"),
     )
-    if all_none:
-        return None
+    rows = "".join(
+        f'<span style="display:inline-block;margin:0 14px 4px 0;">'
+        f'<b style="color:{INK};">{name}:</b> '
+        f'<span style="color:{LABEL_GRAY};">{desc}</span></span>'
+        for name, desc in items
+    )
+    return (
+        f'<p style="{_SANS}font-size:11px;line-height:1.6;margin:0 0 12px;">'
+        f'<span style="color:{LABEL_GRAY};">Change vs each metric&rsquo;s rolling-mean '
+        f'baseline, in vol points (pp). </span>{rows}</p>'
+    )
 
-    # Table header
+
+def _evolution_ticker_table(ticker: str, ticker_data: dict) -> str:
+    """One compact table per ticker: a row per horizon (5d / 10d / 30d),
+    columns Level / Disp / Skew Δ / Term Δ. Renders an 'insufficient history'
+    line when the ticker has no scalars across any horizon."""
+    horizons = ticker_data.get("horizons", {})
+
+    has_any = any(
+        horizons.get(hkey, {}).get(k) is not None
+        for hkey, _ in _EVOLUTION_HORIZONS
+        for k in _EVOLUTION_SCALAR_KEYS
+    )
+
+    label_html = (
+        f'<div style="{_SANS}font-size:13px;font-weight:700;color:{INK};'
+        f'margin:14px 0 4px;">{ticker}</div>'
+    )
+
+    if not has_any:
+        return label_html + (
+            f'<p style="{_SANS}font-size:12px;color:{LABEL_GRAY};margin:0 0 4px;">'
+            f'Insufficient history yet.</p>'
+        )
+
     th_style = (
         f'style="{_SANS}padding:5px 10px 5px 0;font-size:11px;'
         f'color:{LABEL_GRAY};letter-spacing:0.5px;text-transform:uppercase;'
@@ -560,33 +577,27 @@ def evolution_section_html(evolution_data: dict) -> str | None:
         f'style="{_MONO}padding:5px 10px 5px 0;font-size:13px;font-weight:600;'
         f'color:{INK};white-space:nowrap;"'
     )
-    td_ticker_style = (
-        f'style="{_SANS}padding:5px 10px 5px 0;font-size:13px;font-weight:700;'
-        f'color:{INK};white-space:nowrap;"'
+    td_h_style = (
+        f'style="{_SANS}padding:5px 10px 5px 0;font-size:12px;font-weight:700;'
+        f'color:{LABEL_GRAY};white-space:nowrap;"'
     )
 
     header_row = (
         f'<tr>'
-        f'<th {th_style}>Ticker</th>'
+        f'<th {th_style}>Horizon</th>'
         f'<th {th_style}>Level</th>'
-        f'<th {th_style}>RMS</th>'
-        f'<th {th_style}>Skew Chg</th>'
-        f'<th {th_style}>Term Chg</th>'
+        f'<th {th_style}>Disp</th>'
+        f'<th {th_style}>Skew &Delta;</th>'
+        f'<th {th_style}>Term &Delta;</th>'
         f'</tr>'
     )
 
-    def _pp(v: float | None) -> str:
-        import math
-        if v is None or (isinstance(v, float) and math.isnan(v)):
-            return "—"
-        return f"{v:+.2f}pp"
-
-    ticker_rows = ""
-    for ticker in ("SPY", "QQQ", "IWM"):
-        d = evolution_data.get(ticker, {})
-        ticker_rows += (
+    body_rows = ""
+    for hkey, hlabel in _EVOLUTION_HORIZONS:
+        d = horizons.get(hkey, {})
+        body_rows += (
             f'<tr>'
-            f'<td {td_ticker_style}>{ticker}</td>'
+            f'<td {td_h_style}>{hlabel}</td>'
             f'<td {td_style}>{_pp(d.get("level"))}</td>'
             f'<td {td_style}>{_pp(d.get("rms"))}</td>'
             f'<td {td_style}>{_pp(d.get("skew_change"))}</td>'
@@ -596,27 +607,56 @@ def evolution_section_html(evolution_data: dict) -> str | None:
 
     table = (
         f'<table cellpadding="0" cellspacing="0" border="0" '
-        f'style="border-collapse:collapse;width:100%;margin-top:10px;">'
-        f'{header_row}{ticker_rows}'
+        f'style="border-collapse:collapse;width:100%;">'
+        f'{header_row}{body_rows}'
         f'</table>'
     )
+    return label_html + table
+
+
+def evolution_section_html(evolution_data: dict) -> str | None:
+    """Build the Surface Evolution section — all horizons (5d / 10d / 30d) shown
+    as first-class detail, one table per ticker, with a metric legend.
+
+    evolution_data: {'SPY': {level, ..., horizons: {'5d': {...}, '10d': {...}, '30d': {...}}}, ...}
+
+    Returns None (omit entirely) on cold start — when no scalar exists across any
+    ticker/horizon. Returns an HTML string otherwise.
+    """
+    def _ticker_has_data(td: dict) -> bool:
+        if any(td.get(k) is not None for k in _EVOLUTION_SCALAR_KEYS):
+            return True
+        horizons = td.get("horizons", {})
+        return any(
+            horizons.get(hkey, {}).get(k) is not None
+            for hkey, _ in _EVOLUTION_HORIZONS
+            for k in _EVOLUTION_SCALAR_KEYS
+        )
+
+    if not any(_ticker_has_data(td) for td in evolution_data.values()):
+        return None
 
     move_lines = " ".join(
         _evolution_largest_move_line(ticker, evolution_data.get(ticker, {}))
         for ticker in ("SPY", "QQQ", "IWM")
     )
     summary_html = (
-        f'<p style="{_SANS}font-size:12px;margin:0 0 8px;color:{INK};line-height:1.5;">'
+        f'<p style="{_SANS}font-size:12px;margin:0 0 10px;color:{INK};line-height:1.5;">'
         f'<b>What changed most today:</b> '
         f'<span style="color:{LABEL_GRAY};">{move_lines}</span></p>'
     )
-    horizon_summary_html = (
-        f'<p style="{_SANS}font-size:11px;margin:10px 0 0;color:{LABEL_GRAY};line-height:1.5;">'
-        f'<b>Level by horizon (SPY/QQQ/IWM):</b> '
-        f'{_evolution_horizon_summary_line(evolution_data)}</p>'
+
+    tables = "".join(
+        _evolution_ticker_table(ticker, evolution_data.get(ticker, {}))
+        for ticker in ("SPY", "QQQ", "IWM")
     )
 
-    return _section_header("Surface Evolution — 5-day") + summary_html + table + horizon_summary_html
+    return (
+        _section_header("Surface Evolution")
+        + summary_html
+        + _evolution_legend()
+        + tables
+    )
 
 
 # ── Main ──────────────────────────────────────────────────────────────
@@ -667,17 +707,42 @@ def build_email(
             f'<p style="{_SANS}font-size:12px;color:{LABEL_GRAY};margin-top:8px;">{png_note}</p>'
         )
 
-    return f"""
-<!DOCTYPE html>
-<html>
+    return f"""<!DOCTYPE html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light">
+<!--[if mso]>
+<style>table,td,div,p,span{{font-family:Arial,Helvetica,sans-serif !important;}}</style>
+<![endif]-->
+<style>
+  :root {{ color-scheme: light only; supported-color-schemes: light; }}
+  body,table,td,div,p,span {{ -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }}
+  body {{ margin:0 !important; padding:0 !important; width:100% !important; }}
+  table {{ border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; }}
+  img {{ border:0; line-height:100%; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }}
+  a {{ color:inherit; text-decoration:none; }}
+  @media only screen and (max-width:420px) {{
+    .vd-sheet {{ width:100% !important; }}
+  }}
+</style>
 </head>
 <body style="{_SANS}margin:0;padding:0;background:#ffffff;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:{PAGE_BG};">
-  <tr><td align="center" style="padding:24px 16px;background:{PAGE_BG};">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:390px;{_SANS}
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:{PAGE_BG};">
+Vol risk premium across SPY / QQQ / IWM, dealer gamma regime, and key levels.
+</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+  bgcolor="{PAGE_BG}" style="background:{PAGE_BG};">
+  <tr><td align="center" style="padding:24px 12px;">
+    <!--[if mso]>
+    <table role="presentation" width="390" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td>
+    <![endif]-->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="vd-sheet"
+      bgcolor="#ffffff" style="max-width:390px;width:100%;{_SANS}
       background:#ffffff;border:1px solid {RULE_COLOR};border-radius:8px;overflow:hidden;">
       <tr><td>{masthead}</td></tr>
       <tr><td style="padding:6px 20px 20px;">
@@ -693,6 +758,9 @@ def build_email(
 
       </td></tr>
     </table>
+    <!--[if mso]>
+    </td></tr></table>
+    <![endif]-->
   </td></tr>
 </table>
 </body></html>
