@@ -62,7 +62,7 @@ else
 fi
 
 # 5. Create out/ directory for bind mount
-mkdir -p out/surface_history out/vol_index out/gex
+mkdir -p out/surface_history out/vol_index out/vol-report
 
 # 6. Build and launch
 echo "[5/5] Building and launching (this takes 3-5 min on first run)..."

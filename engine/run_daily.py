@@ -38,7 +38,7 @@ from engine import config
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ALL_TICKERS = INDEX_TICKERS
 
-OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex"
+OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "vol-report"
 SNAPSHOT_STORE = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex_snapshots.parquet"
 
 

@@ -51,7 +51,7 @@ Write-Host ""
 
 # Create remote directories
 Write-Host "[1/3] Creating remote directories..."
-ssh -i $KeyFile "${User}@${IP}" "mkdir -p ~/vol-diagnostics/out/surface_history ~/vol-diagnostics/out/vol_index ~/vol-diagnostics/out/gex"
+ssh -i $KeyFile "${User}@${IP}" "mkdir -p ~/vol-diagnostics/out/surface_history ~/vol-diagnostics/out/vol_index ~/vol-diagnostics/out/vol-report"
 
 # SCP the data
 Write-Host "[2/3] Transferring parquet files..."

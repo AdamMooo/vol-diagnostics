@@ -29,7 +29,7 @@ from engine.gex.greeks_engine import add_greeks
 from engine.gex.exposure_engine import compute_gex, strike_gex, strike_oi, gamma_profile
 from engine.gex.analytics import summarise, plot_oi_by_strike, plot_gamma_profile
 
-OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex"
+OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "vol-report"
 
 
 def run(ticker: str = "SPY", save: bool = True) -> dict:
