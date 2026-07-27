@@ -313,9 +313,8 @@ def _methodology_caveat_banner() -> str:
         f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};'
         f'background:#f1f5f9;border-left:3px solid {amber};'
         f'padding:8px 12px;margin:0 0 16px;line-height:1.5;">'
-        f'<b>Methodology note:</b> Sign &amp; order of magnitude are load-bearing; '
-        f'absolute GEX is not — other sources publish very different numbers on the '
-        f'same chain.</div>'
+        f'<b>Methodology note:</b> Trust GEX direction first; absolute GEX level varies by source.'
+        f'</div>'
     )
 
 
@@ -493,19 +492,18 @@ def build_email(
         if not r.get("error") and r.get("filter_drop_pct") is not None
     ]
     filter_drop_bullet = (
-        f"&bull; Filters removed {', '.join(filter_drop_entries)} of raw chain OI "
-        f"(illiquid/stale strikes; min OI / max IV floor).<br>"
+        f"&bull; Filter drop: {', '.join(filter_drop_entries)} of raw chain OI.<br>"
         if filter_drop_entries else ""
     )
 
     methodology_footer = (
         f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.6;'
         f'margin-top:18px;padding-top:12px;border-top:1px solid {RULE_COLOR};">'
-        '<b>Assumptions (concise)</b><br>'
-        '&bull; Descriptive diagnostics only — no forecast or trade signal.<br>'
-        '&bull; OI is T-1 and quotes are delayed (~15 min), so positioning is not live tape.<br>'
-        '&bull; Positioning framing is 14 DTE primary, with ≤90 DTE context.<br>'
-        '&bull; VRP is CBOE index-vol close minus RV20×100 (vol points).<br>'
+        '<b>Method assumptions</b><br>'
+        '&bull; Descriptive only (not a forecast).<br>'
+        '&bull; Data lag: OI T-1, quotes ~15 min delayed.<br>'
+        '&bull; VRP = index-vol close − RV20×100 (vol points).<br>'
+        '&bull; Positioning lens: 14 DTE primary (≤90 DTE context).<br>'
         f'{filter_drop_bullet}'
         '</div>'
     )
@@ -558,7 +556,6 @@ def build_email(
 </table>
 </body></html>
 """
-
 
 
 

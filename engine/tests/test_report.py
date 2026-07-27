@@ -266,7 +266,7 @@ def test_methodology_caveat_banner_always_present():
     # Static methodology fact — never gated on data availability.
     html = build_email([_minimal_result(fetched_at=None)])
     assert "Methodology note" in html
-    assert "load-bearing" in html
+    assert "Trust GEX direction first" in html
 
 
 def test_timestamp_line_and_banner_are_distinct_blocks():
@@ -376,7 +376,7 @@ def test_oi_summary_table_mentions_primary_14dte_lens():
 
 def test_build_email_uses_concise_assumptions_footer():
     html = build_email([_minimal_result()])
-    assert "Assumptions (concise)" in html
+    assert "Method assumptions" in html
     assert "Deep methodology details" not in html
 
 
@@ -403,10 +403,9 @@ def test_filter_drop_bullet_absent_when_pct_none():
 
 
 def test_gex_magnitude_bullet_not_duplicated_in_footer():
-    # Promoted into the Task 1 banner — must not also live in methodology_footer's
-    # Deep-methodology tier. It still appears exactly once overall (inside the banner).
+    # Keep the caveat short: only the concise banner copy should appear.
     html = build_email([_minimal_result()])
-    assert html.count("Sign &amp; order of magnitude") == 1
+    assert "Sign &amp; order of magnitude" not in html
 
 
 def test_evolution_section_includes_largest_move_summary_row():
