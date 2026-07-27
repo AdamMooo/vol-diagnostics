@@ -114,8 +114,8 @@ def test_phase18_cross_index_teaser_and_trust_tag_regime_briefing_contract():
     app = _import_app_module()
     import inspect
     src = inspect.getsource(app)
-    # Regime tab now uses the unified environment hero
-    assert '_render_environment_hero(selected_all, all_data)' in src
+    # Phase 27: the Regime tab now lands on the monitor distribution board.
+    assert '_distribution_board_section(all_data)' in src
     assert 'with tab_regime:' in src
 
 
@@ -126,3 +126,49 @@ def test_phase18_cross_index_teaser_and_trust_tag_default_cards_and_positioning_
     assert 'st.multiselect(' in src
     assert 'default=INDEX_TICKERS' in src
     assert 'st.dataframe(display_df, use_container_width=True, hide_index=True)' in src
+
+
+# ── Phase 27: distribution board ────────────────────────────────────────────────
+def test_phase27_distribution_board_wiring_contract():
+    """SC-1: board is sourced from monitor_reader + METRIC_INVENTORY, selection
+    writes to a SEPARATE session-state key, trail is a LineChartColumn sparkline."""
+    app = _import_app_module()
+    import inspect
+    src = inspect.getsource(app)
+    assert 'load_all_current_ranks' in src
+    assert 'selected_monitor_row' in src
+    assert 'LineChartColumn' in src
+    assert 'selection_mode="single-row"' in src
+    # Risk bar / AMPLIFYING-MIXED labels and the full-width fresh-ok bar are gone.
+    assert 'risk-bar' not in src
+    assert 'fresh-ok' not in src
+
+
+def test_phase27_net_gex_chip_sign_and_degradation():
+    """SC-3: net-GEX chip reuses the sign→label logic; None degrades to an em-dash."""
+    app = _import_app_module()
+    stabilizing = app._net_gex_chip({"ticker": "SPY", "net_gex": 3.2e9})
+    amplifying = app._net_gex_chip({"ticker": "QQQ", "net_gex": -1.5e9})
+    missing = app._net_gex_chip({"ticker": "IWM", "net_gex": None})
+    assert "Stabilizing" in stabilizing and "+3.20B" in stabilizing
+    assert "Amplifying" in amplifying and "-1.50B" in amplifying
+    assert "—" in missing
+
+
+def test_phase27_to_int_or_none_handles_na():
+    """Board rank cells: real ranks coerce to int, cold-start NA → None (blank cell)."""
+    import pandas as pd
+    app = _import_app_module()
+    assert app._to_int_or_none(87.0) == 87
+    assert app._to_int_or_none(None) is None
+    assert app._to_int_or_none(pd.NA) is None
+
+
+def test_phase27_load_current_ranks_cached_is_inventory_shaped():
+    """SC-1/SC-5: the cached bulk read returns one row per METRIC_INVENTORY pair,
+    cold-start safe (placeholder n=0), driving a fixed-shape board."""
+    app = _import_app_module()
+    from engine.monitor.schema import METRIC_INVENTORY
+    df = app._load_current_ranks_cached()
+    assert len(df) == len(METRIC_INVENTORY)
+    assert {"level_rank_deep", "n_deep", "change_rank"}.issubset(df.columns)

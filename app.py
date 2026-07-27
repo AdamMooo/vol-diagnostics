@@ -32,6 +32,8 @@ from engine.data.surface_history import (
 )
 from engine.surface.surface_evolution import load_evolution
 from engine.session import latest_session, DATA_CUTOFF_HOUR, DATA_CUTOFF_MIN
+from engine.monitor import monitor_reader
+from engine.monitor.schema import METRIC_INVENTORY
 
 
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
@@ -70,7 +72,6 @@ _CSS = """
     border-radius: 6px; padding: 6px 12px; margin: -12px 0 18px 0;
     border-left: 4px solid;
 }
-.fresh-ok  { background: rgba(22,163,74,0.10);  border-color: #16a34a; color: #16a34a; }
 .fresh-bad { background: rgba(234,88,12,0.12);   border-color: #ea580c; color: #ea580c; }
 
 /* Freshness in the current-data case shrinks to a compact inline dot — a stall is
@@ -194,6 +195,24 @@ def _oi_history_cached(ticker: str, days: int) -> pd.DataFrame:
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
 def _available_dates_cached(ticker: str) -> list:
     return list(list_available_dates(ticker))
+
+
+# ── Monitor distribution board (Phase 27) ──────────────────────────────────────
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _load_current_ranks_cached() -> pd.DataFrame:
+    """Bulk read: one row per METRIC_INVENTORY pair from the monitor ranks store.
+    Cold-start safe (returns placeholders, never raises) — see monitor_reader."""
+    return monitor_reader.load_all_current_ranks()
+
+
+@st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner=False)
+def _load_rank_trail_cached(ticker: str, metric: str, n: int = 10) -> list:
+    """Last-N deep %ile ranks (ascending) for one pair, as a plain list for the
+    sparkline. Degrades to [] below n sessions / on absent-or-corrupt store."""
+    trail = monitor_reader.load_rank_trail(ticker, metric, n=n)
+    if trail.empty or "level_rank_deep" not in trail.columns:
+        return []
+    return [float(x) for x in trail["level_rank_deep"] if pd.notna(x)]
 
 
 def _evolution_largest_move_summary(metrics: dict | None) -> str:
@@ -350,6 +369,128 @@ def _render_freshness_banner() -> None:
             f"{missing} trading day{plural} missing</div>",
             unsafe_allow_html=True,
         )
+
+
+# ── Distribution board (monitor landing) ────────────────────────────────────────
+_METRIC_LABELS = {
+    "vrp": "VRP",
+    "skew_25d": "Skew (25Δ)",
+    "fly_25d": "Fly (25Δ)",
+    "surface_level": "Surface level",
+    "surface_rms": "Surface RMS",
+    "term_9d_30": "Term 9d/30d",
+    "term_30_3m": "Term 30d/3m",
+}
+
+
+def _to_int_or_none(v):
+    return int(v) if pd.notna(v) else None
+
+
+@st.fragment
+def _distribution_board_section(all_data: dict) -> None:
+    """Landing surface: one row per METRIC_INVENTORY pair (≤17) with deep + 1yr
+    percentile marks, a change %ile, an n/credibility caption, and a 10-session
+    deep-rank trail sparkline — sourced from Plan 01's monitor_reader.
+
+    Net-GEX renders as a state chip above the board (a sign indicator, not a
+    ranked row). Selecting a row writes (ticker, metric) to a SEPARATE
+    session-state key for the Plan 03 evidence panel — never back into the
+    dataframe widget's own key. Sparse by design: the store holds ~2 dates today,
+    so ranks are mostly placeholder and trails degrade below 10 points — that is
+    the cold-start contract, not an error."""
+    # Net-GEX state chips (sign indicator, not ranked rows).
+    chips = []
+    for ticker in INDEX_TICKERS:
+        data = all_data.get(ticker)
+        if not data:
+            continue
+        s = data.get("summary") or {}
+        if s.get("error"):
+            continue
+        chips.append(_net_gex_chip(s))
+    if chips:
+        st.markdown(" ".join(chips), unsafe_allow_html=True)
+
+    # One row per inventory pair (already latest-per-pair from the reader — do NOT
+    # build a tickers×metrics cartesian; term_9d_30/term_30_3m are SPY-only, so
+    # QQQ/IWM simply have no term rows, no error cells).
+    ranks = _load_current_ranks_cached()
+
+    floor = config.MONITOR_CREDIBILITY_FLOOR_SESSIONS
+    board_rows = []
+    for _, r in ranks.iterrows():
+        ticker, metric = r["ticker"], r["metric"]
+        n_deep = int(r["n_deep"]) if pd.notna(r["n_deep"]) else 0
+        if n_deep == 0:
+            depth = "no history"
+        elif n_deep < floor:
+            depth = f"n={n_deep} · building to {floor}"
+        else:
+            depth = f"n={n_deep}"
+        board_rows.append({
+            "Metric": _METRIC_LABELS.get(metric, metric),
+            "Ticker": ticker,
+            "Deep %ile": _to_int_or_none(r["level_rank_deep"]),
+            "1yr %ile": _to_int_or_none(r["level_rank_1yr"]),
+            "Δ %ile": _to_int_or_none(r["change_rank"]),
+            "Depth": depth,
+            "Trail": _load_rank_trail_cached(ticker, metric, n=10),
+        })
+    board_df = pd.DataFrame(board_rows)
+
+    event = st.dataframe(
+        board_df,
+        column_config={
+            "Deep %ile": st.column_config.NumberColumn(
+                "Deep %ile", format="%d",
+                help="Level rank vs the deep multi-year window (blank = no data yet).",
+            ),
+            "1yr %ile": st.column_config.NumberColumn(
+                "1yr %ile", format="%d",
+                help="Level rank vs the trailing 1-year window.",
+            ),
+            "Δ %ile": st.column_config.NumberColumn(
+                "Δ %ile", format="%d",
+                help="Two-sided change rank (how unusual today's move is).",
+            ),
+            "Depth": st.column_config.TextColumn(
+                "Depth", help="Chain history behind the deep rank; shallow rows "
+                "can't yet be read as deep-history rarity claims.",
+            ),
+            "Trail": st.column_config.LineChartColumn(
+                "Trail (deep %ile · 10s)", y_min=0, y_max=100,
+                help="Last 10 sessions of the deep %ile; degrades below 10 points.",
+            ),
+        },
+        on_select="rerun",
+        selection_mode="single-row",
+        hide_index=True,
+        use_container_width=True,
+    )
+    st.caption(
+        "Percentile position per metric×ticker — higher = more extreme vs history. "
+        'Rows marked "building to N" have shallow chain history, so a shown rank '
+        "is not yet a deep-history rarity claim."
+    )
+
+    # Row selection → SEPARATE session-state key (board_df is in the same order as
+    # `ranks`, so idx maps straight back to the raw ticker/metric).
+    selected = st.session_state.get("selected_monitor_row")
+    if event.selection.rows:
+        idx = event.selection.rows[0]
+        selected = (ranks.iloc[idx]["ticker"], ranks.iloc[idx]["metric"])
+        st.session_state.selected_monitor_row = selected
+
+    if selected:
+        st.markdown(
+            f'<div class="sec">Evidence — {selected[0]} '
+            f'{_METRIC_LABELS.get(selected[1], selected[1])}</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption("Evidence panel — Plan 03.")
+    else:
+        st.caption("Select a row to open its evidence panel (Plan 03).")
 
 
 # ── Boot ──────────────────────────────────────────────────────────────────────
@@ -782,7 +923,7 @@ if sel_index:
     )
 
     with tab_regime:
-        _render_environment_hero(selected_all, all_data)
+        _distribution_board_section(all_data)
 
     # ── Surfaces (Today / Compare / Evolution) ───────────────────────────────
     with tab_surfaces:
