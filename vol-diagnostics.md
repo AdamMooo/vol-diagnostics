@@ -53,7 +53,7 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-27 15:59 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-27 17:05 UTC
 
 **Milestone:** v5.0 · **Status:** shipped · **STATE last_updated:** 2026-07-27T18:30:00.000Z
 

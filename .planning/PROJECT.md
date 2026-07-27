@@ -120,7 +120,7 @@ How expensive is protection right now, where on the surface is that expensivenes
 ### Validated / Implemented (v5.0 Phases 23–27 — shipped 2026-07-27)
 
 - ✓ Data completeness audit + gap monitoring across collected series — Phase 23
-- ⧗ Retention/backup for `out/` — code merged (`engine/backup_to_oci.py` / `restore_from_oci.py`); activation deferred, blocked on a manual Oracle Cloud step (bucket + 3 GitHub secrets) — Phase 23
+- ✓ Retention/backup for `out/` — activated 2026-07-23 (`backup_to_oci` runs on every daily CI; bucket + 3 GitHub secrets set); restore drill (BACKUP-02) pending — Phase 23
 - ✓ "Model-ready" data definition (schema, depth targets per series) — Phase 23 (`.planning/notes/MODEL-READY-DATA-SPEC.md`)
 - ✓ Codebase organization + dead-code removal, CLAUDE.md sync — Phase 24
 - ✓ Existing-computation rigor certification (RV20 / skew / term / VRP-as-documented-proxy) — Phase 25 (`25-METHODOLOGY-AUDIT.md`)
@@ -173,7 +173,7 @@ How expensive is protection right now, where on the surface is that expensivenes
 | American-style BS for IWM | IWM uses European model — acknowledged early-exercise risk | Acceptable, unresolved | Revisit if it matters for a future modeling milestone |
 | `engine/report/png_export.py` silent export failures | Swallows failures into a `print()` warning, returns None | Known debt (2026-07-14 punch list) | Low priority — partial-failure visibility already fixed one layer up in `run_daily.py` |
 | Phase 16.5 UAT/verification gaps | 3 pending human scenarios; Phase 11 & 16.5 also flagged human_needed | Acknowledged at v4.0 close, deferred | See STATE.md Deferred Items |
-| `out/` has no backup | Lives only on the Oracle server | Backup/restore code merged (Phase 23); activation deferred | Adam: manual Oracle Cloud step (bucket + 3 GitHub secrets) |
+| `out/` backup | Daily backup to OCI Object Storage | Activated 2026-07-23 (Phase 23), daily CI green | Restore drill (BACKUP-02) still to exercise |
 
 ## Evolution
 
@@ -188,7 +188,7 @@ How expensive is protection right now, where on the surface is that expensivenes
 ## Previous Milestones
 
 ### v5.0 — Data Foundation + Microstructure Monitor (shipped 2026-07-27)
-Hardened the data foundation (completeness/gap audit, model-ready depth spec, dead-code cleanup, per-computation rigor certification) then, on a mid-milestone reframe, turned the descriptive daily report into a market-microstructure exception monitor: ECDF severity-rank + transition-with-hysteresis alert engine (`engine/monitor/`), distribution-board dashboard with per-row evidence panels, hybrid event-shaped email. Phases 23–27 (Phase 23 OCI backup activation deferred on a manual Oracle step). 15 plans, 364→501 tests, 10 days. Full detail: `.planning/MILESTONES.md`.
+Hardened the data foundation (completeness/gap audit, model-ready depth spec, dead-code cleanup, per-computation rigor certification) then, on a mid-milestone reframe, turned the descriptive daily report into a market-microstructure exception monitor: ECDF severity-rank + transition-with-hysteresis alert engine (`engine/monitor/`), distribution-board dashboard with per-row evidence panels, hybrid event-shaped email. Phases 23–27 (Phase 23 OCI backup activated 2026-07-23; restore drill pending). 15 plans, 364→501 tests, 10 days. Full detail: `.planning/MILESTONES.md`.
 
 ### v4.0 — Cloud Hosting (shipped 2026-07-17)
 Containerized the full stack, hardened daily collection (idempotent + supercronic + health-check), rebuilt the email end-to-end (content + mobile-safe design), and deployed live to Oracle Cloud (Always Free E2.1.Micro) with real HTTPS. Scheduler later moved to GitHub Actions after an Oracle chromium hang. Password gate removed — dashboard now public. 5 phases (19, 20, 20.5, 21, 22), ~60 commits, 22 days. Full detail: `.planning/milestones/v4.0-ROADMAP.md`.
@@ -214,6 +214,9 @@ Seven modules, 74 tests, Holm-Bonferroni rigor. 0 of 30 bucket-mean tests surviv
 ### v1.0 — Regime-Aware Fund Intelligence Notebook (pivoted 2026-04-30)
 HMM GMM diagnostic on SPX. Pivoted because it never touched options-pricing data.
 
+---
+---
+---
 ---
 ---
 ---

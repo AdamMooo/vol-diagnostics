@@ -2,7 +2,7 @@
 
 ## v5.0 Data Foundation + Microstructure Monitor (Shipped: 2026-07-27)
 
-**Phases:** 23 (partial — OCI backup deferred), 24, 25, 26, 27 | **Plans:** 15 formal
+**Phases:** 23, 24, 25, 26, 27 | **Plans:** 15 formal
 
 ### Delivered
 
@@ -10,7 +10,7 @@ Hardened the data foundation before any modeling work — completeness/gap audit
 
 ### Key Accomplishments
 
-1. Data completeness & model-readiness (Phase 23) — gap/completeness audit across surface_history / vol_index / oi_history / gex_snapshots; `MODEL-READY-DATA-SPEC.md` (schema + per-series depth targets) as the bar for a later modeling milestone. OCI backup/restore written (`backup_to_oci.py` / `restore_from_oci.py`) but activation deferred — blocked on a manual Oracle Cloud step (bucket + 3 GitHub secrets), not on code.
+1. Data completeness & model-readiness (Phase 23) — gap/completeness audit across surface_history / vol_index / oi_history / gex_snapshots; `MODEL-READY-DATA-SPEC.md` (schema + per-series depth targets) as the bar for a later modeling milestone. OCI backup/restore written (`backup_to_oci.py` / `restore_from_oci.py`) and **activated 2026-07-23** — bucket + 3 GitHub secrets set; `out/` now backs up to OCI Object Storage on every green daily CI run. Restore drill (BACKUP-02) still to be exercised.
 2. Codebase organization & dead-code removal (Phase 24) — dead code cut, CLAUDE.md synced to disk, backlog 999.3 / fz2 closed.
 3. Existing-computation rigor hardening (Phase 25) — RV20 / skew / term-structure verified correct; VRP documented as an intentional IV−RV-proxy deviation (not Carr-Wu variance-swap VRP) at first use; edge-case hardening + 16 net-new tests; full per-computation certification in `25-METHODOLOGY-AUDIT.md`.
 4. Severity-rank + hysteresis alert engine (Phase 26) — `engine/monitor/`: pure ECDF dual-lookback severity ranker, transition-with-hysteresis alert state machine, false-alarm-budgeted bands, calibration CLI. Net GEX excluded from the ranked set per D-10 (sign-only, non-stationary magnitude).
@@ -29,7 +29,7 @@ Hardened the data foundation before any modeling work — completeness/gap audit
 
 ### Known Deferred Items at Close
 
-- **Phase 23 OCI backup/restore activation** — code merged, blocked on Adam's manual Oracle Cloud step (bucket + 3 GitHub secrets). Not a code gap; `out/` still lives only on the Oracle server until activated.
+- **Phase 23 restore drill (BACKUP-02)** — backup is live (activated 2026-07-23, daily CI green); a one-time restore-from-OCI drill to confirm recoverability is the only remaining verification.
 - **27-04 email hybrid deviation** (Adam-approved) — kept the rich descriptive email + OI/key-levels rather than the plan's alerts-only rewrite, because cold-start (zero alerts fired to date) would leave an alerts-only email near-empty for weeks.
 - Carried-forward pre-v4.0 items (Phase 16.5 UAT, Phase 11 & 16.5 verification human_needed, dormant SEED-001) — unchanged, see STATE.md Deferred Items.
 
