@@ -646,9 +646,151 @@ def _evolution_section(sel_tkr: str, all_data: dict) -> None:
         st.info(f"{evo_tkr}: need ≥2 stored sessions to animate.")
 
 
+def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
+    """Ad-hoc, ephemeral single-day snapshot for ANY US-listed optionable ticker.
+
+    Routes through the same no-save compute path as the tracked indexes
+    (compute_ticker never persists) — nothing is written to out/. History-based
+    metrics (VRP percentile, evolution/compare, 5-day shifts) stay blank because
+    an untracked ticker has no accrued snapshots or CBOE vol-index sibling.
+    """
+    st.caption(
+        "Type any US-listed optionable ticker for a one-day CBOE snapshot — "
+        "surface, greeks, positioning. Snapshot only: nothing is saved or tracked, "
+        "so history-based metrics (VRP percentile, evolution, 5-day shifts) are blank."
+    )
+    raw = st.text_input(
+        "Explore ticker",
+        value="",
+        max_chars=6,
+        key="explore_ticker",
+        placeholder="e.g. AAPL, NVDA, TSLA",
+        label_visibility="collapsed",
+    ).strip().upper()
+
+    if not raw:
+        st.info("Enter a US ticker above to load its current-day snapshot.")
+        return
+
+    with st.spinner(f"Loading {raw} from CBOE…"):
+        try:
+            data = fetch_ticker(raw, shared_rate, shared_vvix)
+        except Exception as exc:
+            st.error(
+                f"Couldn't load '{raw}'. It may not be a US-listed optionable ticker "
+                "on CBOE (only US options are available), or CBOE has no chain for it. "
+                "Check the symbol and try another."
+            )
+            st.caption(f"Detail: {exc}")
+            return
+
+    explore_data = {raw: data}
+    s = data.get("summary") or {}
+    spot = data.get("spot")
+    day = s.get("price_change_pct")
+
+    day_str = f" · {day:+.2f}%" if day is not None else ""
+    spot_str = f"{spot:,.2f}" if spot else "—"
+    st.markdown(
+        f"#### {raw} · {spot_str}{day_str}  "
+        "<span style='font-size:0.8rem;color:#8b949e;'>snapshot only — not tracked</span>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Key levels ──────────────────────────────────────────────────────────
+    def _pct(level):
+        if level is None or spot is None or spot <= 0:
+            return "—"
+        return f"{(level - spot) / spot * 100:+.1f}%"
+
+    zgl = s.get("zero_gamma_level")
+    cw = s.get("call_wall")
+    pw = s.get("put_wall")
+    em_pct = s.get("expected_move_pct")
+    lvl_bits = []
+    if zgl is not None:
+        lvl_bits.append(f"γ-flip **{zgl:,.0f}** ({_pct(zgl)})")
+    if cw is not None:
+        lvl_bits.append(f"Call wall **{cw:,.0f}** ({_pct(cw)})")
+    if pw is not None:
+        lvl_bits.append(f"Put wall **{pw:,.0f}** ({_pct(pw)})")
+    if em_pct is not None:
+        lvl_bits.append(f"Expected move **±{em_pct:.1f}%**")
+    if lvl_bits:
+        st.markdown('<div class="sec">Key Levels</div>', unsafe_allow_html=True)
+        st.markdown(
+            "<span style='font-size:0.85rem;'>" + "  ·  ".join(lvl_bits) + "</span>",
+            unsafe_allow_html=True,
+        )
+
+    # ── Vol metrics ─────────────────────────────────────────────────────────
+    st.markdown('<div class="sec">Vol Metrics</div>', unsafe_allow_html=True)
+    m = st.columns(4)
+    iv30 = s.get("iv30")
+    rv20 = s.get("rv20")
+    skew = s.get("front_skew")
+    vvix = s.get("vvix")
+    m[0].metric("IV30", f"{iv30:.1f}%" if iv30 else "—")
+    m[1].metric("RV20", f"{rv20 * 100:.1f}%" if rv20 else "—")
+    m[2].metric("25Δ skew", f"{skew:+.1f}pp" if skew is not None else "—")
+    m[3].metric("VVIX (SPX)", f"{vvix:.0f}" if vvix is not None else "—")
+    st.caption(
+        "VRP percentile, term-structure ratios and surface evolution are index-only "
+        "(SPY/QQQ/IWM) — they need the CBOE vol-index series and accrued daily "
+        "snapshots, which an explore ticker doesn't have."
+    )
+
+    # ── Surface (reuses the tracked path's renderer) ────────────────────────
+    st.markdown('<div class="sec">Surface</div>', unsafe_allow_html=True)
+    _surface_today_section(raw, explore_data)
+
+    # ── Positioning (current day only) ──────────────────────────────────────
+    st.markdown('<div class="sec">Positioning</div>', unsafe_allow_html=True)
+    st.caption(
+        f"Lens: {config.GEX_PRIMARY_DTE} DTE primary · ≤{config.GEX_MAX_DTE} DTE context · "
+        "γ-flip/walls = model (dealer net-short) · OI = raw · current day only"
+    )
+    ng = s.get("net_gex")
+    nd = s.get("net_delta")
+    c1, c2 = st.columns(2)
+    gex_sign = "Stabilizing" if (ng is not None and ng >= 0) else "Amplifying"
+    gex_str = f"{ng / 1e9:.2f}B" if ng is not None else "—"
+    c1.metric("Net GEX", gex_str, gex_sign if ng is not None else None)
+    if nd is not None:
+        nd_dir = "long" if nd > 0 else "short"
+        c2.metric("Net Δ (dealer hedge)", f"{abs(nd) / 1e6:.1f}M", f"shares {nd_dir}")
+    else:
+        c2.metric("Net Δ (dealer hedge)", "—")
+
+    with st.expander("γ-flip & walls — model derivation", expanded=False):
+        p_df = data.get("p_df")
+        if p_df is not None:
+            st.plotly_chart(plot_gamma_profile(p_df, spot, raw, s), width='stretch')
+
+    with st.expander("OI Impact by Expiry", expanded=False):
+        expiry_oi_df = data.get("expiry_oi_df")
+        if expiry_oi_df is None or expiry_oi_df.empty:
+            st.caption(f"{raw}: OI by expiry data unavailable.")
+        else:
+            df = expiry_oi_df[["expiry", "dte", "oi", "pct_of_total", "put_call_ratio"]].copy()
+            df["Expiry"] = pd.to_datetime(df["expiry"]).dt.strftime("%b %d")
+            df["DTE"] = df["dte"].round(0).astype(int)
+            df["OI"] = df["oi"].apply(lambda x: f"{x / 1e3:.0f}K" if x >= 1000 else f"{x:.0f}")
+            df["OI Share"] = df["pct_of_total"].apply(lambda x: f"{x:.1f}%")
+            df["P/C Ratio"] = df["put_call_ratio"].apply(lambda x: f"{x:.2f}")
+            df["Impact"] = df.apply(
+                lambda r: format_oi_impact(r.get("pct_of_total"), r.get("put_call_ratio")),
+                axis=1,
+            )
+            st.dataframe(
+                df[["Expiry", "DTE", "OI", "OI Share", "P/C Ratio", "Impact"]],
+                use_container_width=True, hide_index=True,
+            )
+
+
 if sel_index:
-    tab_regime, tab_surfaces, tab_positioning = st.tabs(
-        ["Regime", "Surfaces", "Positioning"]
+    tab_regime, tab_surfaces, tab_positioning, tab_explore = st.tabs(
+        ["Regime", "Surfaces", "Positioning", "Explore"]
     )
 
     with tab_regime:
@@ -871,6 +1013,10 @@ if sel_index:
             "IWM: OI data is the more reliable signal — "
             "GEX-derived levels may be less reliable due to thinner dealer positioning in small-caps."
         )
+
+    # ── Explore (ad-hoc, ephemeral single-ticker snapshot) ─────────────────────
+    with tab_explore:
+        _render_explore_tab(shared_rate, shared_vvix)
 
 # ── Methodology & assumptions (quick/deep) ───────────────────────────────────
 def _methods_quick_bullets() -> list[str]:

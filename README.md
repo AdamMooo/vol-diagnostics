@@ -96,7 +96,7 @@ The data source is isolated to `engine/data/data_loader.py` — a Bloomberg swap
 
 ## Scheduling
 
-The daily report runs on **GitHub Actions** (`.github/workflows/daily-report.yml`), firing weekdays after the NYSE close (trading days gated internally by `is_trading_day()`). The former local Windows Task Scheduler job (`runners/gex_daily.ps1`) was retired 2026-07-14 and is kept only for manual local fires.
+The daily report runs on **GitHub Actions** (`.github/workflows/daily-report.yml`), firing weekdays after the NYSE close (trading days gated internally by `is_trading_day()`). The former local Windows Task Scheduler job (`runners/gex_daily.ps1`) was retired 2026-07-14 and removed; to run the report locally, invoke `python -m engine.run_daily --send` directly.
 
 ## Tests
 

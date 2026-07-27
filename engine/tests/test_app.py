@@ -96,8 +96,8 @@ def test_phase18_page_tabs_top_level_labels_and_sections_contract():
     app = _import_app_module()
     import inspect
     src = inspect.getsource(app)
-    assert 'tab_regime, tab_surfaces, tab_positioning = st.tabs(' in src
-    assert '["Regime", "Surfaces", "Positioning"]' in src
+    assert 'tab_regime, tab_surfaces, tab_positioning, tab_explore = st.tabs(' in src
+    assert '["Regime", "Surfaces", "Positioning", "Explore"]' in src
     assert '["Surface", "Evolution", "Positioning"]' not in src
     assert 'sub_today, sub_compare, sub_evolution = st.tabs(["Today", "Compare", "Evolution"])' in src
 
