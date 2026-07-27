@@ -6,10 +6,21 @@ import unittest.mock as mock
 
 import pytest
 
-from engine.backup_to_oci import backup_to_oracle, main
+from engine.backup_to_oci import _s3_client, backup_to_oracle, main
 
 
 class TestBackupToOracle:
+    def test_s3_client_disables_optional_request_checksums(self, monkeypatch):
+        monkeypatch.setenv("OCI_ACCESS_KEY_ID", "id")
+        monkeypatch.setenv("OCI_CUSTOMER_SECRET_KEY", "secret")
+        mock_factory = mock.Mock(return_value=mock.Mock())
+        monkeypatch.setattr("engine.backup_to_oci.boto3.client", mock_factory)
+
+        _s3_client("ca-toronto-1", "namespace")
+
+        config = mock_factory.call_args.kwargs["config"]
+        assert config.request_checksum_calculation == "when_required"
+
     def test_uploads_every_file_under_source_dir(self, tmp_path):
         source = tmp_path / "out"
         (source / "vol_index").mkdir(parents=True)

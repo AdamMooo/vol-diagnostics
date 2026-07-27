@@ -24,6 +24,7 @@ def _s3_client(region: str, namespace: str):
         aws_secret_access_key=os.environ["OCI_CUSTOMER_SECRET_KEY"],
         region_name=region,
         config=Config(
+            request_checksum_calculation="when_required",
             s3={
                 "addressing_style": "path",
                 "payload_signing_enabled": False,
