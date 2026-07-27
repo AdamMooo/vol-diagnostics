@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v5.0
-milestone_name: Data Foundation
-status: in_progress
-stopped_at: "END OF DAY 2026-07-27. Phase 27 COMPLETE + VERIFIED + PUSHED (4/4 plans, 501 tests green, SC-1..SC-7 all met incl. live streamlit health-200 smoke; HEAD=767805d, origin up to date). Decision made: CLOSE v5.0 with Phase 23 (OCI backup) DEFERRED (blocked on Adam's manual Oracle step, not code), then START v6.0 covered-call persistence milestone. RESUME TOMORROW AT: the /gsd-new-milestone workflow (SKILL already invoked). I had loaded context (workflow spec, seed .planning/seeds/v6-covered-call-persistence-model.md, PROJECT.md, MILESTONES.md) but wrote NO milestone files yet. Exact next actions below in Current Position. NOTE: gsd-sdk state handlers CORRUPT this project's STATE.md — hand-edit STATE/MILESTONES/PROJECT manually, do NOT run state.milestone-switch / milestone.complete. Two email previews to eyeball: out_preview_alerts.html (banner fired) + out_preview_quiet.html (normal day) in repo root."
-last_updated: "2026-07-27T05:08:00.000Z"
-last_activity: 2026-07-27 -- Phase 27 closed+verified+pushed; ready to close v5.0 & open v6.0 (stopped for the night)
+milestone_name: Data Foundation + Microstructure Monitor
+status: shipped
+stopped_at: "v5.0 SHIPPED 2026-07-27 (Phases 23-27; Phase 23 OCI backup ACTIVATION deferred — blocked on Adam's manual Oracle Cloud step, not code). MILESTONES.md + PROJECT.md updated to reflect the close. NEXT: open v6.0 covered-call persistence milestone from .planning/seeds/v6-covered-call-persistence-model.md — BLOCKED on confirming with Adam that the Learning-Mode-OFF override still holds (seed mandate) before planning/executing. NOTE: gsd-sdk state handlers CORRUPT this project's STATE.md — hand-edit STATE/MILESTONES/PROJECT manually, do NOT run state.milestone-switch / milestone.complete. Two root-level email previews (out_preview_alerts.html / out_preview_quiet.html) are SYNTHETIC demo data (confirmed 2026-07-27) — safe to delete."
+last_updated: "2026-07-27T18:30:00.000Z"
+last_activity: 2026-07-27 -- v5.0 closed (MILESTONES + PROJECT updated); v6.0 kickoff pending Learning-Mode-override confirmation
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 15
   completed_plans: 15
-  percent: 60
+  percent: 100
 ---
 
 # Project State
@@ -136,6 +136,7 @@ Resume queue: (1) On Adam's go → `/gsd:execute-phase 27` (plans committed, che
 - **Phase 23 close-out (blocked on you)** — OCI console + GitHub secrets setup (`.planning/notes/ORACLE-CLOUD-SETUP.md` → "Object Storage Backup Setup (Phase 23)"), reply "approved", and I'll write 23-03-SUMMARY + verify. Still the only open item in Phase 23.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug.
 
+---
 ---
 ---
 <!-- LINKS:AUTO -->

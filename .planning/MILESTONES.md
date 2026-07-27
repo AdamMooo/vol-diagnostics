@@ -1,5 +1,40 @@
 # Milestones — Options Quant
 
+## v5.0 Data Foundation + Microstructure Monitor (Shipped: 2026-07-27)
+
+**Phases:** 23 (partial — OCI backup deferred), 24, 25, 26, 27 | **Plans:** 15 formal
+
+### Delivered
+
+Hardened the data foundation before any modeling work — completeness/gap audit across the collected series, a model-ready depth/schema spec, dead-code cleanup, and per-computation rigor certification — then, on a mid-milestone reframe, turned the descriptive daily report into a market-microstructure exception monitor: an ECDF severity-rank + transition-with-hysteresis alert engine feeding a distribution-board dashboard and an event-shaped daily email.
+
+### Key Accomplishments
+
+1. Data completeness & model-readiness (Phase 23) — gap/completeness audit across surface_history / vol_index / oi_history / gex_snapshots; `MODEL-READY-DATA-SPEC.md` (schema + per-series depth targets) as the bar for a later modeling milestone. OCI backup/restore written (`backup_to_oci.py` / `restore_from_oci.py`) but activation deferred — blocked on a manual Oracle Cloud step (bucket + 3 GitHub secrets), not on code.
+2. Codebase organization & dead-code removal (Phase 24) — dead code cut, CLAUDE.md synced to disk, backlog 999.3 / fz2 closed.
+3. Existing-computation rigor hardening (Phase 25) — RV20 / skew / term-structure verified correct; VRP documented as an intentional IV−RV-proxy deviation (not Carr-Wu variance-swap VRP) at first use; edge-case hardening + 16 net-new tests; full per-computation certification in `25-METHODOLOGY-AUDIT.md`.
+4. Severity-rank + hysteresis alert engine (Phase 26) — `engine/monitor/`: pure ECDF dual-lookback severity ranker, transition-with-hysteresis alert state machine, false-alarm-budgeted bands, calibration CLI. Net GEX excluded from the ranked set per D-10 (sign-only, non-stationary magnitude).
+5. Microstructure monitor UI (Phase 27) — dashboard lands on a distribution board (rank strip + 10-session trail per metric×ticker, ~15 rows) with per-row evidence panels (rank-history chart with alert bands + mechanism views: smile overlay / diff surface / IV-vs-RV / term ratio); net GEX demoted to a state chip; hybrid event-shaped email (alerts banner riding above the retained rich descriptive report — empty on quiet days) + single Methodology link.
+
+### Stats
+
+- Timeline: 2026-07-17 → 2026-07-27 (10 days)
+- Test count: 364 → 501
+- 501 tests green
+
+### Mid-milestone reframe
+
+- 2026-07-23: product reframed from a descriptive daily report to a market-microstructure exception monitor; Phases 26 + 27 added on top of the original data-foundation trio. Design rationale in `.planning/notes/microstructure-monitor-design.md`.
+- 2026-07-21: original Phases 23/24/25 (Data Completeness, Backup, Model-Ready Definition) merged into a single Phase 23; old 26→24, old 27→25.
+
+### Known Deferred Items at Close
+
+- **Phase 23 OCI backup/restore activation** — code merged, blocked on Adam's manual Oracle Cloud step (bucket + 3 GitHub secrets). Not a code gap; `out/` still lives only on the Oracle server until activated.
+- **27-04 email hybrid deviation** (Adam-approved) — kept the rich descriptive email + OI/key-levels rather than the plan's alerts-only rewrite, because cold-start (zero alerts fired to date) would leave an alerts-only email near-empty for weeks.
+- Carried-forward pre-v4.0 items (Phase 16.5 UAT, Phase 11 & 16.5 verification human_needed, dormant SEED-001) — unchanged, see STATE.md Deferred Items.
+
+---
+
 ## v4.0 Cloud Hosting (Shipped: 2026-07-17)
 
 **Phases:** 19, 20, 20.5, 21, 22 | **Plans:** 4 formal (Phase 20.5) + 4 ad-hoc phases (19, 20, 21, 22 executed directly, no formal plan docs)
