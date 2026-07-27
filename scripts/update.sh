@@ -8,7 +8,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-echo "=== Gamma OMM Update ==="
+echo "=== Vol Update ==="
 echo ""
 
 echo "[1/3] Pulling latest code..."
