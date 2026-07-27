@@ -372,7 +372,7 @@ with st.sidebar:
     sel_index = st.multiselect(
         "Tickers", INDEX_TICKERS, default=INDEX_TICKERS, key="sel_index",
     )
-    if st.button("Refresh", use_container_width=True):
+    if st.button("Refresh", width="stretch"):
         st.cache_data.clear()
         st.rerun()
     st.caption(f"{datetime.now().strftime('%a %b %d, %Y')}")
