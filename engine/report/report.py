@@ -499,38 +499,14 @@ def build_email(
     )
 
     methodology_footer = (
-        f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.7;'
-        f'margin-top:24px;padding-top:14px;border-top:1px solid {RULE_COLOR};">'
-        '<b>Glossary</b><br>'
-        '<b>Quick assumptions (default)</b><br>'
+        f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.6;'
+        f'margin-top:18px;padding-top:12px;border-top:1px solid {RULE_COLOR};">'
+        '<b>Assumptions (concise)</b><br>'
         '&bull; Descriptive diagnostics only — no forecast or trade signal.<br>'
         '&bull; OI is T-1 and quotes are delayed (~15 min), so positioning is not live tape.<br>'
-        '&bull; Positioning framing is 14 DTE primary, with ≤90 DTE secondary context.<br>'
-        '&bull; VRP uses CBOE index-vol close minus RV20×100; scalar and percentile share one series.<br>'
+        '&bull; Positioning framing is 14 DTE primary, with ≤90 DTE context.<br>'
+        '&bull; VRP is CBOE index-vol close minus RV20×100 (vol points).<br>'
         f'{filter_drop_bullet}'
-        '<br>'
-        '<b>Deep methodology details</b><br>'
-        '<b>VRP</b>: CBOE index-vol close (VIX/VXN/RVX) minus RV20×100 (vol points), with RV20 '
-        'from yfinance daily closes; percentile is computed on this same series. '
-        'High = premium rich (selling well paid); low = cheap. '
-        'This is a practitioner implied-minus-realized vol-point proxy, not the Carr-Wu '
-        'variance-swap VRP (IV²−RV², variance units).<br>'
-        '<b>Skew (25Δ)</b>: IV(25Δ put) − IV(25Δ call), nearest expiry ≥7 DTE, in pp. '
-        'Higher = downside protection more bid. Only metric here with direct peer-reviewed '
-        'predictive validity (Xing-Zhang-Zhao 2010, JFQA).<br>'
-        '<b>Net GEX</b>: strike-level gamma exposure summed (calls +, puts −). Sign drives the '
-        'card accent: positive = dealers long gamma (stabilising), negative = short (amplifying). '
-        'No categorical label — the absolute level is a convention, only the sign is load-bearing.<br>'
-        '<b>γ-flip</b>: spot level where cumulative net GEX crosses zero. Threshold where the '
-        'hedging environment flips sign — a model construct, not a price target.<br>'
-        '<b>Call / Put Wall</b>: strike with the largest one-sided GEX (dealer model). Use the '
-        '<i>strike</i> as a level; the one-sided magnitude is methodology-dependent.<br>'
-        '&bull; <b>OI views use the filtered positioning set</b> (OI ≥ 100, IV ≤ 300%, DTE ≤ 90, '
-        '0DTE excluded).<br>'
-        '&bull; <b>Descriptive, not predictive.</b> Positioning + vol context only — no forecast, '
-        'event study, or backtest (sample too short).<br>'
-        '<b>Universe</b>: SPY / QQQ / IWM — names where the dealer-net-short convention is '
-        'empirically defensible.'
         '</div>'
     )
 
@@ -582,7 +558,6 @@ def build_email(
 </table>
 </body></html>
 """
-
 
 
 

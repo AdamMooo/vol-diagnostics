@@ -374,10 +374,10 @@ def test_oi_summary_table_mentions_primary_14dte_lens():
     assert "14 DTE primary" in result
 
 
-def test_build_email_includes_quick_and_deep_method_sections():
+def test_build_email_uses_concise_assumptions_footer():
     html = build_email([_minimal_result()])
-    assert "Quick assumptions" in html
-    assert "Deep methodology details" in html
+    assert "Assumptions (concise)" in html
+    assert "Deep methodology details" not in html
 
 
 # ── Task 2: mobile-safe width (D-05) + filter-drop footer disclosure (D-07) ───
