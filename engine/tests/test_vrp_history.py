@@ -275,3 +275,75 @@ class TestEdgeCases:
         assert isinstance(res["pct"], int)
         assert 0 <= res["pct"] <= 100
         assert res["pct"] == 100
+
+
+class TestVrpComponents:
+    """vrp_components exposes the vi/rv legs the percentile computation already builds.
+
+    Single source of truth: its `vrp` column must equal vrp_history_series on the
+    shared index (one alignment path, no VRP-03 second-RV drift).
+    """
+
+    def test_returns_vi_rv_vrp_columns_ascending(self, monkeypatch, trading_dates):
+        dates = trading_dates
+        prices = [100.0 * (1.005 ** i) for i in range(len(dates))]
+        vi_closes = [18.0 + 0.05 * i for i in range(len(dates))]
+
+        monkeypatch.setattr(
+            vrp_history, "load_vol_index",
+            lambda sym: _vol_index_df(sym, dates, vi_closes),
+        )
+        monkeypatch.setattr(
+            vrp_history, "_fetch_closes_yf",
+            lambda ticker, period="400d": _closes_series(dates, prices),
+        )
+
+        comp = vrp_history.vrp_components("SPY")
+        assert comp is not None
+        assert set(comp.columns) == {"vi", "rv", "vrp"}
+        assert list(comp.index) == sorted(comp.index)  # ascending by date
+        # vrp is exactly vi - rv*100, the vol-points definition.
+        expected = comp["vi"] - comp["rv"] * 100
+        pd.testing.assert_series_equal(comp["vrp"], expected, check_names=False)
+
+    def test_vrp_column_matches_history_series_on_shared_index(self, monkeypatch, trading_dates):
+        dates = trading_dates
+        prices = [100.0 * (1.003 ** i) for i in range(len(dates))]
+        vi_closes = [20.0 - 0.02 * i for i in range(len(dates))]
+
+        monkeypatch.setattr(
+            vrp_history, "load_vol_index",
+            lambda sym: _vol_index_df(sym, dates, vi_closes),
+        )
+        monkeypatch.setattr(
+            vrp_history, "_fetch_closes_yf",
+            lambda ticker, period="400d": _closes_series(dates, prices),
+        )
+
+        comp = vrp_history.vrp_components("SPY")
+        series = vrp_history.vrp_history_series("SPY")
+        assert comp is not None
+        assert series is not None
+        shared = comp.index.intersection(series.index)
+        assert len(shared) > 0
+        pd.testing.assert_series_equal(
+            comp.loc[shared, "vrp"], series.loc[shared], check_names=False,
+        )
+
+    def test_empty_vol_index_returns_none(self, monkeypatch):
+        monkeypatch.setattr(vrp_history, "load_vol_index", lambda sym: pd.DataFrame())
+        monkeypatch.setattr(
+            vrp_history, "_fetch_closes_yf",
+            lambda ticker, period="400d": pytest.fail("should not fetch when vol-index empty"),
+        )
+        assert vrp_history.vrp_components("SPY") is None
+
+    def test_yfinance_failure_returns_none(self, monkeypatch):
+        dates = list(pd.bdate_range("2026-01-02", periods=60))
+        vi_closes = [18.0] * len(dates)
+        monkeypatch.setattr(
+            vrp_history, "load_vol_index",
+            lambda sym: _vol_index_df(sym, dates, vi_closes),
+        )
+        monkeypatch.setattr(vrp_history, "_fetch_closes_yf", lambda ticker, period="400d": None)
+        assert vrp_history.vrp_components("SPY") is None
