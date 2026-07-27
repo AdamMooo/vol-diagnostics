@@ -73,20 +73,20 @@ _CSS = """
 .fresh-ok  { background: rgba(22,163,74,0.10);  border-color: #16a34a; color: #16a34a; }
 .fresh-bad { background: rgba(234,88,12,0.12);   border-color: #ea580c; color: #ea580c; }
 
-.risk-bar {
-    display: flex; align-items: center; gap: 16px;
-    padding: 14px 22px; border-radius: 8px; margin-bottom: 20px;
+/* Freshness in the current-data case shrinks to a compact inline dot — a stall is
+   loud (.fresh-bad above), a healthy feed is quiet. */
+.fresh-dot {
+    font-size: 0.72rem; color: #64748b; letter-spacing: 0.02em;
+    margin: -8px 0 14px 0;
 }
-.risk-elevated { background: rgba(248,113,113,0.10); border: 1px solid rgba(248,113,113,0.3); }
-.risk-stable   { background: rgba(74,222,128,0.10);  border: 1px solid rgba(74,222,128,0.3); }
-.risk-mixed    { background: rgba(251,191,36,0.10);  border: 1px solid rgba(251,191,36,0.3); }
-.risk-label {
-    font-size: 0.92rem; font-weight: 700; letter-spacing: 0.04em;
+.fresh-dot .dot { color: #16a34a; font-size: 0.85rem; vertical-align: middle; }
+
+/* Net-GEX state chip — a sign indicator, not a ranked row. Color set inline. */
+.gex-chip {
+    display: inline-block; font-size: 0.74rem; font-weight: 600;
+    letter-spacing: 0.02em; border-radius: 6px; padding: 3px 11px;
+    margin: 0 6px 10px 0; border: 1px solid;
 }
-.risk-elevated .risk-label { color: #f87171; }
-.risk-stable .risk-label   { color: #4ade80; }
-.risk-mixed .risk-label    { color: #fbbf24; }
-.risk-detail { font-size: 0.78rem; color: #94a3b8; }
 </style>
 """
 
@@ -223,6 +223,28 @@ def _evolution_largest_move_summary(metrics: dict | None) -> str:
     return f"Largest move: {label} {direction} ({value:+.2f}pp)."
 
 
+def _net_gex_chip(summary: dict) -> str:
+    """Net-GEX sign rendered as a compact state chip (NOT a ranked row).
+
+    Reuses the exact net_gex sign→label→color logic the Positioning tab uses:
+    net_gex >= 0 → Stabilizing (green), < 0 → Amplifying (red). Returns an HTML
+    <span> for inline markdown; degrades to a muted em-dash chip when net_gex is
+    absent (cold-start / errored summary)."""
+    ticker = summary.get("ticker", "?")
+    ng = summary.get("net_gex")
+    if ng is None:
+        return (
+            f"<span class='gex-chip' style='border-color:#334155;color:#64748b;'>"
+            f"{ticker} net-GEX —</span>"
+        )
+    sign = "Stabilizing" if ng >= 0 else "Amplifying"
+    color = "#4ade80" if ng >= 0 else "#f87171"
+    return (
+        f"<span class='gex-chip' style='border-color:{color};color:{color};'>"
+        f"{ticker} {sign} {ng / 1e9:+.2f}B</span>"
+    )
+
+
 def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict]) -> None:
     """Page-1 hero: risk bar + narrative + key levels + vol metrics.
     Replaces the old cross-index briefing + positioning teaser + card grid."""
@@ -241,41 +263,6 @@ def _render_environment_hero(selected_all: list[str], all_data: dict[str, dict])
         return
 
     n = len(rows)
-    stabilizing = sum(1 for s in rows if (s.get("net_gex") is not None and s.get("net_gex") >= 0))
-    rich = sum(1 for s in rows if (s.get("vrp") is not None and s.get("vrp") > 0))
-    amplifying = n - stabilizing
-    spy_summary = next((s for s in rows if s.get("ticker") == "SPY"), rows[0])
-    vvix = spy_summary.get("vvix")
-
-    # ── Risk Bar ──────────────────────────────────────────────────────────────
-    if amplifying >= 2:
-        bar_class = "risk-bar risk-elevated"
-        bar_label = "AMPLIFYING"
-        bar_detail = f"{amplifying}/{n} indices under dealer amplification"
-    elif stabilizing == n:
-        bar_class = "risk-bar risk-stable"
-        bar_label = "STABILIZING"
-        bar_detail = f"All {n} indices in positive gamma"
-    else:
-        bar_class = "risk-bar risk-mixed"
-        bar_label = "MIXED"
-        bar_detail = f"{stabilizing}/{n} stabilizing · {amplifying}/{n} amplifying"
-
-    vrp_bit = f" · VRP rich: {rich}/{n}" if rich > 0 else ""
-    # Surface trend from first ticker with evolution data
-    surf_bit = ""
-    for s in rows:
-        mv = s.get("read_move_5d")
-        if mv is not None:
-            direction = "rising" if mv > 0 else "falling" if mv < 0 else "flat"
-            surf_bit = f" · Surface {direction} 5d"
-            break
-    vvix_bit = f" · VVIX {vvix:.0f}" if vvix is not None else ""
-
-    st.markdown(f'''<div class="{bar_class}">
-  <span class="risk-label">{bar_label}</span>
-  <span class="risk-detail">{bar_detail}{vrp_bit}{surf_bit}{vvix_bit}</span>
-</div>''', unsafe_allow_html=True)
 
     # ── Key Levels ────────────────────────────────────────────────────────────
     st.markdown('<div class="sec">Key Levels</div>', unsafe_allow_html=True)
@@ -352,7 +339,8 @@ def _render_freshness_banner() -> None:
     latest_str = latest.strftime("%a %b %d").replace(" 0", " ")
     if missing <= 0:
         st.markdown(
-            f'<div class="fresh fresh-ok">✓ data current through {latest_str}</div>',
+            f'<div class="fresh-dot"><span class="dot">●</span> '
+            f"current through {latest_str}</div>",
             unsafe_allow_html=True,
         )
     else:
