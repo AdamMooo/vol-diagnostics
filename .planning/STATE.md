@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Data Foundation
 status: in_progress
-stopped_at: "Phase 27 execution started. Plan 27-01 (read-side foundation) EXECUTED + committed this session: monitor_reader.py bulk-read adapter + vrp_components() legs exposer, both pure reshapes. 482 tests green (was 466, +16). Commits 40f5408→650648a. Plans 27-02/03/04 still pending. Phase 23 still blocked on Adam's OCI step."
-last_updated: "2026-07-26T23:46:32.833Z"
-last_activity: 2026-07-26 -- Phase 27 Plan 01 executed (monitor read foundation); 482 tests green
+stopped_at: "Phase 27 Plans 27-01/02/03 EXECUTED + committed. 27-03 (evidence panel) this session: _render_evidence_panel — rank-space band chart (config alert bands as hlines) + per-metric mechanism views (smile overlay / diff surface / IV-vs-RV / term ratio), all reusing existing surface/VRP builders, no new signal. 493 tests green (was 486, +7). Commit 864cf56. Plan 27-04 (event-shaped email) still pending. Phase 23 still blocked on Adam's OCI step."
+last_updated: "2026-07-27T04:10:00.000Z"
+last_activity: 2026-07-27 -- Phase 27 Plan 03 executed (evidence panel); 493 tests green
 progress:
   total_phases: 5
   completed_phases: 3
@@ -32,7 +32,7 @@ v5.0 phase status (5 phases: 23–27):
 - **Phase 24 (codebase-organization-dead-code-removal)** — ✅ COMPLETE 2026-07-26. 2/2 plans, verified 5/5. Dead code removed, CLAUDE.md synced to disk, fz2/999.3 closed. Commits 923a3f9→ba8fcb2.
 - **Phase 25 (existing-computation-rigor-hardening)** — ✅ COMPLETE 2026-07-26. 3/3 plans, verified 4/4. RV20/skew/term verified-correct; VRP documented as intentional deviation (kept label+computation); edge-case hardening + 16 net new tests. **465 tests green.** Commits 9807f5d→0aac41e. Audit: `25-METHODOLOGY-AUDIT.md`.
 - **Phase 26 (severity-stats-alert-engine)** — ✅ COMPLETE 2026-07-24. Monitor engine (`engine/monitor/`) shipped/verified.
-- **Phase 27 (microstructure-monitor-ui)** — 🔨 IN PROGRESS. Plan 27-01 (read-side foundation) EXECUTED + committed 2026-07-26: `engine/monitor/monitor_reader.py` bulk-read adapter (current ranks / N-session trail / recent alert events, cold-start-safe) + `vrp_components()` VRP-legs exposer — both pure reshapes, no new signal/math. 482 tests green (baseline 466, +16). Commits 40f5408→650648a. Plans 27-02/03/04 still pending. NOTE: cold-start — `out/monitor/ranks.parquet` has ~2 dates, zero alerts ever fired, so the shipped board/email will look near-empty for weeks by design. Also needs Adam to set `config.DASHBOARD_METHODOLOGY_URL` (email link).
+- **Phase 27 (microstructure-monitor-ui)** — 🔨 IN PROGRESS. Plans 27-01/02/03 EXECUTED + committed. 27-01 (read-side foundation): `engine/monitor/monitor_reader.py` bulk-read adapter + `vrp_components()` VRP-legs exposer (pure reshapes). 27-02 (distribution board): Regime tab lands on `_distribution_board_section` (one row per METRIC_INVENTORY pair, net-GEX chip, risk bar removed). 27-03 (evidence panel): `_render_evidence_panel` — rank-space rank-history chart with config alert bands (hlines) + per-metric mechanism views (smile overlay / diff surface / IV-vs-RV / term ratio), reusing existing surface/VRP builders, no new signal. **493 tests green** (466→482→486→493). Commits 40f5408→650648a (01), 8cda7c2→4917f6a (02), 864cf56 (03). Plan 27-04 (event-shaped email) still pending. NOTE: cold-start — `out/monitor/ranks.parquet` has ~2 dates, zero alerts ever fired, so the board/evidence panel/email look near-empty for weeks by design. Also needs Adam to set `config.DASHBOARD_METHODOLOGY_URL` (email link).
 - **Phase 23 (data-completeness-backup-model-readiness)** — 3/4 plans merged. 23-03 Task 2 PAUSED on human OCI checkpoint (bucket + 3 GitHub secrets). Blocked on Adam, not on code.
 
 Status: v5.0 in progress — 24/25/26 done, 27 planned-not-built, 23 blocked on Adam

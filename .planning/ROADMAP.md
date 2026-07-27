@@ -14,12 +14,12 @@ Plans:
 
 **Wave 2** *(both depend on 27-01; disjoint files — parallel)*
 
-- [ ] 27-02-PLAN.md — Distribution-board landing in app.py: METRIC_INVENTORY-driven board (rank marks + trail sparklines) + net-GEX chip + risk-bar removal + freshness dot + row-selection state (SC-1, SC-3, SC-5, SC-7)
+- [x] 27-02-PLAN.md — Distribution-board landing in app.py: METRIC_INVENTORY-driven board (rank marks + trail sparklines) + net-GEX chip + risk-bar removal + freshness dot + row-selection state (SC-1, SC-3, SC-5, SC-7)
 - [ ] 27-04-PLAN.md — Event-shaped email in report.py/run_daily.py: alerts section (entries/escalations + Δ-vs-yesterday) + nothing-unusual fallback + boilerplate→single Methodology link + OI/key-levels cut + tests (SC-4, SC-6)
 
 **Wave 3** *(depends on 27-01 + 27-02 — shares app.py with the board)*
 
-- [ ] 27-03-PLAN.md — Per-row evidence panels in app.py: rank-history chart with rank-space bands + mechanism-view dispatch (smile overlay / reused diff surface / IV-vs-RV pair / term-ratio history) (SC-2, SC-5, SC-6)
+- [x] 27-03-PLAN.md — Per-row evidence panels in app.py: rank-history chart with rank-space bands + mechanism-view dispatch (smile overlay / reused diff surface / IV-vs-RV pair / term-ratio history) (SC-2, SC-5, SC-6)
 
 ---
 <!-- LINKS:AUTO -->
