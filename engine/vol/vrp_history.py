@@ -50,12 +50,14 @@ def _fetch_closes_yf(ticker: str, period: str = "2520d") -> "pd.Series | None":
         return None
 
 
-def vrp_history_series(ticker: str) -> "pd.Series | None":
-    """Build the full vol-index-based VRP series (date-indexed ascending, vol points).
+def _aligned_vi_rv(ticker: str) -> "pd.DataFrame | None":
+    """Build the single aligned vi/rv frame both public readers share.
 
-    Same series vrp_percentile() ranks against internally -- the single source of
-    truth so the scalar and its rank (and any other consumer, e.g. engine.monitor.metrics)
-    share one definition. Returns None on empty vol-index, yfinance failure, or no date
+    Returns a date-indexed (ascending) DataFrame with columns `vi` (vol-index close,
+    vol points) and `rv` (RV20 as a fraction, from compute_rv20). This is the ONE
+    alignment path -- vrp_history_series and vrp_components both call it so the scalar,
+    its rank, and the exposed legs cannot drift (the VRP-03 violation this module
+    exists to prevent). Returns None on empty vol-index, yfinance failure, or no date
     alignment. Never raises.
     """
     try:
@@ -85,14 +87,47 @@ def vrp_history_series(ticker: str) -> "pd.Series | None":
         if aligned.empty:
             return None
 
-        vrp_hist = aligned["vi"] - aligned["rv"] * 100  # both vol points
-        if vrp_hist.empty:
-            return None
-
-        return vrp_hist
+        return aligned.sort_index()
     except Exception as exc:
-        print(f"[vrp_history] vrp_history_series failed for {ticker}: {exc}")
+        print(f"[vrp_history] _aligned_vi_rv failed for {ticker}: {exc}")
         return None
+
+
+def vrp_history_series(ticker: str) -> "pd.Series | None":
+    """Build the full vol-index-based VRP series (date-indexed ascending, vol points).
+
+    Same series vrp_percentile() ranks against internally -- the single source of
+    truth so the scalar and its rank (and any other consumer, e.g. engine.monitor.metrics)
+    share one definition. Returns None on empty vol-index, yfinance failure, or no date
+    alignment. Never raises.
+    """
+    aligned = _aligned_vi_rv(ticker)
+    if aligned is None:
+        return None
+
+    vrp_hist = aligned["vi"] - aligned["rv"] * 100  # both vol points
+    if vrp_hist.empty:
+        return None
+
+    return vrp_hist
+
+
+def vrp_components(ticker: str) -> "pd.DataFrame | None":
+    """Expose the vi (implied, vol points) and rv (realized, fraction) legs plus vrp.
+
+    Returns a date-indexed (ascending) DataFrame with columns vi, rv, and vrp
+    (== vi - rv*100), built from the SAME aligned frame vrp_history_series uses --
+    a pure reshape of already-computed data, no second RV/alignment path. The `vrp`
+    column equals vrp_history_series(ticker) exactly on the shared index. Returns None
+    on empty vol-index, yfinance failure, or no alignment. Never raises.
+    """
+    aligned = _aligned_vi_rv(ticker)
+    if aligned is None:
+        return None
+
+    out = aligned.copy()
+    out["vrp"] = out["vi"] - out["rv"] * 100  # both vol points, same definition
+    return out
 
 
 def vrp_percentile(ticker: str, lookback: int | None = None) -> dict:
