@@ -483,31 +483,6 @@ def build_email(
         f'Failed to load: {", ".join(failed)}</p>' if failed else ""
     )
 
-    # Filter-drop disclosure (D-07) — per-ticker % of raw chain OI dropped by
-    # quality filters, omitted entirely when unavailable (cold-start-safe; None
-    # must never render as "—%"/"NaN%").
-    filter_drop_entries = [
-        f"{r['ticker']} {_fmt_unsigned_pct(r['filter_drop_pct'], signed=False)}"
-        for r in index_results
-        if not r.get("error") and r.get("filter_drop_pct") is not None
-    ]
-    filter_drop_bullet = (
-        f"&bull; Filter drop: {', '.join(filter_drop_entries)} of raw chain OI.<br>"
-        if filter_drop_entries else ""
-    )
-
-    methodology_footer = (
-        f'<div style="{_SANS}font-size:12px;color:{LABEL_GRAY};line-height:1.6;'
-        f'margin-top:18px;padding-top:12px;border-top:1px solid {RULE_COLOR};">'
-        '<b>Method assumptions</b><br>'
-        '&bull; Descriptive only (not a forecast).<br>'
-        '&bull; Data lag: OI T-1, quotes ~15 min delayed.<br>'
-        '&bull; VRP = index-vol close − RV20×100 (vol points).<br>'
-        '&bull; Positioning lens: 14 DTE primary (≤90 DTE context).<br>'
-        f'{filter_drop_bullet}'
-        '</div>'
-    )
-
     # Header block: snapshot-freshness timestamp + methodology caveat banner
     # (D-01, D-02) — inserted directly below the section header, above Evolution.
     primary = next((r for r in index_results if not r.get("error")), None)
@@ -548,7 +523,6 @@ def build_email(
   {cards}
   {failed_note}
   {png_note_html}
-  {methodology_footer}
 
       </td></tr>
     </table>
@@ -556,7 +530,6 @@ def build_email(
 </table>
 </body></html>
 """
-
 
 
 

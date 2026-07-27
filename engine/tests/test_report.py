@@ -374,9 +374,9 @@ def test_oi_summary_table_mentions_primary_14dte_lens():
     assert "14 DTE primary" in result
 
 
-def test_build_email_uses_concise_assumptions_footer():
+def test_build_email_omits_assumptions_footer():
     html = build_email([_minimal_result()])
-    assert "Method assumptions" in html
+    assert "Method assumptions" not in html
     assert "Deep methodology details" not in html
 
 
@@ -391,9 +391,7 @@ def test_build_email_uses_mobile_safe_390px_width():
 def test_filter_drop_bullet_present_when_pct_set():
     r = _minimal_result(filter_drop_pct=4.2)
     html = build_email([r])
-    assert "SPY" in html
-    assert "4.2%" in html
-    assert "raw chain OI" in html
+    assert "raw chain OI" not in html
 
 
 def test_filter_drop_bullet_absent_when_pct_none():
