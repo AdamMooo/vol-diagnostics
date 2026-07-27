@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Data Foundation
-status: completed
-stopped_at: Phase 26 COMPLETE — gap closure done across 3 rounds (26-04/26-05 + inline CR-02/CR-03 fix, commits 95dd58e/82e5e80). 449 tests green, 26-VERIFICATION = passed. Monitor is now production-safe on stale-data days.
+status: in_progress
+stopped_at: "Paused 2026-07-26 for review. Phases 24 + 25 shipped & verified this session (commits ba8fcb2, 0aac41e; 465 tests green). Phase 27 (monitor UI) fully PLANNED + committed (8465f24) but NOT executed — Adam chose plan-only/review-before-build. Phase 23 still blocked on Adam's OCI step."
 last_updated: "2026-07-26T23:38:19.149Z"
-last_activity: 2026-07-26 -- Phase 25 marked complete
+last_activity: 2026-07-26 -- Phases 24+25 complete; Phase 27 planned (not executed); paused for review
 progress:
   total_phases: 5
   completed_phases: 3
@@ -21,20 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** Phase 25 — existing-computation-rigor-hardening
+**Current focus:** Phase 27 — microstructure-monitor-ui (PLANNED, awaiting Adam's go to execute)
 
 ## Current Position
 
-Phase: 25 — COMPLETE
-Plan: 3 of 3 complete (25-01 hardening + 25-02 surface try/except + 25-03 VRP-doc/audit)
+Phase: 27 — microstructure-monitor-ui (PLANNED + committed, NOT executed)
 
-Two threads open in v5.0:
+v5.0 phase status (5 phases: 23–27):
 
-- **Phase 26 (severity-stats-alert-engine)** — ✅ COMPLETE 2026-07-24. 5/5 plans; 449 tests green. Two gap-closure rounds: 26-04/26-05 closed CR-01 + WR-01…07 (bands recalibrated to 90/94/85/5, now backed by trustworthy eps/week=0.704 vs the biased 0.186); an inline round then closed 2 follow-on criticals a post-fix code review caught (CR-02 hysteresis hold unreachable, CR-03 stale-data change-alert). `26-VERIFICATION.md` = passed.
-- **Phase 23 (data-completeness-backup-model-readiness)** — 3/4 plans merged, 390 tests green. 23-03 Task 2 PAUSED on human OCI checkpoint (bucket + 3 GitHub secrets). Blocked on Adam, not on code.
+- **Phase 24 (codebase-organization-dead-code-removal)** — ✅ COMPLETE 2026-07-26. 2/2 plans, verified 5/5. Dead code removed, CLAUDE.md synced to disk, fz2/999.3 closed. Commits 923a3f9→ba8fcb2.
+- **Phase 25 (existing-computation-rigor-hardening)** — ✅ COMPLETE 2026-07-26. 3/3 plans, verified 4/4. RV20/skew/term verified-correct; VRP documented as intentional deviation (kept label+computation); edge-case hardening + 16 net new tests. **465 tests green.** Commits 9807f5d→0aac41e. Audit: `25-METHODOLOGY-AUDIT.md`.
+- **Phase 26 (severity-stats-alert-engine)** — ✅ COMPLETE 2026-07-24. Monitor engine (`engine/monitor/`) shipped/verified.
+- **Phase 27 (microstructure-monitor-ui)** — 📋 PLANNED + committed (8465f24), **NOT executed** (Adam: plan-only, review before build). 4 plans / 3 waves, plan-checker passed (0 blockers). Ready to `/gsd:execute-phase 27` on go. NOTE: cold-start — `out/monitor/ranks.parquet` has ~2 dates, zero alerts ever fired, so the shipped board/email will look near-empty for weeks by design. Also needs Adam to set `config.DASHBOARD_METHODOLOGY_URL` (email link).
+- **Phase 23 (data-completeness-backup-model-readiness)** — 3/4 plans merged. 23-03 Task 2 PAUSED on human OCI checkpoint (bucket + 3 GitHub secrets). Blocked on Adam, not on code.
 
-Status: Phase 25 complete
-Last activity: 2026-07-26 -- Phase 25 marked complete
+Status: v5.0 in progress — 24/25/26 done, 27 planned-not-built, 23 blocked on Adam
+Last activity: 2026-07-26 -- Phases 24+25 shipped; Phase 27 planned; paused for review
 
 ## Accumulated Context
 
@@ -99,20 +101,18 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 ## Session Continuity
 
 Last session: 2026-07-26T23:32:16.223Z
-Stopped at: Phase 26 COMPLETE — gap closure done across 3 rounds (26-04/26-05 + inline CR-02/CR-03 fix, commits 95dd58e/82e5e80). 449 tests green, 26-VERIFICATION = passed. Monitor is now production-safe on stale-data days.
-Resume queue: Phase 27 (microstructure-monitor-ui) — has CONTEXT? check; likely `/gsd:discuss-phase 27` then plan.
+Stopped at: Paused 2026-07-26 for review after shipping Phases 24 + 25 and fully planning Phase 27. Phase 27 is plan-only per Adam — do NOT execute until he gives the go.
+Resume queue: (1) On Adam's go → `/gsd:execute-phase 27` (plans committed, checker-passed, 4 plans/3 waves; app.py-touching plans 27-02 & 27-03 must NOT run same-wave; runs sequentially on main). (2) Phase 23 close-out is blocked on Adam's OCI step. (3) After v5.0 closes → v6.0 covered-call persistence model (seed: `.planning/seeds/v6-covered-call-persistence-model.md`).
 
 ## Operator Next Steps
 
-- **Phase 27 (Microstructure Monitor UI)** — consumes Phase 26's severity ranks + alert events: distribution-board landing, per-row evidence panels, event-shaped email, boilerplate cut. `/gsd:discuss-phase 27` (recommended) → `/gsd:plan-phase 27`. Canonical refs: `.planning/notes/microstructure-monitor-design.md`, `.planning/todos/pending/email-boilerplate-cut.md`.
+- **Phase 27 (Microstructure Monitor UI)** — ✅ PLANNED + committed (8465f24), checker-passed (0 blockers), NOT executed. On Adam's go: `/gsd:execute-phase 27` (or resume the current orchestration). 4 plans: 27-01 monitor_reader adapter + vrp_components, 27-02 distribution board (app.py), 27-03 evidence panels (app.py), 27-04 event-shaped email + boilerplate cut. Waves: 1=[27-01], 2=[27-02,27-04 parallel], 3=[27-03]. Watch: 27-02 & 27-03 both touch app.py — never same wave; on Windows, run sequentially on main (skip worktrees). Adam must set `config.DASHBOARD_METHODOLOGY_URL`. Cold-start: board/email near-empty for weeks (zero alerts fired yet) — test sparse case, don't mistake for a bug. Refs: `27-CONTEXT.md` (7 derived success criteria — phase has no REQUIREMENTS.md IDs), `27-RESEARCH.md`, `.planning/notes/microstructure-monitor-design.md`.
 - **Phase 23 close-out (blocked on you)** — OCI console + GitHub secrets setup (`.planning/notes/ORACLE-CLOUD-SETUP.md` → "Object Storage Backup Setup (Phase 23)"), reply "approved", and I'll write 23-03-SUMMARY + verify. Still the only open item in Phase 23.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug.
 
 ---
 ---
 <!-- LINKS:AUTO -->
-
 ## Related
-
 **Project:** [[_planning/vol-diagnostics/ROADMAP|ROADMAP]] · [[vol-diagnostics/vol-diagnostics|Hub]]
 <!-- LINKS:END -->

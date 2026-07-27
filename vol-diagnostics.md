@@ -53,15 +53,14 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-26 23:33 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-27 00:14 UTC
 
-**Milestone:** v5.0 · **Status:** verifying · **STATE last_updated:** 2026-07-26T23:59:00.000Z
+**Milestone:** v5.0 · **Status:** in_progress · **STATE last_updated:** 2026-07-26T23:38:19.149Z
 
 ### Current Position
-- **Phase:** 25 (existing-computation-rigor-hardening) — ALL PLANS EXECUTED, ready for verification
-- **Plan:** 3 of 3 complete (25-01 hardening + 25-02 surface try/except + 25-03 VRP-doc/audit)
-- **Status:** Phase complete — ready for verification
-- **Last activity:** 2026-07-26
+- **Phase:** 27 — microstructure-monitor-ui (PLANNED + committed, NOT executed)
+- **Status:** v5.0 in progress — 24/25/26 done, 27 planned-not-built, 23 blocked on Adam
+- **Last activity:** 2026-07-26 -- Phases 24+25 shipped; Phase 27 planned; paused for review
 
 ### Pending Todos
 - None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).
@@ -75,6 +74,8 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 <!-- GSD-HUB:END -->
 
 ### Operator notes (handwritten — survives hub-sync)
+
+**Paused for review (2026-07-26).** Long autonomous session: shipped **Phase 24** (codebase cleanup — dead code removed, CLAUDE.md engine map synced to disk, fz2/999.3 closed; verified 5/5; `ba8fcb2`) and **Phase 25** (computation rigor — verified 4/4; **465 tests green**; `0aac41e`). Phase 25's headline is the **VRP methodology call**: the code's "VRP" is an IV−RV *vol-point spread*, not the academic Carr-Wu variance-swap VRP (`IV²−RV²`). Kept it — it's the theoretically-aligned richness signal for *vanilla* covered-call writing (premium ≈ linear in IV, so vol points map directly to premium richness) — and added an honest first-use definition in `vrp_history.py` docstring + email glossary rather than renaming or switching to variance units. Full certification in `25-METHODOLOGY-AUDIT.md`. Also hardened real edge cases (term-structure `insufficient_data` sentinel, NaN-vs-None guards on `compute_term_ratios`+`compute_vvix_level`, surface-fit exception symmetry) and removed dead `compute_vrp`. **Phase 27 (Monitor UI) is fully PLANNED + committed (`8465f24`) but deliberately NOT built** — Adam chose plan-only/review-before-build on the big greenfield UI phase. 4 plans/3 waves, sonnet-checker passed 0 blockers. **Cold-start caveat baked into the plans:** `out/monitor/ranks.parquet` has ~2 dates and zero alerts have ever fired, so the shipped distribution board + event-shaped email will look near-empty for weeks by design. When Phase 27 is built, Adam must set `config.DASHBOARD_METHODOLOGY_URL`. **New milestone parked:** the SPY covered-call *persistence* model Adam wants = **v6.0 "Options-Writing Model"** (deferred MODEL-01/02 track), to start after v5.0 closes — minimal v1 (hysteresis on deep VRP + persistence base-rate half-life + synthetic covered-call backtest, no HMM/chain history), fully autonomous, Learning Mode OFF. Seed: `.planning/seeds/v6-covered-call-persistence-model.md`. **Phase 23 still blocked on Adam's OCI step** (only thing between here and v5.0 closing). Resume: `/gsd:execute-phase 27` on go — see STATE.md Operator Next Steps.
 
 **Phase 26 COMPLETE (2026-07-24).** Severity Statistics & Alert Engine shipped and verified — `engine/monitor/` (17-metric schema, dual-lookback ECDF ranker, hysteresis alert state machine gated by the 252-session credibility floor, `out/monitor/` stores wired into `run_daily.py`, permanent calibration CLI). 449 tests green, `26-VERIFICATION.md` = passed. Bands ENTRY=90/ESCALATE=94/EXIT=85/GAP=5, now backed by a corrected false-alarm calibration (0.704 eps/week vs the biased 0.186, against a ~1/week budget). Closure took three rounds: 26-04/26-05 fixed the original CR-01 + WR-01…07; a **post-fix sonnet code review** then caught two criticals the autonomous fixes left — **CR-02** (WR-04's hysteresis hold-branch was unreachable: `rank=None` always couples with `n=0`, so the credibility gate intercepted, and CR-01 made the duplicate-alert bug fire more often) and **CR-03** (CR-01's stale guard never covered `compute_change_rank`, so stale data still fired change alerts) — fixed inline TDD (commits 95dd58e/82e5e80) with a `data_missing` signal distinguishing "no reading today" (hold) from "below floor" (out). Rigor lesson (in auto-memory): the haiku verifier rubber-stamped `passed`; only the parallel code review caught the reachability bugs. Accepted behavior: an active alert holds indefinitely across a persistent data outage (self-heals on data return). Only 5/17 metrics clear the credibility floor today (chain-derived reach it ~2027-05). Next milestone work: Phase 27 (Microstructure Monitor UI) consumes these ranks/alerts.
 
