@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Data Foundation
 status: in_progress
-stopped_at: "Phase 27 COMPLETE — all 4 plans executed + committed. 27-04 (event-shaped email) this session: chose HYBRID over the plan's alerts-only rewrite (zero alerts ever fired → near-empty email would contradict the rich VRP/evolution email Adam validated). Kept the rich descriptive email; ADDED alerts_section_html banner that fires only on real band entry/escalation (empty '' on quiet days), each row carrying Delta-vs-yesterday. Added config.DASHBOARD_METHODOLOGY_URL + single Methodology link. 501 tests green (was 493, +8). Commit 148c2b0. NEXT: Phase 27 verification (SC-1..SC-7) + push, then close v5.0 (Phase 23 still blocked on Adam's OCI step) and start v6.0 covered-call milestone."
-last_updated: "2026-07-27T04:35:00.000Z"
-last_activity: 2026-07-27 -- Phase 27 Plan 04 executed (hybrid event-shaped email); 501 tests green
+stopped_at: "END OF DAY 2026-07-27. Phase 27 COMPLETE + VERIFIED + PUSHED (4/4 plans, 501 tests green, SC-1..SC-7 all met incl. live streamlit health-200 smoke; HEAD=767805d, origin up to date). Decision made: CLOSE v5.0 with Phase 23 (OCI backup) DEFERRED (blocked on Adam's manual Oracle step, not code), then START v6.0 covered-call persistence milestone. RESUME TOMORROW AT: the /gsd-new-milestone workflow (SKILL already invoked). I had loaded context (workflow spec, seed .planning/seeds/v6-covered-call-persistence-model.md, PROJECT.md, MILESTONES.md) but wrote NO milestone files yet. Exact next actions below in Current Position. NOTE: gsd-sdk state handlers CORRUPT this project's STATE.md — hand-edit STATE/MILESTONES/PROJECT manually, do NOT run state.milestone-switch / milestone.complete. Two email previews to eyeball: out_preview_alerts.html (banner fired) + out_preview_quiet.html (normal day) in repo root."
+last_updated: "2026-07-27T05:08:00.000Z"
+last_activity: 2026-07-27 -- Phase 27 closed+verified+pushed; ready to close v5.0 & open v6.0 (stopped for the night)
 progress:
   total_phases: 5
   completed_phases: 3
@@ -36,7 +36,33 @@ v5.0 phase status (5 phases: 23–27):
 - **Phase 23 (data-completeness-backup-model-readiness)** — 3/4 plans merged. 23-03 Task 2 PAUSED on human OCI checkpoint (bucket + 3 GitHub secrets). Blocked on Adam, not on code.
 
 Status: v5.0 nearly closed — 24/25/26/27 done, 23 blocked on Adam's OCI step
-Last activity: 2026-07-27 -- Phase 27 fully executed (4/4 plans, 501 tests green); ready for verification + v5.0 close
+Last activity: 2026-07-27 -- Phase 27 fully executed + verified + pushed (501 tests green); stopped for the night before closing v5.0 / opening v6.0
+
+---
+
+## ▶ START HERE TOMORROW (2026-07-28)
+
+**One-line:** Close v5.0 (Phase 23 deferred), then create the v6.0 covered-call persistence milestone from its seed.
+
+**Pre-flight (30 sec):**
+1. `git status` → expect clean except two untracked previews (out_preview_alerts.html / out_preview_quiet.html — safe to delete once eyeballed).
+2. `git --no-pager log --oneline origin/main..HEAD` → expect empty (all pushed; HEAD=767805d).
+3. Optional: `.venv\Scripts\python.exe -m pytest engine/tests -q` → expect 501 green.
+
+**Step 1 — Close v5.0 (manual edits; gsd-sdk CORRUPTS STATE.md — do NOT use state handlers):**
+- Add a `## v5.0 Data Foundation (Shipped: 2026-07-28)` entry to `.planning/MILESTONES.md` (phases 24/25/26/27 shipped; 23 backup deferred → blocked on Adam's Oracle Cloud step). Mirror the format of the existing v4.0 entry.
+- Update `.planning/PROJECT.md`: move the v5.0 milestone block to shipped/history, note Phase 23 backup deferred.
+- Commit: `docs: close milestone v5.0 Data Foundation (Phase 23 backup deferred)`.
+
+**Step 2 — Open v6.0 via the /gsd-new-milestone workflow (skill still invoked):**
+- Seed to build from: `.planning/seeds/v6-covered-call-persistence-model.md` (SPY-first covered-call persistence; 3 pieces: hysteresis Schmitt trigger on deep VRP percentile, conditional persistence base rate + half-life, synthetic BS covered-call backtest). HMM / chain-features / QQQ+IWM OUT of v1. **Learning Mode OFF** (autonomous incl. core estimators) — confirm this override with Adam before planning.
+- Spike findings that MUST seed the backtest work live in the session files/ folder (spike_covered_call.py v2 + spike-findings.md): SPY edge survives point-in-time terciles, ~2% OTM sweet spot (+0.49%/mo rich, 73% hit), BXM corr 0.866 → haircut BS premium ~30%. Milestone must add: significance tests on small per-tercile n, true OOS split, multiple-testing correction, persistence/half-life layer.
+- Workflow next actions: gather/confirm goals (from seed) → update PROJECT.md v6.0 block → reset STATE.md frontmatter to v6.0 **by hand** → write REQUIREMENTS (REQ-IDs from the 3 seed pieces) → spawn gsd-roadmapper for the phase roadmap (continues phase numbering from 27 → 28+).
+
+**Also pending (not blocking v6.0):**
+- Adam to open the Oracle dashboard + confirm data is good (he said he'd do this).
+- Adam to set `config.DASHBOARD_METHODOLOGY_URL` if the placeholder Oracle URL isn't final (currently `https://40.233.113.63.nip.io`).
+- Optionally trigger a live daily email to see the hybrid banner in-inbox: `gh workflow run "Daily Vol Report" --repo AdamMooo/vol-diagnostics --ref main -f force=true`.
 
 ## Accumulated Context
 
