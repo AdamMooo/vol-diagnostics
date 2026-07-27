@@ -53,14 +53,13 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-27 17:14 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-27 17:40 UTC
 
-**Milestone:** v6.0 · **Status:** in_progress · **STATE last_updated:** 2026-07-27T20:00:00.000Z
+**Milestone:** none · **Status:** between_milestones · **STATE last_updated:** 2026-07-27T21:00:00.000Z
 
 ### Current Position
-- **Phase:** 28 — proxy data layer (not started)
-- **Status:** v6.0 opened — ROADMAP + REQUIREMENTS written; ready to plan Phase 28
-- **Last activity:** 2026-07-27 -- v6.0 milestone opened (PROJECT/STATE/ROADMAP/REQUIREMENTS written by hand)
+- **Status:** between milestones — nothing active to build.
+- **Last activity:** 2026-07-27 -- v6.0 shelved on evidence.
 
 ### Pending Todos
 - None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).

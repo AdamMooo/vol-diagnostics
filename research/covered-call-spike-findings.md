@@ -1,5 +1,7 @@
 # Covered-Call Spike — Findings (RECONSTRUCTED)
 
+> **⛔ Covered-call TIMING model SHELVED 2026-07-27** — pre-build tests found no timing edge (fwd-return p=0.74; fwd-vol p=0.074 marginal, in-sample, ~35 non-overlapping windows). These priors are retained for the record only; the static-VRP-harvest fact stands, timing does not. See memory `v6-covered-call-model-decision`.
+
 **Status:** ⚠️ Reconstructed from the `.planning/STATE.md` summary on 2026-07-27. The original
 `spike_covered_call.py` (v2) is a 0-byte file (never committed, no stash), and no
 `spike-findings.md` survived. The numbers below are the *only* surviving record — treat them

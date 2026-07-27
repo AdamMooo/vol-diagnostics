@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: v6.0
-milestone_name: SPY Covered-Call Sleeve Timing
-status: in_progress
-stopped_at: "v6.0 OPENED 2026-07-27. PROJECT/STATE/ROADMAP/REQUIREMENTS written by hand (gsd-sdk state handlers CORRUPT STATE.md — never run state.milestone-switch / milestone.complete). v5.0 shipped 2026-07-27 (OCI backup live since 2026-07-23; restore drill pending). Design locked via discussion 2026-07-27 — see START HERE + memory v6-covered-call-model-decision. NEXT: plan Phase 28 (proxy data layer) via /gsd-plan-phase 28, or run the restore drill. Learning Mode OFF."
-last_updated: "2026-07-27T20:00:00.000Z"
-last_activity: 2026-07-27 -- v6.0 milestone opened; roadmap (Phases 28-31) + requirements written; ready to plan Phase 28
+milestone: none
+milestone_name: (between milestones)
+status: between_milestones
+stopped_at: "v6.0 covered-call tilt-timing model INVESTIGATED + SHELVED 2026-07-27 (opened then dropped same day). Pre-build tests found no timing edge: fwd-return rich-vs-cheap p=0.74 (noise), fwd-vol p=0.074 (marginal, ~35 non-overlap windows, in-sample). Static CC sleeve already harvests VRP; timing adds nothing demonstrable. No active milestone. Existing descriptive VRP read (dashboard+email) stands. Only open item: OCI restore drill (BACKUP-02). Do NOT re-attempt the tilt model without materially new evidence — see memory v6-covered-call-model-decision + research/covered-call-spike-findings.md. gsd-sdk state handlers CORRUPT STATE.md — hand-edit only."
+last_updated: "2026-07-27T21:00:00.000Z"
+last_activity: 2026-07-27 -- v6.0 tilt-timing investigated & shelved (no evidence); no active milestone
 progress:
-  total_phases: 4
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,45 +21,36 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-27)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** v6.0 Phase 28 — proxy data layer (BXM/BXMD + USCC ingest); v5.0 shipped 2026-07-27
+**Current focus:** No active milestone. v6.0 covered-call tilt-timing shelved 2026-07-27 (no evidence). v5.0 shipped 2026-07-27.
 
 ## Current Position
 
-Milestone: v6.0 — SPY Covered-Call Sleeve Timing (opened 2026-07-27)
-Phase: 28 — proxy data layer (not started)
+No active milestone. v5.0 SHIPPED 2026-07-27 (Phases 23–27; OCI backup live since 2026-07-23). Full record in `.planning/MILESTONES.md`.
 
-v5.0 SHIPPED 2026-07-27 (Phases 23–27; OCI backup live since 2026-07-23, restore drill pending). Full record in `.planning/MILESTONES.md`.
+**v6.0 covered-call tilt-timing — INVESTIGATED & SHELVED 2026-07-27** (opened then dropped the same day, before building). Three cheap pre-build tests on SPY (2016–2026) killed it:
+- Persistence: rich-VRP half-life ~10–14 sessions; P(still rich in 15d | rich) = 36% vs 30% base — modest.
+- Distribution (fwd 20d): rich-vs-cheap return means flat; forward realized vol 15.5% vs 17.0% (rich calmer); upside give-up p95 6.98% vs 7.89%.
+- Significance (non-overlapping, ~35 windows/side): forward-return diff p=0.74 (noise); forward-vol diff p=0.074 (marginal, in-sample, pre-MT/costs).
 
-**v6.0 roadmap** (4 phases + 1 quick task; critical path 28→29→30→31):
-- (quick) **Restore drill** — verify `restore_from_oci` recovers `out/` (closes v5.0 BACKUP-02)
-- **Phase 28 — proxy data layer**: ingest BXM/BXMD + USCC history (backtest depth to 1986)
-- **Phase 29 — persistence engine**: hysteresis regime + half-life + conditional base-rates on deep VRP
-- **Phase 30 — validated backtest**: USCC↔VFV tilt vs BXM/S&P TR, OOS + MT-corrected — **THE GATE**
-- **Phase 31 — weekly Sat-AM PDF review**: built around validated numbers only
+Conclusion: a *static* covered-call sleeve harvests VRP structurally (established); *timing* the USCC↔VFV tilt has no demonstrated edge. Dropped per the project's "no unvalidated signal / no work for its own sake" discipline. Evidence: `research/covered-call-spike-findings.md`, memory `v6-covered-call-model-decision`.
 
-Status: v6.0 opened — ROADMAP + REQUIREMENTS written; ready to plan Phase 28
-Last activity: 2026-07-27 -- v6.0 milestone opened (PROJECT/STATE/ROADMAP/REQUIREMENTS written by hand)
+Status: between milestones — nothing active to build.
+Last activity: 2026-07-27 -- v6.0 shelved on evidence.
 
 ---
 
 ## ▶ START HERE
 
-**One-line:** v6.0 is open. Next = `/gsd-plan-phase 28` (proxy data layer), or run the restore drill.
+**One-line:** No active milestone. The covered-call tilt model was tested and shelved (no edge). The existing descriptive VRP read (dashboard + daily email) stands.
 
-**Locked design (2026-07-27 discussion; full detail in PROJECT.md + memory `v6-covered-call-model-decision`):**
-- **Decision = USCC↔VFV tilt** (Global X S&P 500 Covered Call ETF ↔ plain S&P 500 / VFV), **conviction dial** the user sizes, **environment + base-rates framing** — supporting input, never a trigger. Beta + unhedged USD/CAD FX net out between the legs, so the VRP premium-richness signal is the right input.
-- **Backtest on REAL BXM** (ATM/monthly/100%-cover S&P buy-write, to 1986) vs S&P total-return — NOT synthetic Black-Scholes (drops the American-option error + the 30% haircut fudge). Cross-check vs USCC.TO live. **OOS + multiple-testing gate before anything ships to the report.**
-- **Deliverable = weekly Sat-AM PDF review** (weasyprint in CI, iPhone-native, portable — generation stays in the cloud, local = HTML preview only). Trajectory-first, consistent template. Skeleton: regime header → cross-index location → SPY CC block → surface/evolution → what-would-change → methodology link. Palette via dataviz skill (samples at build). Daily email + dashboard retained.
-- **Learning Mode OFF** (autonomous incl. core estimators) — reconfirmed 2026-07-27.
-- **Future seam (OUT of v6.0):** the separate `regime-detection` system's bull/bear gate sits *above* the tilt (bear → neither USCC nor VFV).
-
-**Constraints:** gsd-sdk state handlers CORRUPT STATE.md — hand-edit STATE/PROJECT/MILESTONES/ROADMAP/REQUIREMENTS; never run state.milestone-switch / milestone.complete. Portability is a hard rule (production 100% cloud; PDF generated in CI, local = HTML preview only).
-
-**Also pending (not blocking):**
-- Restore drill (DUR-01 / v5.0 BACKUP-02).
+**If picking up work, the only genuinely open items:**
+- **OCI restore drill (BACKUP-02)** — confirm `restore_from_oci` recovers `out/` (backup live since 2026-07-23). Small, worth doing.
 - Two root-level synthetic previews (`out_preview_*.html`) — safe to delete.
 - `scripts/update.sh` has an uncommitted rebrand echo (`Gamma OMM` → `Vol Update`) — Adam's, left unstaged.
-- Spike priors are reconstructed/unverified in `research/covered-call-spike-findings.md` — reproduce in Phase 30.
+
+**Do NOT** re-open the covered-call tilt-timing model without materially new evidence — it was killed deliberately, not forgotten. Any future vol/premium *timing* idea: first run the pre-registered OOS + multiple-testing test on non-overlapping windows; expect null.
+
+**Constraint:** gsd-sdk state handlers CORRUPT STATE.md — hand-edit STATE/PROJECT/MILESTONES/ROADMAP/REQUIREMENTS; never run state.milestone-switch / milestone.complete.
 
 ## Accumulated Context
 
@@ -133,6 +124,9 @@ Resume queue: (1) On Adam's go → `/gsd:execute-phase 27` (plans committed, che
 - **Phase 23 close-out (blocked on you)** — OCI console + GitHub secrets setup (`.planning/notes/ORACLE-CLOUD-SETUP.md` → "Object Storage Backup Setup (Phase 23)"), reply "approved", and I'll write 23-03-SUMMARY + verify. Still the only open item in Phase 23.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug.
 
+---
+---
+---
 ---
 ---
 ---

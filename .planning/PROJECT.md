@@ -1,22 +1,14 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-07-27 — v6.0 SPY Covered-Call Sleeve-Timing milestone opened (first prescriptive milestone; v5.0 shipped 2026-07-27).*
+*Last updated: 2026-07-27 — v6.0 covered-call tilt-timing model investigated and SHELVED (no timing edge in the evidence). No active milestone; v5.0 shipped 2026-07-27.*
 
-## Current Milestone: v6.0 — SPY Covered-Call Sleeve Timing
+## Current Milestone: (none — between milestones)
 
-**Goal:** Turn the deep VRP percentile into a *persistent, honestly-validated* read on whether the covered-call sleeve is well-compensated right now — supporting a discretionary **USCC↔VFV** tilt (covered-call ETF vs plain S&P 500), delivered as a weekly PDF review. First prescriptive milestone (the long-deferred MODEL-01/02 track); Learning Mode OFF.
+**Last shipped:** v5.0 Data Foundation + Microstructure Monitor (2026-07-27). See Previous Milestones + `.planning/MILESTONES.md`.
 
-**Decision it supports:** tilt **USCC.TO** (Global X S&P 500 Covered Call ETF) ↔ **VFV** (plain S&P 500), sized by the user on a conviction dial — never a trigger. Beta + unhedged USD/CAD FX net out between the two legs, so the VRP premium-richness signal is the right input. Sits *under* a future `regime-detection` bull/bear gate (seam designed, gate out of scope).
+**v6.0 covered-call tilt-timing — investigated & SHELVED 2026-07-27.** Cheap pre-build tests (SPY, 2016–2026) found no evidence for *timing* a USCC↔VFV tilt on VRP: the forward-return difference rich-vs-cheap is noise (non-overlapping Welch p=0.74) and the forward-vol difference is only marginal (p=0.074, ~35 independent windows, in-sample, pre-multiple-testing/costs). A *static* covered-call sleeve already harvests VRP structurally; timing it adds no demonstrated edge. Killed before building — see `research/covered-call-spike-findings.md` + memory `v6-covered-call-model-decision`. The existing **descriptive** VRP-percentile read (dashboard + daily email) stands and remains the honest layer.
 
-**Target features:**
-- Persistence layer — hysteresis regime + half-life + conditional base-rates on the deep VRP percentile
-- Validated backtest — USCC↔VFV tilt vs real BXM / S&P total-return, OOS + multiple-testing-corrected (the ship gate)
-- Proxy data layer — BXM/BXMD + USCC history ingested (backtest depth to 1986)
-- Weekly Sat-AM PDF review — trajectory-first, environment+base-rates framing, iPhone-native, portable
-
-**Explicitly out of scope:** HMM, chain-derived features, QQQ/IWM covered-call modeling (SPY-first), the bull/bear regime gate itself, FX timing, synthetic Black-Scholes backtest (superseded by real BXM).
-
-**Seed:** `.planning/seeds/v6-covered-call-persistence-model.md` · **Spike priors:** `research/covered-call-spike-findings.md`
+**Open (not a milestone):** OCI restore drill (BACKUP-02) — confirm `restore_from_oci` recovers `out/`. Backup itself live since 2026-07-23.
 
 ## Current State
 
@@ -224,6 +216,7 @@ Seven modules, 74 tests, Holm-Bonferroni rigor. 0 of 30 bucket-mean tests surviv
 ### v1.0 — Regime-Aware Fund Intelligence Notebook (pivoted 2026-04-30)
 HMM GMM diagnostic on SPX. Pivoted because it never touched options-pricing data.
 
+---
 ---
 ---
 ---

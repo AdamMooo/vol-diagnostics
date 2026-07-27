@@ -2,7 +2,10 @@
 title: v6.0 Options-Writing Model — SPY covered-call persistence signal
 trigger_condition: v5.0 Data Foundation closed (Phases 23–25, 27 complete); Phase 23 model-readiness audit confirms VRP/vol-index depth sufficient to backtest
 planted_date: 2026-07-26
+status: SHELVED 2026-07-27
 ---
+
+> **⛔ INVESTIGATED & SHELVED 2026-07-27 — no evidence for *timing* the tilt** (fwd-return p=0.74 noise; fwd-vol p=0.074 marginal, in-sample). A static covered-call sleeve already harvests VRP; timing adds nothing demonstrable. Do NOT re-plant without materially new evidence. See `research/covered-call-spike-findings.md` + memory `v6-covered-call-model-decision`.
 
 First prescriptive milestone — the long-deferred MODEL-01/02 track. Answers "is writing a
 covered call on SPY smart *and persistent*, not just true for 1–2 days." Scoped by Adam

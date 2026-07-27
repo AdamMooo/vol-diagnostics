@@ -1,5 +1,11 @@
 # Milestones — Options Quant
 
+## v6.0 SPY Covered-Call Tilt-Timing — INVESTIGATED & SHELVED (2026-07-27)
+
+Opened and dropped the same day, before building, on evidence. The premise — *timing* a USCC↔VFV tilt (Global X S&P 500 covered-call ETF vs plain S&P 500) by VRP richness — showed no edge in cheap pre-build tests (SPY, 2016–2026): forward-return rich-vs-cheap p=0.74 (noise), forward-vol diff p=0.074 (marginal, ~35 non-overlapping windows, in-sample, pre-multiple-testing/costs). A static covered-call sleeve already harvests VRP structurally; timing adds nothing demonstrable. Killed per the project's no-unvalidated-signal discipline — a clean null, caught in an afternoon instead of after four phases. Detail: `research/covered-call-spike-findings.md`, memory `v6-covered-call-model-decision`. The existing descriptive VRP-percentile read (dashboard + daily email) stands.
+
+---
+
 ## v5.0 Data Foundation + Microstructure Monitor (Shipped: 2026-07-27)
 
 **Phases:** 23, 24, 25, 26, 27 | **Plans:** 15 formal
