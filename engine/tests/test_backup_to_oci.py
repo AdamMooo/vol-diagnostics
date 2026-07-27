@@ -22,7 +22,7 @@ class TestBackupToOracle:
         with mock.patch("engine.backup_to_oci._s3_client", return_value=mock_client):
             backup_to_oracle("bucket", "ca-toronto-1", "ns", source)
 
-        assert mock_client.upload_file.call_count == 3
+        assert mock_client.put_object.call_count == 3
 
     def test_key_uses_forward_slashes_relative_to_source_parent(self, tmp_path):
         source = tmp_path / "out"
@@ -33,8 +33,8 @@ class TestBackupToOracle:
         with mock.patch("engine.backup_to_oci._s3_client", return_value=mock_client):
             backup_to_oracle("bucket", "ca-toronto-1", "ns", source)
 
-        call_args = mock_client.upload_file.call_args
-        assert call_args[0][2] == "out/vol_index/VIX.parquet"
+        call_kwargs = mock_client.put_object.call_args.kwargs
+        assert call_kwargs["Key"] == "out/vol_index/VIX.parquet"
 
     def test_returns_upload_count(self, tmp_path):
         source = tmp_path / "out"
@@ -57,7 +57,7 @@ class TestBackupToOracle:
             count = backup_to_oracle("bucket", "ca-toronto-1", "ns", source)
 
         assert count == 0
-        mock_client.upload_file.assert_not_called()
+        mock_client.put_object.assert_not_called()
 
     def test_upload_failure_propagates(self, tmp_path):
         source = tmp_path / "out"
@@ -65,7 +65,7 @@ class TestBackupToOracle:
         (source / "a.parquet").write_bytes(b"1")
 
         mock_client = mock.Mock()
-        mock_client.upload_file.side_effect = RuntimeError("network down")
+        mock_client.put_object.side_effect = RuntimeError("network down")
         with mock.patch("engine.backup_to_oci._s3_client", return_value=mock_client):
             with pytest.raises(RuntimeError):
                 backup_to_oracle("bucket", "ca-toronto-1", "ns", source)

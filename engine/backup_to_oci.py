@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 import boto3
+from botocore.config import Config
 
 
 def _s3_client(region: str, namespace: str):
@@ -22,6 +23,12 @@ def _s3_client(region: str, namespace: str):
         aws_access_key_id=os.environ["OCI_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["OCI_CUSTOMER_SECRET_KEY"],
         region_name=region,
+        config=Config(
+            s3={
+                "addressing_style": "path",
+                "payload_signing_enabled": False,
+            }
+        ),
     )
 
 
@@ -34,7 +41,13 @@ def backup_to_oracle(bucket: str, region: str, namespace: str, source_dir: Path)
             continue
         key = str(file_path.relative_to(source_dir.parent)).replace(os.sep, "/")
         print(f"[backup_to_oci] uploading {key} ...")
-        client.upload_file(str(file_path), bucket, key)
+        with file_path.open("rb") as body:
+            client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=body,
+                ContentLength=file_path.stat().st_size,
+            )
         uploaded += 1
     print(f"[backup_to_oci] complete. {uploaded} file(s) uploaded to {bucket}.")
     return uploaded
