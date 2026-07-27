@@ -527,10 +527,10 @@ def _evolution_legend() -> str:
     """One compact block explaining what each metric measures and its read —
     so a reader knows the meaning and impact without external notes."""
     items = (
-        ("Level", "whole surface up/down &mdash; vol broadly richer / cheaper"),
-        ("Disp", "smile dispersion widening / compressing across strikes"),
+        ("Level", "whole surface up/down; vol broadly richer/cheaper"),
+        ("Disp", "smile dispersion widening/compressing across strikes"),
         ("Skew &Delta;", "downside vs upside repricing (crash bid on / off)"),
-        ("Term &Delta;", "front vs back tenor &mdash; near-dated stress vs calm"),
+        ("Term &Delta;", "front vs back tenor; near-dated stress vs calm"),
     )
     rows = "".join(
         f'<span style="display:inline-block;margin:0 14px 4px 0;">'
