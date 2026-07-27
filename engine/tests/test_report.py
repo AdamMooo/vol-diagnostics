@@ -129,34 +129,34 @@ def test_key_levels_omits_row_when_level_missing():
     assert "γ-flip" not in html
 
 
-# ── Read-block tests: email card shows the same read as the dashboard ─────────
+# ── Read-block tests: email card shows a single concise "so what" line ───────
 
-def test_read_block_renders_gated_chips_and_lean():
-    # vrp_pct low with deep sample → "premium cheap"; net_gex < 0 → "dealers amplifying"
+def test_read_block_renders_lean_and_regime():
+    # vrp_pct low with deep sample → cheap lean; net_gex < 0 → "Dealers amplifying"
     r = _minimal_result(net_gex=-2e9)
     r["vrp_pct"], r["vrp_pct_n"] = 9, 252
     html = _ticker_card(r)
-    assert "premium cheap" in html
-    assert "dealers amplifying" in html
     assert "cheap" in html.lower()  # lean sentence present
+    assert "Dealers amplifying" in html  # regime label in the card header
 
 
-def test_read_block_omits_ungated_premium_chip():
-    # vrp present but sample below the credibility floor → no premium chip
+def test_read_block_lean_builds_when_premium_ungated():
+    # vrp present but sample below the credibility floor → no rich/cheap read
     r = _minimal_result(net_gex=1e9)
     r["vrp_pct"], r["vrp_pct_n"] = 80, 10
     html = _ticker_card(r)
     assert "premium rich" not in html and "premium cheap" not in html
-    assert "dealers stabilizing" in html  # present-tense fact still shows
+    assert "history building" in html.lower()  # hedged lean
+    assert "Dealers stabilizing" in html  # present-tense regime fact still shows
 
 
-def test_read_block_shows_skew_chip_when_seam_provides_it():
-    # read_skew_pct on the summary (the canonical seam) flows into the chip set
+def test_read_block_has_no_chip_pills():
+    # The chip pills were removed to cut color noise / redundancy with the header.
     r = _minimal_result(net_gex=1e9)
     r["vrp_pct"], r["vrp_pct_n"] = 50, 252
     r["read_skew_pct"] = 80
     html = _ticker_card(r)
-    assert "skew steep" in html
+    assert "skew steep" not in html  # qualitative skew chip gone; number stays in table
 
 
 # ── Task 2 tests: evolution_section_html() + build_email() new params ─────────
@@ -245,7 +245,7 @@ def test_build_email_signature_accepts_new_params():
     assert html  # non-empty string
 
 
-# ── Header block: snapshot timestamp + methodology caveat banner (D-01, D-02) ─
+# ── Header block: snapshot timestamp (methodology banner removed) ────────────
 
 def test_snapshot_timestamp_present_when_fetched_at_set():
     fetched_at = datetime.datetime(2026, 5, 11, 16, 15)
@@ -262,28 +262,11 @@ def test_snapshot_timestamp_absent_when_fetched_at_missing():
     assert "Snapshot" not in html
 
 
-def test_methodology_caveat_banner_always_present():
-    # Static methodology fact — never gated on data availability.
+def test_methodology_caveat_banner_removed():
+    # The static methodology banner was removed to cut fixed filler wording.
     html = build_email([_minimal_result(fetched_at=None)])
-    assert "Methodology note" in html
-    assert "Trust GEX direction first" in html
-
-
-def test_timestamp_line_and_banner_are_distinct_blocks():
-    fetched_at = datetime.datetime(2026, 5, 11, 16, 15)
-    r = _minimal_result(fetched_at=fetched_at)
-    html = build_email([r])
-    banner_start = html.find("Methodology note")
-    assert banner_start != -1
-    banner_div_start = html.rfind("<div", 0, banner_start)
-    banner_div_tag = html[banner_div_start:banner_start]
-    assert "background:#f1f5f9" in banner_div_tag
-
-    ts_start = html.find("Snapshot 2026-05-11 16:15")
-    assert ts_start != -1
-    ts_div_start = html.rfind("<div", 0, ts_start)
-    ts_div_tag = html[ts_div_start:ts_start]
-    assert "background:#f1f5f9" not in ts_div_tag
+    assert "Methodology note" not in html
+    assert "background:#f1f5f9" not in html
 
 
 # ── OI summary table tests ─────────────────────────────────────────────────

@@ -21,14 +21,14 @@ from engine.report.card_model import (
     _fmt_vrp, _fmt_skew, _fmt_expected_move, _fmt_term_ratios,
 )
 
-# Sign-of-net-gex visual cue for the accent bar — muted, report-grade tones
-# (kept email-local; the dashboard keeps config.PALETTE untouched).
-POS_GREEN   = "#0f7b57"   # muted forest green — directional "up/rich/stabilizing"
-NEG_RED     = "#b23b34"   # muted brick red   — directional "down/cheap/amplifying"
+# Sign-of-net-gex visual cue — muted, report-grade tones (email-local;
+# the dashboard keeps config.PALETTE untouched).
+POS_GREEN   = "#2e7355"   # muted forest green — "good" (rich / stabilizing / up)
+NEG_RED     = "#a8483f"   # muted brick red   — "bad"  (cheap / amplifying / down)
 REGIME_COLOR = {
     "positive": POS_GREEN,
     "negative": NEG_RED,
-    "zero":     "#64748b",
+    "zero":     "#6b6880",
 }
 
 # Badge backgrounds (solid color with white text — survive theme inversion).
@@ -38,15 +38,16 @@ TICKER_LABEL = {
     "IWM": "IWM  Russell 2000",
 }
 
-# ── Report palette (professional, restrained) ──────────────────────────
-INK         = "#1f2a37"   # primary text — near-black navy
-LABEL_GRAY  = "#64748b"   # secondary text & labels — slate (legible on white)
-RULE_COLOR  = "#e5e9f0"   # hairline dividers
-PANEL_BG    = "#f8fafc"   # subtle card panel fill
-PAGE_BG     = "#eef2f6"   # page backdrop behind the white report sheet
-MAST_BG     = "#0f2036"   # masthead deep navy
-MAST_SUB    = "#aebdcf"   # masthead subtitle text
-ACCENT      = "#c19a3e"   # refined gold accent — the single brand color
+# ── Report palette — dark-purple fintech, restrained ───────────────────
+INK         = "#211b2e"   # primary text — dark purple-charcoal
+LABEL_GRAY  = "#6b6880"   # secondary text & labels — muted purple-slate
+RULE_COLOR  = "#e6e3ee"   # hairline dividers
+PANEL_BG    = "#f7f5fb"   # subtle card / panel fill (faint lavender)
+PAGE_BG     = "#edeaf3"   # page backdrop behind the white report sheet
+MAST_BG     = "#2b2140"   # masthead deep purple (the single brand color)
+MAST_SUB    = "#b7aecb"   # masthead subtitle text
+ACCENT      = "#6a5a95"   # structural accent — muted purple (rules, bars)
+BAR_TRACK   = "#e6e3ee"   # percentile-bar track
 
 _SANS = "font-family:Arial,Helvetica,sans-serif;"
 _MONO = "font-family:Consolas,'SF Mono',Menlo,monospace;"
@@ -82,121 +83,102 @@ def _kv_table(rows_html: str) -> str:
     )
 
 
-# ── Read line (the "so what") ─────────────────────────────────────────
+# ── Read line (the "so what") — one concise sentence, no chip clutter ──
 
 def _read_block(r: dict) -> str:
-    """The plain-English read on top of the card — same chips + soft lean as the
-    dashboard, sourced from the canonical build_card_read. Gated inputs ride on the
-    summary (read_skew_pct / read_move_5d) from compute_ticker, so email = dashboard."""
+    """A single plain-English 'so what' line — the soft lean from the canonical
+    build_card_read. The chip pills were dropped: they duplicated the VRP tag and
+    the dealer-regime label already shown in the card header, adding color noise
+    without new information. Gated inputs ride on the summary (read_skew_pct /
+    read_move_5d) so the email read matches the dashboard."""
     read = build_card_read(
         r, skew_pct=r.get("read_skew_pct"), move_5d=r.get("read_move_5d"),
     )
-    if not read.chips and not read.lean:
+    if not read.lean:
         return ""
-    amber = config.PALETTE["accent"]
-    tone_color = {"positive": amber, "negative": amber, "neutral": LABEL_GRAY}
-    chips = "".join(
-        f'<span style="{_SANS}display:inline-block;padding:2px 9px;margin:0 6px 6px 0;'
-        f'border-radius:10px;font-size:12px;color:{tone_color.get(t, LABEL_GRAY)};'
-        f'border:1px solid {tone_color.get(t, LABEL_GRAY)};">{txt}</span>'
-        for txt, t in read.chips
+    return (
+        f'<div style="{_SANS}font-size:13px;font-weight:600;color:{INK};'
+        f'line-height:1.45;margin:10px 0 12px;">{read.lean}</div>'
     )
-    lean = (
-        f'<div style="{_SANS}font-size:13px;font-weight:600;margin-top:4px;'
-        f'line-height:1.4;">{read.lean}</div>' if read.lean else ""
+
+
+# ── Percentile bar — the one lightweight visual (pure CSS, client-safe) ─
+
+def _pct_bar(pct: int | None, color: str) -> str:
+    """A thin 0-100 percentile track with a filled portion — renders in every
+    mail client (nested tables, no images). Gives the VRP a real visual anchor
+    without external chart attachments."""
+    if pct is None:
+        return ""
+    pct = max(0, min(100, int(pct)))
+    return (
+        f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;margin-top:5px;"><tr>'
+        f'<td style="background:{color};height:4px;width:{pct}%;font-size:0;line-height:0;'
+        f'border-radius:2px;">&nbsp;</td>'
+        f'<td style="background:{BAR_TRACK};height:4px;font-size:0;line-height:0;">&nbsp;</td>'
+        f'</tr></table>'
     )
-    return f'<div style="margin:6px 0 10px;">{chips}{lean}</div>'
 
 
-# ── Vol snapshot — surfaces the VRP / IV / skew / term work in the email ──
+# ── Metrics table — one clean table per card (vol + key levels merged) ──
 
-def _vol_snapshot_block(r: dict) -> str:
-    """Compact vol-premium snapshot: VRP as the hero line, then IV30/EM, skew,
-    and (SPY-only) VIX term structure. This is the payload of the Phase 23-26
-    data work — it lived only in the read chips before, never as real numbers.
+def _metrics_table(r: dict) -> str:
+    """A single, tightly-scoped metrics table per ticker. Merges the vol snapshot
+    (VRP / IV30 / skew / VIX term) with the key levels (γ-flip / walls / expected
+    move) into ONE clean table instead of two — less visual chrome, one scan path.
 
-    Reads precomputed summary fields (no I/O). VRP colouring keys off its deep
-    percentile: rich (>=67th) green, cheap (<=33rd) red, else neutral gray."""
+    Strategic field set (only what an income-sleeve PM acts on):
+      VRP (coloured), IV30, Skew, VIX term (SPY only), γ-flip, Call/Put wall,
+      Expected move. Reads precomputed summary fields only (no I/O)."""
+    spot = r.get("spot")
     vrp = r.get("vrp")
     vrp_pct = r.get("vrp_pct")
     vrp_pct_n = r.get("vrp_pct_n")
     iv30 = r.get("iv30")
     em_pct = r.get("expected_move_pct")
-    em_expiry = r.get("em_expiry")
-    em_dte = r.get("em_dte")
     front_skew = r.get("front_skew")
     term_9d_30d = r.get("term_ratio_9d_30d")
     term_30d_3m = r.get("term_ratio_30d_3m")
-
-    # VRP hero — its own emphasized line above the KV rows.
-    hero = ""
-    if vrp is not None:
-        if vrp_pct is not None and vrp_pct >= 67:
-            vrp_color, tag = POS_GREEN, "rich"
-        elif vrp_pct is not None and vrp_pct <= 33:
-            vrp_color, tag = NEG_RED, "cheap"
-        else:
-            vrp_color, tag = LABEL_GRAY, "fair"
-        tag_bit = (
-            f' <span style="{_SANS}font-size:11px;font-weight:700;'
-            f'text-transform:uppercase;letter-spacing:0.5px;color:{vrp_color};">'
-            f'{tag}</span>' if vrp_pct is not None else ""
-        )
-        hero = (
-            f'<div style="background:{PANEL_BG};border-left:3px solid {vrp_color};'
-            f'border-radius:0 4px 4px 0;padding:8px 12px;margin:2px 0 8px;">'
-            f'<span style="{_SANS}font-size:10px;color:{LABEL_GRAY};'
-            f'letter-spacing:0.6px;text-transform:uppercase;">Vol risk premium</span>'
-            f'{tag_bit}<br>'
-            f'<span style="{_MONO}font-size:16px;font-weight:700;color:{vrp_color};">'
-            f'{_fmt_vrp(vrp, vrp_pct, vrp_pct_n)}</span>'
-            f'</div>'
-        )
-
-    rows: list[tuple[str, str]] = []
-    if iv30:
-        em_str = _fmt_expected_move(em_pct, em_expiry, em_dte)
-        iv_val = f"{iv30:.1f}%" + (f" · {em_str}" if em_str != "—" else "")
-        rows.append(("IV30 / EM", iv_val))
-    if front_skew is not None:
-        rows.append(("Skew (25Δ)", _fmt_skew(front_skew)))
-    term_str = _fmt_term_ratios(term_9d_30d, term_30d_3m)
-    if term_str:
-        rows.append(("VIX term", term_str))
-
-    if not hero and not rows:
-        return ""
-    rows_html = "".join(_kv_cell(label, value) for label, value in rows)
-    table = _kv_table(rows_html) if rows_html else ""
-    return f'<div style="margin:8px 0 6px;">{hero}{table}</div>'
-
-
-# ── Key Levels — single-column, mirrors the dashboard Regime tab ───────
-
-def _key_levels_block(r: dict) -> str:
-    spot = r.get("spot")
     zgl = r.get("zero_gamma_level")
     cw = r.get("call_wall")
     pw = r.get("put_wall")
-    em_pct = r.get("expected_move_pct")
 
     def _shift(key: str) -> str:
         v = r.get(key)
         return f" ({v:+.1f}% 5d)" if v is not None else ""
 
-    rows: list[tuple[str, str]] = []
+    # (label, value, value_color) — color None means default INK.
+    rows: list[tuple[str, str, str | None]] = []
+
+    # VRP first — the hero metric, coloured by rich/cheap.
+    if vrp is not None:
+        if vrp_pct is not None and vrp_pct >= 67:
+            vrp_color = POS_GREEN
+        elif vrp_pct is not None and vrp_pct <= 33:
+            vrp_color = NEG_RED
+        else:
+            vrp_color = INK
+        rows.append(("VRP", _fmt_vrp(vrp, vrp_pct, vrp_pct_n), vrp_color))
+    if iv30:
+        rows.append(("IV30", f"{iv30:.1f}%", None))
+    if front_skew is not None:
+        rows.append(("Skew 25Δ", _fmt_skew(front_skew), None))
+    term_str = _fmt_term_ratios(term_9d_30d, term_30d_3m)
+    if term_str:
+        rows.append(("VIX term", term_str, None))
     if zgl is not None:
-        rows.append(("γ-flip", f"{zgl:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, zgl))}{_shift('zgl_5d_shift')}"))
+        rows.append(("γ-flip", f"{zgl:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, zgl))}{_shift('zgl_5d_shift')}", None))
     if cw is not None:
-        rows.append(("Call wall", f"{cw:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, cw))}{_shift('call_wall_5d_shift')}"))
+        rows.append(("Call wall", f"{cw:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, cw))}{_shift('call_wall_5d_shift')}", None))
     if pw is not None:
-        rows.append(("Put wall", f"{pw:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, pw))}{_shift('put_wall_5d_shift')}"))
+        rows.append(("Put wall", f"{pw:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, pw))}{_shift('put_wall_5d_shift')}", None))
     if em_pct is not None:
-        rows.append(("Expected move", f"±{em_pct:.1f}%"))
+        rows.append(("Expected move", f"±{em_pct:.1f}%", None))
 
     if not rows:
         return ""
-    rows_html = "".join(_kv_cell(label, value) for label, value in rows)
+    rows_html = "".join(_kv_cell(label, value, value_color=color) for label, value, color in rows)
     return _kv_table(rows_html)
 
 
@@ -233,16 +215,16 @@ def _ticker_card(r: dict) -> str:
     elif net_gex < 0:
         accent, regime_txt, regime_color = REGIME_COLOR["negative"], "Dealers amplifying", NEG_RED
     else:
-        accent, regime_txt, regime_color = "#64748b", "Dealers neutral", LABEL_GRAY
+        accent, regime_txt, regime_color = REGIME_COLOR["zero"], "Dealers neutral", LABEL_GRAY
 
+    # Day % stays neutral gray — direction isn't a "good/bad" signal here, so
+    # colouring it just adds noise. Green/red are reserved for VRP + regime.
     day_pct = r.get("price_change_pct")
-    day_bit = ""
-    if day_pct is not None:
-        dcol = POS_GREEN if day_pct >= 0 else NEG_RED
-        day_bit = (
-            f'<span style="{_MONO}font-size:12px;font-weight:600;color:{dcol};">'
-            f'{_fmt_signed_pct(day_pct)}</span>'
-        )
+    day_bit = (
+        f'<div style="{_MONO}font-size:12px;font-weight:600;color:{LABEL_GRAY};'
+        f'margin-top:2px;">{_fmt_signed_pct(day_pct)}</div>'
+        if day_pct is not None else ""
+    )
     spot_cell = (
         f'<div style="{_MONO}font-size:20px;font-weight:700;color:{INK};line-height:1;">'
         f'{spot:,.0f}</div>{day_bit}' if spot else "&nbsp;"
@@ -267,8 +249,7 @@ def _ticker_card(r: dict) -> str:
     )
 
     read_html = _read_block(r)
-    vol_html = _vol_snapshot_block(r)
-    levels_html = _key_levels_block(r)
+    metrics_html = _metrics_table(r)
 
     # Clean panel: hairline border, subtle fill, rounded corners, left accent bar
     # keyed to the net-GEX sign. Single-column, stacked — renders identically on
@@ -280,7 +261,7 @@ def _ticker_card(r: dict) -> str:
         f'background:#ffffff;">'
         f'<tr>'
         f'<td width="4" style="background:{accent};width:4px;"></td>'
-        f'<td style="padding:14px 16px 16px;">{header}{read_html}{vol_html}{levels_html}</td>'
+        f'<td style="padding:14px 16px 16px;">{header}{read_html}{metrics_html}</td>'
         f'</tr></table>'
     )
 
@@ -419,15 +400,15 @@ def _section_header(label: str) -> str:
 # ── Masthead & footer ─────────────────────────────────────────────────
 
 def _masthead(date: datetime.date) -> str:
-    """Branded report header — deep-navy bar with title, tagline, and date.
-    Sets the 'professional research desk' tone before any content."""
+    """Branded report header — deep-purple bar with title, tagline, and date.
+    Sets the fintech research-desk tone before any content."""
     date_str = f"{date.strftime('%A, %B')} {date.day}, {date.year}"
     return (
         f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
         f'style="border-collapse:collapse;">'
         f'<tr><td style="background:{MAST_BG};padding:20px 22px;'
         f'border-radius:8px 8px 0 0;">'
-        f'<div style="{_SANS}color:#ffffff;font-size:20px;font-weight:700;'
+        f'<div style="{_SANS}color:#ffffff;font-size:19px;font-weight:700;'
         f'letter-spacing:0.4px;">Index Vol Diagnostics</div>'
         f'<div style="{_SANS}color:{MAST_SUB};font-size:12px;margin-top:4px;'
         f'letter-spacing:0.3px;">Dealer gamma &amp; implied-vol brief &middot; SPY / QQQ / IWM</div>'
@@ -439,28 +420,14 @@ def _masthead(date: datetime.date) -> str:
 
 
 def _footer() -> str:
-    """Fine print — descriptive-only disclaimer, restrained and small."""
+    """Fine print — one restrained disclaimer line. All the wordy static
+    methodology copy was removed; this is the only fixed prose in the report."""
     return (
-        f'<div style="border-top:1px solid {RULE_COLOR};margin-top:22px;padding-top:14px;">'
-        f'<div style="{_SANS}font-size:10px;color:{LABEL_GRAY};line-height:1.6;">'
-        f'Descriptive diagnostics only — no predictive or prescriptive claims. '
-        f'VRP percentiles ranked vs a ~10-year vol-index window; chain-derived '
-        f'metrics accrue from daily snapshots. Not investment advice.'
+        f'<div style="border-top:1px solid {RULE_COLOR};margin-top:20px;padding-top:12px;">'
+        f'<div style="{_SANS}font-size:10px;color:{LABEL_GRAY};line-height:1.5;">'
+        f'Descriptive only, not advice &middot; VRP ranked vs ~10yr &middot; '
+        f'OI T-1, greeks 15-min delayed &middot; trust GEX direction, not level.'
         f'</div></div>'
-    )
-
-
-def _methodology_caveat_banner() -> str:
-    """Static (never gated) framed note — light tint + gold left accent bar,
-    matching the report's brand vocabulary."""
-    return (
-        f'<div style="{_SANS}font-size:12px;color:{INK};'
-        f'background:#f1f5f9;border-left:3px solid {ACCENT};'
-        f'padding:10px 14px;margin:16px 0;line-height:1.5;border-radius:0 4px 4px 0;">'
-        f'<b style="color:{INK};">Methodology note:</b> '
-        f'<span style="color:{LABEL_GRAY};">Trust GEX direction first; '
-        f'absolute GEX level varies by source.</span>'
-        f'</div>'
     )
 
 
@@ -469,11 +436,10 @@ def _methodology_caveat_banner() -> str:
 def _vrp_strip(index_results: list[dict]) -> str:
     """A compact cross-ticker VRP headline placed at the very top of the email.
 
-    One cell per ticker: percentile (hero number, rich/cheap coloured) + the
-    signed VRP in vol points beneath. This is the single most-actionable summary
-    of the vol work — it lets the PM see rich/cheap across SPY/QQQ/IWM at a glance
-    before scrolling into the per-ticker detail. Omitted when no ticker has a
-    credible VRP percentile yet (cold start)."""
+    One cell per ticker: percentile (hero number, rich/cheap coloured) + a thin
+    percentile bar + the signed VRP in vol points. The single most-actionable
+    summary of the vol work — rich/cheap across SPY/QQQ/IWM at a glance. Omitted
+    when no ticker has a credible VRP percentile yet (cold start)."""
     cells: list[str] = []
     for r in index_results:
         if r.get("error"):
@@ -487,17 +453,18 @@ def _vrp_strip(index_results: list[dict]) -> str:
         elif vrp_pct <= 33:
             color, tag = NEG_RED, "cheap"
         else:
-            color, tag = "#64748b", "fair"
+            color, tag = LABEL_GRAY, "fair"
         cells.append(
-            f'<td align="center" style="padding:10px 4px;vertical-align:top;'
+            f'<td align="center" style="padding:12px 10px;vertical-align:top;'
             f'border-left:1px solid {RULE_COLOR};">'
             f'<div style="{_SANS}font-size:12px;font-weight:700;color:{INK};'
             f'letter-spacing:0.5px;">{r.get("ticker","")}</div>'
-            f'<div style="{_MONO}font-size:24px;font-weight:700;color:{color};'
+            f'<div style="{_MONO}font-size:23px;font-weight:700;color:{color};'
             f'line-height:1.2;margin:3px 0 0;">{vrp_pct}<span style="font-size:11px;">th</span></div>'
             f'<div style="{_SANS}font-size:10px;font-weight:700;text-transform:uppercase;'
-            f'letter-spacing:0.5px;color:{color};">{tag}</div>'
-            f'<div style="{_MONO}font-size:12px;color:{LABEL_GRAY};margin-top:2px;">'
+            f'letter-spacing:0.5px;color:{color};margin-bottom:2px;">{tag}</div>'
+            f'{_pct_bar(vrp_pct, color)}'
+            f'<div style="{_MONO}font-size:12px;color:{LABEL_GRAY};margin-top:4px;">'
             f'{vrp:+.1f}pp</div>'
             f'</td>'
         )
@@ -583,24 +550,6 @@ def evolution_section_html(evolution_data: dict) -> str | None:
     if all_none:
         return None
 
-    # Lead sentence based on SPY level (D-12 Claude's discretion)
-    spy_data = evolution_data.get("SPY", {})
-    spy_level = spy_data.get("level")
-    as_of = spy_data.get("as_of")
-
-    if spy_level is None:
-        lead = "Five-day rolling mean — cross-ticker."
-    elif spy_level > 0.5:
-        lead = "Surfaces moved higher over the 5-day rolling mean."
-    elif spy_level < -0.5:
-        lead = "Surfaces moved lower over the 5-day rolling mean."
-    else:
-        lead = "Surfaces largely unchanged over the 5-day rolling mean."
-
-    if as_of is not None:
-        as_of_str = as_of.strftime("%b %d, %Y") if hasattr(as_of, "strftime") else str(as_of)
-        lead += f" As of {as_of_str}."
-
     # Table header
     th_style = (
         f'style="{_SANS}padding:5px 10px 5px 0;font-size:11px;'
@@ -609,11 +558,11 @@ def evolution_section_html(evolution_data: dict) -> str | None:
     )
     td_style = (
         f'style="{_MONO}padding:5px 10px 5px 0;font-size:13px;font-weight:600;'
-        f'white-space:nowrap;"'
+        f'color:{INK};white-space:nowrap;"'
     )
     td_ticker_style = (
         f'style="{_SANS}padding:5px 10px 5px 0;font-size:13px;font-weight:700;'
-        f'white-space:nowrap;"'
+        f'color:{INK};white-space:nowrap;"'
     )
 
     header_row = (
@@ -652,25 +601,22 @@ def evolution_section_html(evolution_data: dict) -> str | None:
         f'</table>'
     )
 
-    lead_html = (
-        f'<p style="{_SANS}font-size:13px;margin:10px 0 6px;color:{LABEL_GRAY};">{lead}</p>'
-    )
-
     move_lines = " ".join(
         _evolution_largest_move_line(ticker, evolution_data.get(ticker, {}))
         for ticker in ("SPY", "QQQ", "IWM")
     )
     summary_html = (
-        f'<p style="{_SANS}font-size:13px;margin:2px 0 8px;color:{LABEL_GRAY};">'
-        f'<b>What changed most today:</b> {move_lines}</p>'
+        f'<p style="{_SANS}font-size:12px;margin:0 0 8px;color:{INK};line-height:1.5;">'
+        f'<b>What changed most today:</b> '
+        f'<span style="color:{LABEL_GRAY};">{move_lines}</span></p>'
     )
     horizon_summary_html = (
-        f'<p style="{_SANS}font-size:12px;margin:2px 0 10px;color:{LABEL_GRAY};">'
+        f'<p style="{_SANS}font-size:11px;margin:10px 0 0;color:{LABEL_GRAY};line-height:1.5;">'
         f'<b>Level by horizon (SPY/QQQ/IWM):</b> '
         f'{_evolution_horizon_summary_line(evolution_data)}</p>'
     )
 
-    return _section_header("Surface Evolution — 5-day") + lead_html + summary_html + horizon_summary_html + table
+    return _section_header("Surface Evolution — 5-day") + summary_html + table + horizon_summary_html
 
 
 # ── Main ──────────────────────────────────────────────────────────────
@@ -700,11 +646,9 @@ def build_email(
         f'Failed to load: {", ".join(failed)}</p>' if failed else ""
     )
 
-    # Header block: snapshot-freshness timestamp + methodology caveat banner
-    # (D-01, D-02) — inserted directly below the section header, above Evolution.
+    # Snapshot-freshness timestamp (real fetch time) — small gray fact line.
     primary = next((r for r in index_results if not r.get("error")), None)
     ts_line = _snapshot_timestamp_line(primary) if primary else ""
-    caveat_banner = _methodology_caveat_banner()
     vrp_strip = _vrp_strip(index_results)
     masthead = _masthead(date)
     footer = _footer()
@@ -739,7 +683,6 @@ def build_email(
       <tr><td style="padding:6px 20px 20px;">
 
   {ts_line}
-  {caveat_banner}
   {vrp_strip}
   {evol_html}
   {_section_header("Ticker Detail")}
