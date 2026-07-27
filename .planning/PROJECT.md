@@ -1,16 +1,26 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-07-27 — v5.0 Data Foundation + Microstructure Monitor shipped. Between milestones: v6.0 covered-call persistence kickoff pending.*
+*Last updated: 2026-07-27 — v6.0 SPY Covered-Call Sleeve-Timing milestone opened (first prescriptive milestone; v5.0 shipped 2026-07-27).*
 
-## Current Milestone: (between milestones — v5.0 shipped 2026-07-27)
+## Current Milestone: v6.0 — SPY Covered-Call Sleeve Timing
 
-**Last shipped:** v5.0 Data Foundation + Microstructure Monitor (Phases 23–27; Phase 23 OCI backup activation deferred on a manual Oracle Cloud step). See Previous Milestones below + `.planning/MILESTONES.md`.
+**Goal:** Turn the deep VRP percentile into a *persistent, honestly-validated* read on whether the covered-call sleeve is well-compensated right now — supporting a discretionary **USCC↔VFV** tilt (covered-call ETF vs plain S&P 500), delivered as a weekly PDF review. First prescriptive milestone (the long-deferred MODEL-01/02 track); Learning Mode OFF.
 
-**Next:** v6.0 — SPY covered-call persistence model, the first prescriptive milestone (long-deferred MODEL-01/02 track). Kickoff pending Adam's go + Learning-Mode-override confirmation. Seed: `.planning/seeds/v6-covered-call-persistence-model.md`.
+**Decision it supports:** tilt **USCC.TO** (Global X S&P 500 Covered Call ETF) ↔ **VFV** (plain S&P 500), sized by the user on a conviction dial — never a trigger. Beta + unhedged USD/CAD FX net out between the two legs, so the VRP premium-richness signal is the right input. Sits *under* a future `regime-detection` bull/bear gate (seam designed, gate out of scope).
+
+**Target features:**
+- Persistence layer — hysteresis regime + half-life + conditional base-rates on the deep VRP percentile
+- Validated backtest — USCC↔VFV tilt vs real BXM / S&P total-return, OOS + multiple-testing-corrected (the ship gate)
+- Proxy data layer — BXM/BXMD + USCC history ingested (backtest depth to 1986)
+- Weekly Sat-AM PDF review — trajectory-first, environment+base-rates framing, iPhone-native, portable
+
+**Explicitly out of scope:** HMM, chain-derived features, QQQ/IWM covered-call modeling (SPY-first), the bull/bear regime gate itself, FX timing, synthetic Black-Scholes backtest (superseded by real BXM).
+
+**Seed:** `.planning/seeds/v6-covered-call-persistence-model.md` · **Spike priors:** `research/covered-call-spike-findings.md`
 
 ## Current State
 
-**v4.0 Cloud Hosting shipped 2026-07-17.** The dashboard and daily email run unattended, hosted on Oracle Cloud (Always Free tier) at `https://40.233.113.63.nip.io`, with the data-collection scheduler on GitHub Actions. Password gate removed — dashboard is now intentionally public ahead of being linked from the user's personal site. Full detail: `.planning/milestones/v4.0-ROADMAP.md`.
+**v5.0 Data Foundation + Microstructure Monitor shipped 2026-07-27** (Phases 23–27; OCI backup live since 2026-07-23). The dashboard + daily email run unattended on Oracle Cloud (`https://40.233.113.63.nip.io`); data collection + backup on GitHub Actions. Password gate removed — dashboard is intentionally public. v4.0 (cloud hosting) detail: `.planning/milestones/v4.0-ROADMAP.md`.
 
 ## What This Is
 
@@ -214,6 +224,8 @@ Seven modules, 74 tests, Holm-Bonferroni rigor. 0 of 30 bucket-mean tests surviv
 ### v1.0 — Regime-Aware Fund Intelligence Notebook (pivoted 2026-04-30)
 HMM GMM diagnostic on SPX. Pivoted because it never touched options-pricing data.
 
+---
+---
 ---
 ---
 ---

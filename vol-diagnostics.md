@@ -53,14 +53,14 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-27 17:05 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-27 17:14 UTC
 
-**Milestone:** v5.0 · **Status:** shipped · **STATE last_updated:** 2026-07-27T18:30:00.000Z
+**Milestone:** v6.0 · **Status:** in_progress · **STATE last_updated:** 2026-07-27T20:00:00.000Z
 
 ### Current Position
-- **Phase:** 27 — microstructure-monitor-ui (✅ COMPLETE — all 4 plans executed + committed)
-- **Status:** v5.0 nearly closed — 24/25/26/27 done, 23 blocked on Adam's OCI step
-- **Last activity:** 2026-07-27 -- Phase 27 fully executed + verified + pushed (501 tests green); stopped for the night before closing v5.0 / opening v6.0
+- **Phase:** 28 — proxy data layer (not started)
+- **Status:** v6.0 opened — ROADMAP + REQUIREMENTS written; ready to plan Phase 28
+- **Last activity:** 2026-07-27 -- v6.0 milestone opened (PROJECT/STATE/ROADMAP/REQUIREMENTS written by hand)
 
 ### Pending Todos
 - None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).
