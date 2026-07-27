@@ -10,7 +10,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 27-01-PLAN.md — Read-side foundation: monitor_reader.py bulk-read adapter (current ranks / N-session trail / recent alert events, cold-start-safe) + vrp_components() VRP-legs exposer + tests (SC-1, SC-5, SC-6)
+- [x] 27-01-PLAN.md — Read-side foundation: monitor_reader.py bulk-read adapter (current ranks / N-session trail / recent alert events, cold-start-safe) + vrp_components() VRP-legs exposer + tests (SC-1, SC-5, SC-6)
 
 **Wave 2** *(both depend on 27-01; disjoint files — parallel)*
 
