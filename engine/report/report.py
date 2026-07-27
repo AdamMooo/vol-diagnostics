@@ -399,6 +399,105 @@ def _section_header(label: str) -> str:
     )
 
 
+# ── Alerts banner — event-shaped, only rendered when structure hits an extreme ──
+
+# Human labels for the monitor's internal metric / rank-kind identifiers.
+_ALERT_METRIC_LABELS = {
+    "vrp": "VRP", "skew_25d": "Skew 25\u0394", "fly_25d": "Fly 25\u0394",
+    "surface_level": "Surface level", "surface_rms": "Surface RMS",
+}
+_ALERT_RANK_KIND_LABELS = {
+    "level_deep": "10yr level", "level_1yr": "1yr level", "change": "\u0394 change",
+}
+_ALERT_RANK_KIND_COLUMN = {
+    "level_deep": "level_rank_deep", "level_1yr": "level_rank_1yr", "change": "change_rank",
+}
+
+
+def _ordinal(n) -> str:
+    """1 -> 1st, 2 -> 2nd, 92 -> 92nd. Returns '' for None/non-numeric."""
+    try:
+        i = int(round(float(n)))
+    except (TypeError, ValueError):
+        return ""
+    suffix = "th" if 10 <= i % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(i % 10, "th")
+    return f"{i}{suffix}"
+
+
+def alerts_section_html(alert_events_df, prior_rank_lookup: dict | None = None) -> str:
+    """Event-shaped alerts banner: one compact row per band entry/escalation.
+
+    Hybrid design (Plan 27-04, adjusted): the rich descriptive report is kept; this
+    banner rides ABOVE it and is rendered ONLY when the monitor actually fires. On a
+    quiet day (the cold-start norm — no alert has ever fired) it returns "" so the
+    email is unchanged. Reads stored AlertEvent structs only — no new math (SC-6).
+
+    Each row shows ticker · metric · rank-kind · ENTRY/ESCALATION badge · the rank at
+    transition with a Delta-vs-yesterday fragment ("92nd, was 78th") looked up from
+    prior_rank_lookup keyed by (ticker, metric, rank_kind)."""
+    if alert_events_df is None or getattr(alert_events_df, "empty", True):
+        return ""
+
+    lookup = prior_rank_lookup or {}
+    rows: list[str] = []
+    for _, ev in alert_events_df.iterrows():
+        ticker = ev.get("ticker", "")
+        metric = ev.get("metric", "")
+        rank_kind = ev.get("rank_kind", "")
+        alert_type = str(ev.get("alert_type", "") or "").lower()
+        rank_now = ev.get("rank_at_transition")
+
+        metric_label = _ALERT_METRIC_LABELS.get(metric, str(metric))
+        kind_label = _ALERT_RANK_KIND_LABELS.get(rank_kind, str(rank_kind))
+        is_escalation = alert_type == "escalation"
+        badge_color = NEG_RED if is_escalation else ACCENT
+        badge_text = "ESCALATION" if is_escalation else "ENTRY"
+
+        now_str = _ordinal(rank_now) or "\u2014"
+        prior = lookup.get((ticker, metric, rank_kind))
+        delta_frag = f", was {_ordinal(prior)}" if _ordinal(prior) else ""
+
+        rows.append(
+            f'<tr>'
+            f'<td style="{_SANS}padding:8px 10px;font-size:12px;color:{INK};'
+            f'border-bottom:1px solid {RULE_COLOR};vertical-align:middle;">'
+            f'<span style="font-weight:700;">{ticker}</span>'
+            f'<span style="color:{LABEL_GRAY};"> &middot; {metric_label} '
+            f'&middot; {kind_label}</span></td>'
+            f'<td align="right" style="padding:8px 10px;'
+            f'border-bottom:1px solid {RULE_COLOR};vertical-align:middle;white-space:nowrap;">'
+            f'<span style="{_SANS}font-size:9px;font-weight:700;letter-spacing:0.6px;'
+            f'color:#ffffff;background:{badge_color};padding:2px 6px;border-radius:3px;'
+            f'text-transform:uppercase;">{badge_text}</span>'
+            f'<span style="{_MONO}font-size:12px;color:{INK};margin-left:8px;">'
+            f'{now_str}<span style="color:{LABEL_GRAY};">{delta_frag}</span></span>'
+            f'</td></tr>'
+        )
+
+    return (
+        f'{_section_header("Alerts")}'
+        f'<div style="border:1px solid {ACCENT};border-radius:6px;overflow:hidden;'
+        f'margin:0 0 6px;">'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        f'border="0" style="border-collapse:collapse;">{"".join(rows)}</table></div>'
+        f'<div style="{_SANS}font-size:10px;color:{LABEL_GRAY};margin:0 0 4px;">'
+        f'Band entries &amp; escalations only &middot; rank at transition, prior in gray.'
+        f'</div>'
+    )
+
+
+def _methodology_link() -> str:
+    """Single Methodology link — replaces the old inline methodology prose. Omitted
+    gracefully when the URL is unset (placeholder-safe)."""
+    url = getattr(config, "DASHBOARD_METHODOLOGY_URL", "") or ""
+    if not url:
+        return ""
+    return (
+        f'<a href="{url}" style="{_SANS}font-size:10px;color:{ACCENT};'
+        f'text-decoration:underline;">Methodology &amp; assumptions &rarr;</a>'
+    )
+
+
 # ── Masthead & footer ─────────────────────────────────────────────────
 
 def _masthead(date: datetime.date) -> str:
@@ -667,6 +766,8 @@ def build_email(
     evolution_data: dict | None = None,
     png_note: str | None = None,
     oi_data: "dict | None" = None,
+    alert_events=None,
+    prior_rank_lookup: dict | None = None,
 ) -> str:
     date = date or datetime.date.today()
 
@@ -692,6 +793,11 @@ def build_email(
     vrp_strip = _vrp_strip(index_results)
     masthead = _masthead(date)
     footer = _footer()
+
+    # Event-shaped alerts banner — empty string on quiet days (cold-start norm),
+    # rides above the descriptive report only when the monitor fires (hybrid design).
+    alerts_html = alerts_section_html(alert_events, prior_rank_lookup)
+    methodology_link = _methodology_link()
 
     # Evolution section — omitted entirely on cold start (D-10, D-11)
     evol_html = ""
@@ -748,6 +854,7 @@ Vol risk premium across SPY / QQQ / IWM, dealer gamma regime, and key levels.
       <tr><td style="padding:6px 20px 20px;">
 
   {ts_line}
+  {alerts_html}
   {vrp_strip}
   {evol_html}
   {_section_header("Ticker Detail")}
@@ -755,6 +862,7 @@ Vol risk premium across SPY / QQQ / IWM, dealer gamma regime, and key levels.
   {failed_note}
   {png_note_html}
   {footer}
+  {methodology_link}
 
       </td></tr>
     </table>

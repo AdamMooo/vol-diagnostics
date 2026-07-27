@@ -187,6 +187,16 @@ HISTORY_DAYS: int = 30
 """Rolling lookback (days) for the History tab charts (γ-flip vs spot, skew).
 Long enough to see regime shifts; short enough to fit in one screen."""
 
+# ── Dashboard links (email → dashboard) ────────────────────────────────────────
+
+DASHBOARD_METHODOLOGY_URL: str = "https://40.233.113.63.nip.io"
+"""Target for the single 'Methodology' link in the daily email (Plan 27-04).
+Replaces the old inline methodology caveat banner + glossary + deep-methodology
+footer — the sole reader authored the methodology, so the fixed prose was pure
+filler. Points at the public Oracle-hosted dashboard, which carries the
+'Methodology & Assumptions' section. Set to '' to omit the link entirely; the email
+renders gracefully either way (placeholder-safe per RESEARCH Open Q1 / Assumption A1)."""
+
 # Single source of truth for all chart and email colors — dashboard and Phase 11 email read the same tokens.
 # ── Palette tokens (D-14) ────────────────────────────────────────────────────────
 

@@ -292,12 +292,36 @@ def run(dry_run: bool = False, force: bool = False) -> None:
         if not d["summary"].get("error") and d.get("expiry_oi_df") is not None
     }
     notes = [n for n in (vol_feed_note, png_note) if n]
+
+    # Event-shaped alerts banner input — band entries/escalations fired today plus
+    # each alerting pair's prior rank (for the Delta-vs-yesterday fragment). Cold-start
+    # safe: load_recent_alert_events returns an empty frame until an alert ever fires,
+    # so the banner renders as "" and the email is unchanged (non-blocking).
+    from engine.monitor import monitor_reader
+    alert_events = None
+    prior_rank_lookup: dict = {}
+    try:
+        alert_events = monitor_reader.load_recent_alert_events(days=1)
+        for _, ev in alert_events.iterrows():
+            tkr, mtr, kind = ev.get("ticker"), ev.get("metric"), ev.get("rank_kind")
+            col = rpt._ALERT_RANK_KIND_COLUMN.get(kind)
+            if col is None:
+                continue
+            trail = monitor_reader.load_rank_trail(tkr, mtr, n=2)
+            if len(trail) >= 2 and col in trail.columns:
+                prior_rank_lookup[(tkr, mtr, kind)] = trail.iloc[-2][col]
+    except Exception as exc:
+        print(f"  [WARN] alert-events gather failed (non-blocking): {exc}")
+        alert_events = None
+
     html = rpt.build_email(
         index_results=index_results,
         date=today,
         evolution_data=evolution_data,
         png_note=" · ".join(notes) if notes else None,
         oi_data=oi_data if oi_data else None,
+        alert_events=alert_events,
+        prior_rank_lookup=prior_rank_lookup,
     )
 
     if dry_run:

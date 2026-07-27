@@ -17,7 +17,11 @@ import re
 import pandas as pd
 import pytest
 
-from engine.report.report import _ticker_card, build_email, evolution_section_html, _oi_summary_table
+from engine.report.report import (
+    _ticker_card, build_email, evolution_section_html, _oi_summary_table,
+    alerts_section_html, _methodology_link, _ordinal,
+)
+from engine import config
 
 
 # ── Shared fixtures ───────────────────────────────────────────────────────────
@@ -438,3 +442,71 @@ def test_evolution_section_includes_all_horizon_detail_and_legend():
     assert "Level" in html and "Disp" in html
     # Per-horizon 30d value flows through (not just 5d).
     assert "+0.30pp" in html
+
+
+# ── Event-shaped alerts banner (Plan 27-04, hybrid) ──────────────────────────
+
+def _synthetic_alert_df(alert_type: str = "entry", rank: int = 92) -> pd.DataFrame:
+    return pd.DataFrame([{
+        "date": "2026-07-27", "ticker": "SPY", "metric": "skew_25d",
+        "rank_kind": "level_deep", "alert_type": alert_type,
+        "rank_at_transition": rank, "prior_state": "out",
+    }])
+
+
+def test_ordinal_suffixes():
+    assert _ordinal(1) == "1st"
+    assert _ordinal(2) == "2nd"
+    assert _ordinal(3) == "3rd"
+    assert _ordinal(11) == "11th"
+    assert _ordinal(92) == "92nd"
+    assert _ordinal(None) == ""
+
+
+def test_alerts_section_empty_returns_blank():
+    # Quiet day (cold-start norm): no banner at all — the rich report is unchanged.
+    assert alerts_section_html(None, {}) == ""
+    assert alerts_section_html(pd.DataFrame(columns=["ticker"]), {}) == ""
+
+
+def test_alerts_section_renders_event_row_with_delta():
+    df = _synthetic_alert_df(alert_type="entry", rank=92)
+    lookup = {("SPY", "skew_25d", "level_deep"): 78}
+    html = alerts_section_html(df, lookup)
+    assert "SPY" in html
+    assert "Skew" in html
+    assert "ENTRY" in html
+    assert "92nd" in html
+    assert "was 78th" in html  # Δ-vs-yesterday fragment
+
+
+def test_alerts_section_escalation_badge():
+    html = alerts_section_html(_synthetic_alert_df(alert_type="escalation"), {})
+    assert "ESCALATION" in html
+
+
+def test_build_email_quiet_day_has_no_alerts_banner():
+    # No alert_events → rich descriptive email unchanged, no Alerts header.
+    html = build_email([_minimal_result()])
+    assert ">Alerts<" not in html
+
+
+def test_build_email_renders_alerts_banner_when_events():
+    df = _synthetic_alert_df()
+    lookup = {("SPY", "skew_25d", "level_deep"): 78}
+    html = build_email([_minimal_result()], alert_events=df, prior_rank_lookup=lookup)
+    assert ">Alerts<" in html
+    assert "ENTRY" in html
+    assert "was 78th" in html
+
+
+def test_build_email_includes_methodology_link_when_url_set():
+    html = build_email([_minimal_result()])
+    if config.DASHBOARD_METHODOLOGY_URL:
+        assert config.DASHBOARD_METHODOLOGY_URL in html
+        assert "Methodology" in html
+
+
+def test_methodology_link_omitted_when_url_blank(monkeypatch):
+    monkeypatch.setattr(config, "DASHBOARD_METHODOLOGY_URL", "")
+    assert _methodology_link() == ""
