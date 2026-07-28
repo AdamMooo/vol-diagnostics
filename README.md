@@ -1,5 +1,7 @@
 # Vol Diagnostics — Vol & Dealer Microstructure Monitor for SPY/QQQ/IWM
 
+[![Daily Vol Report](https://github.com/AdamMooo/vol-diagnostics/actions/workflows/daily-report.yml/badge.svg)](https://github.com/AdamMooo/vol-diagnostics/actions/workflows/daily-report.yml)
+
 Implied-vol and dealer-gamma diagnostics for **SPY, QQQ, IWM** — built for an index income-sleeve PM (covered calls / cash-secured puts). It pulls live CBOE delayed-quote chains plus the free CBOE vol-index history, and surfaces how expensive protection is, where on the surface that expensiveness sits, how the surface is moving, and how dealer positioning is likely to behave.
 
 **Descriptive only — no trade signals, no predictive claims.**
