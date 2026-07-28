@@ -1,5 +1,5 @@
 # CLAUDE — Gamma OMM — Vol Diagnostics Dashboard
-Last updated: 2026-07-26 | Status: v5.0 Data Foundation in progress — Phase 26 (severity-rank + hysteresis alert engine, `engine/monitor/`) complete; Phase 27 (monitor UI) next
+Last updated: 2026-07-27 | Status: v5.0 shipped. No active milestone — current work is an interview/portfolio readiness pass (public dashboard link). Phase 27's monitor UI (raw percentile board + evidence panel) was built, then deleted from the dashboard 2026-07-27 after audit — no defensible reason to surface it without evidence-tier context; `engine/monitor/` backend stays as candidate infra, unused by the UI for now.
 
 ## Repo Card
 
@@ -20,7 +20,7 @@ Dealer-gamma + implied-vol diagnostics for an **index income-sleeve PM** (covere
 - an **interactive 3D vol surface** with mouse-driven smile/term slices, a day-by-day surface **"video"** (Evolution tab, Level ↔ Change), and a two-date ΔIV **compare**;
 - OI-led **positioning** — GEX demoted, capped ≤90 DTE, labeled a model construct.
 
-Descriptive only — no predictive/prescriptive claims.
+Descriptive only — no predictive/prescriptive claims. An in-app "ℹ️ Methodology & assumptions" popover (sidebar) states the evidence tier behind each read, condensed from `research/methodology-deep-review.md` (fact-checked 2026-07-27).
 
 **Cold-start note:** chain-derived metrics (skew, surface, GEX) only accrue from our own daily snapshots (since ~2026-05-06); the VRP percentile rides the CBOE vol-index's real depth (VIX to 1990, VXN/RVX to 2009), ranked against a genuine ~10-year (2,520-session) window via `config.VRP_DEEP_LOOKBACK_SESSIONS` — not a short recent-regime window, so "cheap"/"rich" can't just mean "cheap relative to an already-elevated past year." The daily scheduler firing is what compounds the value.
 
@@ -38,6 +38,20 @@ pytest engine/tests                     # 449 tests
 ```
 
 `requirements.txt` tracks the stack. Add packages there when needed.
+
+## Deploy (Oracle)
+
+Pushing to `main` does **not** update the live site — Oracle only updates when you SSH in and pull. Run this after every push you want live:
+
+```
+ssh -i C:\Users\AdamMorris\.ssh\vol-diagnostics.key ubuntu@40.233.113.63 "cd ~/vol-diagnostics && git pull && docker compose up -d --build"
+```
+
+Same command on any machine — only the `-i` key path is machine-specific (copy the key there, or point at wherever it lives on that box). IP is Oracle's reserved Always-Free address for this instance, stable unless the instance itself is recreated.
+
+**Never** chain this with `docker compose down` or `systemctl restart docker` in the same SSH call — that combo hard-locked the 1-vCPU/1GB box once (2026-07-22), requiring an OCI console reboot. Run the pull+build line on its own, watched in the foreground.
+
+Site: https://40.233.113.63.nip.io
 
 ## Constraints
 

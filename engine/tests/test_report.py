@@ -404,7 +404,7 @@ def test_evolution_section_includes_largest_move_summary_row():
     }
     html = evolution_section_html(evol_data)
     assert html is not None
-    assert "What changed most today" in html
+    assert "What moved most today" in html
 
 
 def test_evolution_section_includes_all_horizon_detail_and_legend():
@@ -491,13 +491,15 @@ def test_build_email_quiet_day_has_no_alerts_banner():
     assert ">Alerts<" not in html
 
 
-def test_build_email_renders_alerts_banner_when_events():
+def test_build_email_alerts_banner_suppressed_even_when_events():
+    # Suppressed 2026-07-27 (Adam's call): a bare rank-crossing with no mechanism/
+    # evidence-tier context read as more meaningful than it is. alerts_section_html()
+    # itself stays tested above (test_alerts_section_*) for when it's re-enabled —
+    # only build_email's wiring to it is disabled.
     df = _synthetic_alert_df()
     lookup = {("SPY", "skew_25d", "level_deep"): 78}
     html = build_email([_minimal_result()], alert_events=df, prior_rank_lookup=lookup)
-    assert ">Alerts<" in html
-    assert "ENTRY" in html
-    assert "was 78th" in html
+    assert ">Alerts<" not in html
 
 
 def test_build_email_includes_methodology_link_when_url_set():

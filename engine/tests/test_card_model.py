@@ -383,10 +383,15 @@ class TestCardReadOtherChips:
         assert "vol easing (5d)" in _chip_texts(build_card_read(self.BASE, move_5d=-0.9))
         assert "vol steady (5d)" in _chip_texts(build_card_read(self.BASE, move_5d=0.0))
 
-    def test_rich_and_steep_lean_favors_calls(self):
+    def test_rich_and_steep_lean_is_descriptive_not_prescriptive(self):
+        # Revised 2026-07-27: lean states facts (rich + steep skew), not an
+        # unvalidated "favors call writing" trading recommendation.
         s = dict(self.BASE, vrp_pct=85)
         r = build_card_read(s, skew_pct=80)
-        assert "call writing" in r.lean.lower()
+        assert "rich" in r.lean.lower()
+        assert "skew" in r.lean.lower()
+        assert "writing" not in r.lean.lower()
+        assert "favors" not in r.lean.lower()
 
     def test_chips_are_text_sign_tuples(self):
         r = build_card_read(self.BASE)

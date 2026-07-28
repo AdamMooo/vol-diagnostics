@@ -115,8 +115,8 @@ def _fmt_butterfly(butterfly: float | None, butterfly_pct: int | None, butterfly
             return f"{base} · {butterfly_pct_n} sessions (building to {lookback})"
         return base
     if butterfly_pct_n is not None and butterfly_pct_n < lookback:
-        return f"{base} · {butterfly_pct}th %ile · {butterfly_pct_n} sessions (building to {lookback})"
-    return f"{base} · {butterfly_pct}th %ile"
+        return f"{base} · {_ordinal(butterfly_pct)} %ile · {butterfly_pct_n} sessions (building to {lookback})"
+    return f"{base} · {_ordinal(butterfly_pct)} %ile"
 
 
 def format_oi_impact(pct_of_total: float | None, put_call_ratio: float | None) -> str:
@@ -166,7 +166,7 @@ def _fmt_vrp(vrp: float | None, vrp_pct: int | None, vrp_pct_n: int | None) -> s
     lookback = config.VRP_DEEP_LOOKBACK_SESSIONS
     if vrp_pct is None:
         return f"{vrp:+.1f}pp · insufficient history"
-    base = f"{vrp:+.1f}pp · {vrp_pct}th %ile"
+    base = f"{vrp:+.1f}pp · {_ordinal(vrp_pct)} %ile"
     if vrp_pct_n is not None and vrp_pct_n < lookback:
         return f"{base} · {vrp_pct_n} sessions (building to {lookback})"
     years = round(lookback / 252)
@@ -190,6 +190,16 @@ def _fmt_term_ratios(r9d30: float | None, r30_3m: float | None) -> str:
         shape_3m = "backwardation" if r30_3m > 1.0 else "contango"
         parts.append(f"30/3M: {r30_3m:.3f} ({shape_3m})")
     return " · ".join(parts)
+
+
+def _ordinal(n) -> str:
+    """1 -> 1st, 2 -> 2nd, 92 -> 92nd. Returns '' for None/non-numeric."""
+    try:
+        i = int(round(float(n)))
+    except (TypeError, ValueError):
+        return ""
+    suffix = "th" if 10 <= i % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(i % 10, "th")
+    return f"{i}{suffix}"
 
 
 def _signed_color(val: float | None) -> str:
@@ -462,18 +472,39 @@ class CardRead:
 
 
 def _lean_text(vrp_pct, skew_pct) -> str:
-    """vrp_pct is None unless it cleared the credibility floor; same for skew_pct."""
+    """A purely descriptive restatement of VRP + skew — no prescriptive "favors X"
+    language. Revised 2026-07-27: the prior wording ("favors call writing",
+    "poorly compensated") implied a validated trading edge that doesn't exist —
+    the v6.0 pre-build test found no forward-return edge from timing VRP level
+    (p=0.74, see research/covered-call-spike-findings.md). This states the same
+    underlying facts (VRP band, skew) without the unsupported action framing.
+    vrp_pct is None unless it cleared the credibility floor; same for skew_pct."""
     if vrp_pct is None:
         return "Premium history building — no rich/cheap read yet."
     rich, cheap = vrp_pct >= 67, vrp_pct <= 33
     steep = skew_pct is not None and skew_pct >= 67
     if cheap:
-        return "Premium cheap — writing poorly compensated; owning protection relatively attractive."
+        return "Premium cheap — below its historical median."
     if rich and steep:
-        return "Premium rich, front skew bid — favors call writing."
+        return "Premium rich, front skew steep — downside protection carrying an elevated premium."
     if rich:
-        return "Premium rich — premium-selling favored."
-    return "Premium middling — limited write edge."
+        return "Premium rich — above its historical median."
+    return "Premium near its historical median."
+
+
+def gex_mechanism_note(net_gex: float | None) -> str:
+    """One-line mechanism caption for the dealer-regime label — makes explicit
+    that 'amplifying/stabilizing' is a magnitude claim, not a direction call.
+    Evidence: Baltussen et al. 2021 (JFE), Egebjerg & Kokholm 2024, Anderegg
+    et al. 2022 — real price-impact data, moderate support for the mechanism,
+    no support for using it to call direction. See research/methodology-deep-review.md."""
+    if net_gex is None:
+        return ""
+    if net_gex > 0:
+        return "Means realized moves tend to be more contained, not a directional call."
+    if net_gex < 0:
+        return "Means realized moves tend to be larger in either direction, not a directional call."
+    return "Net gamma near zero — no lean toward contained or amplified moves."
 
 
 def build_card_read(

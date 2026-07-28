@@ -18,7 +18,8 @@ from engine import config
 from engine.report.card_model import (
     build_card_read, _pct_from_spot, _fmt_pct as _fmt_signed_pct,
     _fmt_pct as _fmt_unsigned_pct, format_oi_impact,
-    _fmt_vrp, _fmt_skew, _fmt_expected_move, _fmt_term_ratios,
+    _fmt_vrp, _fmt_skew, _fmt_expected_move, _fmt_term_ratios, _ordinal,
+    gex_mechanism_note,
 )
 
 # Sign-of-net-gex visual cue — muted, report-grade tones (email-local;
@@ -247,6 +248,8 @@ def _ticker_card(r: dict) -> str:
         f'<div style="{_SANS}font-size:11px;font-weight:700;color:{regime_color};'
         f'letter-spacing:0.5px;text-transform:uppercase;margin-top:8px;">'
         f'&#9679; {regime_txt}</div>'
+        f'<div style="{_SANS}font-size:10px;color:{LABEL_GRAY};margin-top:2px;">'
+        f'{gex_mechanism_note(net_gex)}</div>'
     )
 
     read_html = _read_block(r)
@@ -414,16 +417,6 @@ _ALERT_RANK_KIND_COLUMN = {
 }
 
 
-def _ordinal(n) -> str:
-    """1 -> 1st, 2 -> 2nd, 92 -> 92nd. Returns '' for None/non-numeric."""
-    try:
-        i = int(round(float(n)))
-    except (TypeError, ValueError):
-        return ""
-    suffix = "th" if 10 <= i % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(i % 10, "th")
-    return f"{i}{suffix}"
-
-
 def alerts_section_html(alert_events_df, prior_rank_lookup: dict | None = None) -> str:
     """Event-shaped alerts banner: one compact row per band entry/escalation.
 
@@ -555,13 +548,15 @@ def _vrp_strip(index_results: list[dict]) -> str:
             color, tag = NEG_RED, "cheap"
         else:
             color, tag = LABEL_GRAY, "fair"
+        ord_str = _ordinal(vrp_pct)
+        ord_suffix = ord_str[len(str(int(round(vrp_pct)))):]
         cells.append(
             f'<td align="center" style="padding:12px 10px;vertical-align:top;'
             f'border-left:1px solid {RULE_COLOR};">'
             f'<div style="{_SANS}font-size:12px;font-weight:700;color:{INK};'
             f'letter-spacing:0.5px;">{r.get("ticker","")}</div>'
             f'<div style="{_MONO}font-size:23px;font-weight:700;color:{color};'
-            f'line-height:1.2;margin:3px 0 0;">{vrp_pct}<span style="font-size:11px;">th</span></div>'
+            f'line-height:1.2;margin:3px 0 0;">{vrp_pct}<span style="font-size:11px;">{ord_suffix}</span></div>'
             f'<div style="{_SANS}font-size:10px;font-weight:700;text-transform:uppercase;'
             f'letter-spacing:0.5px;color:{color};margin-bottom:2px;">{tag}</div>'
             f'{_pct_bar(vrp_pct, color)}'
@@ -587,28 +582,70 @@ def _vrp_strip(index_results: list[dict]) -> str:
 
 # ── Evolution section ─────────────────────────────────────────────────
 
-def _evolution_largest_move_line(ticker: str, metrics: dict) -> str:
+def _evolution_movers_strip(evolution_data: dict) -> str:
+    """Compact three-column 'biggest mover' strip, styled like the VRP strip
+    above (same panel/header/hero-number pattern) — replaces a bold full-sentence
+    paragraph that read as disproportionately heavy against the rest of the email.
+    Direction isn't colored red/green: a surface moving isn't inherently good or
+    bad the way rich/cheap VRP is, so an arrow carries direction, not color."""
     import math
     defs = {
         "level": ("surface level", "rose", "fell"),
-        "rms": ("surface dispersion", "widened", "compressed"),
+        "rms": ("dispersion", "widened", "compressed"),
         "skew_change": ("front skew", "steepened", "flattened"),
         "term_change": ("term slope", "steepened", "flattened"),
     }
-    ranked: list[tuple[float, str, float]] = []
-    for key in ("level", "rms", "skew_change", "term_change"):
-        v = metrics.get(key)
-        if v is None or (isinstance(v, float) and math.isnan(v)):
+    cells: list[str] = []
+    for ticker in ("SPY", "QQQ", "IWM"):
+        metrics = evolution_data.get(ticker, {})
+        ranked: list[tuple[float, str, float]] = []
+        for key in ("level", "rms", "skew_change", "term_change"):
+            v = metrics.get(key)
+            if v is None or (isinstance(v, float) and math.isnan(v)):
+                continue
+            ranked.append((abs(float(v)), key, float(v)))
+
+        if not ranked:
+            cells.append(
+                f'<td align="center" style="padding:12px 10px;vertical-align:top;'
+                f'border-left:1px solid {RULE_COLOR};">'
+                f'<div style="{_SANS}font-size:12px;font-weight:700;color:{INK};'
+                f'letter-spacing:0.5px;">{ticker}</div>'
+                f'<div style="{_SANS}font-size:11px;color:{LABEL_GRAY};margin-top:10px;">'
+                f'building history</div></td>'
+            )
             continue
-        ranked.append((abs(float(v)), key, float(v)))
 
-    if not ranked:
-        return f"{ticker}: insufficient history yet."
+        _, key, value = max(ranked, key=lambda x: x[0])
+        label, up_word, down_word = defs[key]
+        direction = up_word if value >= 0 else down_word
+        arrow = "&#9650;" if value >= 0 else "&#9660;"
+        cells.append(
+            f'<td align="center" style="padding:12px 10px;vertical-align:top;'
+            f'border-left:1px solid {RULE_COLOR};">'
+            f'<div style="{_SANS}font-size:12px;font-weight:700;color:{INK};'
+            f'letter-spacing:0.5px;">{ticker}</div>'
+            f'<div style="{_MONO}font-size:17px;font-weight:700;color:{INK};'
+            f'line-height:1.2;margin:3px 0 0;">{arrow} {abs(value):.2f}'
+            f'<span style="font-size:11px;">pp</span></div>'
+            f'<div style="{_SANS}font-size:10px;font-weight:600;color:{LABEL_GRAY};'
+            f'margin-top:2px;">{label} {direction}</div>'
+            f'</td>'
+        )
 
-    _, key, value = max(ranked, key=lambda x: x[0])
-    label, up_word, down_word = defs[key]
-    direction = up_word if value >= 0 else down_word
-    return f"{ticker}: {label} {direction} ({value:+.2f}pp)."
+    if not cells:
+        return ""
+    cells[0] = cells[0].replace(f'border-left:1px solid {RULE_COLOR};', '', 1)
+    return (
+        f'<div style="border:1px solid {RULE_COLOR};border-radius:8px;'
+        f'background:{PANEL_BG};margin:0 0 12px;overflow:hidden;">'
+        f'<div style="{_SANS}font-size:11px;font-weight:700;letter-spacing:0.8px;'
+        f'text-transform:uppercase;color:{LABEL_GRAY};padding:10px 14px 0;">'
+        f'What moved most today</div>'
+        f'<table width="100%" cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;"><tr>{"".join(cells)}</tr></table>'
+        f'</div>'
+    )
 
 
 _EVOLUTION_HORIZONS = (("5d", "5-day"), ("10d", "10-day"), ("30d", "30-day"))
@@ -657,7 +694,7 @@ def _evolution_ticker_table(ticker: str, ticker_data: dict) -> str:
     )
 
     label_html = (
-        f'<div style="{_SANS}font-size:13px;font-weight:700;color:{INK};'
+        f'<div style="{_SANS}font-size:12px;font-weight:700;color:{INK};'
         f'margin:14px 0 4px;">{ticker}</div>'
     )
 
@@ -735,15 +772,7 @@ def evolution_section_html(evolution_data: dict) -> str | None:
     if not any(_ticker_has_data(td) for td in evolution_data.values()):
         return None
 
-    move_lines = " ".join(
-        _evolution_largest_move_line(ticker, evolution_data.get(ticker, {}))
-        for ticker in ("SPY", "QQQ", "IWM")
-    )
-    summary_html = (
-        f'<p style="{_SANS}font-size:12px;margin:0 0 10px;color:{INK};line-height:1.5;">'
-        f'<b>What changed most today:</b> '
-        f'<span style="color:{LABEL_GRAY};">{move_lines}</span></p>'
-    )
+    summary_html = _evolution_movers_strip(evolution_data)
 
     tables = "".join(
         _evolution_ticker_table(ticker, evolution_data.get(ticker, {}))
@@ -794,9 +823,11 @@ def build_email(
     masthead = _masthead(date)
     footer = _footer()
 
-    # Event-shaped alerts banner — empty string on quiet days (cold-start norm),
-    # rides above the descriptive report only when the monitor fires (hybrid design).
-    alerts_html = alerts_section_html(alert_events, prior_rank_lookup)
+    # Alerts banner suppressed 2026-07-27 (Adam's call): a bare rank-crossing
+    # ("95th, was 92nd") with no mechanism/evidence-tier context reads as more
+    # meaningful than it is. Re-enable once reworded to state what an entry/
+    # escalation actually means, tied to the corrected methodology-review tiers.
+    alerts_html = ""
     methodology_link = _methodology_link()
 
     # Evolution section — omitted entirely on cold start (D-10, D-11)

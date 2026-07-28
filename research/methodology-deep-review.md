@@ -1,5 +1,7 @@
 # GEX Methodology — Deep Literature Review
-Last updated: 2026-05-13
+Last updated: 2026-07-27 (fact-check audit — see note below; original review 2026-05-13)
+
+**2026-07-27 audit note:** This document was independently fact-checked against primary sources. No fabricated citations were found, but corrections were applied: wrong DOIs (Soebhag, Buis), a wrong author list (Avellaneda et al.), wrong author initials (Jonsson & Nyberg), one-sided reporting of two symmetric findings (Ni/Pearson/Poteshman, O'Donovan et al.), an unconfirmed effect-size claim presented as established (Barbon et al., Egebjerg & Kokholm), two tier downgrades ("GEX predicts vol" and "GEX predicts returns"), and two previously-omitted counter-evidence papers (Dim, Eraker & Vilkov 2023; Muravyev 2016) brought into the body text where they were only sitting in the bibliography. Full audit trail: `scratchpad` session artifact, not versioned in this repo — corrections are inline below, marked "corrected/revised/softened 2026-07-27."
 
 ---
 
@@ -32,27 +34,28 @@ This is the "dollar gamma" concept, which *does* appear in academic work under o
 
 ### 2. GEX Predictive Power — Backtests
 
-**Verdict: Moderate — emerging academic support for vol-predictive and return-predictive power, effect sizes modest and regime-dependent**
+**Verdict (revised 2026-07-27 audit): Weak/Moderate for realized-vol prediction, Weak/Preliminary for return prediction.** The original "Moderate — emerging" framing overstated this: the return-prediction claim rests on one non-peer-reviewed thesis with unreported effect sizes, and direct counter-evidence in the highest-gamma-concentration segment (0DTE) was previously omitted rather than engaged with. See Dim, Eraker & Vilkov (2023) below.
 
 #### Jonsson & Nyberg (2025)
 
-The most directly on-point paper. Available at Linköping University's DiVA portal (diva2:1972044); no SSRN number has been assigned as of this writing — it is a master's thesis, not a peer-reviewed journal article. Title: "Convexity in Motion: Leveraging Gamma Exposure to Predict Equity Market Returns and Improve Predictive Modeling."
+The only index-level GEX-predicts-returns study found, which is a narrower claim than "most directly on-point." Available at Linköping University's DiVA portal (diva2:1972044); no SSRN number has been assigned as of this writing — it is a master's thesis, not a peer-reviewed journal article. Title: "Convexity in Motion: Leveraging Gamma Exposure to Predict Equity Market Returns and Improve Predictive Modeling."
 
 - **Data:** Daily S&P 500, 2011–2025 (approximately 14 years)
 - **Model:** ARDL (Autoregressive Distributed Lag), with GEX as a distributed lag predictor of index returns
 - **Main result:** Changes in GEX are statistically significantly and positively associated with subsequent S&P 500 returns across multiple short horizons. Including GEX improves out-of-sample forecast accuracy versus GEX-excluding ARDL and random walk benchmarks (evaluated with Diebold-Mariano tests).
 - **Caveat:** Results are "somewhat diminished in strength" in the post-2020 subsample. Effect sizes and exact p-values are not reported in the abstract or the secondary coverage reviewed here.
-- **Interpretation for the dashboard:** Directional support, but it is a thesis, not a refereed paper. Weight accordingly.
+- **Interpretation for the dashboard:** A single unreviewed thesis with unreported effect sizes/p-values is exactly the evidentiary weight this project already treated with skepticism elsewhere — the v6.0 covered-call VRP-timing test was shelved on p=0.74, a more rigorous result than anything reported here. This paper does not clear that bar and should not be described as "emerging support"; it is one unreplicated, unrefereed data point.
 
 #### Soebhag (2023) — *Journal of Empirical Finance*
 
-"Option Gamma and Stock Returns." Published in *Journal of Empirical Finance*, Vol. 74, 2023. DOI: 10.1016/j.jempfin.2023.101269. SSRN: 4256259.
+"Option Gamma and Stock Returns." Published in *Journal of Empirical Finance*, Vol. 74, 2023. DOI: 10.1016/j.jempfin.2023.101442 (corrected 2026-07-27; doc previously cited `101269`, which is wrong). SSRN: 4256259.
 
 - **Data:** Cross-section of US individual stocks with listed options
 - **Methodology:** Portfolio sorts on net gamma exposure at the individual stock level; Fama-MacBeth cross-sectional regressions
-- **Main result:** Stocks with **high** net gamma exposure systematically **underperform** stocks with **low** net gamma exposure. High-net-gamma stocks also negatively predict future realized volatility. The effect is distinct from standard return predictors and survives factor-model adjustment.
+- **Main result:** Stocks with **high** net gamma exposure systematically **underperform** stocks with **low** net gamma exposure by ~10%/year, annualized long-short spread. The effect is distinct from standard return predictors and survives factor-model adjustment.
+- **RV-direction claim — unresolved, flag before reuse:** the abstract states "stocks with low net gamma exposure negatively predict future realized volatility," which is phrased ambiguously enough that secondary sources disagree on which direction it implies (whether low-gamma stocks see subsequently *higher* or *lower* realized vol). The mechanism paragraph — "investors command a risk premium to hold low net gamma exposure stocks, which are riskier" — suggests low-gamma = riskier, consistent with the destabilizing-hedging theory (low/negative gamma → more volatile), but this doc cannot confirm the exact regression sign without the full paper text. Do not cite a specific direction from this paper until the full-text methodology section is read.
 - **Mechanism:** Non-informational (flow-based), not private information. Interpreted as a risk premium: low-net-gamma stocks are riskier, and investors require compensation.
-- **Implication:** At the individual stock level, net gamma exposure predicts the cross-section of returns. This is complementary to (not identical to) the index-level GEX concept the dashboard uses.
+- **Implication:** At the individual stock level, net gamma exposure predicts the cross-section of returns. This is complementary to (not identical to) the index-level GEX concept the dashboard uses — it is a different construct (cross-sectional stock-picking signal) from an index-level regime read.
 
 #### Baltussen, Da, Lammers & Martens (2021) — *Journal of Financial Economics*
 
@@ -69,9 +72,16 @@ The most directly on-point paper. Available at Linköping University's DiVA port
 
 - **Main result:** A one-standard-deviation increase in options gamma imbalance (equivalent to net GEX exposure) depresses end-of-day returns by approximately 113% of the average return in the final 30 minutes. Leveraged ETF rebalancing flows increase end-of-day returns by 430% of average.
 - **Mechanism:** Delta-hedging can have a *stabilizing* (reversal) or *destabilizing* (momentum-amplifying) effect depending on sign of dealer gamma, consistent with the GEX positive/negative framing.
-- **Implication:** The largest quantified effect size in the literature for options-hedging-flow price impact — in the final 30 minutes, the effect is economically very large.
+- **Implication — figures unconfirmed (flagged 2026-07-27 audit):** the 113%/430% figures could not be independently re-verified against a readable primary source during this review. Calling this "the largest quantified effect size in the literature" based on unconfirmed numbers overstates confidence; treat the mechanism (stabilizing/destabilizing sign) as supported, the specific magnitude as unconfirmed.
 
-**What the literature does not yet show:** A direct OOS backtest of a daily trading strategy using GEX as the sole signal, with Sharpe ratio, max drawdown, and benchmark-adjusted returns reported in a peer-reviewed journal. The Jonsson & Nyberg paper is the closest but remains a thesis.
+#### Dim, Eraker & Vilkov (2023) — direct counter-evidence, previously omitted from this section
+
+"0DTEs: Trading, Gamma Risk and Volatility Propagation." SSRN: 4692190.
+
+- **Main result:** High open-interest 0DTE gamma — the most concentrated modern gamma pool, and the segment where the destabilization mechanism above should be strongest — does **not** propagate to future volatility. Intraday 0DTE volume shocks do not amplify subsequent index returns.
+- **Implication:** This is a direct empirical test of the same gamma-hedging mechanism that Baltussen (2021), Barbon (2021), and Buis (2024) support, run in the segment with the highest gamma concentration, and it comes back negative. It was previously cited only in this document's bibliography and never discussed here — an omission that made the "GEX predicts vol" case look more one-sided than the actual evidence supports. This paper does not overturn the mechanism papers (different sample, different question — 0DTE volume shocks vs. aggregate dealer gamma sign), but it is a real complication that belongs in this section, not filed away unread.
+
+**What the literature does not yet show:** A direct OOS backtest of a daily trading strategy using GEX as the sole signal, with Sharpe ratio, max drawdown, and benchmark-adjusted returns reported in a peer-reviewed journal. The Jonsson & Nyberg paper is the closest but remains a thesis, and Dim/Eraker/Vilkov (2023) above is a real counter-data-point in the specific segment where the mechanism should show up most clearly.
 
 ---
 
@@ -109,7 +119,14 @@ The GEX framework treats open interest as dealer-short by convention (dealers se
 
 Glassnode published a methodology paper introducing taker-flow-based GEX for crypto options (Deribit data). Their key finding is that in crypto markets, the OI-based assumption (dealers are short) breaks down because retail traders are often *buyers* of calls, and taker-flow analysis is needed to determine actual dealer direction. This methodological paper is not peer-reviewed but is technically rigorous and highlights a known limitation of the OI-sign convention that may be relevant to any equity-market extension.
 
-**Net assessment:** The dealer-short-index-put assumption is empirically well-grounded (Garleanu et al. 2009, Anderegg et al. 2022). The GEX sign convention for puts (positive from short put = positive gamma for dealer) is consistent with the empirical record. The largest caveat is that not all market makers delta-hedge (Hu et al. 2023), which attenuates but does not eliminate the mechanism.
+#### Muravyev (2016) — *Journal of Finance* — previously cited only in the bibliography, never engaged with here
+
+"Order Flow and Expected Option Returns." *Journal of Finance*, Vol. 71, Issue 2, pp. 673–708. DOI: 10.1111/jofi.12380. SSRN: 1963865.
+
+- **Main result:** Market makers in equity options frequently hold large **net long** positions in certain contract types — not uniformly net short. Order imbalances reflect inventory risk, and the inventory-risk component of option price impact is roughly five times larger than previously estimated.
+- **Implication:** This is in tension with the dealer-net-short convention this section otherwise supports, though it is not a clean contradiction: Gârleanu et al. (2009) documents net-short positioning specifically for **index** options (the dashboard's actual use case — SPY/QQQ/IWM), while Muravyev's finding is broader and covers equity options generally, where positioning is more mixed. The distinction matters and was previously left undrawn by citing this paper only in the bibliography.
+
+**Net assessment (revised 2026-07-27 audit):** The dealer-short assumption is empirically well-grounded **for index options specifically** (Garleanu et al. 2009, Anderegg et al. 2022) — this is the dashboard's actual use case (SPY/QQQ/IWM) and the "Strong" grade holds there. It should **not** be read as extending to single-name/equity options generally: Hu et al. (2023) (only 4/43 market makers continuously delta-hedge) and Muravyev (2016) (equity-options market makers often net long) both cut against a uniform dealer-short mechanism outside the index context.
 
 ---
 
@@ -125,16 +142,16 @@ No academic paper explicitly tests "Zero-Gamma Level" or "gamma flip" as a price
 
 - **Data:** Optionable US stocks, 1996–2002
 - **Main result:** On expiration dates, closing prices of optionable stocks cluster at option strike prices. Returns of optionable stocks are altered by an average of **at least 16.5 basis points** on each expiration date, translating to aggregate market capitalization shifts on the order of **$9 billion**.
-- **Mechanism:** Delta-hedging by options market makers at strikes where net purchased positions are large drives prices toward those strikes. This is the "pinning" phenomenon: large open interest at a strike generates hedging flows that pin the underlying to that strike.
-- **Implication for ZGL:** Pinning is not the ZGL concept directly, but it is the same underlying mechanism. Large OI strike concentration creates hedging-flow gravity wells. The ZGL represents the level where cumulative dealer gamma changes sign — a structurally analogous idea.
+- **Mechanism:** Delta-hedging by options market makers at strikes where net purchased positions are large drives prices toward those strikes. This is the "pinning" phenomenon: large open interest at a strike generates hedging flows that pin the underlying to that strike. **Correction (2026-07-27 audit):** the paper attributes pinning to *two* co-existing mechanisms — dealer delta-hedging AND price manipulation by traders holding expiring positions who push the close toward a favorable strike. This doc previously reported only the hedging channel, which makes the pinning evidence look like cleaner support for a pure-hedging ZGL story than the paper itself claims.
+- **Implication for ZGL:** Pinning is not the ZGL concept directly, and part of its cause is manipulation, not hedging. It is at best a structurally analogous idea, not direct support.
 
 #### Buis, Pieterse-Bloem, Verschoor & Zwinkels (2024) — *Journal of Economic Dynamics and Control*
 
-"Gamma Positioning and Market Quality." *Journal of Economic Dynamics and Control*, Vol. 164, July 2024. DOI: 10.1016/j.jedc.2024.104881. SSRN: 4109301.
+"Gamma Positioning and Market Quality." *Journal of Economic Dynamics and Control*, Vol. 164, July 2024. DOI: 10.1016/j.jedc.2024.104880 (corrected 2026-07-27; doc previously cited `104881`, which is wrong). SSRN: 4109301.
 
-- **Methodology:** Zero-intelligence market simulation with dynamic hedgers; theoretical analysis
+- **Methodology:** Zero-intelligence market simulation with dynamic hedgers; theoretical analysis. **This is simulated data, not observed market data** — flagging explicitly, since the point below previously implied otherwise.
 - **Main result:** Positive net gamma positioning reduces volatility and increases market stability (mean-reverting regime). Negative net gamma increases volatility and makes markets more prone to failure (trend-following regime).
-- **Implication for ZGL:** This is the cleanest academic support for the regime-change framing of ZGL. The paper validates the qualitative claim that crossing from positive to negative aggregate gamma changes the character of price action, even if it does not test the ZGL as a specific numerical level.
+- **Implication for ZGL (softened 2026-07-27 audit):** Theoretical support, from a simulation, for the qualitative claim that crossing from positive to negative aggregate gamma changes the character of price action. Calling this "the cleanest academic support for the regime-change framing of ZGL" — as this doc previously did — overstates a simulation result as if it were empirical confirmation. It does not test the ZGL as a specific numerical price level, and the Weak tier for ZGL (below) should not be read more optimistically than that tier implies just because this bullet sounds confident.
 
 #### Baltussen et al. (2021) (see §2)
 
@@ -155,8 +172,9 @@ The quantity `Γ_net × OI × 100` (shares dealers trade per $1 spot move) is th
 "A Model for the Hedging Impact of Option Market Makers." Available on SSRN (2024).
 
 - **Data:** High-frequency SPX option trade data
-- **Main result:** Changes to the net option position of OMMs are closely linked to subsequent SPX futures returns. The model decomposes the price impact into a **gamma effect** (from existing inventory requiring rebalancing as S moves) and an **inventory effect** (from new trades changing the OMM's position). Both components are statistically significant. The gamma effect is quantitatively the larger of the two on most days.
-- **Implication:** This is the most direct paper validating that `Γ_net × ΔS` is a real, measurable quantity driving futures returns. The "Hedge Shares/$1" metric corresponds to their gamma effect component.
+- **Main result:** Changes to the net option position of OMMs are closely linked to subsequent SPX futures returns. The model decomposes the price impact into a **gamma effect** (from existing inventory requiring rebalancing as S moves) and an **inventory effect** (from new trades changing the OMM's position). Both components are statistically significant.
+- **Unconfirmed claim, removed 2026-07-27 audit:** this doc previously stated "the gamma effect is quantitatively the larger of the two on most days" — that specific claim could not be independently verified; available secondary summaries describe the two effects as interacting/sign-dependent rather than one uniformly dominating. Dropped rather than repeated unverified.
+- **Implication:** Validates that `Γ_net × ΔS` is a real, measurable quantity driving futures returns, alongside a second, comparably-sized inventory channel. The "Hedge Shares/$1" metric corresponds to their gamma effect component only — it is missing the inventory-effect half of the picture this paper documents.
 
 #### Baltussen et al. (2021) (see §2)
 
@@ -166,8 +184,8 @@ The paper's mechanism is precisely the aggregate gamma-weighted hedge demand dri
 
 "Option Market Maker Hedging and Stock Market Liquidity."
 
-- **Main result:** When option market makers hold a net short position, their dynamic hedging demands liquidity from the underlying, leading to market destabilization. The effect is stronger for stocks with limited liquidity supply. The authors document this using proprietary exchange data classifying traders by type.
-- **Implication:** The Hedge Shares/$1 concept is correct in sign and direction. The paper additionally shows that it interacts with underlying stock liquidity — a nuance not captured by a scalar per-$1 metric.
+- **Main result (corrected 2026-07-27 audit — was previously reported one-sidedly):** the finding is symmetric, not destabilizing-only. When option market makers hold a **net short** position, their dynamic hedging demands liquidity from the underlying, destabilizing it. When they hold a **net long** position, hedging *supplies* liquidity, stabilizing it. The effect is stronger for stocks with limited liquidity supply. The authors document this using proprietary exchange data classifying traders by type.
+- **Implication:** The Hedge Shares/$1 concept is correct in sign and direction in both regimes, not just the destabilizing (net-short) case this doc previously emphasized. The paper additionally shows it interacts with underlying stock liquidity — a nuance not captured by a scalar per-$1 metric.
 
 #### Figlewski (1989) — *Journal of Finance* (historical baseline)
 
@@ -214,7 +232,7 @@ There is no head-to-head comparison of pure OI-weighting vs. pure vega-weighting
 
 ### 7. What the Literature Says We're Missing
 
-**Top recommendation: Vanna exposure (`∂Δ/∂σ × OI`), with meaningful academic support for its independent predictive content beyond GEX**
+**Top candidate: Vanna exposure (`∂Δ/∂σ × OI`) — softened 2026-07-27 audit.** The entire evidentiary basis is a single non-peer-reviewed proprietary-data vendor white paper (DeLorenzo/Volland) whose data and methodology are not independently auditable. "Meaningful academic support" overstated this; treat it as a theoretically well-motivated mechanism with one unaudited empirical data point, not an established finding.
 
 #### (a) Vanna Exposure
 
@@ -275,7 +293,7 @@ No paper directly provides a clean "net delta exposure" metric analogous to GEX.
 
 ## Key Papers — Full Citations
 
-- Avellaneda, M., Boyer-Olson, D., Busca, J., & Friz, P. (2020). "PCA for Implied Volatility Surfaces." *Journal of Financial Data Science*, 2(2), 85–106. arXiv: 2002.00085. [The market factor from implied volatility PCA corresponds to an OI-and-vega-weighted average IV return; OI×vega weighting is one of at least two significant factors in US equity IV surfaces.]
+- Avellaneda, M., Healy, D., Papanicolaou, A., & Papanicolaou, G. (2020). "PCA for Implied Volatility Surfaces." *Journal of Financial Data Science*, 2(2), 85–106. arXiv: 2002.00085. [Author list corrected 2026-07-27 audit — doc previously listed "Boyer-Olson, Busca, Friz," who are real Avellaneda co-authors but on a different, unrelated paper. The market factor from implied volatility PCA corresponds to an OI-and-vega-weighted average IV return; OI×vega weighting is one of at least two significant factors in US equity IV surfaces. Sample is ~500 individual stocks — cross-sectional, not index-level.]
 
 - Anderegg, B., Ulmann, F., & Sornette, D. (2022). "The Impact of Option Hedging on the Spot Market Volatility." *Journal of International Money and Finance*, 124, 102627. DOI: 10.1016/j.jimonfin.2022.102627. [Using DTCC trade repository data on FX options, finds dealer gamma exposure is empirically negative (net short); a −$1 trillion GEX increases EURUSD volatility by 0.7% and USDJPY volatility by 0.9%.]
 
@@ -283,7 +301,7 @@ No paper directly provides a clean "net delta exposure" metric analogous to GEX.
 
 - Barbon, A., Beckmeyer, H., Buraschi, A., & Moerke, M. (2021). "Liquidity Provision to Leveraged ETFs and Equity Options Rebalancing Flows: Evidence from End-of-Day Stock Prices." SSRN: 3925725. [A one-SD increase in options gamma imbalance depresses end-of-day returns by −113% of average last-30-minute return; delta-hedging can produce reversal (positive GEX regime) or momentum amplification (negative GEX regime).]
 
-- Buis, B., Pieterse-Bloem, M., Verschoor, W. F. C., & Zwinkels, R. C. J. (2024). "Gamma Positioning and Market Quality." *Journal of Economic Dynamics and Control*, 164, 104881. DOI: 10.1016/j.jedc.2024.104881. SSRN: 4109301. [Zero-intelligence model simulation: positive net gamma reduces volatility and increases market stability; negative net gamma increases volatility and market fragility. Theoretical validation of the GEX sign framing.]
+- Buis, B., Pieterse-Bloem, M., Verschoor, W. F. C., & Zwinkels, R. C. J. (2024). "Gamma Positioning and Market Quality." *Journal of Economic Dynamics and Control*, 164, 104880. DOI: 10.1016/j.jedc.2024.104880 (corrected 2026-07-27; was `104881`). SSRN: 4109301. [Zero-intelligence model **simulation** (not observed market data): positive net gamma reduces volatility and increases market stability; negative net gamma increases volatility and market fragility. Theoretical validation of the GEX sign framing — not empirical confirmation.]
 
 - Cont, R., & Da Fonseca, J. (2002). "Dynamics of Implied Volatility Surfaces." *Quantitative Finance*, 2(1), 45–60. DOI: 10.1088/1469-7688/2/1/304. SSRN: 295859. [Functional PCA of S&P 500 and FTSE implied volatility surfaces identifies three factors: level (parallel shift), slope (skew tilt), curvature (smile bowing). These three factors explain the bulk of daily IV surface variation.]
 
@@ -301,7 +319,7 @@ No paper directly provides a clean "net delta exposure" metric analogous to GEX.
 
 - Hu, J., Kirilova, A., Muravyev, D., & Ryu, D. (2023). "Options Market Makers." SSRN: 4633451. [Account-level KOSPI 200 data on 43 options market makers: only 4 of 43 continuously delta-hedge; most manage risk through rapid inventory rebalancing. Key caveat: the delta-hedging mechanism underlying GEX applies to a minority of market makers.]
 
-- Jonsson, E., & Nyberg, C. (2025). "Convexity in Motion: Leveraging Gamma Exposure to Predict Equity Market Returns and Improve Predictive Modeling." Linköping University master's thesis. DiVA: diva2:1972044. [ARDL model on S&P 500 daily data 2011–2025: changes in GEX are statistically significantly positively associated with subsequent returns across multiple horizons; out-of-sample improvement confirmed by Diebold-Mariano test; strength is somewhat diminished post-2020. Not peer-reviewed.]
+- Jonsson, G., & Nyberg, T. (2025). "Convexity in Motion: Leveraging Gamma Exposure to Predict Equity Market Returns and Improve Predictive Modeling." Linköping University master's thesis. DiVA: diva2:1972044. [Author initials corrected 2026-07-27; doc previously listed "Jonsson, E., & Nyberg, C." ARDL model on S&P 500 daily data 2011–2025: changes in GEX are statistically significantly positively associated with subsequent returns across multiple horizons; out-of-sample improvement confirmed by Diebold-Mariano test; strength is somewhat diminished post-2020. Not peer-reviewed; unreported effect sizes/p-values — treat as one preliminary data point, not "emerging support."]
 
 - Muravyev, D. (2016). "Order Flow and Expected Option Returns." *Journal of Finance*, 71(2), 673–708. DOI: 10.1111/jofi.12380. SSRN: 1963865. [Order imbalances in the options market reflect inventory risk; market makers in equity options hold large net long positions (not short) in certain contract types; inventory risk component of option price impact is five times larger than previously estimated.]
 
@@ -309,7 +327,7 @@ No paper directly provides a clean "net delta exposure" metric analogous to GEX.
 
 - O'Donovan, J., Yu, G. Y., & Zhang, J. (2023). "Option Market Maker Hedging and Stock Market Liquidity." SSRN: 4567604. [Using proprietary exchange data: OMM net short positions demand liquidity from the underlying, destabilizing it; OMM net long positions supply liquidity, stabilizing it; effect is stronger for stocks with constrained liquidity supply.]
 
-- Soebhag, A. (2023). "Option Gamma and Stock Returns." *Journal of Empirical Finance*, 74, 101269. DOI: 10.1016/j.jempfin.2023.101269. SSRN: 4256259. [Cross-section of US stocks: high net gamma exposure underperforms low net gamma exposure; low-net-gamma stocks have higher future realized volatility; effect is non-informational and represents a risk premium; distinct from standard factor model predictors.]
+- Soebhag, A. (2023). "Option Gamma and Stock Returns." *Journal of Empirical Finance*, 74, 101442. DOI: 10.1016/j.jempfin.2023.101442 (corrected 2026-07-27; was `101269`). SSRN: 4256259. [Cross-section of US stocks: high net gamma exposure underperforms low net gamma exposure by ~10%/year; effect is non-informational and represents a risk premium; distinct from standard factor model predictors. RV-direction claim ("low-net-gamma stocks have higher future realized volatility") is plausible given the risk-premium framing but could not be confirmed against full-text methodology during the 2026-07-27 audit — treat as unconfirmed, not cite-able as a precise regression-sign claim.]
 
 - Xing, Y., Zhang, X., & Zhao, R. (2010). "What Does the Individual Option Volatility Smirk Tell Us About Future Equity Returns?" *Journal of Financial and Quantitative Analysis*, 45(3), 641–662. DOI: 10.1017/S0022109010000220. SSRN: 1107464. [Stocks with steepest OTM-put-vs-ATM-call skew underperform flattest-skew stocks by 10.9% per year risk-adjusted; mechanism is informed negative-news trading in OTM puts; predictability is robust and distinct from other known predictors.]
 
@@ -320,9 +338,9 @@ No paper directly provides a clean "net delta exposure" metric analogous to GEX.
 | Dashboard Metric | Academic Support | Primary Gap |
 |-----------------|-----------------|-------------|
 | GEX formula (`Γ × OI × 100 × S² × 0.01`) | Mathematically derivable from Gatheral/Bergomi dollar-gamma; not peer-reviewed as GEX | No paper cites this specific formula |
-| GEX sign convention (dealers net short) | Strong for index puts (Garleanu et al. 2009, Anderegg et al. 2022) | Weakened by Hu et al. 2023 (most MMs do not continuously delta-hedge) |
-| GEX predicts realized vol | Moderate (Baltussen et al. 2021, Buis et al. 2024, Soebhag 2023) | No clean OOS journal-published backtest of daily GEX signal |
-| GEX predicts returns | Emerging (Jonsson & Nyberg 2025, Soebhag 2023) | Only thesis-level for index GEX; journal evidence is cross-sectional |
+| GEX sign convention (dealers net short) | **Strong for index options specifically** (Garleanu et al. 2009, Anderegg et al. 2022) — does NOT extend to single-name/equity options (revised 2026-07-27) | Weakened for the index case by Hu et al. 2023 (most MMs do not continuously delta-hedge); weakened further for the single-name case by Muravyev 2016 (equity MMs often net long) |
+| GEX predicts realized vol | **Weak/Moderate** (downgraded from "Moderate," 2026-07-27) — Baltussen et al. 2021 solid, Buis et al. 2024 is a simulation not empirical data, Soebhag 2023 direction claim unconfirmed | No clean OOS journal-published backtest of daily GEX signal; Dim, Eraker & Vilkov (2023) directly tested and found no propagation in the 0DTE segment |
+| GEX predicts returns | **Weak/Preliminary** (downgraded from "Emerging," 2026-07-27) — rests on one non-peer-reviewed thesis with unreported effect sizes/p-values | Only thesis-level for index GEX; journal evidence is cross-sectional (Soebhag); same evidentiary weight as the v6.0 VRP-timing claim already shelved on p=0.74 |
 | Zero-Gamma Level | Weak — no direct test; supported only by the mechanism papers | No paper tests ZGL as a specific numerical level |
 | Call/Put Walls | No direct academic test | No paper tests GEX-max strikes as support/resistance levels |
 | Hedge Shares/$1 | Moderate — validated implicitly by Egebjerg 2024, Baltussen 2021 | Not defined as a standalone metric in any paper |
