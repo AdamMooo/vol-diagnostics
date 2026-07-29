@@ -180,36 +180,25 @@ The instance takes 1–3 minutes to provision. Status: Provisioning → Running.
 ## Step 5b: When the console says "Out of host capacity" (the common case)
 
 Toronto's Always-Free A1 shape is chronically capacity-constrained — the console
-Create button just fails. The fix is to retry the **launch API** on a loop until a
-host frees up. Use `scripts/oracle-retry.ps1` (in this repo) instead of clicking.
+Create button just fails, and a human retry-loop needs a laptop kept on 24/7.
 
-One-time setup:
-```powershell
-# 1. install OCI CLI
-Invoke-Expression ((Invoke-WebRequest https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.ps1 -UseBasicParsing).Content)
-# (reopen PowerShell so PATH refreshes, then `oci --version` should print 3.x)
+**2026-07-29: moved to GitHub Actions** (`.github/workflows/a1-flex-retry.yml`) —
+runs on a schedule (every 15 min) on GitHub's runners, authenticates with a
+permanent OCI API signing key (repo secrets `OCI_CLI_USER`/`OCI_CLI_FINGERPRINT`/
+`OCI_CLI_TENANCY`/`OCI_CLI_KEY_CONTENT`, `OCI_COMPARTMENT_ID`,
+`VOL_DIAGNOSTICS_SSH_PUBLIC_KEY`, `OCI_A1_TARGETS` — all synced from `.env`, see
+that file's comments for where each one comes from), and opens a GitHub issue
+the moment an instance lands — nothing to babysit, nothing missed silently.
 
-# 2. authenticate (1-hour browser session token — fine while you're at the machine)
-oci session authenticate            # pick region: ca-toronto-1
-```
+`OCI_A1_TARGETS` holds one pipe-separated `region|AD|subnet_id|image_id` line
+per region to try (currently Toronto only) — add more lines to widen the search
+once Montreal/Ashburn are subscribed + have a public subnet configured.
 
-The script's CONFIG block is already filled with this tenancy's OCIDs (compartment,
-public subnet, Ubuntu 24.04 aarch64 image, the single Toronto AD) and points at
-`~/.ssh/vol-diagnostics.pub`. Run it:
-```powershell
-cd C:\dev\vol-diagnostics
-.\scripts\oracle-retry.ps1
-```
+Manually trigger a run any time: `gh workflow run a1-flex-retry.yml --repo AdamMooo/vol-diagnostics`.
+Boot-volume minimum is **50 GB** (47 was rejected — `InvalidParameter`).
 
-It prints a `... no capacity` line every 60s and stops the moment a host accepts
-(green **SUCCESS**), or stops with a red **ERROR** on any non-capacity problem.
-Notes:
-- Keep the PowerShell window open and the machine awake — closing it kills the loop.
-- The session token expires after ~1h. Either re-run `oci session authenticate`
-  when you sit back down, or switch to a permanent API key (`oci setup config` +
-  add the public key under your user → API Keys) and drop the `--auth security_token`
-  flag from the script for unattended overnight runs.
-- Boot-volume minimum is **50 GB** (47 was rejected — `InvalidParameter`).
+The old local `scripts/oracle-retry.ps1` (1-hour session-token auth, required
+the machine to stay awake) is retired — deleted 2026-07-29.
 
 ---
 
@@ -502,10 +491,10 @@ If you want extra safety, the crontab already includes a health check that runs 
 
 ## Migrating to a New Instance (e.g. A1.Flex resource bump, 2026-07-29)
 
-Once `scripts/oracle-retry.ps1` lands an instance (Toronto, Montreal, or Ashburn — it
-now rotates across all configured regions), cut over in this order. Nothing here
-touches SSH keys — the same `vol-diagnostics.key`/`.pub` pair works on any new instance,
-you just add the same public key at launch time (the retry script already does this).
+Once `.github/workflows/a1-flex-retry.yml` lands an instance (see Step 5b above —
+Toronto today, more regions can be added via `OCI_A1_TARGETS`), cut over in this
+order. Nothing here touches SSH keys — the same `vol-diagnostics.key`/`.pub` pair
+works on any new instance, since the workflow injects the same public key at launch.
 
 1. **Open firewall ports in the OCI console** for the new instance's VCN/subnet —
    Security List ingress rules for 80/443/8501 (see "Open firewall ports" above).
@@ -513,7 +502,7 @@ you just add the same public key at launch time (the retry script already does t
 2. **SSH in and deploy**: `ssh -i vol-diagnostics.key ubuntu@<new-ip>`, then
    `bash <(curl -fsSL https://raw.githubusercontent.com/AdamMooo/vol-diagnostics/main/scripts/deploy.sh)`
    (installs Docker, clones repo, builds — fully idempotent, safe to re-run).
-3. **Edit `.env` on the server** — SMTP/email + dashboard password, same values as the old instance.
+3. **Edit `.env` on the server** — SMTP/email settings, same values as the old instance (no dashboard password — auth was removed when the app went public).
 4. **Migrate data**: from Windows, `.\scripts\migrate-data.ps1 -IP <new-ip> -KeyFile <path>`
    (copies `out/`, restarts containers, runs health-check).
 5. **Update `ORACLE_HOST` GitHub Actions secret** to the new IP (repo Settings →
@@ -583,6 +572,9 @@ Once the bucket exists and the 3 secrets are added, `.github/workflows/daily-rep
 `Backup out/ to Oracle Object Storage` step runs automatically on every scheduled or manually
 dispatched run — no manual step needed going forward (ROADMAP success criterion #8).
 
+---
+---
+---
 ---
 ---
 ---
