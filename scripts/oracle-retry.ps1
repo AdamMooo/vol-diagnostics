@@ -43,18 +43,6 @@ $Regions = @(
         SubnetId            = "ocid1.subnet.oc1.ca-toronto-1.aaaaaaaalhg2zae2wqx4rbdmxhrj5wioxmxzf75eht2rhrtqndh2lh3v7p3q"
         ImageId             = "ocid1.image.oc1.ca-toronto-1.aaaaaaaat2vwds3tqxv6jmx7bhvd4teowruvmhxxigg3pupgxghxz2dgeana"
         AvailabilityDomains = @("MSYa:CA-TORONTO-1-AD-1")
-    },
-    @{
-        Region              = "ca-montreal-1"
-        SubnetId            = ""   # fill in after subscribing + creating a public subnet
-        ImageId             = ""   # oci compute image list --region ca-montreal-1 ...
-        AvailabilityDomains = @()  # oci iam availability-domain list --region ca-montreal-1
-    },
-    @{
-        Region              = "us-ashburn-1"
-        SubnetId            = ""   # fill in after subscribing + creating a public subnet
-        ImageId             = ""   # oci compute image list --region us-ashburn-1 ...
-        AvailabilityDomains = @()  # oci iam availability-domain list --region us-ashburn-1 (usually 3 ADs)
     }
 )
 
@@ -97,7 +85,7 @@ $attempt = 0
 $targetIndex = 0
 
 Write-Host "Starting launch-retry loop for $Shape ($Ocpus OCPU / $MemoryGB GB)." -ForegroundColor Cyan
-Write-Host "Rotating across $($targets.Count) region/AD combination(s): $(($targets | ForEach-Object { "$($_.Region)/$($_.AD)" }) -join ', ')" -ForegroundColor Cyan
+Write-Host "Rotating across $($targets.Count) region/AD combination: $(($targets | ForEach-Object { "$($_.Region)/$($_.AD)" }) -join ', ')" -ForegroundColor Cyan
 Write-Host "Ctrl+C to stop.`n"
 
 while ($true) {
