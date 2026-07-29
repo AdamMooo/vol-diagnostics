@@ -116,14 +116,18 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 
 Last session: 2026-07-27T22:40:00.000Z (ad-hoc, no active milestone — interview/portfolio readiness pass)
 Stopped at: Regime tab rebuilt same session. Phase 27's monitor UI (raw percentile board + evidence panel, ~450 lines) was executed earlier, then **deleted outright** today after Adam judged it unjustifiable clutter ("not needed unless you have some proof of why we should share") — replaced with plain-English evidence-tiered cards reusing `build_card_fields`/`build_card_read`. A fact-check of `research/methodology-deep-review.md` against primary sources found citation errors + two inflated confidence tiers + two omitted counter-papers — corrected in place. Card "lean" text stopped stating an unvalidated trading recommendation; added `gex_mechanism_note()` (magnitude-not-direction caption on the dealer regime label); email Alerts banner suppressed pending the same rework; ordinal-suffix bug ("82th") fixed in 3 places; added an in-app "ℹ️ Methodology & assumptions" popover. 490 tests green. Committed `5b2db25`, merged an unrelated remote README-badge commit, pushed `91b8753`. Adam redeployed Oracle himself.
-Resume queue: (1) **Prep sheet required before this project is considered closed** — Adam explicitly deferred writing it this session, not skipping it; do not treat the project as done without it (see auto-memory `interview-portfolio-goal`). (2) OCI restore drill (BACKUP-02) — still the only standing technical open item, unrelated to the above. (3) No active milestone otherwise.
+Resume queue: (1) **Prep sheet required before this project is considered closed** — Adam explicitly deferred writing it this session, not skipping it; do not treat the project as done without it (see auto-memory `interview-portfolio-goal`). (2) No active milestone otherwise.
+
+**2026-07-29 update: OCI restore drill (BACKUP-02) PASSED.** Adam generated a second Customer Secret Key (`local-restore`) scoped for manual testing (separate from the `github-actions-backup` key CI uses), ran `python -m engine.restore_from_oci --dry-run` (listed all 67 backed-up objects correctly) then a real restore to `out_restore_test/` — all 67 files downloaded, parquet integrity checks passed, spot-checked `gex_snapshots.parquet` and confirmed real recent data (through 2026-07-28). Scratch dir deleted after. Phase 23 / BACKUP-02 is now fully closed — backup AND restore both proven, not just backup. Only remaining open item is the prep sheet above.
 
 ## Operator Next Steps
 
 - **Prep sheet (blocking project close, not blocking further work)** — a study doc for Adam: architecture, key decisions, defensible talking points, likely interviewer questions on the options-flow literature. Write once he asks; do not consider vol-diagnostics "finalized" without it existing and being committed.
-- **Phase 23 close-out (blocked on Adam)** — OCI console + GitHub secrets setup (`.planning/notes/ORACLE-CLOUD-SETUP.md` → "Object Storage Backup Setup (Phase 23)"). Note: OCI backup itself has been confirmed live since 2026-07-23 (see 2026-07-27 close correction below); the restore drill (BACKUP-02) is what remains.
+- ~~**Phase 23 close-out (blocked on Adam)**~~ — DONE 2026-07-29. Restore drill (BACKUP-02) passed: 67/67 objects restored, integrity verified. Phase 23 fully closed.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug. (Monitor backend is unused by the UI as of 2026-07-27 — see above — but this behavior still governs `engine/monitor/` itself.)
 
+---
+---
 ---
 ---
 ---
