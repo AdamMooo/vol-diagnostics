@@ -114,16 +114,17 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 
 ## Session Continuity
 
-Last session: 2026-07-26T23:32:16.223Z
-Stopped at: Paused 2026-07-26 for review after shipping Phases 24 + 25 and fully planning Phase 27. Phase 27 is plan-only per Adam — do NOT execute until he gives the go.
-Resume queue: (1) On Adam's go → `/gsd:execute-phase 27` (plans committed, checker-passed, 4 plans/3 waves; app.py-touching plans 27-02 & 27-03 must NOT run same-wave; runs sequentially on main). (2) Phase 23 close-out is blocked on Adam's OCI step. (3) After v5.0 closes → v6.0 covered-call persistence model (seed: `.planning/seeds/v6-covered-call-persistence-model.md`).
+Last session: 2026-07-27T22:40:00.000Z (ad-hoc, no active milestone — interview/portfolio readiness pass)
+Stopped at: Regime tab rebuilt same session. Phase 27's monitor UI (raw percentile board + evidence panel, ~450 lines) was executed earlier, then **deleted outright** today after Adam judged it unjustifiable clutter ("not needed unless you have some proof of why we should share") — replaced with plain-English evidence-tiered cards reusing `build_card_fields`/`build_card_read`. A fact-check of `research/methodology-deep-review.md` against primary sources found citation errors + two inflated confidence tiers + two omitted counter-papers — corrected in place. Card "lean" text stopped stating an unvalidated trading recommendation; added `gex_mechanism_note()` (magnitude-not-direction caption on the dealer regime label); email Alerts banner suppressed pending the same rework; ordinal-suffix bug ("82th") fixed in 3 places; added an in-app "ℹ️ Methodology & assumptions" popover. 490 tests green. Committed `5b2db25`, merged an unrelated remote README-badge commit, pushed `91b8753`. Adam redeployed Oracle himself.
+Resume queue: (1) **Prep sheet required before this project is considered closed** — Adam explicitly deferred writing it this session, not skipping it; do not treat the project as done without it (see auto-memory `interview-portfolio-goal`). (2) OCI restore drill (BACKUP-02) — still the only standing technical open item, unrelated to the above. (3) No active milestone otherwise.
 
 ## Operator Next Steps
 
-- **Phase 27 (Microstructure Monitor UI)** — ✅ PLANNED + committed (8465f24), checker-passed (0 blockers), NOT executed. On Adam's go: `/gsd:execute-phase 27` (or resume the current orchestration). 4 plans: 27-01 monitor_reader adapter + vrp_components, 27-02 distribution board (app.py), 27-03 evidence panels (app.py), 27-04 event-shaped email + boilerplate cut. Waves: 1=[27-01], 2=[27-02,27-04 parallel], 3=[27-03]. Watch: 27-02 & 27-03 both touch app.py — never same wave; on Windows, run sequentially on main (skip worktrees). Adam must set `config.DASHBOARD_METHODOLOGY_URL`. Cold-start: board/email near-empty for weeks (zero alerts fired yet) — test sparse case, don't mistake for a bug. Refs: `27-CONTEXT.md` (7 derived success criteria — phase has no REQUIREMENTS.md IDs), `27-RESEARCH.md`, `.planning/notes/microstructure-monitor-design.md`.
-- **Phase 23 close-out (blocked on you)** — OCI console + GitHub secrets setup (`.planning/notes/ORACLE-CLOUD-SETUP.md` → "Object Storage Backup Setup (Phase 23)"), reply "approved", and I'll write 23-03-SUMMARY + verify. Still the only open item in Phase 23.
-- Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug.
+- **Prep sheet (blocking project close, not blocking further work)** — a study doc for Adam: architecture, key decisions, defensible talking points, likely interviewer questions on the options-flow literature. Write once he asks; do not consider vol-diagnostics "finalized" without it existing and being committed.
+- **Phase 23 close-out (blocked on Adam)** — OCI console + GitHub secrets setup (`.planning/notes/ORACLE-CLOUD-SETUP.md` → "Object Storage Backup Setup (Phase 23)"). Note: OCI backup itself has been confirmed live since 2026-07-23 (see 2026-07-27 close correction below); the restore drill (BACKUP-02) is what remains.
+- Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug. (Monitor backend is unused by the UI as of 2026-07-27 — see above — but this behavior still governs `engine/monitor/` itself.)
 
+---
 ---
 ---
 ---
