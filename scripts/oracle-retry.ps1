@@ -4,7 +4,7 @@ ARM shape (VM.Standard.A1.Flex) has capacity, then stop.
 
 Oracle's free A1 tier is chronically "out of host capacity". The console
 fails the same way. The reliable fix is to retry the launch API on a loop,
-rotating through availability domains, until one accepts. This script does that.
+rotating through regions AND availability domains, until one accepts.
 
 PREREQS (one-time):
   1. Install OCI CLI:
@@ -14,27 +14,48 @@ PREREQS (one-time):
      Follow prompts, name the profile "vol-diagnostics", use a blank/N-A
      passphrase, and upload the generated public key in the OCI console
      under your user → API Keys.
-  3. Fill in the CONFIG block below with OCIDs from the OCI console.
+  3. For each region you want to try beyond Toronto: subscribe the tenancy
+     to that region first (Console → top-right region picker → Manage
+     Regions), then create a public VCN/subnet there (or let Oracle's
+     default one exist) and fill in its entry in $Regions below.
 
-WHERE TO FIND EACH OCID:
-  CompartmentId : Identity → Compartments (use root/tenancy if unsure)
-  SubnetId      : Networking → VCN → your public subnet → OCID
-  ImageId       : Compute → Instances → Create → pick Ubuntu 24.04 aarch64,
-                  then "Edit YAML" / the image OCID shows in the image picker.
-                  Or: oci compute image list --compartment-id <c> --operating-system "Canonical Ubuntu" --shape VM.Standard.A1.Flex
-  AvailabilityDomains : run  oci iam availability-domain list  and paste the
-                  "name" values (e.g. "abCD:CA-TORONTO-1-AD-1"). List all you have.
-  SshKeyPath    : path to your PUBLIC key (.pub). Generate with: ssh-keygen -t ed25519
+WHERE TO FIND EACH VALUE (per region):
+  CompartmentId : Identity → Compartments (same across regions — it's the tenancy root)
+  SubnetId      : Networking → VCN → your public subnet → OCID (region-specific)
+  ImageId       : oci compute image list --region <region> --compartment-id <c> \
+                  --operating-system "Canonical Ubuntu" --shape VM.Standard.A1.Flex \
+                  --query "data[0].id" --raw-output
+  AvailabilityDomains : oci iam availability-domain list --region <region>
+  SshKeyPath    : path to your PUBLIC key (.pub), same key works in every region
 #>
 
 # ─────────────────────────── CONFIG — EDIT THESE ───────────────────────────
 $CompartmentId = "ocid1.tenancy.oc1..aaaaaaaadhfvtdnvcdkaznlke3bsv3ze6gb72cbazmrx7b6747hql3rabcea"
-$SubnetId      = "ocid1.subnet.oc1.ca-toronto-1.aaaaaaaalhg2zae2wqx4rbdmxhrj5wioxmxzf75eht2rhrtqndh2lh3v7p3q"  # public subnet-gamma-vcn
-$ImageId       = "ocid1.image.oc1.ca-toronto-1.aaaaaaaat2vwds3tqxv6jmx7bhvd4teowruvmhxxigg3pupgxghxz2dgeana"   # Ubuntu 24.04 aarch64
 $SshKeyPath    = "$env:USERPROFILE\.ssh\vol-diagnostics.pub"
 
-$AvailabilityDomains = @(
-    "MSYa:CA-TORONTO-1-AD-1"   # ca-toronto-1 has only one AD
+# One entry per region to try, in order. Toronto is filled in from the original
+# setup. Add Montreal/Ashburn entries once you've subscribed the tenancy to
+# that region and created a public subnet there — leave SubnetId/ImageId blank
+# ("") to have the script skip a region instead of erroring.
+$Regions = @(
+    @{
+        Region              = "ca-toronto-1"
+        SubnetId            = "ocid1.subnet.oc1.ca-toronto-1.aaaaaaaalhg2zae2wqx4rbdmxhrj5wioxmxzf75eht2rhrtqndh2lh3v7p3q"
+        ImageId             = "ocid1.image.oc1.ca-toronto-1.aaaaaaaat2vwds3tqxv6jmx7bhvd4teowruvmhxxigg3pupgxghxz2dgeana"
+        AvailabilityDomains = @("MSYa:CA-TORONTO-1-AD-1")
+    },
+    @{
+        Region              = "ca-montreal-1"
+        SubnetId            = ""   # fill in after subscribing + creating a public subnet
+        ImageId             = ""   # oci compute image list --region ca-montreal-1 ...
+        AvailabilityDomains = @()  # oci iam availability-domain list --region ca-montreal-1
+    },
+    @{
+        Region              = "us-ashburn-1"
+        SubnetId            = ""   # fill in after subscribing + creating a public subnet
+        ImageId             = ""   # oci compute image list --region us-ashburn-1 ...
+        AvailabilityDomains = @()  # oci iam availability-domain list --region us-ashburn-1 (usually 3 ADs)
+    }
 )
 
 $DisplayName  = "vol-diagnostics"
@@ -54,29 +75,47 @@ if (-not (Test-Path $SshKeyPath)) {
     exit 1
 }
 
+# Build a flat (region, ad) queue, skipping any region that isn't configured yet.
+$targets = @()
+foreach ($r in $Regions) {
+    if ([string]::IsNullOrWhiteSpace($r.SubnetId) -or [string]::IsNullOrWhiteSpace($r.ImageId) -or $r.AvailabilityDomains.Count -eq 0) {
+        Write-Host "Skipping $($r.Region) — SubnetId/ImageId/AvailabilityDomains not filled in yet." -ForegroundColor DarkGray
+        continue
+    }
+    foreach ($ad in $r.AvailabilityDomains) {
+        $targets += [pscustomobject]@{ Region = $r.Region; AD = $ad; SubnetId = $r.SubnetId; ImageId = $r.ImageId }
+    }
+}
+if ($targets.Count -eq 0) {
+    Write-Error "No fully-configured regions in `$Regions. Fill in at least one beyond Toronto, or check Toronto's config."
+    exit 1
+}
+
 $sshKey = (Get-Content $SshKeyPath -Raw).Trim()
 $shapeConfig = (@{ ocpus = $Ocpus; memoryInGBs = $MemoryGB } | ConvertTo-Json -Compress)
 $attempt = 0
-$adIndex = 0
+$targetIndex = 0
 
 Write-Host "Starting launch-retry loop for $Shape ($Ocpus OCPU / $MemoryGB GB)." -ForegroundColor Cyan
-Write-Host "Rotating across $($AvailabilityDomains.Count) AD(s). Ctrl+C to stop.`n"
+Write-Host "Rotating across $($targets.Count) region/AD combination(s): $(($targets | ForEach-Object { "$($_.Region)/$($_.AD)" }) -join ', ')" -ForegroundColor Cyan
+Write-Host "Ctrl+C to stop.`n"
 
 while ($true) {
     $attempt++
-    $ad = $AvailabilityDomains[$adIndex % $AvailabilityDomains.Count]
-    $adIndex++
+    $t = $targets[$targetIndex % $targets.Count]
+    $targetIndex++
     $ts = (Get-Date).ToString("HH:mm:ss")
-    Write-Host "[$ts] attempt #$attempt — AD: $ad ... " -NoNewline
+    Write-Host "[$ts] attempt #$attempt — region: $($t.Region), AD: $($t.AD) ... " -NoNewline
 
     $out = oci compute instance launch `
         --profile vol-diagnostics `
-        --availability-domain $ad `
+        --region $t.Region `
+        --availability-domain $t.AD `
         --compartment-id $CompartmentId `
         --shape $Shape `
         --shape-config $shapeConfig `
-        --subnet-id $SubnetId `
-        --image-id $ImageId `
+        --subnet-id $t.SubnetId `
+        --image-id $t.ImageId `
         --display-name $DisplayName `
         --assign-public-ip true `
         --boot-volume-size-in-gbs $BootVolGB `
@@ -86,9 +125,10 @@ while ($true) {
 
     if ($LASTEXITCODE -eq 0) {
         Write-Host "SUCCESS" -ForegroundColor Green
-        Write-Host "`nInstance launched. Details:`n"
+        Write-Host "`nInstance launched in $($t.Region). Details:`n"
         Write-Host $out
-        Write-Host "`nGet the public IP from the OCI console (Compute → Instances → $DisplayName)." -ForegroundColor Green
+        Write-Host "`nGet the public IP from the OCI console (Compute → Instances → $DisplayName, region switcher top-right)." -ForegroundColor Green
+        Write-Host "Next: run scripts/migrate-to-new-instance.ps1 -NewIP <ip> -Region $($t.Region) to move the stack over." -ForegroundColor Green
         break
     }
 
@@ -103,7 +143,7 @@ while ($true) {
         Write-Host "`nThis is a config/account problem, not capacity — fix it before retrying." -ForegroundColor Red
         break
     } elseif ($out -match "Out of host capacity") {
-        Write-Host "no capacity" -ForegroundColor Yellow
+        Write-Host "no capacity ($($t.Region))" -ForegroundColor Yellow
     } elseif ($out -match "TooManyRequests|429") {
         Write-Host "rate-limited (backing off)" -ForegroundColor Yellow
     } else {

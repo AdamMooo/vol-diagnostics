@@ -7,19 +7,31 @@
 #   curl -fsSL https://raw.githubusercontent.com/AdamMooo/vol-diagnostics/main/scripts/deploy.sh | bash
 #   OR
 #   bash scripts/deploy.sh
+#
+# NOTE: also open ports 80/443/8501 in the OCI Console Security List
+# (Networking -> VCN -> public subnet -> Default Security List -> Add
+# Ingress Rules) — iptables alone is not enough, both layers block traffic.
 
 set -euo pipefail
 
 echo "=== Vol Diagnostics Deploy ==="
-echo "Target: Oracle Linux 8 (ARM64)"
+echo "Target: Ubuntu 24.04 (ARM64)"
 echo ""
 
-# 1. Install Docker (Oracle Linux 8 / CentOS stream)
+# 1. Install Docker (Ubuntu)
 if ! command -v docker &> /dev/null; then
     echo "[1/5] Installing Docker..."
-    sudo dnf install -y dnf-utils
-    sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl gnupg
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     sudo systemctl start docker
     sudo systemctl enable docker
     sudo usermod -aG docker "$USER"
@@ -29,13 +41,14 @@ else
     echo "[1/5] Docker already installed: $(docker --version)"
 fi
 
-# 2. Open firewall ports
+# 2. Open firewall ports (iptables — Ubuntu on OCI has no firewalld)
 echo "[2/5] Opening firewall ports (80, 443, 8501)..."
-sudo firewall-cmd --permanent --add-port=80/tcp 2>/dev/null || true
-sudo firewall-cmd --permanent --add-port=443/tcp 2>/dev/null || true
-sudo firewall-cmd --permanent --add-port=8501/tcp 2>/dev/null || true
-sudo firewall-cmd --reload 2>/dev/null || true
-echo "  Ports opened (also open in OCI Security List via console)."
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT 2>/dev/null || true
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT 2>/dev/null || true
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8501 -j ACCEPT 2>/dev/null || true
+sudo apt-get install -y iptables-persistent 2>/dev/null || true
+sudo netfilter-persistent save 2>/dev/null || true
+echo "  Ports opened locally. Also open them in OCI Security List via console (see note above)."
 
 # 3. Clone repo (or pull if already cloned)
 REPO_DIR="$HOME/vol-diagnostics"
@@ -62,7 +75,7 @@ else
 fi
 
 # 5. Create out/ directory for bind mount
-mkdir -p out/surface_history out/vol_index out/vol-report
+mkdir -p out/surface_history out/vol_index out/vol-report out/oi_history out/monitor
 
 # 6. Build and launch
 echo "[5/5] Building and launching (this takes 3-5 min on first run)..."

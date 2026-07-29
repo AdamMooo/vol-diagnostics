@@ -500,6 +500,39 @@ If you want extra safety, the crontab already includes a health check that runs 
 
 ---
 
+## Migrating to a New Instance (e.g. A1.Flex resource bump, 2026-07-29)
+
+Once `scripts/oracle-retry.ps1` lands an instance (Toronto, Montreal, or Ashburn — it
+now rotates across all configured regions), cut over in this order. Nothing here
+touches SSH keys — the same `vol-diagnostics.key`/`.pub` pair works on any new instance,
+you just add the same public key at launch time (the retry script already does this).
+
+1. **Open firewall ports in the OCI console** for the new instance's VCN/subnet —
+   Security List ingress rules for 80/443/8501 (see "Open firewall ports" above).
+   This is region/VCN-specific; a new region means a brand new VCN with no rules yet.
+2. **SSH in and deploy**: `ssh -i vol-diagnostics.key ubuntu@<new-ip>`, then
+   `bash <(curl -fsSL https://raw.githubusercontent.com/AdamMooo/vol-diagnostics/main/scripts/deploy.sh)`
+   (installs Docker, clones repo, builds — fully idempotent, safe to re-run).
+3. **Edit `.env` on the server** — SMTP/email + dashboard password, same values as the old instance.
+4. **Migrate data**: from Windows, `.\scripts\migrate-data.ps1 -IP <new-ip> -KeyFile <path>`
+   (copies `out/`, restarts containers, runs health-check).
+5. **Update `ORACLE_HOST` GitHub Actions secret** to the new IP (repo Settings →
+   Secrets and variables → Actions) — the daily workflow rsyncs `out/` against this host.
+6. **Update `CLAUDE.md`'s deploy one-liner** (project root) — swap the IP in the `ssh ... git pull && docker compose up -d --build` command.
+7. **Update `scripts/sync-from-oracle.ps1`'s default `-IP`** if you want the no-args form to keep working.
+8. **Verify**: hit `https://<new-ip>.nip.io`, confirm dashboard loads, run
+   `docker compose exec dashboard python -m engine.health_check` on the new box.
+9. **Terminate the old E2.1.Micro instance** once the new one's confirmed working —
+   Compute → Instances → old instance → Terminate (keep the boot volume unchecked/deleted, no reason to keep it).
+10. **Update the public-facing link** wherever you shared it (LinkedIn, etc.) — the
+    nip.io domain is IP-derived, so it changes with the migration.
+
+Nothing about OCI Object Storage backup changes — that bucket/namespace/keys are
+tenancy-level, not instance-level, so the backup step in `daily-report.yml` keeps
+working across the swap untouched.
+
+---
+
 ## Object Storage Backup Setup (Phase 23)
 
 `out/` (all parquet history — `gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`) currently
@@ -550,6 +583,7 @@ Once the bucket exists and the 3 secrets are added, `.github/workflows/daily-rep
 `Backup out/ to Oracle Object Storage` step runs automatically on every scheduled or manually
 dispatched run — no manual step needed going forward (ROADMAP success criterion #8).
 
+---
 ---
 ---
 <!-- LINKS:AUTO -->
