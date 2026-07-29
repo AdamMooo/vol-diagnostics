@@ -88,7 +88,7 @@ jobs:
               echo "  no capacity in $region/$ad"
             else
               echo "  unexpected error in $region/$ad:"
-              echo "$out" | tail -5
+              echo "$out"
             fi
           done <<< "$TARGETS"
           if [ "$launched" = "false" ]; then
