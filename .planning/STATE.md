@@ -112,7 +112,13 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 | todo | 2026-05-11-v3-2-pre-distribution-hardening.md | resolved 2026-07-26 (Phase 24 / backlog 999.3) — items a/b/d shipped out-of-phase, item c (regime sharpness) deferred; moved to todos/done/ |
 | seed | SEED-001-short-end-gamma-concentration | dormant |
 
-## Session Continuity
+## Session Continuity (2026-07-29 update)
+
+Last session: 2026-07-29 (ad-hoc, no active milestone — infra hardening, session #2 of the interview-readiness push)
+Stopped at: BACKUP-02 restore drill passed and Phase 23 fully closed; A1.Flex capacity retry moved off a laptop-bound script onto GitHub Actions (`.github/workflows/a1-flex-retry.yml`, runs every 15 min, verified authenticating and reaching Oracle's real API across 3 test runs); all 18 project env vars consolidated into `.env` with find-it instructions and pushed to GitHub Actions secrets, verified live via a full manual `daily-report.yml` run (every step green — SMTP email actually sent, OCI backup ran, health check passed); fixed a real bug in `scripts/deploy.sh` (assumed Oracle Linux, actual instances are Ubuntu); retired `scripts/oracle-retry.ps1`. New standing intent, not yet started: git-crypt across all AdammoOO projects (memory: `git-crypt-all-projects-decision`).
+Resume queue: (1) **Prep sheet** still the one item blocking project close (per Adam, deferred not skipped). (2) **UI/emoji/methodology-length sweep** — Adam explicitly flagged this as the real interview-readiness blocker, then this session went down the OCI/Oracle infra path instead; next session should start here unless redirected. (3) If A1.Flex ever lands (GitHub issue will fire) — run the migration checklist in `ORACLE-CLOUD-SETUP.md` → "Migrating to a New Instance". (4) git-crypt pilot on this repo, whenever Adam wants it.
+
+## Session Continuity (previous — 2026-07-27)
 
 Last session: 2026-07-27T22:40:00.000Z (ad-hoc, no active milestone — interview/portfolio readiness pass)
 Stopped at: Regime tab rebuilt same session. Phase 27's monitor UI (raw percentile board + evidence panel, ~450 lines) was executed earlier, then **deleted outright** today after Adam judged it unjustifiable clutter ("not needed unless you have some proof of why we should share") — replaced with plain-English evidence-tiered cards reusing `build_card_fields`/`build_card_read`. A fact-check of `research/methodology-deep-review.md` against primary sources found citation errors + two inflated confidence tiers + two omitted counter-papers — corrected in place. Card "lean" text stopped stating an unvalidated trading recommendation; added `gex_mechanism_note()` (magnitude-not-direction caption on the dealer regime label); email Alerts banner suppressed pending the same rework; ordinal-suffix bug ("82th") fixed in 3 places; added an in-app "ℹ️ Methodology & assumptions" popover. 490 tests green. Committed `5b2db25`, merged an unrelated remote README-badge commit, pushed `91b8753`. Adam redeployed Oracle himself.
@@ -126,6 +132,7 @@ Resume queue: (1) **Prep sheet required before this project is considered closed
 - ~~**Phase 23 close-out (blocked on Adam)**~~ — DONE 2026-07-29. Restore drill (BACKUP-02) passed: 67/67 objects restored, integrity verified. Phase 23 fully closed.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug. (Monitor backend is unused by the UI as of 2026-07-27 — see above — but this behavior still governs `engine/monitor/` itself.)
 
+---
 ---
 ---
 ---
