@@ -130,3 +130,12 @@ def test_phase18_cross_index_teaser_and_trust_tag_default_cards_and_positioning_
     assert 'default=INDEX_TICKERS' in src
     assert 'st.dataframe(display_df, use_container_width=True, hide_index=True)' in src
 
+
+def test_model_vs_measured_labels_are_explicit_in_ui_copy():
+    app = _import_app_module()
+    import inspect
+    src = inspect.getsource(app)
+    assert "Net GEX (model)" in src
+    assert "γ-flip (model)" in src
+    assert "call wall (model)" in src
+    assert "put wall (model)" in src

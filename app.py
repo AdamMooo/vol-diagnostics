@@ -759,11 +759,11 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
     em_pct = s.get("expected_move_pct")
     lvl_bits = []
     if zgl is not None:
-        lvl_bits.append(f"γ-flip **{zgl:,.0f}** ({_pct(zgl)})")
+        lvl_bits.append(f"γ-flip (model) **{zgl:,.0f}** ({_pct(zgl)})")
     if cw is not None:
-        lvl_bits.append(f"Call wall **{cw:,.0f}** ({_pct(cw)})")
+        lvl_bits.append(f"Call wall (model) **{cw:,.0f}** ({_pct(cw)})")
     if pw is not None:
-        lvl_bits.append(f"Put wall **{pw:,.0f}** ({_pct(pw)})")
+        lvl_bits.append(f"Put wall (model) **{pw:,.0f}** ({_pct(pw)})")
     if em_pct is not None:
         lvl_bits.append(f"Expected move **±{em_pct:.1f}%**")
     if lvl_bits:
@@ -805,14 +805,14 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
     c1, c2 = st.columns(2)
     gex_sign = "Stabilizing" if (ng is not None and ng >= 0) else "Amplifying"
     gex_str = f"{ng / 1e9:.2f}B" if ng is not None else "—"
-    c1.metric("Net GEX", gex_str, gex_sign if ng is not None else None)
+    c1.metric("Net GEX (model)", gex_str, gex_sign if ng is not None else None)
     if nd is not None:
         nd_dir = "long" if nd > 0 else "short"
         c2.metric("Net Δ (dealer hedge)", f"{abs(nd) / 1e6:.1f}M", f"shares {nd_dir}")
     else:
         c2.metric("Net Δ (dealer hedge)", "—")
 
-    with st.expander("γ-flip & walls — model derivation", expanded=False):
+    with st.expander("γ-flip & walls (model derivation)", expanded=False):
         p_df = data.get("p_df")
         if p_df is not None:
             st.plotly_chart(plot_gamma_profile(p_df, spot, raw, s), width='stretch')
@@ -898,7 +898,7 @@ if sel_index:
                 gex_color = "#4ade80" if ng and ng >= 0 else "#f87171"
                 gex_str = f"{ng/1e9:.2f}B" if ng is not None else "—"
                 st.markdown(
-                    f"<span style='font-size:0.78rem;color:#8b949e;'>Net GEX</span><br>"
+                    f"<span style='font-size:0.78rem;color:#8b949e;'>Net GEX (model)</span><br>"
                     f"<span style='font-size:1.1rem;font-weight:700;color:{gex_color};'>"
                     f"{gex_str}</span> <span style='font-size:0.78rem;color:{gex_color};'>{gex_sign}</span>",
                     unsafe_allow_html=True,
@@ -937,10 +937,10 @@ if sel_index:
                         levels_fig.add_trace(go.Scatter(
                             x=zgl_df["date"],
                             y=zgl_df["zero_gamma_level"],
-                            name="γ-flip",
+                            name="γ-flip (model)",
                             mode="lines",
                             line=dict(color=config.PALETTE["accent"], width=1.5),
-                            hovertemplate="%{x|%b %d}<br>γ-flip: %{y:,.0f}<extra></extra>",
+                            hovertemplate="%{x|%b %d}<br>γ-flip (model): %{y:,.0f}<extra></extra>",
                         ))
 
                     cw_df = chart_df.dropna(subset=["call_wall"])
@@ -948,10 +948,10 @@ if sel_index:
                         levels_fig.add_trace(go.Scatter(
                             x=cw_df["date"],
                             y=cw_df["call_wall"],
-                            name="call wall",
+                            name="call wall (model)",
                             mode="lines",
                             line=dict(color=config.PALETTE["call"], dash="dot", width=1.0),
-                            hovertemplate="%{x|%b %d}<br>call wall: %{y:,.0f}<extra></extra>",
+                            hovertemplate="%{x|%b %d}<br>call wall (model): %{y:,.0f}<extra></extra>",
                         ))
 
                     pw_df = chart_df.dropna(subset=["put_wall"])
@@ -959,15 +959,15 @@ if sel_index:
                         levels_fig.add_trace(go.Scatter(
                             x=pw_df["date"],
                             y=pw_df["put_wall"],
-                            name="put wall",
+                            name="put wall (model)",
                             mode="lines",
                             line=dict(color=config.PALETTE["put"], dash="dot", width=1.0),
-                            hovertemplate="%{x|%b %d}<br>put wall: %{y:,.0f}<extra></extra>",
+                            hovertemplate="%{x|%b %d}<br>put wall (model): %{y:,.0f}<extra></extra>",
                         ))
 
                     levels_fig.update_layout(
                         template="plotly_dark",
-                        title=f"{ticker} · Spot vs Levels — 42 sessions",
+                        title=f"{ticker} · Spot vs model levels — 42 sessions",
                         height=260,
                         margin=dict(t=40, b=30, l=60, r=20),
                         legend=dict(orientation="h", y=1.15),
@@ -976,7 +976,7 @@ if sel_index:
                 else:
                     st.caption(f"{ticker}: no history yet.")
 
-            with st.expander("γ-flip & walls — model derivation", expanded=False):
+            with st.expander("γ-flip & walls (model derivation)", expanded=False):
                 p_df = data.get("p_df")
                 if p_df is not None:
                     st.plotly_chart(
@@ -984,12 +984,12 @@ if sel_index:
                         width='stretch',
                     )
                 st.markdown(
-                    "**Gamma profile.** Net GEX swept across ±15% spot range in 200 steps "
+                    "**Gamma profile (model).** Net GEX swept across ±15% spot range in 200 steps "
                     "(Black-Scholes gamma, dealer net-short assumption). The profile shows "
                     "how aggregate dealer hedging pressure varies with spot. "
-                    "**Zero-gamma level (γ-flip):** strike where cumulative net GEX crosses zero — "
+                    "**Zero-gamma level (γ-flip, model):** strike where cumulative net GEX crosses zero — "
                     "by convention, above it dealers are long gamma (stabilising); below it, short gamma (amplifying). "
-                    "**Walls:** strikes with maximum one-sided GEX concentration. "
+                    "**Walls (model):** strikes with maximum one-sided GEX concentration. "
                     "**Model assumption:** dealers net short all options (Garleanu, Pedersen & Poteshman 2009)."
                 )
 
@@ -1120,7 +1120,6 @@ with st.expander("Methodology & Assumptions", expanded=False):
 
     with st.expander("Deep methodology details", expanded=False):
         st.markdown(_methods_deep_markdown())
-
 
 
 

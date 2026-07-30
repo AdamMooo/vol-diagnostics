@@ -501,10 +501,10 @@ def gex_mechanism_note(net_gex: float | None) -> str:
     if net_gex is None:
         return ""
     if net_gex > 0:
-        return "Means realized moves tend to be more contained, not a directional call."
+        return "Model note: net-GEX sign implies moves tend to be more contained, not a directional call."
     if net_gex < 0:
-        return "Means realized moves tend to be larger in either direction, not a directional call."
-    return "Net gamma near zero — no lean toward contained or amplified moves."
+        return "Model note: net-GEX sign implies moves tend to be larger in either direction, not a directional call."
+    return "Model note: net gamma near zero — no lean toward contained or amplified moves."
 
 
 def build_card_read(
@@ -557,5 +557,4 @@ def build_card_read(
                      else ("dealers amplifying", "negative"))
 
     return CardRead(chips=chips, lean=_lean_text(vrp_pct if vrp_ok else None, skew_pct))
-
 
