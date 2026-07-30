@@ -371,7 +371,7 @@ def _render_freshness_banner() -> None:
     ]
     if not latest_per_ticker:
         st.markdown(
-            '<div class="fresh fresh-bad">⚠ no stored snapshots found — '
+            '<div class="fresh fresh-bad">no stored snapshots found — '
             "daily collection has not run</div>",
             unsafe_allow_html=True,
         )
@@ -389,7 +389,7 @@ def _render_freshness_banner() -> None:
     else:
         plural = "s" if missing != 1 else ""
         st.markdown(
-            f'<div class="fresh fresh-bad">⚠ last collection {latest_str} · '
+            f'<div class="fresh fresh-bad">data stale: last collection {latest_str} · '
             f"{missing} trading day{plural} missing</div>",
             unsafe_allow_html=True,
         )
@@ -408,37 +408,23 @@ with st.sidebar:
         st.rerun()
     st.caption(f"{datetime.now().strftime('%a %b %d, %Y')}")
 
-    with st.popover("ℹ️ Methodology & assumptions", width="stretch"):
+    with st.popover("Methodology & assumptions", width="stretch"):
         st.markdown(
-            "**Descriptive only — no predictive or prescriptive claims.** "
-            "Every number here is a fact about *today's* option pricing or its "
-            "position in history. Nothing on this page tells you which way the "
-            "market will move.\n\n"
-            "**Evidence behind each read** (full literature review: "
-            "`research/methodology-deep-review.md`, audited 2026-07-27):\n\n"
-            "- **VRP (premium rich/cheap)** — *Strong.* Implied vol running "
-            "above realized vol is one of the most-replicated findings in "
-            "options research (Carr & Wu 2009). The percentile is ranked "
-            "against ~10 years of CBOE vol-index history, not a short "
-            "recent window.\n"
-            "- **Dealers amplifying/stabilizing** — *Moderate, for magnitude "
-            "only.* Real price-impact data (Baltussen et al. 2021, *JFE*; "
-            "Egebjerg & Kokholm 2024; Anderegg et al. 2022) supports dealer "
-            "gamma sign predicting whether realized moves are larger or more "
-            "contained — **not** which direction the market moves.\n"
-            "- **Skew (25Δ)** — a present-tense fact about how puts are priced "
-            "relative to calls right now. Shown as a description of current "
-            "positioning demand, not a forecast.\n"
-            "- **Zero-gamma level / walls** — a model construct (dealer-net-"
-            "short convention, Garleanu/Pedersen/Poteshman 2009), capped at "
-            "≤90 DTE. Treat the *sign* of net GEX as more reliable than any "
-            "specific price level.\n\n"
-            "**What was deliberately removed:** an earlier version of this "
-            "dashboard included a soft trading 'lean' (e.g. 'favors call "
-            "writing') templated off the VRP percentile. A pre-registered "
-            "out-of-sample test found no forward-return edge from timing that "
-            "signal (p=0.74) — so it was cut rather than left in as an "
-            "unvalidated recommendation."
+            "**Scope:** descriptive diagnostics only (no forecast, no trade signal).\n\n"
+            "**Evidence tiers used on this page**\n"
+            "- **VRP (premium rich/cheap):** strong for IV > RV persistence; "
+            "percentile is ranked on ~10 years of CBOE vol-index history.\n"
+            "- **Dealers amplifying/stabilizing:** moderate for **move magnitude**, "
+            "not direction.\n"
+            "- **Skew (25Δ):** present-tense pricing tilt (puts vs calls), shown "
+            "descriptively.\n"
+            "- **γ-flip / walls:** model constructs under a dealer net-short "
+            "convention, capped at ≤90 DTE.\n\n"
+            "**Validation discipline:** a prior soft trade lean was removed after "
+            "a null forward-return timing test (p=0.74).\n\n"
+            "Full assumptions + citations: see **Methodology & Assumptions → Deep "
+            "methodology details** below and "
+            "`research/methodology-deep-review.md`."
         )
 
 selected_all = sel_index
@@ -1088,7 +1074,8 @@ def _methods_quick_bullets() -> list[str]:
         "Quick assumptions (default): descriptive diagnostics only — no forecast or trade signal.",
         "Data latency: quotes are delayed and OI is prior-session (T-1); positioning is not live tape.",
         "Positioning lens: 14 DTE primary dealer-impact framing, with ≤90 DTE as secondary context.",
-        "VRP series: CBOE index-vol close minus RV20×100; scalar and percentile use the same history.",
+        "VRP series: CBOE index-vol close minus RV20×100; scalar and percentile share one deep history.",
+        "Model constructs: γ-flip and walls depend on the dealer net-short assumption.",
     ]
 
 
@@ -1096,71 +1083,33 @@ def _methods_deep_markdown() -> str:
     return """
 **Deep methodology details**
 
-**Data source.** Free CBOE delayed quotes JSON (no auth, no OPRA tick feed).
-Spot, IV, and chain mids are ~15-min delayed. **OI reflects prior session close**
-(OCC settles contracts end-of-day; this is true for all data vendors including
-Bloomberg — no intraday OI update exists). Greeks (γ, Δ, vega, θ) come from
-**CBOE's American option pricing model** (accounts for early exercise + dividends);
-we do not recompute them locally.
+**Data and timing**
+- Chains come from free CBOE delayed quotes JSON (~15-minute delay).
+- OI is prior-session close (T-1) by market structure; there is no intraday OI tape.
+- Greeks are from CBOE's American pricing model in the feed (not recomputed locally).
 
-**VRP source + formula.** VRP is **not** chain IV30 minus RV20 anymore. It is
-**CBOE index-vol close (VIX/VXN/RVX) − RV20×100**, where RV20 is from yfinance
-daily closes. That keeps the scalar and percentile on one consistent series.
+**Core definitions**
+- **VRP:** CBOE index-vol close (VIX/VXN/RVX) minus `RV20×100` (yfinance closes).
+- **Net GEX:** `Γ × OI × 100 × S² × 0.01`, calls positive, puts negative.
+- **Skew (25Δ):** IV(25Δ put) − IV(25Δ call) for nearest expiry ≥7 DTE.
+- **Surface:** OTM convention (put IV for K<S, call IV for K≥S) on %OTM × DTE.
 
-**Risk-free rate.** Live 3-month T-bill (`^IRX` via yfinance) at session start;
-falls back to 0.05 if the fetch fails. Used only in the γ-flip BS gamma sweep.
+**Filters and scope**
+- Min OI = 100, IV ≤ 300%, and 0DTE excluded (`DTE ≥ 1`).
+- Positioning context is capped at ≤90 DTE (`config.GEX_MAX_DTE`).
+- Universe is SPY / QQQ / IWM; Explore tickers are snapshot-only.
 
-**Filters.** Min OI = 100. IV ≤ 300% (drops obvious bad quotes). 0DTE excluded
-(`DTE ≥ 1`) — same-day options expire at zero gamma at close, would distort the
-overnight book picture. Vol surface: ±15% of spot displayed (±22% collected), ≤180 DTE
-for liquid-region focus.
+**Model constructs and caveats**
+- **γ-flip** and **walls** are model outputs, not validated price targets.
+- Dealer net-short is an aggregate assumption that can fail at strike-level.
+- Net GEX sign is generally more stable than any single derived level.
 
-**Defensible metrics** (academic backing in `research/methodology-deep-review.md`):
+**Evidence tier summary**
+- VRP richness/cheapness: strong replication.
+- Dealer gamma sign vs move magnitude: moderate.
+- Directional prediction from these diagnostics: not supported here.
 
-- **Net GEX** — `Γ × OI × 100 × S² × 0.01`, calls positive, puts negative.
-  SpotGamma/perfiliev/GEXboard convention; derivable from Gatheral/Bergomi
-  dollar-gamma. Sign and order of magnitude are load-bearing; absolute levels are
-  methodology-dependent across vendors.
-- **Hedge Sh / $1** — `Γ_net × OI × 100` = aggregate shares dealers must trade per
-  $1 spot move to stay delta-neutral. Mechanism well-supported in Egebjerg &
-  Kokholm (2024).
-- **Skew (25Δ)** — IV(25Δ put) − IV(25Δ call) (symmetric risk reversal) for nearest expiry ≥7 DTE, in pp.
-  **Xing, Zhang & Zhao (2010, JFQA)**: steeper skew predicts subsequent
-  underperformance — 10.9% annual alpha. Only metric here with direct
-  peer-reviewed predictive backing.
-- **IV Surface** — CBOE chain IVs plotted on a % OTM axis `(K/S−1)×100`.
-  **OTM convention**: put IV for K<S, call IV for K≥S — the industry standard
-  (Gatheral §2.1). OTM options are more liquid and avoid American early-exercise
-  distortion. Coarse 25×20 linear interpolation grid; convex-hull coverage mask applied —
-  unsupported cells (outside the interpolation support region) rendered as honest NaN holes.
-  Coverage % and fit RMS visible in the Surface tab. Raw chain quotes overlaid as
-  scatter so data density is visible. GEX context available in the Positioning tab.
-- **IV30** — CBOE-computed 30-day constant-maturity vol, taken directly from
-  the delayed payload.
-
-**Model constructs (interpret carefully).**
-
-- **γ-flip (formerly "Zero-γ Level")** — spot at which cumulative net GEX would
-  cross zero, computed by BS gamma sweep ±15% in 200 steps. **Zero peer-reviewed
-  papers test this as a price level.** Defensible only as a property of the
-  current model output, not as a price target or support/resistance.
-- **Call Wall / Put Wall** — strikes with max one-sided GEX. Trader lore as
-  support/resistance; **no peer-reviewed backtest**. Defensible only as
-  "where the largest gamma-weighted OI concentration sits today."
-
-**Dealer positioning assumption.** GEX assumes dealers are net short all options
-(retail buys, dealers sell). **Garleanu, Pedersen & Poteshman (2009, RFS)**
-confirms empirically for index options in aggregate. Can be wrong at individual
-strikes with covered-call programs, vol sellers, or institutional flow dominant.
-Hu, Kirilova, Muravyev & Ryu (2023) further note only ~10% of OMMs continuously
-delta-hedge — the assumed continuous rebalancing is itself a simplification.
-
-**Universe.** SPY / QQQ / IWM only. Single-name extension would require
-revisiting the dealer positioning assumption per ticker.
-
-**No realized-vol attribution.** This is a positioning monitor, not a forecaster.
-No event study, base rate, or backtest is shown — the live history is too short
-for inference.
+Full citations and counter-evidence: `research/methodology-deep-review.md`.
     """
 
 
@@ -1171,7 +1120,6 @@ with st.expander("Methodology & Assumptions", expanded=False):
 
     with st.expander("Deep methodology details", expanded=False):
         st.markdown(_methods_deep_markdown())
-
 
 
 
