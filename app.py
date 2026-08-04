@@ -4,7 +4,6 @@ from datetime import datetime, date
 from pathlib import Path
 
 import pandas as pd
-import plotly.graph_objects as go
 import pandas_market_calendars as mcal
 import pytz
 import streamlit as st
@@ -25,7 +24,6 @@ from engine.report.card_model import (
 from engine.data.oi_history import prior_oi_snapshot, load_oi_history
 from engine.compute import compute_ticker
 from engine.gex.analytics import (
-    plot_gamma_profile,
     plot_vol_surface, plot_iv_change_surface,
 )
 from scipy.stats import percentileofscore
@@ -267,8 +265,8 @@ def _regime_headline(s: dict) -> str:
     if net_gex is None:
         return premium + "."
     if net_gex >= 0:
-        return f"{premium}, dealers stabilizing — moves tend more contained."
-    return f"{premium}, dealers amplifying — moves tend larger in either direction."
+        return f"{premium}. Moves tend contained — a short-premium posture sits easier."
+    return f"{premium}. Moves tend larger in either direction — size down, widen strikes."
 
 
 def _hist_series(hist: pd.DataFrame, col: str) -> list | None:
@@ -458,9 +456,9 @@ def _methods_deep_markdown() -> str:
 - Universe is SPY / QQQ / IWM; Explore tickers are snapshot-only.
 
 **Model constructs and caveats**
-- **γ-flip** and **walls** are model outputs, not validated price targets.
+- Dealer-gamma **sign** drives only a move-size regime (a position-sizing input) — never a price level or a direction call. γ-flip and walls are not surfaced.
 - Dealer net-short is an aggregate assumption that can fail at strike level.
-- For single names it is weaker still — the Explore tab drops it for raw OI.
+- For single names it is weaker still — the Explore tab drops gamma entirely for raw OI.
 
 Full citations and counter-evidence: `research/methodology-deep-review.md`.
     """
@@ -481,16 +479,18 @@ with st.sidebar:
 
     with st.popover("Methodology & assumptions", width="stretch"):
         st.markdown(
-            "**Scope:** descriptive diagnostics only (no forecast, no trade signal).\n\n"
+            "**Scope:** descriptive context for an option-writing program — "
+            "no forecast, no direction call, no trade signal.\n\n"
             "**Evidence tiers used on this page**\n"
             "- **VRP (premium rich/cheap):** strong for IV > RV persistence; "
             "percentile is ranked on ~10 years of CBOE vol-index history.\n"
-            "- **Dealers amplifying/stabilizing:** moderate for **move magnitude**, "
-            "not direction.\n"
             "- **Skew (25Δ):** present-tense pricing tilt (puts vs calls), shown "
             "descriptively.\n"
-            "- **γ-flip / walls:** model constructs under a dealer net-short "
-            "convention, capped at ≤90 DTE.\n\n"
+            "- **Move-size regime (dealer-gamma sign):** moderate evidence for move "
+            "**magnitude**, none for direction — used only as a position-sizing "
+            "input, capped at ≤90 DTE.\n"
+            "- **Open interest:** raw, prior-session (T-1) — assignment / pin-risk "
+            "context, no dealer assumption.\n\n"
             "**Validation discipline:** a prior soft trade lean was removed after "
             "a null forward-return timing test (p=0.74)."
         )
@@ -891,7 +891,7 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
 
 if sel_index:
     tab_regime, tab_surfaces, tab_positioning, tab_explore = st.tabs(
-        ["Regime", "Surfaces", "Positioning", "Explore"]
+        ["Regime", "Surfaces", "Writing conditions", "Explore"]
     )
 
     with tab_regime:
@@ -918,15 +918,16 @@ if sel_index:
         with sub_evolution:
             _evolution_section(surf_tkr, all_data)
 
-    # ── Positioning ───────────────────────────────────────────────────────────
+    # ── Writing conditions ──────────────────────────────────────────────────────
     with tab_positioning:
         st.caption(
-            f"Lens: {config.GEX_PRIMARY_DTE} DTE primary · ≤{config.GEX_MAX_DTE} DTE context · "
-            "γ-flip/walls = model (dealer net-short) · OI = raw"
+            "What the writing program can act on — a move-size regime for sizing, the "
+            "expected-move cone for strike placement, and open interest for assignment / "
+            "pin risk. No price targets, no direction call."
         )
 
         pos_tkr = st.segmented_control(
-            "Positioning ticker", selected_all,
+            "Writing-conditions ticker", selected_all,
             default=selected_all[0], required=True,
             key="positioning_tkr", label_visibility="collapsed",
         )
@@ -940,180 +941,126 @@ if sel_index:
 
             st.markdown(f"**{ticker}**")
 
-            # Net GEX + Net Delta side by side
-            nd = s.get("net_delta")
             ng = s.get("net_gex")
-            d1, d2 = st.columns(2)
-            with d1:
-                gex_sign = "Stabilizing" if (ng is not None and ng >= 0) else "Amplifying"
-                gex_color = "#4ade80" if ng and ng >= 0 else "#f87171"
-                gex_str = f"{ng/1e9:.2f}B" if ng is not None else "—"
+            if ng is None:
+                regime_txt, regime_note, regime_color = "—", "Move-size regime unavailable.", "#64748b"
+            elif ng >= 0:
+                regime_txt = "Contained"
+                regime_note = ("Dealer gamma net-long → moves tend smaller. A short-premium "
+                               "posture sits easier; sizing can lean in.")
+                regime_color = "#4ade80"
+            else:
+                regime_txt = "Elevated"
+                regime_note = ("Dealer gamma net-short → moves tend larger either way. Size "
+                               "down, widen strikes, mind the tails.")
+                regime_color = "#f87171"
+
+            em_pct = s.get("expected_move_pct")
+            em_expiry = s.get("em_expiry")
+            em_dte = s.get("em_dte")
+            if em_pct is not None and em_expiry is not None and em_dte is not None:
+                try:
+                    em_str = (f"±{em_pct:.1f}% by {pd.to_datetime(em_expiry).strftime('%b %d')} "
+                              f"({int(round(float(em_dte)))}d)")
+                except (TypeError, ValueError):
+                    em_str = f"±{em_pct:.1f}%"
+            elif em_pct is not None:
+                em_str = f"±{em_pct:.1f}%"
+            else:
+                em_str = "—"
+
+            c1, c2 = st.columns(2)
+            with c1:
                 st.markdown(
-                    f"<span style='font-size:0.78rem;color:#8b949e;'>Net GEX (model)</span><br>"
-                    f"<span style='font-size:1.1rem;font-weight:700;color:{gex_color};'>"
-                    f"{gex_str}</span> <span style='font-size:0.78rem;color:{gex_color};'>{gex_sign}</span>",
+                    f"<span style='font-size:0.78rem;color:#8b949e;'>Move-size regime "
+                    f"<span style='opacity:0.7;'>(sizing input, not a target)</span></span><br>"
+                    f"<span style='font-size:1.25rem;font-weight:700;color:{regime_color};'>"
+                    f"{regime_txt}</span>",
                     unsafe_allow_html=True,
                 )
-            with d2:
-                if nd is not None:
-                    nd_dir = "Long" if nd > 0 else "Short"
-                    nd_str = f"{abs(nd)/1e6:.1f}M shares {nd_dir.lower()}"
-                else:
-                    nd_str = "—"
+                st.caption(regime_note)
+            with c2:
                 st.markdown(
-                    f"<span style='font-size:0.78rem;color:#8b949e;'>Net Delta (dealer hedge)</span><br>"
-                    f"<span style='font-size:1.1rem;font-weight:700;'>{nd_str}</span>",
+                    f"<span style='font-size:0.78rem;color:#8b949e;'>Expected-move cone "
+                    f"<span style='opacity:0.7;'>(1σ, for strike placement)</span></span><br>"
+                    f"<span style='font-size:1.25rem;font-weight:700;'>{em_str}</span>",
                     unsafe_allow_html=True,
                 )
+                st.caption("Set short strikes outside the band you'll accept assignment within.")
 
-            with st.container():
-                hist42 = _load_history_cached(ticker, days=42)
-                if not hist42.empty:
-                    chart_df = hist42.sort_values("date")
-                    levels_fig = go.Figure()
+            st.markdown(
+                "<div class='sec'>Open interest — assignment &amp; pin risk</div>",
+                unsafe_allow_html=True,
+            )
+            expiry_oi_df = data.get("expiry_oi_df")
+            if expiry_oi_df is None or expiry_oi_df.empty:
+                st.caption(f"{ticker}: OI by expiry data unavailable.")
+            else:
+                st.caption(
+                    f"Where OI concentrates relative to your short strikes → breach / pin risk. "
+                    f"Filtered set (OI ≥ 100, DTE ≤ {config.GEX_MAX_DTE}, IV ≤ 300%, 0DTE excluded); "
+                    "OI is T-1, and 5d share context is shown when history exists."
+                )
+                prior = _prior_oi_cached(ticker, date.today())
+                prior_oi_map = {}
+                if not prior.empty and "expiry" in prior.columns and "oi" in prior.columns:
+                    for _, row in prior.iterrows():
+                        prior_oi_map[str(row["expiry"])] = row["oi"]
 
-                    spot_df = chart_df.dropna(subset=["spot"])
-                    if not spot_df.empty:
-                        levels_fig.add_trace(go.Scatter(
-                            x=spot_df["date"],
-                            y=spot_df["spot"],
-                            name="Spot",
-                            mode="lines",
-                            line=dict(color="white", dash="dot", width=1.2),
-                            hovertemplate="%{x|%b %d}<br>Spot: %{y:,.0f}<extra></extra>",
-                        ))
+                display_df = expiry_oi_df[["expiry", "dte", "oi", "pct_of_total", "put_call_ratio"]].copy()
+                oi_hist = _oi_history_cached(ticker, days=5)
+                avg_share_map: dict[str, float] = {}
+                if not oi_hist.empty and {"expiry", "pct_of_total"}.issubset(set(oi_hist.columns)):
+                    avg_share = oi_hist.groupby("expiry", dropna=True)["pct_of_total"].mean()
+                    avg_share_map = {str(k): float(v) for k, v in avg_share.items()}
 
-                    zgl_df = chart_df.dropna(subset=["zero_gamma_level"])
-                    if not zgl_df.empty:
-                        levels_fig.add_trace(go.Scatter(
-                            x=zgl_df["date"],
-                            y=zgl_df["zero_gamma_level"],
-                            name="γ-flip (model)",
-                            mode="lines",
-                            line=dict(color=config.PALETTE["accent"], width=1.5),
-                            hovertemplate="%{x|%b %d}<br>γ-flip (model): %{y:,.0f}<extra></extra>",
-                        ))
+                def _fmt_oi(x):
+                    return f"{x/1e3:.0f}K" if x >= 1000 else f"{x:.0f}"
 
-                    cw_df = chart_df.dropna(subset=["call_wall"])
-                    if not cw_df.empty:
-                        levels_fig.add_trace(go.Scatter(
-                            x=cw_df["date"],
-                            y=cw_df["call_wall"],
-                            name="call wall (model)",
-                            mode="lines",
-                            line=dict(color=config.PALETTE["call"], dash="dot", width=1.0),
-                            hovertemplate="%{x|%b %d}<br>call wall (model): %{y:,.0f}<extra></extra>",
-                        ))
+                def _fmt_delta_oi(current_oi, expiry_key):
+                    prior_val = prior_oi_map.get(str(expiry_key))
+                    if prior_val is None:
+                        return "–"
+                    d = current_oi - prior_val
+                    if abs(d) >= 1000:
+                        return f"+{d/1e3:.0f}K" if d >= 0 else f"{d/1e3:.0f}K"
+                    return f"+{d:.0f}" if d >= 0 else f"{d:.0f}"
 
-                    pw_df = chart_df.dropna(subset=["put_wall"])
-                    if not pw_df.empty:
-                        levels_fig.add_trace(go.Scatter(
-                            x=pw_df["date"],
-                            y=pw_df["put_wall"],
-                            name="put wall (model)",
-                            mode="lines",
-                            line=dict(color=config.PALETTE["put"], dash="dot", width=1.0),
-                            hovertemplate="%{x|%b %d}<br>put wall (model): %{y:,.0f}<extra></extra>",
-                        ))
-
-                    levels_fig.update_layout(
-                        template="plotly_dark",
-                        title=f"{ticker} · Spot vs model levels — 42 sessions",
-                        height=260,
-                        margin=dict(t=40, b=30, l=60, r=20),
-                        legend=dict(orientation="h", y=1.15),
+                display_df["Expiry"] = pd.to_datetime(display_df["expiry"]).dt.strftime("%b %d")
+                display_df["DTE"] = display_df["dte"].round(0).astype(int)
+                display_df["OI"] = display_df["oi"].apply(_fmt_oi)
+                display_df["Δ OI"] = [
+                    _fmt_delta_oi(row["oi"], row["expiry"])
+                    for _, row in expiry_oi_df.iterrows()
+                ]
+                display_df["OI Share"] = display_df["pct_of_total"].apply(lambda x: f"{x:.1f}%")
+                display_df["P/C Ratio"] = display_df["put_call_ratio"].apply(lambda x: f"{x:.2f}")
+                display_df["5d Avg Share"] = [
+                    (f"{avg_share_map[str(row['expiry'])]:.1f}%" if str(row["expiry"]) in avg_share_map else "—")
+                    for _, row in expiry_oi_df.iterrows()
+                ]
+                display_df["vs 5d Avg"] = [
+                    (
+                        f"{(row['pct_of_total'] - avg_share_map[str(row['expiry'])]):+.1f}pp"
+                        if str(row["expiry"]) in avg_share_map else "—"
                     )
-                    st.plotly_chart(levels_fig, width='stretch')
-                else:
-                    st.caption(f"{ticker}: no history yet.")
-
-            with st.expander("γ-flip & walls (model derivation)", expanded=False):
-                p_df = data.get("p_df")
-                if p_df is not None:
-                    st.plotly_chart(
-                        plot_gamma_profile(p_df, spot, ticker, s),
-                        width='stretch',
-                    )
-                st.markdown(
-                    "**Gamma profile (model).** Net GEX swept across ±15% spot range in 200 steps "
-                    "(Black-Scholes gamma, dealer net-short assumption). The profile shows "
-                    "how aggregate dealer hedging pressure varies with spot. "
-                    "**Zero-gamma level (γ-flip, model):** strike where cumulative net GEX crosses zero — "
-                    "by convention, above it dealers are long gamma (stabilising); below it, short gamma (amplifying). "
-                    "**Walls (model):** strikes with maximum one-sided GEX concentration. "
-                    "**Model assumption:** dealers net short all options (Garleanu, Pedersen & Poteshman 2009)."
+                    for _, row in expiry_oi_df.iterrows()
+                ]
+                display_df["Impact"] = display_df.apply(
+                    lambda r: format_oi_impact(r.get("pct_of_total"), r.get("put_call_ratio")),
+                    axis=1,
                 )
 
-            with st.expander("OI Impact by Expiry", expanded=False):
-                expiry_oi_df = data.get("expiry_oi_df")
-                if expiry_oi_df is None or expiry_oi_df.empty:
-                    st.caption(f"{ticker}: OI by expiry data unavailable.")
-                else:
-                    st.caption(
-                        f"Table-first OI context from the filtered positioning set "
-                        f"(OI >= 100, DTE <= {config.GEX_MAX_DTE}, IV <= 300%, 0DTE excluded). "
-                        f"Primary narrative lens: first {config.GEX_PRIMARY_DTE} DTE; broader tenor remains secondary context. "
-                        "OI is T-1, and 5d share context is shown when history exists."
-                    )
-                    prior = _prior_oi_cached(ticker, date.today())
-                    prior_oi_map = {}
-                    if not prior.empty and "expiry" in prior.columns and "oi" in prior.columns:
-                        for _, row in prior.iterrows():
-                            prior_oi_map[str(row["expiry"])] = row["oi"]
+                display_df = display_df[
+                    ["Expiry", "DTE", "OI", "Δ OI", "OI Share", "5d Avg Share", "vs 5d Avg", "P/C Ratio", "Impact"]
+                ]
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
 
-                    display_df = expiry_oi_df[["expiry", "dte", "oi", "pct_of_total", "put_call_ratio"]].copy()
-                    oi_hist = _oi_history_cached(ticker, days=5)
-                    avg_share_map: dict[str, float] = {}
-                    if not oi_hist.empty and {"expiry", "pct_of_total"}.issubset(set(oi_hist.columns)):
-                        avg_share = oi_hist.groupby("expiry", dropna=True)["pct_of_total"].mean()
-                        avg_share_map = {str(k): float(v) for k, v in avg_share.items()}
-
-                    def _fmt_oi(x):
-                        return f"{x/1e3:.0f}K" if x >= 1000 else f"{x:.0f}"
-
-                    def _fmt_delta_oi(current_oi, expiry_key):
-                        prior_val = prior_oi_map.get(str(expiry_key))
-                        if prior_val is None:
-                            return "–"
-                        d = current_oi - prior_val
-                        if abs(d) >= 1000:
-                            return f"+{d/1e3:.0f}K" if d >= 0 else f"{d/1e3:.0f}K"
-                        return f"+{d:.0f}" if d >= 0 else f"{d:.0f}"
-
-                    display_df["Expiry"] = pd.to_datetime(display_df["expiry"]).dt.strftime("%b %d")
-                    display_df["DTE"] = display_df["dte"].round(0).astype(int)
-                    display_df["OI"] = display_df["oi"].apply(_fmt_oi)
-                    display_df["Δ OI"] = [
-                        _fmt_delta_oi(row["oi"], row["expiry"])
-                        for _, row in expiry_oi_df.iterrows()
-                    ]
-                    display_df["OI Share"] = display_df["pct_of_total"].apply(lambda x: f"{x:.1f}%")
-                    display_df["P/C Ratio"] = display_df["put_call_ratio"].apply(lambda x: f"{x:.2f}")
-                    display_df["5d Avg Share"] = [
-                        (f"{avg_share_map[str(row['expiry'])]:.1f}%" if str(row["expiry"]) in avg_share_map else "—")
-                        for _, row in expiry_oi_df.iterrows()
-                    ]
-                    display_df["vs 5d Avg"] = [
-                        (
-                            f"{(row['pct_of_total'] - avg_share_map[str(row['expiry'])]):+.1f}pp"
-                            if str(row["expiry"]) in avg_share_map else "—"
-                        )
-                        for _, row in expiry_oi_df.iterrows()
-                    ]
-                    display_df["Impact"] = display_df.apply(
-                        lambda r: format_oi_impact(r.get("pct_of_total"), r.get("put_call_ratio")),
-                        axis=1,
-                    )
-
-                    display_df = display_df[
-                        ["Expiry", "DTE", "OI", "Δ OI", "OI Share", "5d Avg Share", "vs 5d Avg", "P/C Ratio", "Impact"]
-                    ]
-                    st.dataframe(display_df, use_container_width=True, hide_index=True)
-
-        st.caption(
-            "IWM: OI data is the more reliable signal — "
-            "GEX-derived levels may be less reliable due to thinner dealer positioning in small-caps."
-        )
+            if ticker == "IWM":
+                st.caption(
+                    "IWM: lean on the OI read here — small-cap dealer gamma is thin, so the "
+                    "move-size regime is a weaker input than it is for SPY / QQQ."
+                )
 
     # ── Explore (ad-hoc, ephemeral single-ticker snapshot) ─────────────────────
     with tab_explore:
