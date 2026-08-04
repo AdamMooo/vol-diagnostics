@@ -20,8 +20,7 @@ from engine.surface.surface_interactive import (
     build_movie_payload, render_movie_html,
 )
 from engine.report.card_model import (
-    format_oi_impact, _ordinal, build_card_fields, build_card_read,
-    split_compact_fields, gex_mechanism_note,
+    format_oi_impact, _ordinal, build_card_fields,
 )
 from engine.data.oi_history import prior_oi_snapshot, load_oi_history
 from engine.compute import compute_ticker
@@ -253,96 +252,141 @@ def _net_gex_chip(summary: dict) -> str:
     )
 
 
+def _regime_headline(s: dict) -> str:
+    """One plain-English sentence: VRP premium band + dealer-gamma sign. The VRP
+    band shows only when it cleared the credibility floor; the dealer clause is a
+    move-MAGNITUDE statement, never direction (Baltussen 2021, Egebjerg 2024,
+    Anderegg 2022 support the former, not the latter)."""
+    vrp_pct, vrp_pct_n = s.get("vrp_pct"), s.get("vrp_pct_n")
+    net_gex = s.get("net_gex")
+    if vrp_pct is not None and (vrp_pct_n or 0) >= config.CARD_READ_MIN_SESSIONS:
+        band = "rich" if vrp_pct >= 67 else "cheap" if vrp_pct <= 33 else "fair"
+        premium = f"Premium {band} ({_ordinal(vrp_pct)} %ile)"
+    else:
+        premium = "Premium history building"
+    if net_gex is None:
+        return premium + "."
+    if net_gex >= 0:
+        return f"{premium}, dealers stabilizing — moves tend more contained."
+    return f"{premium}, dealers amplifying — moves tend larger in either direction."
+
+
+def _hist_series(hist: pd.DataFrame, col: str) -> list | None:
+    """Ascending, NaN-free value list for a metric sparkline (None if <2 points)."""
+    if hist.empty or col not in hist.columns:
+        return None
+    ser = hist.sort_values("date")[col].dropna()
+    return ser.tolist() if len(ser) >= 2 else None
+
+
+def _iv30_5d_delta(hist: pd.DataFrame) -> str | None:
+    """IV30 change over ~5 sessions, as a signed delta string (None if too short)."""
+    if hist.empty or "iv30" not in hist.columns:
+        return None
+    ser = hist.sort_values("date")["iv30"].dropna()
+    if len(ser) < 6:
+        return None
+    return f"{ser.iloc[-1] - ser.iloc[-6]:+.1f}pp 5d"
+
+
 def _render_regime_cards(selected_all: list[str], all_data: dict[str, dict]) -> None:
-    """Plain-English per-ticker read — built from the same build_card_fields/
-    build_card_read the email uses (card_model.py is the single source of truth,
-    so dashboard and email can't drift). Two corrections applied 2026-07-27
-    after an audit of the underlying methodology-review literature:
-      - the 'amplifying/stabilizing' label now carries an explicit one-line
-        mechanism caption (gex_mechanism_note) making clear it's a claim about
-        move MAGNITUDE, not direction — the evidence (Baltussen 2021, Egebjerg
-        2024, Anderegg 2022) supports the former, not the latter.
-      - the lean sentence states facts (premium rich/cheap, skew) rather than
-        an unvalidated 'favors call writing' recommendation — the v6.0 pre-build
-        test found no forward-return edge from timing VRP level (p=0.74)."""
+    """Front-door per-ticker read: a plain-English headline sentence, then a
+    bordered KPI row (VRP / IV30 / skew) with trend sparklines. VRP carries the
+    rich/cheap color; IV/skew stay neutral. Full field detail is opt-in below.
+    card_model.build_card_fields stays the single source shared with the email."""
     cols = st.columns(len(selected_all)) if len(selected_all) > 1 else [st.container()]
     for col, ticker in zip(cols, selected_all):
         data = all_data.get(ticker)
         if not data:
             continue
         s = data.get("summary") or {}
-        if s.get("error"):
-            with col:
-                st.error(f"{ticker}: {s.get('error')}")
-            continue
-
-        spot = s.get("spot")
-        net_gex = s.get("net_gex")
-        if net_gex is not None and net_gex > 0:
-            regime_txt, regime_color = "Dealers stabilizing", "#4ade80"
-        elif net_gex is not None and net_gex < 0:
-            regime_txt, regime_color = "Dealers amplifying", "#f87171"
-        else:
-            regime_txt, regime_color = "Dealers neutral", "#64748b"
-
-        prior_row = _prior_snapshot_cached(ticker=ticker, before_date=date.today())
-        fields = build_card_fields(today_summary=s, prior_summary=prior_row)
-        primary_fields, _ = split_compact_fields(fields)
-        read = build_card_read(
-            s, skew_pct=s.get("read_skew_pct"), move_5d=s.get("read_move_5d"),
-        )
-
         with col:
+            if s.get("error"):
+                st.error(f"{ticker}: {s.get('error')}")
+                continue
+
+            spot = s.get("spot")
             day_pct = s.get("price_change_pct")
             day_str = f"&nbsp;&nbsp;{day_pct:+.2f}%" if day_pct is not None else ""
-            spot_str = f"{spot:,.0f}" if spot is not None else "—"
+            spot_str = f"{spot:,.2f}" if spot is not None else "—"
             st.markdown(
-                f"<div style='font-size:0.95rem;font-weight:700;'>{ticker}"
-                f"<span style='font-weight:400;opacity:0.7;'>&nbsp;&nbsp;{spot_str}{day_str}"
+                f"<div style='font-size:1.0rem;font-weight:700;'>{ticker}"
+                f"<span style='font-weight:400;opacity:0.65;'>&nbsp;&nbsp;{spot_str}{day_str}"
                 f"</span></div>",
                 unsafe_allow_html=True,
             )
             st.markdown(
-                f"<span style='font-size:0.78rem;font-weight:700;letter-spacing:0.02em;"
-                f"color:{regime_color};'>&#9679; {regime_txt}</span><br>"
-                f"<span style='font-size:0.68rem;color:#64748b;'>"
-                f"{gex_mechanism_note(net_gex)}</span>",
+                f"<div style='font-size:0.9rem;line-height:1.45;margin:6px 0 12px;'>"
+                f"{_regime_headline(s)}</div>",
                 unsafe_allow_html=True,
             )
-            if read.lean:
+
+            hist = _load_history_cached(ticker, days=config.HISTORY_DAYS)
+
+            vrp = s.get("vrp")
+            vrp_pct, vrp_pct_n = s.get("vrp_pct"), s.get("vrp_pct_n")
+            if vrp_pct is not None and (vrp_pct_n or 0) >= config.CARD_READ_MIN_SESSIONS:
+                vrp_delta = f"{_ordinal(vrp_pct)} %ile"
+                vrp_color = "green" if vrp_pct >= 67 else "red" if vrp_pct <= 33 else "gray"
+            else:
+                vrp_delta, vrp_color = "building", "gray"
+
+            skew = s.get("front_skew")
+            skew_delta = (
+                None if skew is None
+                else "puts pricier" if skew > 0
+                else "calls pricier" if skew < 0
+                else "flat"
+            )
+            iv30 = s.get("iv30")
+
+            with st.container(horizontal=True):
+                st.metric(
+                    "VRP",
+                    f"{vrp:+.1f}pp" if vrp is not None else "—",
+                    vrp_delta, delta_color=vrp_color, delta_arrow="off",
+                    chart_data=_hist_series(hist, "vrp"), border=True,
+                    help="IV − RV vol-point spread, ranked vs ~10yr CBOE vol-index history.",
+                )
+                st.metric(
+                    "IV30",
+                    f"{iv30:.1f}%" if iv30 else "—",
+                    _iv30_5d_delta(hist), delta_color="gray",
+                    chart_data=_hist_series(hist, "iv30"), border=True,
+                    help="30-day at-the-money implied volatility.",
+                )
+                st.metric(
+                    "Skew (25Δ)",
+                    f"{skew:+.1f}pp" if skew is not None else "—",
+                    skew_delta, delta_color="gray", delta_arrow="off",
+                    chart_data=_hist_series(hist, "front_skew"), border=True,
+                    help="25Δ put IV − call IV for the front expiry.",
+                )
+
+            em_pct = s.get("expected_move_pct")
+            fly = s.get("butterfly")
+            bits = []
+            if em_pct is not None:
+                bits.append(f"Expected move ±{em_pct:.1f}%")
+            if fly is not None:
+                bits.append(f"25Δ fly {fly:+.1f}pp")
+            if bits:
+                st.caption(" · ".join(bits))
+
+            prior_row = _prior_snapshot_cached(ticker=ticker, before_date=date.today())
+            fields = build_card_fields(today_summary=s, prior_summary=prior_row)
+            with st.expander("All fields"):
+                grid_html = "".join(
+                    f"<span style='opacity:0.6;'>{f.label}</span>"
+                    f"<span style='font-weight:600;text-align:right;"
+                    f"font-variant-numeric:tabular-nums;'>{f.value}</span>"
+                    for f in fields
+                )
                 st.markdown(
-                    f"<div style='font-size:0.85rem;margin:8px 0 6px;'>{read.lean}</div>",
+                    f"<div style='display:grid;grid-template-columns:auto 1fr;gap:3px 14px;"
+                    f"font-size:0.74rem;'>{grid_html}</div>",
                     unsafe_allow_html=True,
                 )
-            vrp_pct = s.get("vrp_pct")
-            if vrp_pct is not None:
-                if vrp_pct >= 67:
-                    bar_color = "#4ade80"
-                elif vrp_pct <= 33:
-                    bar_color = "#f87171"
-                else:
-                    bar_color = "#64748b"
-                st.markdown(
-                    f"<div style='font-size:0.68rem;opacity:0.6;margin-bottom:2px;'>"
-                    f"VRP percentile vs history</div>"
-                    f"<div style='background:rgba(148,163,184,0.18);height:5px;"
-                    f"border-radius:3px;overflow:hidden;margin-bottom:8px;'>"
-                    f"<div style='background:{bar_color};width:{vrp_pct}%;height:5px;'></div>"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-            grid_html = "".join(
-                f"<span style='opacity:0.6;'>{f.label}</span>"
-                f"<span style='font-weight:600;text-align:right;"
-                f"font-variant-numeric:tabular-nums;'>{f.value}</span>"
-                for f in primary_fields
-            )
-            st.markdown(
-                f"<div style='display:grid;grid-template-columns:auto 1fr;gap:3px 14px;"
-                f"font-size:0.74rem;border-top:1px solid rgba(148,163,184,0.14);"
-                f"padding-top:8px;margin-top:4px;'>{grid_html}</div>",
-                unsafe_allow_html=True,
-            )
 
 
 def _expected_latest_session(now_et: datetime) -> date:
@@ -395,6 +439,33 @@ def _render_freshness_banner() -> None:
         )
 
 
+def _methods_deep_markdown() -> str:
+    return """
+**Data and timing**
+- Chains come from free CBOE delayed quotes JSON (~15-minute delay).
+- OI is prior-session close (T-1) by market structure; there is no intraday OI tape.
+- Greeks are from CBOE's American pricing model in the feed (not recomputed locally).
+
+**Core definitions**
+- **VRP:** CBOE index-vol close (VIX/VXN/RVX) minus `RV20×100` (yfinance closes).
+- **Net GEX:** `Γ × OI × 100 × S² × 0.01`, calls positive, puts negative.
+- **Skew (25Δ):** IV(25Δ put) − IV(25Δ call) for the nearest expiry ≥7 DTE.
+- **Surface:** OTM convention (put IV for K<S, call IV for K≥S) on %OTM × DTE.
+
+**Filters and scope**
+- Min OI = 100, IV ≤ 300%, and 0DTE excluded (`DTE ≥ 1`).
+- Positioning context is capped at ≤90 DTE (`config.GEX_MAX_DTE`).
+- Universe is SPY / QQQ / IWM; Explore tickers are snapshot-only.
+
+**Model constructs and caveats**
+- **γ-flip** and **walls** are model outputs, not validated price targets.
+- Dealer net-short is an aggregate assumption that can fail at strike level.
+- For single names it is weaker still — the Explore tab drops it for raw OI.
+
+Full citations and counter-evidence: `research/methodology-deep-review.md`.
+    """
+
+
 # ── Boot ──────────────────────────────────────────────────────────────────────
 
 st.markdown(_CSS, unsafe_allow_html=True)
@@ -421,11 +492,11 @@ with st.sidebar:
             "- **γ-flip / walls:** model constructs under a dealer net-short "
             "convention, capped at ≤90 DTE.\n\n"
             "**Validation discipline:** a prior soft trade lean was removed after "
-            "a null forward-return timing test (p=0.74).\n\n"
-            "Full assumptions + citations: see **Methodology & Assumptions → Deep "
-            "methodology details** below and "
-            "`research/methodology-deep-review.md`."
+            "a null forward-return timing test (p=0.74)."
         )
+
+    with st.expander("Full methodology & citations"):
+        st.markdown(_methods_deep_markdown())
 
 selected_all = sel_index
 if not selected_all:
@@ -706,7 +777,7 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
     """
     st.caption(
         "Type any US-listed optionable ticker for a one-day CBOE snapshot — "
-        "surface, greeks, positioning. Snapshot only: nothing is saved or tracked, "
+        "surface, skew, open interest. Snapshot only: nothing is saved or tracked, "
         "so history-based metrics (VRP percentile, evolution, 5-day shifts) are blank."
     )
     raw = st.text_input(
@@ -747,95 +818,75 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
         unsafe_allow_html=True,
     )
 
-    # ── Key levels ──────────────────────────────────────────────────────────
     def _pct(level):
         if level is None or spot is None or spot <= 0:
             return "—"
         return f"{(level - spot) / spot * 100:+.1f}%"
 
-    zgl = s.get("zero_gamma_level")
-    cw = s.get("call_wall")
-    pw = s.get("put_wall")
-    em_pct = s.get("expected_move_pct")
-    lvl_bits = []
-    if zgl is not None:
-        lvl_bits.append(f"γ-flip (model) **{zgl:,.0f}** ({_pct(zgl)})")
-    if cw is not None:
-        lvl_bits.append(f"Call wall (model) **{cw:,.0f}** ({_pct(cw)})")
-    if pw is not None:
-        lvl_bits.append(f"Put wall (model) **{pw:,.0f}** ({_pct(pw)})")
-    if em_pct is not None:
-        lvl_bits.append(f"Expected move **±{em_pct:.1f}%**")
-    if lvl_bits:
-        st.markdown('<div class="sec">Key Levels</div>', unsafe_allow_html=True)
-        st.markdown(
-            "<span style='font-size:0.85rem;'>" + "  ·  ".join(lvl_bits) + "</span>",
-            unsafe_allow_html=True,
-        )
-
-    # ── Vol metrics ─────────────────────────────────────────────────────────
+    # ── Vol metrics (single-name lens leads with what's defensible here) ─────
     st.markdown('<div class="sec">Vol Metrics</div>', unsafe_allow_html=True)
-    m = st.columns(4)
     iv30 = s.get("iv30")
     rv20 = s.get("rv20")
     skew = s.get("front_skew")
-    vvix = s.get("vvix")
+    em_pct = s.get("expected_move_pct")
+    m = st.columns(4)
     m[0].metric("IV30", f"{iv30:.1f}%" if iv30 else "—")
     m[1].metric("RV20", f"{rv20 * 100:.1f}%" if rv20 else "—")
     m[2].metric("25Δ skew", f"{skew:+.1f}pp" if skew is not None else "—")
-    m[3].metric("VVIX (SPX)", f"{vvix:.0f}" if vvix is not None else "—")
+    m[3].metric("Expected move", f"±{em_pct:.1f}%" if em_pct is not None else "—")
     st.caption(
-        "VRP percentile, term-structure ratios and surface evolution are index-only "
+        "25Δ skew (put IV − call IV) is the OTM-put premium — at the single-name "
+        "level it's the best-studied options tilt (Xing, Zhang & Zhao 2010, JFQA). "
+        "VRP percentile, term-structure and surface evolution stay index-only "
         "(SPY/QQQ/IWM) — they need the CBOE vol-index series and accrued daily "
-        "snapshots, which an explore ticker doesn't have."
+        "snapshots an explore ticker doesn't have."
     )
 
     # ── Surface (reuses the tracked path's renderer) ────────────────────────
     st.markdown('<div class="sec">Surface</div>', unsafe_allow_html=True)
     _surface_today_section(raw, explore_data)
 
-    # ── Positioning (current day only) ──────────────────────────────────────
-    st.markdown('<div class="sec">Positioning</div>', unsafe_allow_html=True)
+    # ── Open interest (raw — no dealer-gamma model for single names) ─────────
+    st.markdown('<div class="sec">Open Interest</div>', unsafe_allow_html=True)
     st.caption(
-        f"Lens: {config.GEX_PRIMARY_DTE} DTE primary · ≤{config.GEX_MAX_DTE} DTE context · "
-        "γ-flip/walls = model (dealer net-short) · OI = raw · current day only"
+        "Raw OI only — no γ-flip / net-GEX / dealer walls here. The dealer-net-short "
+        "convention those rest on is empirically supported for index options "
+        "(Gârleanu, Pedersen & Poteshman 2009) but not for single names, where market "
+        "makers are often net long (Muravyev 2016) and most don't continuously "
+        "delta-hedge (Hu et al. 2023). OI is prior-session (T-1), current day only."
     )
-    ng = s.get("net_gex")
-    nd = s.get("net_delta")
-    c1, c2 = st.columns(2)
-    gex_sign = "Stabilizing" if (ng is not None and ng >= 0) else "Amplifying"
-    gex_str = f"{ng / 1e9:.2f}B" if ng is not None else "—"
-    c1.metric("Net GEX (model)", gex_str, gex_sign if ng is not None else None)
-    if nd is not None:
-        nd_dir = "long" if nd > 0 else "short"
-        c2.metric("Net Δ (dealer hedge)", f"{abs(nd) / 1e6:.1f}M", f"shares {nd_dir}")
+    oi_cw = s.get("oi_call_wall")
+    oi_pw = s.get("oi_put_wall")
+    w1, w2 = st.columns(2)
+    w1.metric(
+        "OI call wall (raw)",
+        f"{oi_cw:,.0f}" if oi_cw is not None else "—",
+        _pct(oi_cw) if oi_cw is not None else None,
+    )
+    w2.metric(
+        "OI put wall (raw)",
+        f"{oi_pw:,.0f}" if oi_pw is not None else "—",
+        _pct(oi_pw) if oi_pw is not None else None,
+    )
+
+    expiry_oi_df = data.get("expiry_oi_df")
+    if expiry_oi_df is None or expiry_oi_df.empty:
+        st.caption(f"{raw}: OI by expiry data unavailable.")
     else:
-        c2.metric("Net Δ (dealer hedge)", "—")
-
-    with st.expander("γ-flip & walls (model derivation)", expanded=False):
-        p_df = data.get("p_df")
-        if p_df is not None:
-            st.plotly_chart(plot_gamma_profile(p_df, spot, raw, s), width='stretch')
-
-    with st.expander("OI Impact by Expiry", expanded=False):
-        expiry_oi_df = data.get("expiry_oi_df")
-        if expiry_oi_df is None or expiry_oi_df.empty:
-            st.caption(f"{raw}: OI by expiry data unavailable.")
-        else:
-            df = expiry_oi_df[["expiry", "dte", "oi", "pct_of_total", "put_call_ratio"]].copy()
-            df["Expiry"] = pd.to_datetime(df["expiry"]).dt.strftime("%b %d")
-            df["DTE"] = df["dte"].round(0).astype(int)
-            df["OI"] = df["oi"].apply(lambda x: f"{x / 1e3:.0f}K" if x >= 1000 else f"{x:.0f}")
-            df["OI Share"] = df["pct_of_total"].apply(lambda x: f"{x:.1f}%")
-            df["P/C Ratio"] = df["put_call_ratio"].apply(lambda x: f"{x:.2f}")
-            df["Impact"] = df.apply(
-                lambda r: format_oi_impact(r.get("pct_of_total"), r.get("put_call_ratio")),
-                axis=1,
-            )
-            st.dataframe(
-                df[["Expiry", "DTE", "OI", "OI Share", "P/C Ratio", "Impact"]],
-                use_container_width=True, hide_index=True,
-            )
+        df = expiry_oi_df[["expiry", "dte", "oi", "pct_of_total", "put_call_ratio"]].copy()
+        df["Expiry"] = pd.to_datetime(df["expiry"]).dt.strftime("%b %d")
+        df["DTE"] = df["dte"].round(0).astype(int)
+        df["OI"] = df["oi"].apply(lambda x: f"{x / 1e3:.0f}K" if x >= 1000 else f"{x:.0f}")
+        df["OI Share"] = df["pct_of_total"].apply(lambda x: f"{x:.1f}%")
+        df["P/C Ratio"] = df["put_call_ratio"].apply(lambda x: f"{x:.2f}")
+        df["Impact"] = df.apply(
+            lambda r: format_oi_impact(r.get("pct_of_total"), r.get("put_call_ratio")),
+            axis=1,
+        )
+        st.dataframe(
+            df[["Expiry", "DTE", "OI", "OI Share", "P/C Ratio", "Impact"]],
+            use_container_width=True, hide_index=True,
+        )
 
 
 if sel_index:
@@ -1067,59 +1118,4 @@ if sel_index:
     # ── Explore (ad-hoc, ephemeral single-ticker snapshot) ─────────────────────
     with tab_explore:
         _render_explore_tab(shared_rate, shared_vvix)
-
-# ── Methodology & assumptions (quick/deep) ───────────────────────────────────
-def _methods_quick_bullets() -> list[str]:
-    return [
-        "Quick assumptions (default): descriptive diagnostics only — no forecast or trade signal.",
-        "Data latency: quotes are delayed and OI is prior-session (T-1); positioning is not live tape.",
-        "Positioning lens: 14 DTE primary dealer-impact framing, with ≤90 DTE as secondary context.",
-        "VRP series: CBOE index-vol close minus RV20×100; scalar and percentile share one deep history.",
-        "Model constructs: γ-flip and walls depend on the dealer net-short assumption.",
-    ]
-
-
-def _methods_deep_markdown() -> str:
-    return """
-**Deep methodology details**
-
-**Data and timing**
-- Chains come from free CBOE delayed quotes JSON (~15-minute delay).
-- OI is prior-session close (T-1) by market structure; there is no intraday OI tape.
-- Greeks are from CBOE's American pricing model in the feed (not recomputed locally).
-
-**Core definitions**
-- **VRP:** CBOE index-vol close (VIX/VXN/RVX) minus `RV20×100` (yfinance closes).
-- **Net GEX:** `Γ × OI × 100 × S² × 0.01`, calls positive, puts negative.
-- **Skew (25Δ):** IV(25Δ put) − IV(25Δ call) for nearest expiry ≥7 DTE.
-- **Surface:** OTM convention (put IV for K<S, call IV for K≥S) on %OTM × DTE.
-
-**Filters and scope**
-- Min OI = 100, IV ≤ 300%, and 0DTE excluded (`DTE ≥ 1`).
-- Positioning context is capped at ≤90 DTE (`config.GEX_MAX_DTE`).
-- Universe is SPY / QQQ / IWM; Explore tickers are snapshot-only.
-
-**Model constructs and caveats**
-- **γ-flip** and **walls** are model outputs, not validated price targets.
-- Dealer net-short is an aggregate assumption that can fail at strike-level.
-- Net GEX sign is generally more stable than any single derived level.
-
-**Evidence tier summary**
-- VRP richness/cheapness: strong replication.
-- Dealer gamma sign vs move magnitude: moderate.
-- Directional prediction from these diagnostics: not supported here.
-
-Full citations and counter-evidence: `research/methodology-deep-review.md`.
-    """
-
-
-with st.expander("Methodology & Assumptions", expanded=False):
-    st.markdown("**Quick assumptions (default)**")
-    for bullet in _methods_quick_bullets():
-        st.markdown(f"- {bullet}")
-
-    with st.expander("Deep methodology details", expanded=False):
-        st.markdown(_methods_deep_markdown())
-
-
 

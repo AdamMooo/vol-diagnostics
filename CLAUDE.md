@@ -39,6 +39,27 @@ pytest engine/tests                     # 449 tests
 
 `requirements.txt` tracks the stack. Add packages there when needed.
 
+## Moving to a New Dev Machine
+
+Git carries only code. Three things are gitignored and must ride along out-of-band:
+
+1. **`.env`** — secrets (SMTP, both OCI credential families, OCI private key). Copy the file directly from the old machine. `.env.example` lists every key with a "where to find it" note if you'd rather regenerate from scratch.
+2. **SSH key** `vol-diagnostics.key` (+ `.pub`) — needed for deploy and data sync. Copy into `~/.ssh/` (any path is fine; pass `-KeyFile` to the sync script / `-i` to `ssh` if it lives elsewhere).
+3. **`out/` data** — lives only on Oracle's disk, never in git. Pull it down after cloning.
+
+Turnkey on the new box:
+
+```powershell
+git clone https://github.com/AdamMooo/vol-diagnostics
+cd vol-diagnostics
+python -m venv .venv; .venv\Scripts\activate; pip install -r requirements.txt
+# then: drop .env into the repo root, and vol-diagnostics.key(.pub) into ~\.ssh\
+.\scripts\sync-from-oracle.ps1     # pulls Oracle's out/ down (needs the SSH key)
+streamlit run app.py
+```
+
+Deploying from the new box is identical to the Deploy section below — only the `-i` key path is machine-specific. (Standing intent: git-crypt would fold step 1 into `git clone` + unlock — see auto-memory `git-crypt-all-projects-decision`; not yet set up.)
+
 ## Deploy (Oracle)
 
 Pushing to `main` does **not** update the live site — Oracle only updates when you SSH in and pull. Run this after every push you want live:

@@ -77,7 +77,7 @@ Two deliberate design points: metrics only rank once they clear a 252-session cr
 
 **Explicitly removed for rigor:** vanna/charm exposures, hand-tuned regime labels, vs-yesterday classifier, wall clusters, OI×vega weighting — each carried more assumption than benefit.
 
-Full research: [`research/methodology-deep-review.md`](research/methodology-deep-review.md) (academic literature with SSRN/DOI citations) and [`research/methodology-audit.md`](research/methodology-audit.md) (practitioner-source audit).
+Full research: [`research/methodology-deep-review.md`](research/methodology-deep-review.md) — academic literature with SSRN/DOI citations, independently fact-checked against primary sources (2026-07-27 audit).
 
 ## Layout
 
