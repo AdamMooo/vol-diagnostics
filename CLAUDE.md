@@ -60,6 +60,15 @@ streamlit run app.py
 
 Deploying from the new box is identical to the Deploy section below — only the `-i` key path is machine-specific. (Standing intent: git-crypt would fold step 1 into `git clone` + unlock — see auto-memory `git-crypt-all-projects-decision`; not yet set up.)
 
+### If this machine is gone (nothing to copy from)
+
+Only **two** things live outside git and cannot be reconstructed by a clone. Back them up **now** somewhere off this laptop (password manager, or a private cloud / OCI bucket) — otherwise losing the machine means regenerating them:
+
+1. **`.env`** (secrets). Regenerable if lost, one by one: Gmail **App Password** (Google Account → Security → App Passwords); OCI **Customer Secret Key** and **API signing key** (OCI console → My Profile → Customer Secret Keys / API Keys → generate new, delete old); all OCIDs / namespace / subnet / image / AD are readable from the OCI console any time. `.env.example` lists every key with where-to-find notes.
+2. **`~/.ssh/vol-diagnostics.key`** (Oracle SSH). If lost you're locked out of the running instance over SSH — generate a new keypair, add the public key via the OCI console (Instance → Console connection / Cloud Shell), then update the GitHub `ORACLE_SSH_KEY` secret. The `.pub` re-derives from the private key: `ssh-keygen -y -f vol-diagnostics.key`.
+
+**Resilience note:** losing this laptop does **not** stop the product. The daily email pipeline runs on GitHub Actions with its own copy of all 18 secrets, and `out/` lives on Oracle's disk plus the OCI backup. A dead laptop costs you local dev + manual-deploy access, not the running service or the data.
+
 ## Deploy (Oracle)
 
 Pushing to `main` does **not** update the live site — Oracle only updates when you SSH in and pull. Run this after every push you want live:
