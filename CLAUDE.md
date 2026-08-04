@@ -62,7 +62,11 @@ Deploying from the new box is identical to the Deploy section below — only the
 
 ### If this machine is gone (nothing to copy from)
 
-Only **two** things live outside git and cannot be reconstructed by a clone. Back them up **now** somewhere off this laptop (password manager, or a private cloud / OCI bucket) — otherwise losing the machine means regenerating them:
+Only **two** things live outside git and cannot be reconstructed by a clone: `.env` and `~/.ssh/vol-diagnostics.key`.
+
+**Current backup (2026-08-04):** both live inside a **KeePassXC vault** — `vol-diagnostics-secrets.kdbx` — stored on Adam's personal **Google Drive**. It holds two entries (`.env` and the SSH key) as encrypted attachments. **Restore on a new machine:** install KeePassXC (free, `keepassxc.org`) → open the `.kdbx` from Drive → master passphrase → export the `.env` attachment to the repo root and the key to `~/.ssh/vol-diagnostics.key`. The vault's master passphrase is the one thing NOT stored digitally — if it's lost, the vault is unrecoverable, so the regeneration paths below are the fallback.
+
+If instead you're starting from scratch (no vault, no copies), regenerate them:
 
 1. **`.env`** (secrets). Regenerable if lost, one by one: Gmail **App Password** (Google Account → Security → App Passwords); OCI **Customer Secret Key** and **API signing key** (OCI console → My Profile → Customer Secret Keys / API Keys → generate new, delete old); all OCIDs / namespace / subnet / image / AD are readable from the OCI console any time. `.env.example` lists every key with where-to-find notes.
 2. **`~/.ssh/vol-diagnostics.key`** (Oracle SSH). If lost you're locked out of the running instance over SSH — generate a new keypair, add the public key via the OCI console (Instance → Console connection / Cloud Shell), then update the GitHub `ORACLE_SSH_KEY` secret. The `.pub` re-derives from the private key: `ssh-keygen -y -f vol-diagnostics.key`.
