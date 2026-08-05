@@ -18,7 +18,7 @@ import pandas as pd
 import pytest
 
 from engine.report.report import (
-    _ticker_card, build_email, evolution_section_html, _oi_summary_table,
+    _ticker_card, build_email, evolution_section_html,
     alerts_section_html, _methodology_link, _ordinal,
 )
 from engine import config
@@ -95,42 +95,26 @@ def test_ticker_card_shows_spot_in_header():
     assert "512" in html
 
 
-# ── Key Levels block: gamma-flip / call wall / put wall / expected move ───────
+# ── Metrics table: move-size only, no price-level surfacing ───────────────────
 
-def test_key_levels_shows_zgl_call_put_and_expected_move():
+def test_metrics_table_shows_expected_move_not_walls():
+    # De-directionalized 2026-08-05: γ-flip / call wall / put wall are price levels
+    # and are no longer surfaced. Expected move (a move-size stat) stays.
     r = _minimal_result(zero_gamma_level=495.0, call_wall=510.0, put_wall=490.0,
                          expected_move_pct=1.8)
     html = _ticker_card(r)
-    assert "γ-flip" in html
-    assert "Call wall" in html
-    assert "Put wall" in html
     assert "Expected move" in html
-    assert "495" in html and "510" in html and "490" in html
     assert "±1.8%" in html
 
 
-def test_key_levels_includes_pct_from_spot():
-    r = _minimal_result(spot=500.0, call_wall=510.0)
-    html = _ticker_card(r)
-    assert "+2.0%" in html  # (510-500)/500*100
-
-
-def test_key_levels_includes_5d_shift_when_present():
-    r = _minimal_result(call_wall=510.0, call_wall_5d_shift=1.5)
-    html = _ticker_card(r)
-    assert "+1.5% 5d" in html
-
-
-def test_key_levels_omits_5d_shift_when_absent():
-    r = _minimal_result(call_wall=510.0, call_wall_5d_shift=None)
-    html = _ticker_card(r)
-    assert "5d)" not in html
-
-
-def test_key_levels_omits_row_when_level_missing():
-    r = _minimal_result(zero_gamma_level=None)
+def test_metrics_table_omits_wall_and_gamma_flip_levels():
+    r = _minimal_result(zero_gamma_level=495.0, call_wall=510.0, put_wall=490.0)
     html = _ticker_card(r)
     assert "γ-flip" not in html
+    assert "Call wall" not in html
+    assert "Put wall" not in html
+    # The level values themselves must not leak into the card either.
+    assert "510" not in html and "490" not in html and "495" not in html
 
 
 # ── Read-block tests: email card shows a single concise "so what" line ───────
@@ -276,92 +260,11 @@ def test_methodology_caveat_banner_removed():
     assert "background:#f1f5f9" not in html
 
 
-# ── OI summary table tests ─────────────────────────────────────────────────
+# ── OI-by-expiry section removed 2026-08-05 (too granular for a daily brief) ──
 
-def _make_expiry_oi_df(n: int = 5) -> pd.DataFrame:
-    """Build a minimal expiry_oi_df with the columns _oi_summary_table expects."""
-    import datetime
-    base = datetime.date(2024, 1, 19)
-    return pd.DataFrame({
-        "expiry": [(base + datetime.timedelta(days=i * 30)).strftime("%Y-%m-%d") for i in range(n)],
-        "dte":    [30.0 + i * 30 for i in range(n)],
-        "call_oi": [5000 - i * 200 for i in range(n)],
-        "put_oi":  [4000 - i * 150 for i in range(n)],
-        "oi":      [9000 - i * 350 for i in range(n)],
-        "pct_of_total": [20.0 for _ in range(n)],
-        "put_call_ratio": [0.80 + i * 0.05 for i in range(n)],
-    })
-
-
-def test_oi_summary_table_none_input():
-    assert _oi_summary_table(None) is None
-
-
-def test_oi_summary_table_empty_df():
-    assert _oi_summary_table(pd.DataFrame()) is None
-
-
-def test_oi_summary_table_renders_top3():
-    import datetime
-    df = _make_expiry_oi_df(5)
-    result = _oi_summary_table(df)
-    assert result is not None
-    assert isinstance(result, str)
-    # Only the first 3 expiry dates should appear (rows 0, 1, 2)
-    dates_in_df = [
-        (datetime.date(2024, 1, 19) + datetime.timedelta(days=i * 30)).strftime("%b %d")
-        for i in range(5)
-    ]
-    for d in dates_in_df[:3]:
-        assert d in result, f"Expected expiry {d} in top-3 OI table"
-    for d in dates_in_df[3:]:
-        assert d not in result, f"Expiry {d} (row {dates_in_df.index(d)+1}) must not appear in top-3"
-
-
-def test_oi_summary_table_contains_section_label():
-    df = _make_expiry_oi_df(3)
-    result = _oi_summary_table(df)
-    assert result is not None
-    assert "OI IMPACT BY EXPIRY" in result
-
-
-def test_build_email_oi_data_omitted():
-    """build_email without oi_data must not include OI BY EXPIRY section."""
+def test_build_email_has_no_oi_by_expiry_section():
     html = build_email([_minimal_result()])
     assert "OI IMPACT BY EXPIRY" not in html
-
-
-def test_build_email_oi_data_included():
-    """build_email with oi_data containing a valid expiry_oi_df includes OI table."""
-    df = _make_expiry_oi_df(5)
-    oi_data = {"SPY": df}
-    html = build_email([_minimal_result()], oi_data=oi_data)
-    assert "OI IMPACT BY EXPIRY" in html
-
-
-def test_oi_summary_table_contains_mobile_safe_columns():
-    """Trimmed to 5 columns (from 8) so the table fits a phone-width email."""
-    df = _make_expiry_oi_df(3)
-    result = _oi_summary_table(df)
-    assert result is not None
-    for hdr in ("Expiry", "DTE", "OI Share", "P:C Ratio", "Impact"):
-        assert hdr in result
-    assert "5d Avg Share" not in result
-    assert "vs 5d Avg" not in result
-
-
-def test_oi_summary_table_impact_language_from_concentration():
-    df = _make_expiry_oi_df(3)
-    df.loc[0, "pct_of_total"] = 45.0
-    result = _oi_summary_table(df)
-    assert result is not None
-    assert "high concentration" in result.lower()
-
-
-def test_oi_summary_table_mentions_primary_14dte_lens():
-    result = _oi_summary_table(_make_expiry_oi_df(3))
-    assert result is not None
-    assert "14 DTE primary" in result
 
 
 def test_build_email_omits_assumptions_footer():
@@ -407,41 +310,23 @@ def test_evolution_section_includes_largest_move_summary_row():
     assert "What moved most today" in html
 
 
-def test_evolution_section_includes_all_horizon_detail_and_legend():
+def test_evolution_section_is_movers_strip_only():
+    # Per-horizon 5d/10d/30d tables + legend were dropped 2026-08-05; the section
+    # is now just the at-a-glance movers strip.
     evol_data = {
         "SPY": {
             "level": 0.1, "rms": 0.2, "skew_change": -0.1, "term_change": 0.6, "as_of": datetime.date(2026, 5, 27),
             "horizons": {
                 "5d": {"level": 0.10, "rms": 0.20, "skew_change": -0.10, "term_change": 0.60},
-                "10d": {"level": 0.20, "rms": 0.25, "skew_change": -0.05, "term_change": 0.30},
                 "30d": {"level": 0.30, "rms": 0.30, "skew_change": 0.00, "term_change": 0.10},
-            },
-        },
-        "QQQ": {
-            "level": 0.0, "rms": 0.1, "skew_change": 0.0, "term_change": 0.1, "as_of": datetime.date(2026, 5, 27),
-            "horizons": {
-                "5d": {"level": -0.10, "rms": 0.10, "skew_change": 0.00, "term_change": 0.10},
-                "10d": {"level": -0.20, "rms": 0.15, "skew_change": 0.02, "term_change": 0.05},
-                "30d": {"level": -0.30, "rms": 0.20, "skew_change": 0.05, "term_change": 0.00},
-            },
-        },
-        "IWM": {
-            "level": -0.1, "rms": 0.1, "skew_change": 0.1, "term_change": -0.1, "as_of": datetime.date(2026, 5, 27),
-            "horizons": {
-                "5d": {"level": 0.00, "rms": 0.10, "skew_change": 0.10, "term_change": -0.10},
-                "10d": {"level": 0.05, "rms": 0.12, "skew_change": 0.08, "term_change": -0.05},
-                "30d": {"level": -0.05, "rms": 0.15, "skew_change": 0.06, "term_change": 0.00},
             },
         },
     }
     html = evolution_section_html(evol_data)
     assert html is not None
-    # All three horizons shown as first-class detail rows.
-    assert "5-day" in html and "10-day" in html and "30-day" in html
-    # Legend explains what each metric means.
-    assert "Level" in html and "Disp" in html
-    # Per-horizon 30d value flows through (not just 5d).
-    assert "+0.30pp" in html
+    assert "What moved most today" in html
+    # No per-horizon table scaffolding.
+    assert "5-day" not in html and "10-day" not in html and "30-day" not in html
 
 
 # ── Event-shaped alerts banner (Plan 27-04, hybrid) ──────────────────────────

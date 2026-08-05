@@ -286,11 +286,6 @@ def run(dry_run: bool = False, force: bool = False) -> None:
         raise SystemExit(1)
 
     subject = f"Index Volatility Report — {today.strftime('%B')} {today.day}, {today.year}"
-    oi_data = {
-        d["summary"]["ticker"]: d["expiry_oi_df"]
-        for d in all_data
-        if not d["summary"].get("error") and d.get("expiry_oi_df") is not None
-    }
     notes = [n for n in (vol_feed_note, png_note) if n]
 
     # Event-shaped alerts banner input — band entries/escalations fired today plus
@@ -319,7 +314,6 @@ def run(dry_run: bool = False, force: bool = False) -> None:
         date=today,
         evolution_data=evolution_data,
         png_note=" · ".join(notes) if notes else None,
-        oi_data=oi_data if oi_data else None,
         alert_events=alert_events,
         prior_rank_lookup=prior_rank_lookup,
     )

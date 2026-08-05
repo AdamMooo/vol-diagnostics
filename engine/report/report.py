@@ -16,9 +16,8 @@ import pandas as pd
 
 from engine import config
 from engine.report.card_model import (
-    build_card_read, _pct_from_spot, _fmt_pct as _fmt_signed_pct,
-    _fmt_pct as _fmt_unsigned_pct, format_oi_impact,
-    _fmt_vrp, _fmt_skew, _fmt_expected_move, _fmt_term_ratios, _ordinal,
+    build_card_read, _fmt_pct as _fmt_signed_pct,
+    _fmt_vrp, _fmt_skew, _fmt_term_ratios, _ordinal,
     gex_mechanism_note,
 )
 
@@ -126,14 +125,14 @@ def _pct_bar(pct: int | None, color: str) -> str:
 # ── Metrics table — one clean table per card (vol + key levels merged) ──
 
 def _metrics_table(r: dict) -> str:
-    """A single, tightly-scoped metrics table per ticker. Merges the vol snapshot
-    (VRP / IV30 / skew / VIX term) with the key levels (γ-flip / walls / expected
-    move) into ONE clean table instead of two — less visual chrome, one scan path.
+    """A single, tightly-scoped metrics table per ticker: the vol snapshot an
+    option writer actually acts on — VRP (coloured rich/cheap), IV30, skew, VIX
+    term, and the move-size expectation.
 
-    Strategic field set (only what an income-sleeve PM acts on):
-      VRP (coloured), IV30, Skew, VIX term (SPY only), γ-flip, Call/Put wall,
-      Expected move. Reads precomputed summary fields only (no I/O)."""
-    spot = r.get("spot")
+    Deliberately excludes γ-flip / call wall / put wall: those are price *levels*,
+    and this product makes no level or direction call (dealer-gamma is surfaced
+    only as a move-size regime, matching the dashboard, app.py). Reads precomputed
+    summary fields only (no I/O)."""
     vrp = r.get("vrp")
     vrp_pct = r.get("vrp_pct")
     vrp_pct_n = r.get("vrp_pct_n")
@@ -142,13 +141,6 @@ def _metrics_table(r: dict) -> str:
     front_skew = r.get("front_skew")
     term_9d_30d = r.get("term_ratio_9d_30d")
     term_30d_3m = r.get("term_ratio_30d_3m")
-    zgl = r.get("zero_gamma_level")
-    cw = r.get("call_wall")
-    pw = r.get("put_wall")
-
-    def _shift(key: str) -> str:
-        v = r.get(key)
-        return f" ({v:+.1f}% 5d)" if v is not None else ""
 
     # (label, value, value_color) — color None means default INK.
     rows: list[tuple[str, str, str | None]] = []
@@ -169,12 +161,6 @@ def _metrics_table(r: dict) -> str:
     term_str = _fmt_term_ratios(term_9d_30d, term_30d_3m)
     if term_str:
         rows.append(("VIX term", term_str, None))
-    if zgl is not None:
-        rows.append(("γ-flip", f"{zgl:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, zgl))}{_shift('zgl_5d_shift')}", None))
-    if cw is not None:
-        rows.append(("Call wall", f"{cw:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, cw))}{_shift('call_wall_5d_shift')}", None))
-    if pw is not None:
-        rows.append(("Put wall", f"{pw:,.0f}  {_fmt_signed_pct(_pct_from_spot(spot, pw))}{_shift('put_wall_5d_shift')}", None))
     if em_pct is not None:
         rows.append(("Expected move", f"±{em_pct:.1f}%", None))
 
@@ -270,110 +256,6 @@ def _ticker_card(r: dict) -> str:
     )
 
 
-
-# ── OI by expiry table ────────────────────────────────────────────────
-
-def _oi_summary_table(expiry_oi_df: "pd.DataFrame | None") -> "str | None":
-    """Compact top-3 expiry OI table for email insertion after _ticker_card().
-
-    Returns None when expiry_oi_df is None or empty (caller omits silently).
-    T-16.5-08: guard against malformed df via None/empty check + safe head(3).
-
-    Deliberately fewer columns than the dashboard's OI Impact tab (which also
-    shows raw OI count and 5d-avg-share context) — a mobile-width email table
-    can't fit 8 columns without forcing horizontal scroll/overlap, so this
-    keeps only Expiry/DTE/OI Share/P:C Ratio/Impact. Impact text is allowed to
-    wrap (no nowrap) since it's a phrase, not a number.
-    """
-    if expiry_oi_df is None:
-        return None
-    try:
-        if expiry_oi_df.empty:
-            return None
-    except AttributeError:
-        return None
-
-    top3 = expiry_oi_df.head(3)
-
-    th_style = (
-        f'style="{_SANS}padding:4px 10px 4px 0;font-size:11px;'
-        f'color:{LABEL_GRAY};letter-spacing:0.5px;text-transform:uppercase;'
-        f'text-align:left;"'
-    )
-    td_style = (
-        f'style="{_MONO}padding:4px 10px 4px 0;font-size:12px;'
-        f'white-space:nowrap;"'
-    )
-    td_impact_style = (
-        f'style="{_SANS}padding:4px 0 4px 0;font-size:12px;"'
-    )
-
-    header_row = (
-        f'<tr>'
-        f'<th {th_style}>Expiry</th>'
-        f'<th {th_style}>DTE</th>'
-        f'<th {th_style}>OI Share</th>'
-        f'<th {th_style}>P:C Ratio</th>'
-        f'<th {th_style}>Impact</th>'
-        f'</tr>'
-    )
-
-    def _fmt_pct(v) -> str:
-        try:
-            fv = float(v)
-            return f"{fv:.1f}%"
-        except Exception:
-            return "—"
-
-    def _fmt_ratio(v) -> str:
-        try:
-            fv = float(v)
-            return f"{fv:.2f}" if fv == fv else "—"  # fv == fv is False for NaN
-        except Exception:
-            return "—"
-
-    data_rows = ""
-    for _, row in top3.iterrows():
-        try:
-            import datetime as _dt
-            expiry_raw = row.get("expiry", "")
-            expiry_str = (
-                _dt.datetime.strptime(str(expiry_raw), "%Y-%m-%d").strftime("%b %d")
-                if expiry_raw else str(expiry_raw)
-            )
-        except (ValueError, TypeError):
-            expiry_str = str(row.get("expiry", ""))
-        dte = int(round(float(row.get("dte", 0)))) if row.get("dte") is not None else 0
-        impact = format_oi_impact(row.get("pct_of_total"), row.get("put_call_ratio"))
-        data_rows += (
-            f'<tr>'
-            f'<td {td_style}>{expiry_str}</td>'
-            f'<td {td_style}>{dte}</td>'
-            f'<td {td_style}>{_fmt_pct(row.get("pct_of_total"))}</td>'
-            f'<td {td_style}>{_fmt_ratio(row.get("put_call_ratio"))}</td>'
-            f'<td {td_impact_style}>{impact}</td>'
-            f'</tr>'
-        )
-
-    table = (
-        f'<table cellpadding="0" cellspacing="0" border="0" '
-        f'style="border-collapse:collapse;width:100%;">'
-        f'{header_row}{data_rows}'
-        f'</table>'
-    )
-
-    label = (
-        f'<div style="{_SANS}font-size:11px;color:{LABEL_GRAY};'
-        f'letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">'
-        f'OI IMPACT BY EXPIRY · 14 DTE primary (≤{config.GEX_MAX_DTE} DTE context)</div>'
-    )
-
-    return (
-        f'<div style="margin-top:12px;margin-bottom:12px;padding-top:12px;'
-        f'border-top:1px solid {RULE_COLOR};">'
-        f'{label}{table}'
-        f'</div>'
-    )
 
 # ── Header block: end-of-day settled-data line ────────────────────────
 
@@ -520,7 +402,8 @@ def _footer() -> str:
         f'<div style="border-top:1px solid {RULE_COLOR};margin-top:20px;padding-top:12px;">'
         f'<div style="{_SANS}font-size:10px;color:{LABEL_GRAY};line-height:1.5;">'
         f'Descriptive only, not advice &middot; VRP ranked vs ~10yr &middot; '
-        f'settled end-of-day close &middot; trust GEX direction, not level.'
+        f'settled end-of-day close &middot; dealer-gamma sign is a move-size regime, '
+        f'not a price level or direction call.'
         f'</div></div>'
     )
 
@@ -648,143 +531,26 @@ def _evolution_movers_strip(evolution_data: dict) -> str:
     )
 
 
-_EVOLUTION_HORIZONS = (("5d", "5-day"), ("10d", "10-day"), ("30d", "30-day"))
 _EVOLUTION_SCALAR_KEYS = ("level", "rms", "skew_change", "term_change")
 
 
-def _pp(v: float | None) -> str:
-    import math
-    if v is None or (isinstance(v, float) and math.isnan(v)):
-        return "—"
-    return f"{v:+.2f}pp"
-
-
-def _evolution_legend() -> str:
-    """One compact block explaining what each metric measures and its read —
-    so a reader knows the meaning and impact without external notes."""
-    items = (
-        ("Level", "whole surface up/down; vol broadly richer/cheaper"),
-        ("Disp", "smile dispersion widening/compressing across strikes"),
-        ("Skew &Delta;", "downside vs upside repricing (crash bid on / off)"),
-        ("Term &Delta;", "front vs back tenor; near-dated stress vs calm"),
-    )
-    rows = "".join(
-        f'<span style="display:inline-block;margin:0 14px 4px 0;">'
-        f'<b style="color:{INK};">{name}:</b> '
-        f'<span style="color:{LABEL_GRAY};">{desc}</span></span>'
-        for name, desc in items
-    )
-    return (
-        f'<p style="{_SANS}font-size:11px;line-height:1.6;margin:0 0 12px;">'
-        f'<span style="color:{LABEL_GRAY};">Change vs each metric&rsquo;s rolling-mean '
-        f'baseline, in vol points (pp). </span>{rows}</p>'
-    )
-
-
-def _evolution_ticker_table(ticker: str, ticker_data: dict) -> str:
-    """One compact table per ticker: a row per horizon (5d / 10d / 30d),
-    columns Level / Disp / Skew Δ / Term Δ. Renders an 'insufficient history'
-    line when the ticker has no scalars across any horizon."""
-    horizons = ticker_data.get("horizons", {})
-
-    has_any = any(
-        horizons.get(hkey, {}).get(k) is not None
-        for hkey, _ in _EVOLUTION_HORIZONS
-        for k in _EVOLUTION_SCALAR_KEYS
-    )
-
-    label_html = (
-        f'<div style="{_SANS}font-size:12px;font-weight:700;color:{INK};'
-        f'margin:14px 0 4px;">{ticker}</div>'
-    )
-
-    if not has_any:
-        return label_html + (
-            f'<p style="{_SANS}font-size:12px;color:{LABEL_GRAY};margin:0 0 4px;">'
-            f'Insufficient history yet.</p>'
-        )
-
-    th_style = (
-        f'style="{_SANS}padding:5px 10px 5px 0;font-size:11px;'
-        f'color:{LABEL_GRAY};letter-spacing:0.5px;text-transform:uppercase;'
-        f'border-bottom:1px solid {RULE_COLOR};text-align:left;"'
-    )
-    td_style = (
-        f'style="{_MONO}padding:5px 10px 5px 0;font-size:13px;font-weight:600;'
-        f'color:{INK};white-space:nowrap;"'
-    )
-    td_h_style = (
-        f'style="{_SANS}padding:5px 10px 5px 0;font-size:12px;font-weight:700;'
-        f'color:{LABEL_GRAY};white-space:nowrap;"'
-    )
-
-    header_row = (
-        f'<tr>'
-        f'<th {th_style}>Horizon</th>'
-        f'<th {th_style}>Level</th>'
-        f'<th {th_style}>Disp</th>'
-        f'<th {th_style}>Skew &Delta;</th>'
-        f'<th {th_style}>Term &Delta;</th>'
-        f'</tr>'
-    )
-
-    body_rows = ""
-    for hkey, hlabel in _EVOLUTION_HORIZONS:
-        d = horizons.get(hkey, {})
-        body_rows += (
-            f'<tr>'
-            f'<td {td_h_style}>{hlabel}</td>'
-            f'<td {td_style}>{_pp(d.get("level"))}</td>'
-            f'<td {td_style}>{_pp(d.get("rms"))}</td>'
-            f'<td {td_style}>{_pp(d.get("skew_change"))}</td>'
-            f'<td {td_style}>{_pp(d.get("term_change"))}</td>'
-            f'</tr>'
-        )
-
-    table = (
-        f'<table cellpadding="0" cellspacing="0" border="0" '
-        f'style="border-collapse:collapse;width:100%;">'
-        f'{header_row}{body_rows}'
-        f'</table>'
-    )
-    return label_html + table
-
-
 def evolution_section_html(evolution_data: dict) -> str | None:
-    """Build the Surface Evolution section — all horizons (5d / 10d / 30d) shown
-    as first-class detail, one table per ticker, with a metric legend.
+    """Build the Surface Evolution section — a single at-a-glance 'what moved most'
+    strip (one hero mover per ticker), matching the dashboard's headline framing.
 
-    evolution_data: {'SPY': {level, ..., horizons: {'5d': {...}, '10d': {...}, '30d': {...}}}, ...}
+    evolution_data: {'SPY': {level, rms, skew_change, term_change, ...}, ...}
 
-    Returns None (omit entirely) on cold start — when no scalar exists across any
-    ticker/horizon. Returns an HTML string otherwise.
+    The per-horizon 5d/10d/30d tables were dropped 2026-08-05 — too granular for a
+    daily brief, and the dashboard tucks that detail into a sub-tab. Returns None
+    (omit entirely) on cold start — when no scalar exists across any ticker.
     """
     def _ticker_has_data(td: dict) -> bool:
-        if any(td.get(k) is not None for k in _EVOLUTION_SCALAR_KEYS):
-            return True
-        horizons = td.get("horizons", {})
-        return any(
-            horizons.get(hkey, {}).get(k) is not None
-            for hkey, _ in _EVOLUTION_HORIZONS
-            for k in _EVOLUTION_SCALAR_KEYS
-        )
+        return any(td.get(k) is not None for k in _EVOLUTION_SCALAR_KEYS)
 
     if not any(_ticker_has_data(td) for td in evolution_data.values()):
         return None
 
-    summary_html = _evolution_movers_strip(evolution_data)
-
-    tables = "".join(
-        _evolution_ticker_table(ticker, evolution_data.get(ticker, {}))
-        for ticker in ("SPY", "QQQ", "IWM")
-    )
-
-    return (
-        _section_header("Surface Evolution")
-        + summary_html
-        + _evolution_legend()
-        + tables
-    )
+    return _section_header("Surface Evolution") + _evolution_movers_strip(evolution_data)
 
 
 # ── Main ──────────────────────────────────────────────────────────────
@@ -794,21 +560,12 @@ def build_email(
     date: datetime.date | None = None,
     evolution_data: dict | None = None,
     png_note: str | None = None,
-    oi_data: "dict | None" = None,
     alert_events=None,
     prior_rank_lookup: dict | None = None,
 ) -> str:
     date = date or datetime.date.today()
 
-    if oi_data is not None:
-        blocks = []
-        for r in index_results:
-            card_html = _ticker_card(r)
-            oi_table = _oi_summary_table(oi_data.get(r["ticker"]))
-            blocks.append(card_html + (oi_table or ""))
-        cards = "\n".join(blocks)
-    else:
-        cards = "\n".join(_ticker_card(r) for r in index_results)
+    cards = "\n".join(_ticker_card(r) for r in index_results)
 
     failed = [r["ticker"] for r in index_results if r.get("error")]
     failed_note = (
