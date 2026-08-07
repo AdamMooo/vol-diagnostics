@@ -7,8 +7,18 @@
 # primaryColor (#FF4B4B) was alarm-red on ticker chips, which reads as "loss"
 # on a finance surface.
 #
-# Both [theme.light] and [theme.dark] are defined so the in-app theme toggle
-# works; dark is the intended default.
+# DARK-ONLY ON PURPOSE (2026-08-06). Streamlit shows the light/dark toggle only
+# when BOTH [theme.light] and [theme.dark] exist; defining just one locks the app
+# to a single mode. Light is deliberately omitted because the app is not yet
+# theme-aware and light mode renders broken:
+#   - engine/gex/analytics.py hardcodes template="plotly_dark" in 5 places (and
+#     "plotly_white" in one — a pre-existing inconsistency), so charts would be
+#     black boxes on a white page;
+#   - app.py's _CSS and inline HTML carry ~11 hardcoded dark-mode hex/rgba values
+#     (#64748b, #8b949e, #334155, …) that go illegible on light.
+# To re-enable light: drive the Plotly template from st.context.theme.type, move
+# those hex values onto theme variables, THEN restore a [theme.light] block (the
+# full light palette is recoverable from this file's git history).
 
 [theme]
 base = "dark"
@@ -62,34 +72,3 @@ textColor = "#C3CCD7"
 borderColor = "#1E252F"
 primaryColor = "#1F6FEB"
 
-[theme.light]
-primaryColor = "#1F6FEB"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F3F5F8"
-textColor = "#10161D"
-linkColor = "#0B5FD0"
-borderColor = "#D8DEE6"
-codeBackgroundColor = "#F3F5F8"
-codeTextColor = "#24303D"
-
-redColor = "#C9303C"
-greenColor = "#1A7F37"
-orangeColor = "#9A6700"
-yellowColor = "#8A6D0B"
-blueColor = "#0B5FD0"
-violetColor = "#7C4DDB"
-grayColor = "#5B6672"
-
-dataframeBorderColor = "#D8DEE6"
-dataframeHeaderBackgroundColor = "#F3F5F8"
-
-chartCategoricalColors = ["#0B5FD0", "#1A7F37", "#9A6700", "#7C4DDB", "#C9303C", "#0E7C86", "#5B6672"]
-chartSequentialColors = ["#F4F9FE", "#DDEBF9", "#C2DBF3", "#A3C9EC", "#82B5E4", "#5F9FDA", "#3B87CE", "#1E6EB8", "#125696", "#0B3F70"]
-
-[theme.light.sidebar]
-backgroundColor = "#F7F9FB"
-secondaryBackgroundColor = "#EDF1F5"
-codeBackgroundColor = "#EDF1F5"
-textColor = "#24303D"
-borderColor = "#DDE3EA"
-primaryColor = "#1F6FEB"
