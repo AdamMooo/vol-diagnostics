@@ -24,6 +24,9 @@ COPY engine/ engine/
 COPY app.py .
 COPY assets/ assets/
 COPY research/ research/
+# Theme only — NEVER `COPY .streamlit/`, which would bake .streamlit/secrets.toml
+# into the image (it is gitignored but present in the local build context).
+COPY .streamlit/config.toml .streamlit/config.toml
 
 # Ensure out/ exists for volume mount target
 RUN mkdir -p /app/out

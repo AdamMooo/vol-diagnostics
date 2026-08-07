@@ -1,0 +1,95 @@
+# Desk-terminal theme — vol diagnostics dashboard.
+#
+# Design intent: this reads as a professional risk tool, not a consumer app.
+# Sharp corners, thin rules, tabular monospace numerals, exactly one accent
+# colour. Red and green are reserved for P&L-adjacent semantics (premium
+# rich/cheap) and are never used for chrome — the default Streamlit
+# primaryColor (#FF4B4B) was alarm-red on ticker chips, which reads as "loss"
+# on a finance surface.
+#
+# Both [theme.light] and [theme.dark] are defined so the in-app theme toggle
+# works; dark is the intended default.
+
+[theme]
+base = "dark"
+
+font = "'IBM Plex Sans':https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+headingFont = "'IBM Plex Sans':https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&display=swap"
+codeFont = "'IBM Plex Mono':https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+
+baseFontSize = 14
+baseFontWeight = 400
+codeFontSize = "0.8125rem"
+headingFontSizes = ["26px", "19px", "15px", "13px", "12px", "11px"]
+headingFontWeights = [600, 600, 600, 600, 600, 600]
+linkUnderline = false
+
+baseRadius = "3px"
+buttonRadius = "3px"
+showWidgetBorder = true
+showSidebarBorder = true
+
+[theme.dark]
+primaryColor = "#1F6FEB"
+backgroundColor = "#0B0F14"
+secondaryBackgroundColor = "#141A22"
+textColor = "#D5DCE5"
+linkColor = "#58A6FF"
+borderColor = "#232B36"
+codeBackgroundColor = "#0E141B"
+codeTextColor = "#B7C2CF"
+
+redColor = "#F0616D"
+greenColor = "#3FB950"
+orangeColor = "#D29922"
+yellowColor = "#D9B44A"
+blueColor = "#58A6FF"
+violetColor = "#A371F7"
+grayColor = "#7D8894"
+
+dataframeBorderColor = "#232B36"
+dataframeHeaderBackgroundColor = "#141A22"
+
+# Sequential ramp for surface/heat visuals — perceptually ordered, dark-safe.
+chartCategoricalColors = ["#58A6FF", "#3FB950", "#D29922", "#A371F7", "#F0616D", "#39C5CF", "#7D8894"]
+chartSequentialColors = ["#0B0F14", "#10202F", "#13324A", "#154566", "#155A83", "#1170A1", "#1E87BF", "#3E9EDA", "#6DB6E8", "#A3CFF2"]
+
+[theme.dark.sidebar]
+backgroundColor = "#080B0F"
+secondaryBackgroundColor = "#141A22"
+codeBackgroundColor = "#0E141B"
+textColor = "#C3CCD7"
+borderColor = "#1E252F"
+primaryColor = "#1F6FEB"
+
+[theme.light]
+primaryColor = "#1F6FEB"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F5F8"
+textColor = "#10161D"
+linkColor = "#0B5FD0"
+borderColor = "#D8DEE6"
+codeBackgroundColor = "#F3F5F8"
+codeTextColor = "#24303D"
+
+redColor = "#C9303C"
+greenColor = "#1A7F37"
+orangeColor = "#9A6700"
+yellowColor = "#8A6D0B"
+blueColor = "#0B5FD0"
+violetColor = "#7C4DDB"
+grayColor = "#5B6672"
+
+dataframeBorderColor = "#D8DEE6"
+dataframeHeaderBackgroundColor = "#F3F5F8"
+
+chartCategoricalColors = ["#0B5FD0", "#1A7F37", "#9A6700", "#7C4DDB", "#C9303C", "#0E7C86", "#5B6672"]
+chartSequentialColors = ["#F4F9FE", "#DDEBF9", "#C2DBF3", "#A3C9EC", "#82B5E4", "#5F9FDA", "#3B87CE", "#1E6EB8", "#125696", "#0B3F70"]
+
+[theme.light.sidebar]
+backgroundColor = "#F7F9FB"
+secondaryBackgroundColor = "#EDF1F5"
+codeBackgroundColor = "#EDF1F5"
+textColor = "#24303D"
+borderColor = "#DDE3EA"
+primaryColor = "#1F6FEB"
