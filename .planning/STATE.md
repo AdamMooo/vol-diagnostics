@@ -135,10 +135,10 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 
 **NEXT, in order (1+2 are one piece of work — the actual transformation):**
 1. **Snapshot-first Regime view.** Landing view needs only `out/gex_snapshots.parquet` *except* `vrp_pct` / `vrp_pct_n` and `price_change_pct`, which are derived in `compute_ticker` (`compute.py:189,261-265`). Both are cheap to recompute with **no network** — VRP percentile reads the vol-index parquet; price change from consecutive spots already in history. Turns ~40s first paint into a disk read.
-2. **`st.tabs` → view selector with `if/elif` gating.** Streamlit computes every tab body whether visible or not, so lazy loading is impossible until this changes. Also reads more terminal-like.
+2. ~~**`st.tabs` → view selector with `if/elif` gating.**~~ **SUPERSEDED 2026-08-06 — do not do this.** A capability audit against the installed Streamlit 1.59.2 found **dynamic tabs**: `st.tabs(..., on_change="rerun")` makes `TabContainer.open` return True/False per tab, so expensive bodies can be guarded with `if tab.open:` while keeping the tabs UX. Same mechanism for expanders. Far smaller diff than a navigation rewrite, and it applies to the nested Surfaces sub-tabs too. Full detail: **`.planning/notes/STREAMLIT-CAPABILITY-AUDIT.md`**.
 3. **Regime cards to the terminal spec** — tabular numerals, aligned label/value/percentile columns, rules not boxes.
 
-**Adam's "more with Streamlit" point — concrete under-used primitives:** `st.column_config` inline charts (`LineChartColumn`/`BarChartColumn`/`ProgressColumn`) instead of hand-rolled HTML; `st.fragment` for independent reruns; `st.navigation`/`st.Page` instead of one 1068-line `app.py`; native `st.metric` borders/sparklines; Altair over Plotly for the 2D charts (Plotly stays for 3D surfaces). Much of `app.py`'s `_CSS` + f-string HTML predates these.
+**Adam's "more with Streamlit" point — ANSWERED.** Full write-up in **`.planning/notes/STREAMLIT-CAPABILITY-AUDIT.md`** (2026-08-06), verified by introspecting the installed 1.59.2 rather than from memory. Headlines: `app.py` carries **16 `unsafe_allow_html` blocks and zero `st.column_config`**, so native widgets (metric sparklines via `chart_data`, `LineChartColumn`/`BarChartColumn`, `st.badge`) can replace most hand-rolled HTML; `st.skeleton` exists for the cold-load state; and there is a **"do NOT do these"** section — notably `st.fragment(parallel=True)` is the wrong tool for the 3-ticker fetch, because `app.py:524` already measured threading as *slower* on the 1-vCPU box (35.2s vs 26.4s), the work being CPU-bound rather than I/O-bound.
 
 **Working notes for whoever resumes:**
 - Local `out/` was 8 sessions stale; Adam ran `.\scripts\sync-from-oracle.ps1` — now current through 2026-08-06 (freshness banner green).
@@ -173,6 +173,8 @@ Resume queue: (1) **Prep sheet required before this project is considered closed
 - ~~**Phase 23 close-out (blocked on Adam)**~~ — DONE 2026-07-29. Restore drill (BACKUP-02) passed: 67/67 objects restored, integrity verified. Phase 23 fully closed.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug. (Monitor backend is unused by the UI as of 2026-07-27 — see above — but this behavior still governs `engine/monitor/` itself.)
 
+---
+---
 ---
 ---
 ---
