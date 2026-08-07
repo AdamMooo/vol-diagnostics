@@ -147,6 +147,40 @@ Applies equally to the **nested** `st.tabs(["Today", "Compare", "Evolution"])` i
 
 ---
 
+## The 3D surface iframe — the showpiece is under-built
+
+Adam, 2026-08-06: *"maybe the focus should also be on making those htmls better and more detailed and informative."* Correct instinct — the interactive vol surface is the differentiated artifact, and it is thinner than the rest of the app. It lives in `engine/surface/surface_interactive.py` (525 lines) and reaches the page via `components.html` at `app.py:600` (Today), `700` (Compare), `765` (Evolution movie), i.e. **inside an iframe, outside Streamlit theming entirely**. Nothing in `config.toml` will ever touch it.
+
+Already good, do not "fix": the header tag strip (`:154-158`) shows ticker, date, spot, smoothing, clip, **coverage %** and **fit RMSE pp** — the trust metrics are surfaced. Linked 2D smile/term slices on hover, fullscreen button, and raw quote markers on the term slice (`term_raw`) are all present.
+
+### 🐞 Real bug — hover mislabels the moneyness axis
+`:173` (Today) and `:327` (Compare) both render:
+```js
+hovertemplate:'DTE %{x:.0f}<br>K/S %{y:.3f}<br>IV %{z:.1f}%'
+```
+but `y` is bound to `D.otm_grid`, whose **axis title is `ln(K/S)`** (`:175`). So hovering a point at ln(K/S) = −0.015 reports "K/S −0.015", when K/S is actually 0.985. The label names the wrong quantity. Fix by either relabelling to `ln(K/S)` or converting: `K/S = exp(y)`.
+
+### Theme mismatch introduced by the new palette
+Hardcoded, and now slightly off against `config.toml`'s `#0B0F14` background:
+- `paper_bgcolor:'#0e1117'` × 5
+- `gridcolor:'#222'` × 17
+- `colorscale:'Plasma'` × 1 — unrelated to the theme's `chartSequentialColors`
+
+These are inside the iframe, so they must be threaded through from Python (the payload/format vars) rather than set in `config.toml`.
+
+### Enrichment — buildable with data ALREADY in the payload
+`build_surface_payload` already ships `spot`, `ks_grid`, `coverage`, `rmse`, `smile_raw`, `term_raw`, `near`. So these need **no new plumbing**, only client-side arithmetic:
+1. **Richer hover** — add strike in dollars (`K = spot × exp(y)`), moneyness as a percentage (`(K/S − 1) × 100`), and the expiry date alongside DTE. Currently a viewer sees raw coordinates they cannot act on.
+2. **ATM ridge** — draw the `ln(K/S) = 0` line on the surface. It is the reference every read is relative to and it is invisible today.
+3. **30-DTE marker** — the tenor the card's IV30 is quoted at; ties the surface to the number on the Regime card.
+4. **25Δ put/call markers** — ties the surface to the skew figure reported on the card. Closes the loop between the chart and the read.
+
+### Enrichment — needs new plumbing (worth it, larger)
+5. **Raw quote scatter in 3D.** The 2D term slice plots real markers, but the 3D surface is a fitted RBF with no indication of where actual quotes are. Overlaying the observed `(DTE, ln(K/S), IV)` triples as a `scatter3d` would instantly distinguish **data from model** — the single most defensible thing this chart could show, and directly relevant in an interview.
+6. **Coherence violation overlay.** `exposure_engine.py` already computes calendar/butterfly violations per snapshot. Marking violating regions on the surface would make the arbitrage diagnostic visible — **but only after the butterfly test is fixed**, since it currently fires on 100% of days (see the separate finding: it second-differences implied vol rather than call price, so it is not testing the Breeden–Litzenberger condition it claims to).
+
+**Note:** this work is independent of the cold-start fix. Enriching the surfaces does not make the app load faster, and vice versa. Both matter; do not let one stand in for the other.
+
 ## Working mechanics (hard-won)
 
 - **Headless screenshots of a Streamlit app:** Edge at `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`, `--headless=new --screenshot=<path>`. Two traps: the path must be the full `C:\Users\AdamMorris\...` form (8.3 shortname `ADAMMO~1` → "Access is denied"), and **`--virtual-time-budget` does not work** — it fast-forwards timers while Streamlit renders over a real-time WebSocket, so it captures blank. Use a real `sleep 70` before the screenshot.
