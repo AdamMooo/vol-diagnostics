@@ -6,11 +6,11 @@ Last updated: 2026-07-27 | Status: v5.0 shipped. No active milestone — current
 - **Runtime:** local Python (venv). Bloomberg/Cron2 is a future swap, not the build environment.
 - **Entry points:**
   - `streamlit run app.py` — interactive dashboard (SPY/QQQ/IWM): per-ticker cards + plain-English read, 3D vol surface, surface "video", positioning
-  - `python -m engine.run_daily --send` — daily HTML email (scheduled weekdays via GitHub Actions `.github/workflows/daily-report.yml` since 2026-07-14; local Windows Task Scheduler job also still active, pending decision on whether to disable)
+  - `python -m engine.run_daily --send` — daily HTML email (scheduled weekdays via GitHub Actions `.github/workflows/daily-report.yml` since 2026-07-14 — this is the only scheduler; the old local Windows Task Scheduler job is gone, verified absent 2026-08-06, so the pipeline is machine-independent)
   - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 449 green.
+- **Tests:** `pytest engine/tests` — 481 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -34,7 +34,7 @@ python -m venv .venv
 pip install -r requirements.txt
 streamlit run app.py                    # interactive dashboard
 python -m engine.run_gex --ticker SPY   # single-ticker smoke test to stdout
-pytest engine/tests                     # 449 tests
+pytest engine/tests                     # 481 tests
 ```
 
 `requirements.txt` tracks the stack. Add packages there when needed.
@@ -47,6 +47,10 @@ Git carries only code. Three things are gitignored and must ride along out-of-ba
 2. **SSH key** `vol-diagnostics.key` (+ `.pub`) — needed for deploy and data sync. Copy into `~/.ssh/` (any path is fine; pass `-KeyFile` to the sync script / `-i` to `ssh` if it lives elsewhere).
 3. **`out/` data** — lives only on Oracle's disk, never in git. Pull it down after cloning.
 
+**Nothing about the running service is machine-bound** (verified 2026-08-06). The daily email runs on GitHub Actions with its own copy of all 18 secrets; the dashboard runs on Oracle; `out/` lives on Oracle's disk plus the OCI backup. There is **no local Windows Task Scheduler job** — confirmed absent. Moving machines costs you local dev + manual-deploy access only. **The old machine can be wiped without stopping anything.**
+
+Prerequisites on the new box: Git, Python 3.11+, and **KeePassXC** (`keepassxc.org`) if you're restoring secrets from the vault rather than copying them across — the `.kdbx` is just an encrypted file and nothing else can open it.
+
 Turnkey on the new box:
 
 ```powershell
@@ -54,11 +58,25 @@ git clone https://github.com/AdamMooo/vol-diagnostics
 cd vol-diagnostics
 python -m venv .venv; .venv\Scripts\activate; pip install -r requirements.txt
 # then: drop .env into the repo root, and vol-diagnostics.key(.pub) into ~\.ssh\
+#   (copy from old machine, or export both from the KeePassXC vault — see below)
 .\scripts\sync-from-oracle.ps1     # pulls Oracle's out/ down (needs the SSH key)
 streamlit run app.py
 ```
 
-Deploying from the new box is identical to the Deploy section below — only the `-i` key path is machine-specific. (Standing intent: git-crypt would fold step 1 into `git clone` + unlock — see auto-memory `git-crypt-all-projects-decision`; not yet set up.)
+Verify the move before trusting it — all four should pass:
+
+```powershell
+pytest engine/tests                      # expect 481 passed
+python -m engine.run_gex --ticker SPY    # network + CBOE feed reachable
+python -m engine.run_daily --dry-run     # full pipeline, writes HTML, sends nothing
+python -m engine.health_check            # out/ freshness after the Oracle sync
+```
+
+Then confirm SSH works (`ssh -i <key> ubuntu@40.233.113.63 "echo ok"`) — that is the one credential the clone can't prove on its own. Deploying from the new box is identical to the Deploy section below; only the `-i` key path is machine-specific.
+
+Note `.env` permissions do not carry over a copy — on Windows it inherits the new folder's ACL. Nothing reads it but you, but don't drop it in a synced/shared folder.
+
+(Standing intent: git-crypt would fold the `.env` step into `git clone` + unlock — see auto-memory `git-crypt-all-projects-decision`; not set up, and the KeePassXC vault now covers the same need.)
 
 ### If this machine is gone (nothing to copy from)
 
@@ -114,7 +132,7 @@ engine/
   vol/       vol_metrics  vrp_history
   report/    card_model  report  png_export  emailer  observation
   monitor/   schema  ranker  metrics  hysteresis  monitor_store  calibration   # Phase 26 severity-rank + hysteresis alert engine
-  tests/     (449 green)
+  tests/     (481 green)
 ```
 
 **Tickers: SPY, QQQ, IWM only.** Full chain pulled per ticker — no moneyness filter, no OI cutoff.
