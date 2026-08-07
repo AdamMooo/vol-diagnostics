@@ -10,7 +10,7 @@ Last updated: 2026-07-27 | Status: v5.0 shipped. No active milestone — current
   - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 481 green.
+- **Tests:** `pytest engine/tests` — 483 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -34,7 +34,7 @@ python -m venv .venv
 pip install -r requirements.txt
 streamlit run app.py                    # interactive dashboard
 python -m engine.run_gex --ticker SPY   # single-ticker smoke test to stdout
-pytest engine/tests                     # 481 tests
+pytest engine/tests                     # 483 tests
 ```
 
 `requirements.txt` tracks the stack. Add packages there when needed.
@@ -68,7 +68,7 @@ streamlit run app.py
 Verify the move before trusting it — all four should pass:
 
 ```powershell
-pytest engine/tests                      # expect 481 passed
+pytest engine/tests                      # expect 483 passed
 python -m engine.run_gex --ticker SPY    # network + CBOE feed reachable
 python -m engine.run_daily --dry-run     # full pipeline, writes HTML, sends nothing
 python -m engine.health_check            # out/ freshness after the Oracle sync
@@ -134,7 +134,7 @@ engine/
   vol/       vol_metrics  vrp_history
   report/    card_model  report  png_export  emailer  observation
   monitor/   schema  ranker  metrics  hysteresis  monitor_store  calibration   # Phase 26 severity-rank + hysteresis alert engine
-  tests/     (481 green)
+  tests/     (483 green)
 ```
 
 **Tickers: SPY, QQQ, IWM only.** Full chain pulled per ticker — no moneyness filter, no OI cutoff.

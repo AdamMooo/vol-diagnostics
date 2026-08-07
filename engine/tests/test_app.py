@@ -105,7 +105,40 @@ def test_phase18_page_tabs_top_level_labels_and_sections_contract():
     assert 'tab_regime, tab_surfaces, tab_positioning, tab_explore = st.tabs(' in src
     assert '["Regime", "Surfaces", "Option conditions", "Explore"]' in src
     assert '["Surface", "Evolution", "Positioning"]' not in src
-    assert 'sub_today, sub_compare, sub_evolution = st.tabs(["Today", "Compare", "Evolution"])' in src
+    assert 'sub_today, sub_compare, sub_evolution = st.tabs(' in src
+    assert '["Today", "Compare", "Evolution"]' in src
+
+
+def test_surface_subtabs_are_lazy():
+    """Both tab sets must stay lazy.
+
+    st.tabs defaults to on_change="ignore", which computes and ships every tab body
+    on every run — that put the Evolution surface video (one dense RBF solve per
+    stored session) on the cold-start path of a tab nobody clicked. Dropping
+    on_change or the .open guards silently restores a ~30s cold start.
+    """
+    app = _import_app_module()
+    import inspect
+    src = inspect.getsource(app)
+    assert src.count('on_change="rerun"') >= 2
+    for tab in ("sub_today", "sub_compare", "sub_evolution"):
+        assert f"if {tab}.open:" in src
+
+
+def test_surface_movie_window_is_capped():
+    """The video must slice a bounded window off the stored history.
+
+    Uncapped, cold start grows ~0.7s per new session locally (~3s on the Oracle
+    box) forever, so the daily scheduler that compounds data value would also
+    compound cold start.
+    """
+    app = _import_app_module()
+    import inspect
+    from engine import config
+    src = inspect.getsource(app._movie_payload_cached)
+    assert "config.SURFACE_MOVIE_MAX_SESSIONS" in src
+    assert isinstance(config.SURFACE_MOVIE_MAX_SESSIONS, int)
+    assert 0 < config.SURFACE_MOVIE_MAX_SESSIONS <= 60
 
 
 def test_phase18_page_tabs_routes_evolution_under_surfaces_only():

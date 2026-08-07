@@ -154,7 +154,7 @@ def _load_history_cached(ticker: str, days: int = config.HISTORY_DAYS) -> pd.Dat
 @st.cache_data(ttl=config.CACHE_TTL_HISTORY, show_spinner="Building surface video…")
 def _movie_payload_cached(ticker: str, mode: str = "level") -> dict | None:
     snaps = []
-    for d in sorted(_available_dates_cached(ticker)):
+    for d in sorted(_available_dates_cached(ticker))[-config.SURFACE_MOVIE_MAX_SESSIONS:]:
         sdf, sp = load_surface_snapshot(ticker, d)
         if sdf is not None and not sdf.empty and sp is not None:
             snaps.append((d.strftime("%b %d"), sdf, sp))
@@ -890,12 +890,17 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
 
 
 if sel_index:
+    # on_change="rerun" makes tab bodies lazy — without it Streamlit computes and
+    # ships EVERY tab on every run, which put the Evolution tab's surface video
+    # (dozens of RBF solves) on the cold-start path of a tab nobody had clicked.
     tab_regime, tab_surfaces, tab_positioning, tab_explore = st.tabs(
-        ["Regime", "Surfaces", "Option conditions", "Explore"]
+        ["Regime", "Surfaces", "Option conditions", "Explore"],
+        on_change="rerun",
     )
 
     with tab_regime:
-        _render_regime_cards(selected_all, all_data)
+        if tab_regime.open:
+            _render_regime_cards(selected_all, all_data)
 
     # ── Surfaces (Today / Compare / Evolution) ───────────────────────────────
     with tab_surfaces:
@@ -907,16 +912,21 @@ if sel_index:
         # ── Momentum strip — trend headline before any surface detail ────────
         _render_surface_momentum([surf_tkr], all_data)
 
-        sub_today, sub_compare, sub_evolution = st.tabs(["Today", "Compare", "Evolution"])
+        sub_today, sub_compare, sub_evolution = st.tabs(
+            ["Today", "Compare", "Evolution"], on_change="rerun"
+        )
 
         with sub_today:
-            _surface_today_section(surf_tkr, all_data)
+            if sub_today.open:
+                _surface_today_section(surf_tkr, all_data)
 
         with sub_compare:
-            _surface_compare_section(surf_tkr, all_data)
+            if sub_compare.open:
+                _surface_compare_section(surf_tkr, all_data)
 
         with sub_evolution:
-            _evolution_section(surf_tkr, all_data)
+            if sub_evolution.open:
+                _evolution_section(surf_tkr, all_data)
 
     # ── Option conditions ───────────────────────────────────────────────────────
     with tab_positioning:

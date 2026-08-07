@@ -101,6 +101,14 @@ SURFACE_INTERACTIVE_CLIP: float = 0.20
 """Wing clip (±|ln(K/S)|) for the interactive surface. Wider than SURFACE_PLOT_OTM_CLIP (0.15)
 — raw data reaches ~±0.24 and coverage still holds ~93% at 0.20."""
 
+SURFACE_MOVIE_MAX_SESSIONS: int = 20
+"""Most recent sessions included in the Evolution tab's surface video.
+
+Each frame is an independent dense thin-plate-spline solve (~0.7s local, ~3s on the
+Oracle box), so an uncapped window makes cold start grow linearly forever as daily
+snapshots accrue. 20 sessions is ~a month of trading — enough to see the surface move
+— and freezes the cost instead of letting it compound with the history."""
+
 SURFACE_SMOOTHING: float = 1.5
 """RBF thin-plate-spline smoothing, applied in std-normalized (DTE, %OTM) coords.
 Regularises without over-flattening the skew. Non-stationary: effective strength
