@@ -182,23 +182,30 @@ The instance takes 1–3 minutes to provision. Status: Provisioning → Running.
 Toronto's Always-Free A1 shape is chronically capacity-constrained — the console
 Create button just fails, and a human retry-loop needs a laptop kept on 24/7.
 
-**2026-07-29: moved to GitHub Actions** (`.github/workflows/a1-flex-retry.yml`) —
-runs on a schedule (every 15 min) on GitHub's runners, authenticates with a
-permanent OCI API signing key (repo secrets `OCI_CLI_USER`/`OCI_CLI_FINGERPRINT`/
-`OCI_CLI_TENANCY`/`OCI_CLI_KEY_CONTENT`, `OCI_COMPARTMENT_ID`,
-`VOL_DIAGNOSTICS_SSH_PUBLIC_KEY`, `OCI_A1_TARGETS` — all synced from `.env`, see
-that file's comments for where each one comes from), and opens a GitHub issue
-the moment an instance lands — nothing to babysit, nothing missed silently.
+**2026-08-06: the automated retry is GONE — deleted, do not resurrect as-is.**
 
-`OCI_A1_TARGETS` holds one pipe-separated `region|AD|subnet_id|image_id` line
-per region to try (currently Toronto only) — add more lines to widen the search
-once Montreal/Ashburn are subscribed + have a public subnet configured.
+History: a local `scripts/oracle-retry.ps1` (retired 2026-07-29) became
+`.github/workflows/a1-flex-retry.yml`, scheduled every 15 min on GitHub's
+runners, opening an issue the moment an instance landed.
 
-Manually trigger a run any time: `gh workflow run a1-flex-retry.yml --repo AdamMooo/vol-diagnostics`.
-Boot-volume minimum is **50 GB** (47 was rejected — `InvalidParameter`).
+**Why it was deleted:** at 96 runs/day on a *private* repo — where Actions
+minutes are metered — it consumed the account's entire allowance. The symptoms:
+the workflow itself only executed ~9 of its 96 scheduled runs/day, those runs
+failed with `The job was not acquired by Runner of type hosted`, and critically
+it **starved `daily-report.yml`**, which slipped from its 20:35 UTC cron to
+00:56 UTC (4h21m late) on 2026-08-06. The capacity lottery was costing the one
+workflow that actually matters.
 
-The old local `scripts/oracle-retry.ps1` (1-hour session-token auth, required
-the machine to stay awake) is retired — deleted 2026-07-29.
+**If you ever want it back**, resurrect from git history (`git log --diff-filter=D
+-- .github/workflows/a1-flex-retry.yml`) but schedule it at `0 */6 * * *`
+(4 runs/day) at the very most, and confirm the minutes budget first:
+`gh api users/AdamMooo/settings/billing/actions`. Oracle capacity frees up on a
+timescale of months, not minutes — a 15-minute poll never made sense against it.
+
+Until then, checking A1 capacity is a manual console visit. Boot-volume minimum
+is **50 GB** (47 was rejected — `InvalidParameter`). The secrets the workflow
+used (`OCI_CLI_*`, `OCI_COMPARTMENT_ID`, `VOL_DIAGNOSTICS_SSH_PUBLIC_KEY`,
+`OCI_A1_TARGETS`) are still in `.env` + GitHub secrets, unused but harmless.
 
 ---
 
@@ -491,10 +498,10 @@ If you want extra safety, the crontab already includes a health check that runs 
 
 ## Migrating to a New Instance (e.g. A1.Flex resource bump, 2026-07-29)
 
-Once `.github/workflows/a1-flex-retry.yml` lands an instance (see Step 5b above —
-Toronto today, more regions can be added via `OCI_A1_TARGETS`), cut over in this
-order. Nothing here touches SSH keys — the same `vol-diagnostics.key`/`.pub` pair
-works on any new instance, since the workflow injects the same public key at launch.
+If you ever land an A1 instance (manually, since the retry workflow was deleted
+2026-08-06 — see Step 5b), cut over in this order. Nothing here touches SSH keys —
+the same `vol-diagnostics.key`/`.pub` pair works on any new instance, provided you
+inject the same public key at launch.
 
 1. **Open firewall ports in the OCI console** for the new instance's VCN/subnet —
    Security List ingress rules for 80/443/8501 (see "Open firewall ports" above).
@@ -572,6 +579,8 @@ Once the bucket exists and the 3 secrets are added, `.github/workflows/daily-rep
 `Backup out/ to Oracle Object Storage` step runs automatically on every scheduled or manually
 dispatched run — no manual step needed going forward (ROADMAP success criterion #8).
 
+---
+---
 ---
 ---
 ---

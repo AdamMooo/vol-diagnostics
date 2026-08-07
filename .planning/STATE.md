@@ -121,7 +121,7 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 Last session: 2026-08-06 — deliberate close-out ahead of a dev-machine transition.
 What happened: (1) Found and fixed **4 failing tests** in `engine/tests/test_app.py` — all stale contract assertions left behind by the 2026-08-04 de-directionalization, not app bugs: the two-layer quick/deep methods panel became a sidebar popover + expander, the "Positioning" tab became "Writing conditions", and γ-flip/call-wall/put-wall labels were deleted from the UI. Rather than delete the guards, they were rewritten against the *current* contract, including a new inverse guard (`test_directional_model_levels_are_not_surfaced`) that fails if the directional model levels are ever reintroduced. **481 green.** (2) Corrected stale `CLAUDE.md` claims: test count 449 → 481, and the "local Windows Task Scheduler job also still active" line — no such task exists on this machine (verified), so the daily pipeline is fully machine-independent on GitHub Actions. (3) **Parked v6.0** at 0% with charter/roadmap/requirements committed. (4) Verified and expanded the dev-machine move runbook in `CLAUDE.md` → "Moving to a New Dev Machine".
 Resume queue: nothing outstanding. Resuming v6.0 means `/gsd:plan-phase 28`.
-Known non-blocking: `.github/workflows/a1-flex-retry.yml` still fires every 15 min forever, by design (opens an issue if Oracle ARM capacity frees up). Machine-independent; disable whenever it stops being wanted.
+**Later the same session — `a1-flex-retry.yml` DELETED.** It was first called out here as harmless; it wasn't. Scheduled every 15 min (96 runs/day) on a *private* repo where Actions minutes are metered, it consumed the account's allowance: only ~9 of 96 daily runs actually executed, those failed with `The job was not acquired by Runner of type hosted`, and it starved `daily-report.yml` — which slipped from its 20:35 UTC cron to **00:56 UTC, 4h21m late**, on 2026-08-06 (and 1h14m late on 08-05). Deleted; rationale + resurrection terms (≤ `0 */6 * * *`, check the minutes budget first) in `ORACLE-CLOUD-SETUP.md` Step 5b. A1 capacity is now a manual console check. Supersedes the 2026-07-29 resume-queue item (3) below.
 
 ## Session Continuity (2026-07-29 update)
 
@@ -143,6 +143,7 @@ Resume queue: (1) **Prep sheet required before this project is considered closed
 - ~~**Phase 23 close-out (blocked on Adam)**~~ — DONE 2026-07-29. Restore drill (BACKUP-02) passed: 67/67 objects restored, integrity verified. Phase 23 fully closed.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug. (Monitor backend is unused by the UI as of 2026-07-27 — see above — but this behavior still governs `engine/monitor/` itself.)
 
+---
 ---
 ---
 ---
