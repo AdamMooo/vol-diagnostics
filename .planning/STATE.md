@@ -33,7 +33,9 @@ Progress: [░░░░░░░░░░] 0%
 
 ## ▶ START HERE
 
-**One-line:** the project is CLOSED OUT and stable — nothing is half-built, nothing is uncommitted, 481 tests green, the live site and daily email run without this laptop. v6.0 is fully *planned* and deliberately *parked*.
+**One-line:** stable and fully committed (481 green), but **one thread is open: the desk-terminal UI sweep** — see "Session Continuity (2026-08-06 late — UI SWEEP, IN PROGRESS)" below, which is the real resume point. v6.0 remains fully *planned* and deliberately *parked* and is NOT the next action.
+
+**Next action:** snapshot-first Regime view + `st.tabs` → gated view selector (kills a ~40s cold first paint). Details, measurements, and headless-screenshot gotchas are in the UI SWEEP block below.
 
 **If resuming v6.0:** next action is `/gsd:plan-phase 28` (Barometer Axes Engine). The charter is `research/risk-environment-conditioning.md` — do not re-derive the theory, it is already written. Plan-phase forks left open on purpose: binning vs k-NN for conditioning cells; whether the absorption meta-read is Tier-1 or standalone.
 
@@ -116,6 +118,34 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 | todo | 2026-05-11-v3-2-pre-distribution-hardening.md | resolved 2026-07-26 (Phase 24 / backlog 999.3) — items a/b/d shipped out-of-phase, item c (regime sharpness) deferred; moved to todos/done/ |
 | seed | SEED-001-short-end-gamma-concentration | dormant |
 
+## Session Continuity (2026-08-06 late — UI SWEEP, IN PROGRESS ← RESUME HERE)
+
+**Adam's framing:** "I truly think we are not doing what we truly can with Streamlit." The remaining win is a deep UI sweep, not more features. Direction chosen from a 4-option menu: **desk terminal** — dense, monospace/tabular numerals, sharp corners, thin rules, one accent colour, reads as a professional risk tool for an option-writing desk.
+
+**THE CORE FINDING — the real UI problem is cold-start latency, not aesthetics.** Measured, not guessed:
+- Oracle HTTP 78ms, `/_stcore/health` 182ms — the server is fine.
+- One ticker fetch+compute = 12.3s on Adam's laptop; `app.py:524`'s own comment measures **26–35s on the Oracle E2.1.Micro** for the 3-ticker loop. ~40–60s cold first paint including render. (An earlier "1.5–3 min" estimate in-session was too high — corrected.)
+- `CACHE_TTL_TICKER` = 21600s (6h), in-memory, dies on every container restart.
+- **Why it matters more than it looks:** `st.cache_data` is first-visitor-pays. A busy app amortises that; a sporadically-clicked public/LinkedIn link means nearly *every* visitor is the first after expiry. 3 of 4 headless screenshots caught Streamlit's skeleton loader — that is what a recruiter sees.
+
+**Shipped this session (all pushed, 481 tests green):**
+- `2feba75` — **desk-terminal theme**. There was NO `.streamlit/config.toml` at all; the app ran pure Streamlit defaults, incl. `primaryColor #FF4B4B` rendering ticker chips alarm-red on a finance surface. Now IBM Plex Sans/Mono, 3px radii, widget borders, one blue accent, red/green reserved for premium rich/cheap not chrome, light+dark both defined, chart palettes set so Plotly inherits. **Visually verified**: chips render blue.
+- Same commit — **Dockerfile fix**: the image copies only `engine/ app.py assets/ research/`, so the theme would have been committed and *never deployed*. Added explicit `COPY .streamlit/config.toml` — deliberately NOT `COPY .streamlit/`, which would bake the gitignored-but-present `secrets.toml` into the image. `secrets.toml` also added to `.dockerignore`.
+- `584c358` — tab **"Writing conditions" → "Option conditions"** (Adam: the content is move-size regime + expected-move cone + pin/assignment risk, none of it writing-specific). Sidebar methodology scope line still says "option-writing program" on purpose — that is who the tool is for.
+
+**NEXT, in order (1+2 are one piece of work — the actual transformation):**
+1. **Snapshot-first Regime view.** Landing view needs only `out/gex_snapshots.parquet` *except* `vrp_pct` / `vrp_pct_n` and `price_change_pct`, which are derived in `compute_ticker` (`compute.py:189,261-265`). Both are cheap to recompute with **no network** — VRP percentile reads the vol-index parquet; price change from consecutive spots already in history. Turns ~40s first paint into a disk read.
+2. **`st.tabs` → view selector with `if/elif` gating.** Streamlit computes every tab body whether visible or not, so lazy loading is impossible until this changes. Also reads more terminal-like.
+3. **Regime cards to the terminal spec** — tabular numerals, aligned label/value/percentile columns, rules not boxes.
+
+**Adam's "more with Streamlit" point — concrete under-used primitives:** `st.column_config` inline charts (`LineChartColumn`/`BarChartColumn`/`ProgressColumn`) instead of hand-rolled HTML; `st.fragment` for independent reruns; `st.navigation`/`st.Page` instead of one 1068-line `app.py`; native `st.metric` borders/sparklines; Altair over Plotly for the 2D charts (Plotly stays for 3D surfaces). Much of `app.py`'s `_CSS` + f-string HTML predates these.
+
+**Working notes for whoever resumes:**
+- Local `out/` was 8 sessions stale; Adam ran `.\scripts\sync-from-oracle.ps1` — now current through 2026-08-06 (freshness banner green).
+- **Screenshotting Streamlit headlessly:** Edge at `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`, `--headless=new --screenshot=<ABS path>`. Two gotchas: the path must be the **full** `C:\Users\AdamMorris\...` form (8.3 shortname `ADAMMO~1` gives "Access is denied"), and **`--virtual-time-budget` does not work** — it fast-forwards timers while Streamlit renders over a real-time WebSocket, so it shoots blank. Use a real `sleep 70` before the screenshot instead.
+- Don't run the full suite while a Streamlit server is up — they fight for CPU (39s → 198s).
+- **Nothing is deployed.** Oracle needs Adam's manual `git pull && docker compose up -d --build`.
+
 ## Session Continuity (2026-08-06 — PROJECT CLOSE-OUT)
 
 Last session: 2026-08-06 — deliberate close-out ahead of a dev-machine transition.
@@ -143,6 +173,8 @@ Resume queue: (1) **Prep sheet required before this project is considered closed
 - ~~**Phase 23 close-out (blocked on Adam)**~~ — DONE 2026-07-29. Restore drill (BACKUP-02) passed: 67/67 objects restored, integrity verified. Phase 23 fully closed.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug. (Monitor backend is unused by the UI as of 2026-07-27 — see above — but this behavior still governs `engine/monitor/` itself.)
 
+---
+---
 ---
 ---
 ---
