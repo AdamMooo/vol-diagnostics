@@ -49,7 +49,9 @@ Git carries only code. Three things are gitignored and must ride along out-of-ba
 
 **Nothing about the running service is machine-bound** (verified 2026-08-06). The daily email runs on GitHub Actions with its own copy of all 18 secrets; the dashboard runs on Oracle; `out/` lives on Oracle's disk plus the OCI backup. There is **no local Windows Task Scheduler job** — confirmed absent. Moving machines costs you local dev + manual-deploy access only. **The old machine can be wiped without stopping anything.**
 
-Prerequisites on the new box: Git, Python 3.11+, and **KeePassXC** (`keepassxc.org`) if you're restoring secrets from the vault rather than copying them across — the `.kdbx` is just an encrypted file and nothing else can open it.
+Prerequisites on the new box: Git, Python 3.11+ (local dev runs 3.13, CI runs 3.11 — either is fine), and **KeePassXC** (`keepassxc.org`) if you're restoring secrets from the vault rather than copying them across — the `.kdbx` is just an encrypted file and nothing else can open it.
+
+**The repo is private**, so a fresh machine must authenticate to GitHub as `AdamMooo` *before* the clone will work — `gh auth login` (GitHub CLI, easiest) or a PAT / SSH key. A bare `git clone` on an unauthenticated box fails with a confusing "repository not found", not a permission error.
 
 Turnkey on the new box:
 
