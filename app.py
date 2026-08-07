@@ -891,7 +891,7 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
 
 if sel_index:
     tab_regime, tab_surfaces, tab_positioning, tab_explore = st.tabs(
-        ["Regime", "Surfaces", "Writing conditions", "Explore"]
+        ["Regime", "Surfaces", "Option conditions", "Explore"]
     )
 
     with tab_regime:
@@ -918,16 +918,17 @@ if sel_index:
         with sub_evolution:
             _evolution_section(surf_tkr, all_data)
 
-    # ── Writing conditions ──────────────────────────────────────────────────────
+    # ── Option conditions ───────────────────────────────────────────────────────
     with tab_positioning:
         st.caption(
-            "What the writing program can act on — a move-size regime for sizing, the "
-            "expected-move cone for strike placement, and open interest for assignment / "
-            "pin risk. No price targets, no direction call."
+            "What the option market structure implies for a position — a move-size "
+            "regime for sizing, the expected-move cone for strike placement, and open "
+            "interest for assignment / pin risk. Applies whether you are writing, "
+            "buying, or rolling. No price targets, no direction call."
         )
 
         pos_tkr = st.segmented_control(
-            "Writing-conditions ticker", selected_all,
+            "Option-conditions ticker", selected_all,
             default=selected_all[0], required=True,
             key="positioning_tkr", label_visibility="collapsed",
         )
