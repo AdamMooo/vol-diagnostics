@@ -1,14 +1,24 @@
 # Options Quant — GEX Analysis Platform
 
-*Last updated: 2026-07-27 — v6.0 covered-call tilt-timing model investigated and SHELVED (no timing edge in the evidence). No active milestone; v5.0 shipped 2026-07-27.*
+*Last updated: 2026-08-06 — project closed out at a stable point for a dev-machine transition. v6.0 Risk-Environment / Regime Read is fully planned but **PARKED at 0%** (opened 2026-08-05; v6.0 slot reclaimed from the same-day-shelved covered-call investigation). v5.0 shipped 2026-07-27.*
 
-## Current Milestone: (none — between milestones)
+## Current Milestone: v6.0 Risk-Environment / Regime Read — PLANNED, PARKED (0%)
 
-**Last shipped:** v5.0 Data Foundation + Microstructure Monitor (2026-07-27). See Previous Milestones + `.planning/MILESTONES.md`.
+> **Parked 2026-08-06.** Charter, roadmap (Phases 28–32) and 14 requirements are written and committed; **no code written**. Parked deliberately ahead of a dev-machine move rather than shipping a rushed partial barometer. Resume with `/gsd:plan-phase 28`.
 
-**v6.0 covered-call tilt-timing — investigated & SHELVED 2026-07-27.** Cheap pre-build tests (SPY, 2016–2026) found no evidence for *timing* a USCC↔VFV tilt on VRP: the forward-return difference rich-vs-cheap is noise (non-overlapping Welch p=0.74) and the forward-vol difference is only marginal (p=0.074, ~35 independent windows, in-sample, pre-multiple-testing/costs). A *static* covered-call sleeve already harvests VRP structurally; timing it adds no demonstrated edge. Killed before building — see `research/covered-call-spike-findings.md` + memory `v6-covered-call-model-decision`. The existing **descriptive** VRP-percentile read (dashboard + daily email) stands and remains the honest layer.
+**Goal:** A non-directional, second-moment **barometer** — "is there too much risk in the market right now to justify putting on exposure" — surfaced in the Regime tab and daily email, with the forward-looking base rate gated behind statistical validation. No buy/sell/direction claim.
 
-**Open (not a milestone):** OCI restore drill (BACKUP-02) — confirm `restore_from_oci` recovers `out/`. Backup itself live since 2026-07-23.
+**Target features:**
+- Descriptive **component barometer** (level · vol-of-vol · term slope · gamma fragility · rarity/persistence · coupling/absorption) — components shown, **never a categorical verdict** (respects the repo's twice-killed regime-label scar)
+- **Coupling/absorption meta-read** (cross-ticker) distinguishing "several independent axes agree" (confirmation) from "axes fused into one factor" (the *stress-is-real* state)
+- Landed in **both surfaces**: Regime-tab block + daily-email block, credibility-gated, non-compensatory Tier-1 (deep base rate) / Tier-2 (gamma, descriptive-only) maturity
+- **Gated validation track** for the conditional forward-risk base rate (effective-N / Stambaugh-Hodrick overlap, confound-check, EVT tail, cross-market OOS) — graduates onto surfaces only on an explicit go/no-go pass
+
+**Design charter:** `research/risk-environment-conditioning.md` (conditioning methodology — do not re-derive). **Active requirements:** BAR-01–09, VAL-01–05 — see `REQUIREMENTS.md`.
+
+**Prior v6.0 (reclaimed):** covered-call tilt-timing — investigated & SHELVED 2026-07-27, no timing edge (fwd-return p=0.74; fwd-vol p=0.074 marginal, in-sample). Killed before building; a static covered-call sleeve harvests VRP structurally. See `research/covered-call-spike-findings.md` + memory `v6-covered-call-model-decision`.
+
+**Open (not a milestone):** none. The OCI restore drill (BACKUP-02) PASSED 2026-07-29 — 67/67 objects restored, parquet integrity verified. Backup live since 2026-07-23; backup *and* restore are both proven.
 
 ## Current State
 
@@ -216,6 +226,9 @@ Seven modules, 74 tests, Holm-Bonferroni rigor. 0 of 30 bucket-mean tests surviv
 ### v1.0 — Regime-Aware Fund Intelligence Notebook (pivoted 2026-04-30)
 HMM GMM diagnostic on SPX. Pivoted because it never touched options-pricing data.
 
+---
+---
+---
 ---
 ---
 ---

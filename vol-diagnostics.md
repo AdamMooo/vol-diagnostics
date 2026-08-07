@@ -53,13 +53,15 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-07-29 17:55 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-08-07 00:25 UTC
 
-**Milestone:** none · **Status:** between_milestones · **STATE last_updated:** 2026-07-27T21:00:00.000Z
+**Milestone:** v6.0 · **Status:** parked · **STATE last_updated:** 2026-08-06T00:00:00.000Z
 
 ### Current Position
-- **Status:** between milestones — nothing active to build.
-- **Last activity:** 2026-07-27 -- v6.0 shelved on evidence.
+- **Phase:** 28 of 32 (Barometer Axes Engine) — PARKED, not started
+- **Plan:** — (roadmap created, never planned)
+- **Status:** Parked — project intentionally closed out; resume when Adam chooses
+- **Last activity:** 2026-08-06 — close-out: 4 stale `test_app.py` contract tests fixed (481 green), stale CLAUDE.md claims corrected, v6.0 parked, transition runbook written
 
 ### Pending Todos
 - None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).
@@ -73,6 +75,8 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 <!-- GSD-HUB:END -->
 
 ### Operator notes (handwritten — survives hub-sync)
+
+**v6.0 Risk-Environment / Regime Read milestone OPENED (2026-08-05).** New non-directional **barometer** — "is there too much risk in the market right now to justify putting on exposure," second-moment only, no buy/sell. Design charter written first: **`research/risk-environment-conditioning.md`** (conditioning-has-a-cost, effective-N/overlap, barometer-not-verdict, non-compensatory Tier-1/Tier-2 maturity, mechanism-gate, confound-check, EVT tail, + the two-convergences / absorption-ratio "stress is real" insight). Milestone opened via `/gsd-new-milestone` (v6.0 reclaimed from the shelved covered-call investigation). Roadmap = **5 phases (28-32)**: 28 Barometer Axes Engine · 29 Coupling/Absorption Meta-Read · 30 Barometer Surfaces (Regime tab + email) — all SHIP; 31 Conditional Forward-Risk Base Rate · 32 Tail + Ship-Gate — both **GATED**, no surface until an explicit go/no-go clears effective-N/confound/EVT/cross-market OOS. Descriptive barometer (28-30) is shippable before/independent of the validation track. SEED-001 kept parked. **All `.planning/` + charter changes uncommitted.** Resume: `/gsd-plan-phase 28`. Plan-phase forks: binning vs k-NN for conditioning cells; whether the absorption meta-read is Tier-1 or standalone.
 
 **De-directionalized the dashboard → "what an option writer controls" (2026-08-04, later same session).** Adam's redirect: the dashboard still invited a *directional* read ("oh, dealers → market will drop") which is the furthest thing from what the tool supports; refocus everything on writer-controllable, P&L-relevant context. Chosen treatment (of 3 options): **reframe dealer-gamma as risk-only, don't delete it.** Concrete `app.py` changes: (1) **deleted the 42-session "Spot vs model levels" overlay chart** — γ-flip/call-wall/put-wall plotted as lines against spot was pure support/resistance theater, the single worst directional offender; (2) **deleted the "γ-flip & walls (model derivation)" gamma-profile expander** — same levels-as-targets visual; (3) renamed the **Positioning tab → "Writing conditions"**, rebuilt as: a **move-size regime** read (net-GEX sign → Contained/Elevated, explicitly "sizing input, not a target"), an **expected-move cone** (1σ, for strike placement), and **OI by expiry reframed as assignment/pin risk** (the table logic is unchanged, just re-captioned); dropped Net Delta ("dealer hedge" framing); (4) reframed the **Regime headline** — dropped "dealers amplifying/stabilizing" for "Moves tend contained/larger → size accordingly"; (5) rewrote the sidebar methodology tiers + deep block to match (γ-flip/walls no longer surfaced anywhere). Pruned now-dead imports (`plot_gamma_profile`, `go`). Net-GEX/γ-flip/walls still computed in the backend + snapshotted; only the directional *surfacing* is gone. Compiles, pyflakes-clean, directional-language scan clean (only disclaimers remain). Explore tab was already the clean model this brings the index view up to. **Prep-sheet artifact** built earlier this session lives at a private claude.ai/code artifact (interview positioning for an option-writing desk) — not committed to the repo on purpose (interviewers may see the repo).
 

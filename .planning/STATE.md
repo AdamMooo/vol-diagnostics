@@ -1,13 +1,12 @@
 ---
 gsd_state_version: 1.0
-milestone: none
-milestone_name: (between milestones)
-status: between_milestones
-stopped_at: "v6.0 covered-call tilt-timing model INVESTIGATED + SHELVED 2026-07-27 (opened then dropped same day). Pre-build tests found no timing edge: fwd-return rich-vs-cheap p=0.74 (noise), fwd-vol p=0.074 (marginal, ~35 non-overlap windows, in-sample). Static CC sleeve already harvests VRP; timing adds nothing demonstrable. No active milestone. Existing descriptive VRP read (dashboard+email) stands. Only open item: OCI restore drill (BACKUP-02). Do NOT re-attempt the tilt model without materially new evidence — see memory v6-covered-call-model-decision + research/covered-call-spike-findings.md. gsd-sdk state handlers CORRUPT STATE.md — hand-edit only."
-last_updated: "2026-07-27T21:00:00.000Z"
-last_activity: 2026-07-27 -- v6.0 tilt-timing investigated & shelved (no evidence); no active milestone
+milestone: v6.0
+milestone_name: Risk-Environment / Regime Read
+status: parked
+last_updated: "2026-08-06T00:00:00.000Z"
+last_activity: 2026-08-06
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,34 +20,38 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-27)
 
 **Core value:** How expensive is protection, where on the surface is that expensiveness concentrated, how is the surface moving over time, and what does it imply for portfolio overlays or option-writing sleeves?
-**Current focus:** No active milestone. v6.0 covered-call tilt-timing shelved 2026-07-27 (no evidence). v5.0 shipped 2026-07-27.
+**Current focus:** none — project closed out at a stable point 2026-08-06 for a dev-machine transition. v6.0 is **planned but PARKED at 0%**: charter + roadmap + requirements are written and committed, no code written.
 
 ## Current Position
 
-No active milestone. v5.0 SHIPPED 2026-07-27 (Phases 23–27; OCI backup live since 2026-07-23). Full record in `.planning/MILESTONES.md`.
+Phase: 28 of 32 (Barometer Axes Engine) — PARKED, not started
+Plan: — (roadmap created, never planned)
+Status: Parked — project intentionally closed out; resume when Adam chooses
+Last activity: 2026-08-06 — close-out: 4 stale `test_app.py` contract tests fixed (481 green), stale CLAUDE.md claims corrected, v6.0 parked, transition runbook written
 
-**v6.0 covered-call tilt-timing — INVESTIGATED & SHELVED 2026-07-27** (opened then dropped the same day, before building). Three cheap pre-build tests on SPY (2016–2026) killed it:
-- Persistence: rich-VRP half-life ~10–14 sessions; P(still rich in 15d | rich) = 36% vs 30% base — modest.
-- Distribution (fwd 20d): rich-vs-cheap return means flat; forward realized vol 15.5% vs 17.0% (rich calmer); upside give-up p95 6.98% vs 7.89%.
-- Significance (non-overlapping, ~35 windows/side): forward-return diff p=0.74 (noise); forward-vol diff p=0.074 (marginal, in-sample, pre-MT/costs).
-
-Conclusion: a *static* covered-call sleeve harvests VRP structurally (established); *timing* the USCC↔VFV tilt has no demonstrated edge. Dropped per the project's "no unvalidated signal / no work for its own sake" discipline. Evidence: `research/covered-call-spike-findings.md`, memory `v6-covered-call-model-decision`.
-
-Status: between milestones — nothing active to build.
-Last activity: 2026-07-27 -- v6.0 shelved on evidence.
-
----
+Progress: [░░░░░░░░░░] 0%
 
 ## ▶ START HERE
 
-**One-line:** No active milestone. The covered-call tilt model was tested and shelved (no edge). The existing descriptive VRP read (dashboard + daily email) stands.
+**One-line:** the project is CLOSED OUT and stable — nothing is half-built, nothing is uncommitted, 481 tests green, the live site and daily email run without this laptop. v6.0 is fully *planned* and deliberately *parked*.
 
-**If picking up work, the only genuinely open items:**
-- **OCI restore drill (BACKUP-02)** — confirm `restore_from_oci` recovers `out/` (backup live since 2026-07-23). Small, worth doing.
-- Two root-level synthetic previews (`out_preview_*.html`) — safe to delete.
-- `scripts/update.sh` has an uncommitted rebrand echo (`Gamma OMM` → `Vol Update`) — Adam's, left unstaged.
+**If resuming v6.0:** next action is `/gsd:plan-phase 28` (Barometer Axes Engine). The charter is `research/risk-environment-conditioning.md` — do not re-derive the theory, it is already written. Plan-phase forks left open on purpose: binning vs k-NN for conditioning cells; whether the absorption meta-read is Tier-1 or standalone.
 
-**Do NOT** re-open the covered-call tilt-timing model without materially new evidence — it was killed deliberately, not forgotten. Any future vol/premium *timing* idea: first run the pre-registered OOS + multiple-testing test on non-overlapping windows; expect null.
+**Why parked (2026-08-06):** Adam wanted the project done and to move to his main computer. v6.0 is 5 phases / 14 requirements — multi-session work. Parking a fully-specified, zero-code milestone was chosen over shipping a rushed partial barometer right before a machine move. This was a deliberate stop, not an abandonment.
+
+**Machine transition:** see `CLAUDE.md` → "Moving to a New Dev Machine" (verified + expanded 2026-08-06).
+
+**The milestone in one breath:** a non-directional second-moment barometer (level · vol-of-vol · term slope · gamma fragility · rarity/persistence · coupling) shown as *components, never a verdict*, in the Regime tab + daily email. A separate GATED validation track builds a conditional forward-risk base rate that ships to no surface until an explicit go/no-go (VAL-05).
+
+**Hard boundaries carried from the charter into the phases:**
+- No categorical CALM/STRESSED label (twice-killed regime-label scar). Barometer, not switch.
+- No hidden scoring/weighting; non-compensatory Tier-1 (deep base rate) vs Tier-2 (gamma, descriptive-only) — no offsetting.
+- The descriptive barometer (28–30) is shippable BEFORE and independently of the validation track (31–32). Do not collapse them.
+- Reuse, don't rebuild: `engine/monitor/` already computes percentile/rarity/drift/persistence for 17 metric-pairs daily; reuse `card_model.build_card_read` gating. BAR-06's cross-ticker return panel is the only build-from-scratch axis.
+
+**Still-open non-milestone item:** none blocking — OCI restore drill (BACKUP-02) already PASSED 2026-07-29 (see Session Continuity below).
+
+**Do NOT** re-open the covered-call tilt-timing model without materially new evidence — it was killed deliberately (v6.0 slot reclaimed for this barometer work), not forgotten.
 
 **Constraint:** gsd-sdk state handlers CORRUPT STATE.md — hand-edit STATE/PROJECT/MILESTONES/ROADMAP/REQUIREMENTS; never run state.milestone-switch / milestone.complete.
 
@@ -56,6 +59,7 @@ Last activity: 2026-07-27 -- v6.0 shelved on evidence.
 
 ### Roadmap Evolution
 
+- 2026-08-05: v6.0 roadmap created — Phases 28–32. Two-track split honored: **barometer** (28 axes engine, 29 coupling/absorption, 30 surfaces) ships descriptively to Regime tab + email; **gated validation** (31 conditional forward-risk base rate, 32 EVT tail + ship-gate) is research-only, no surface until VAL-05. 14/14 requirements mapped (BAR-01–09, VAL-01–05). Charter: `research/risk-environment-conditioning.md`.
 - 2026-07-23: Phases 26 (Severity Statistics & Alert Engine) and 27 (Microstructure Monitor UI) added to v5.0 — product reframed from descriptive daily report to market-microstructure exception monitor. Design decisions in `.planning/notes/microstructure-monitor-design.md` (ECDF severity ranks, transition-with-hysteresis alerts, false-alarm-budgeted bands, distribution-board UI, event-shaped email). Tier-2 conditional base rates stay deferred behind the v5.0 validation work.
 
 ### Decisions (carried forward, still load-bearing)
@@ -112,6 +116,13 @@ Acknowledged and deferred at v4.0 milestone close on 2026-07-17 (all pre-date v4
 | todo | 2026-05-11-v3-2-pre-distribution-hardening.md | resolved 2026-07-26 (Phase 24 / backlog 999.3) — items a/b/d shipped out-of-phase, item c (regime sharpness) deferred; moved to todos/done/ |
 | seed | SEED-001-short-end-gamma-concentration | dormant |
 
+## Session Continuity (2026-08-06 — PROJECT CLOSE-OUT)
+
+Last session: 2026-08-06 — deliberate close-out ahead of a dev-machine transition.
+What happened: (1) Found and fixed **4 failing tests** in `engine/tests/test_app.py` — all stale contract assertions left behind by the 2026-08-04 de-directionalization, not app bugs: the two-layer quick/deep methods panel became a sidebar popover + expander, the "Positioning" tab became "Writing conditions", and γ-flip/call-wall/put-wall labels were deleted from the UI. Rather than delete the guards, they were rewritten against the *current* contract, including a new inverse guard (`test_directional_model_levels_are_not_surfaced`) that fails if the directional model levels are ever reintroduced. **481 green.** (2) Corrected stale `CLAUDE.md` claims: test count 449 → 481, and the "local Windows Task Scheduler job also still active" line — no such task exists on this machine (verified), so the daily pipeline is fully machine-independent on GitHub Actions. (3) **Parked v6.0** at 0% with charter/roadmap/requirements committed. (4) Verified and expanded the dev-machine move runbook in `CLAUDE.md` → "Moving to a New Dev Machine".
+Resume queue: nothing outstanding. Resuming v6.0 means `/gsd:plan-phase 28`.
+Known non-blocking: `.github/workflows/a1-flex-retry.yml` still fires every 15 min forever, by design (opens an issue if Oracle ARM capacity frees up). Machine-independent; disable whenever it stops being wanted.
+
 ## Session Continuity (2026-07-29 update)
 
 Last session: 2026-07-29 (ad-hoc, no active milestone — infra hardening, session #2 of the interview-readiness push)
@@ -132,6 +143,11 @@ Resume queue: (1) **Prep sheet required before this project is considered closed
 - ~~**Phase 23 close-out (blocked on Adam)**~~ — DONE 2026-07-29. Restore drill (BACKUP-02) passed: 67/67 objects restored, integrity verified. Phase 23 fully closed.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug. (Monitor backend is unused by the UI as of 2026-07-27 — see above — but this behavior still governs `engine/monitor/` itself.)
 
+---
+---
+---
+---
+---
 ---
 ---
 ---
