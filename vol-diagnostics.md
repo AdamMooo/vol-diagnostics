@@ -53,12 +53,12 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 ## Status
 
 <!-- GSD-HUB:START -->
-> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-08-07 01:13 UTC
+> Auto-generated from `.planning/STATE.md` + `ROADMAP.md` · synced 2026-08-07 01:19 UTC
 
 **Milestone:** v6.0 · **Status:** parked · **STATE last_updated:** 2026-08-06T00:00:00.000Z
 
 ### Current Position
-- **Phase:** 28 of 32 (Barometer Axes Engine) — PARKED, not started
+- **Phase:** v6.0 is 0 of 5 phases done (28–32 are its phase numbers, continuing the global count from v5.0 — this is NOT "28/32 complete"; phases 1–27 belong to shipped milestones v3.0–v5.0)
 - **Plan:** — (roadmap created, never planned)
 - **Status:** Parked — project intentionally closed out; resume when Adam chooses
 - **Last activity:** 2026-08-06 — close-out: 4 stale `test_app.py` contract tests fixed (481 green), stale CLAUDE.md claims corrected, v6.0 parked, transition runbook written
@@ -67,9 +67,9 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 - None new. 2 stale pre-v4.0 todos acknowledged and deferred at milestone close (see Deferred Items below).
 
 ### Blockers
-- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed one layer up in `run_daily.py`'s PNG attachment builders.)
-- `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (script retired, kept for reference only).
-- `out/` parquet stores live only on the Oracle server, no backup anywhere — now part of Phase 23 of v5.0 (no longer just a flagged risk).
+- ~~`png_export.py` swallows export failures into a `print()` and returns None~~ — **fixed.** It now propagates: no try/except, no `None` return, and the docstring documents that callers wrap each attempt and track failed tickers (`png_export.py:31-34`).
+- ~~`runners/gex_daily.ps1` naming is stale~~ — **gone.** The `runners/` directory does not exist.
+- ~~`out/` lives only on Oracle, no backup anywhere~~ — **resolved.** OCI Object Storage backup live since 2026-07-23; restore drill passed 2026-07-29 (67/67 objects, parquet integrity verified).
 
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->

@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-07-27)
 
 ## Current Position
 
-Phase: 28 of 32 (Barometer Axes Engine) — PARKED, not started
+Phase: v6.0 is 0 of 5 phases done (28–32 are its phase numbers, continuing the global count from v5.0 — this is NOT "28/32 complete"; phases 1–27 belong to shipped milestones v3.0–v5.0)
 Plan: — (roadmap created, never planned)
 Status: Parked — project intentionally closed out; resume when Adam chooses
 Last activity: 2026-08-06 — close-out: 4 stale `test_app.py` contract tests fixed (481 green), stale CLAUDE.md claims corrected, v6.0 parked, transition runbook written
@@ -82,11 +82,11 @@ Full decision history (v3.0–v4.0): `.planning/PROJECT.md` Strategic Decisions 
 
 ### Blockers/Concerns
 
-None blocking. Carried-forward known debt (see Deferred Items):
+**None.** All three previously-carried items were re-verified on 2026-08-06 and are resolved — they had been fixed without this list being updated:
 
-- `engine/report/png_export.py` still swallows any export failure into a `print()` warning and returns None — the same silent-failure shape that hid the plotly/kaleido version mismatch for months. (Partial-failure visibility was fixed one layer up in `run_daily.py`'s PNG attachment builders.)
-- `runners/gex_daily.ps1`'s "GEX Daily" naming is stale (script retired, kept for reference only).
-- `out/` parquet stores live only on the Oracle server, no backup anywhere — now part of Phase 23 of v5.0 (no longer just a flagged risk).
+- ~~`png_export.py` swallows export failures into a `print()` and returns None~~ — **fixed.** It now propagates: no try/except, no `None` return, and the docstring documents that callers wrap each attempt and track failed tickers (`png_export.py:31-34`).
+- ~~`runners/gex_daily.ps1` naming is stale~~ — **gone.** The `runners/` directory does not exist.
+- ~~`out/` lives only on Oracle, no backup anywhere~~ — **resolved.** OCI Object Storage backup live since 2026-07-23; restore drill passed 2026-07-29 (67/67 objects, parquet integrity verified).
 
 ### Quick Tasks Completed
 
@@ -143,6 +143,8 @@ Resume queue: (1) **Prep sheet required before this project is considered closed
 - ~~**Phase 23 close-out (blocked on Adam)**~~ — DONE 2026-07-29. Restore drill (BACKUP-02) passed: 67/67 objects restored, integrity verified. Phase 23 fully closed.
 - Known accepted behavior in the monitor: an active alert holds indefinitely across a persistent data outage (self-heals on data return) — by design, not a bug. (Monitor backend is unused by the UI as of 2026-07-27 — see above — but this behavior still governs `engine/monitor/` itself.)
 
+---
+---
 ---
 ---
 ---
