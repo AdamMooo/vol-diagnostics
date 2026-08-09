@@ -1,5 +1,5 @@
 # CLAUDE — Gamma OMM — Vol Diagnostics Dashboard
-Last updated: 2026-07-27 | Status: v5.0 shipped. No active milestone — current work is an interview/portfolio readiness pass (public dashboard link). Phase 27's monitor UI (raw percentile board + evidence panel) was built, then deleted from the dashboard 2026-07-27 after audit — no defensible reason to surface it without evidence-tier context; `engine/monitor/` backend stays as candidate infra, unused by the UI for now.
+Last updated: 2026-08-09 (dev machine moved to WSL/Ubuntu) | Status: v5.0 shipped. No active milestone — current work is an interview/portfolio readiness pass (public dashboard link). Phase 27's monitor UI (raw percentile board + evidence panel) was built, then deleted from the dashboard 2026-07-27 after audit — no defensible reason to surface it without evidence-tier context; `engine/monitor/` backend stays as candidate infra, unused by the UI for now.
 
 ## Repo Card
 
@@ -49,34 +49,60 @@ Git carries only code. Three things are gitignored and must ride along out-of-ba
 
 **Nothing about the running service is machine-bound** (verified 2026-08-06). The daily email runs on GitHub Actions with its own copy of all 18 secrets; the dashboard runs on Oracle; `out/` lives on Oracle's disk plus the OCI backup. There is **no local Windows Task Scheduler job** — confirmed absent. Moving machines costs you local dev + manual-deploy access only. **The old machine can be wiped without stopping anything.**
 
-Prerequisites on the new box: Git, Python 3.11+ (local dev runs 3.13, CI runs 3.11 — either is fine), and **KeePassXC** (`keepassxc.org`) if you're restoring secrets from the vault rather than copying them across — the `.kdbx` is just an encrypted file and nothing else can open it.
+Prerequisites on the new box: Git, Python 3.11+ (local dev runs 3.13, CI runs 3.11 — either is fine), and **KeePassXC** (`keepassxc.org`) if you're restoring secrets from the vault rather than copying them across — the `.kdbx` is just an encrypted file and nothing else can open it. Install KeePassXC on the **Windows** side even when developing in WSL.
+
+**The codebase is fully platform-agnostic** — no `C:\` paths, no `sys.platform` branches, no Windows-only imports anywhere in `engine/` or `app.py` (audited 2026-08-09). It already runs on Ubuntu daily in two places: the Oracle Docker image (`python:3.11-slim`) and the GitHub Actions runner. `requirements.txt` needs no edits; its one Windows entry (`pywin32`) is marker-gated to `sys_platform == "win32"` and nothing imports it.
 
 **The repo is private**, so a fresh machine must authenticate to GitHub as `AdamMooo` *before* the clone will work — `gh auth login` (GitHub CLI, easiest) or a PAT / SSH key. A bare `git clone` on an unauthenticated box fails with a confusing "repository not found", not a permission error.
 
-Turnkey on the new box:
+Turnkey on the new box (WSL/Ubuntu — the live setup since 2026-08-09):
 
-```powershell
+```bash
+gh auth login                    # private repo — must come BEFORE the clone
+mkdir -p ~/dev && cd ~/dev
 git clone https://github.com/AdamMooo/vol-diagnostics
 cd vol-diagnostics
-python -m venv .venv; .venv\Scripts\activate; pip install -r requirements.txt
-# then: drop .env into the repo root, and vol-diagnostics.key(.pub) into ~\.ssh\
-#   (copy from old machine, or export both from the KeePassXC vault — see below)
-.\scripts\sync-from-oracle.ps1     # pulls Oracle's out/ down (needs the SSH key)
+git config core.autocrlf input   # repo has no .gitattributes
+
+sudo apt install -y python3-venv # venv is a separate package on Ubuntu
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt  # pywin32 is platform-gated, pip skips it here
+
+# then: .env into the repo root, vol-diagnostics.key into ~/.ssh/ (see below)
+bash scripts/sync-from-oracle.sh # pulls Oracle's out/ down (needs the SSH key)
 streamlit run app.py
 ```
 
-Verify the move before trusting it — all four should pass:
+**Clone into the WSL filesystem (`~/dev`), never `/mnt/c`.** Windows-drive I/O over
+the 9p mount is slow enough to hurt pytest and parquet reads, and files there
+can't hold Unix permission bits — which breaks the SSH key outright (below).
 
-```powershell
+Windows-native still works if you ever want it: `python -m venv .venv;
+.venv\Scripts\activate`, then `.\scripts\sync-from-oracle.ps1` (the PowerShell
+twin of the `.sh`). Both scripts are maintained.
+
+Verify the move before trusting it:
+
+```bash
 pytest engine/tests                      # expect 483 passed
 python -m engine.run_gex --ticker SPY    # network + CBOE feed reachable
-python -m engine.run_daily --dry-run     # full pipeline, writes HTML, sends nothing
 python -m engine.health_check            # out/ freshness after the Oracle sync
+python -m engine.run_daily --dry-run     # needs Chrome for kaleido — see note
 ```
 
-Then confirm SSH works (`ssh -i <key> ubuntu@40.233.113.63 "echo ok"`) — that is the one credential the clone can't prove on its own. Deploying from the new box is identical to the Deploy section below; only the `-i` key path is machine-specific.
+`run_daily --dry-run` renders PNG email attachments via kaleido, which needs a
+Chrome binary that Linux doesn't ship: `python -c "import kaleido;
+kaleido.get_chrome_sync()"`. Skip it unless you're testing the email path — the
+dashboard and the test suite never touch kaleido.
 
-Note `.env` permissions do not carry over a copy — on Windows it inherits the new folder's ACL. Nothing reads it but you, but don't drop it in a synced/shared folder.
+Then confirm SSH works (`ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "echo ok"`)
+— that is the one credential the clone can't prove on its own. Deploying from the
+new box is identical to the Deploy section below; only the `-i` key path is machine-specific.
+
+Note `.env` permissions do not carry over a copy — it inherits the new folder's
+ACL (Windows) or umask (Linux). Nothing reads it but you, but don't drop it in a
+synced/shared folder.
 
 (Standing intent: git-crypt would fold the `.env` step into `git clone` + unlock — see auto-memory `git-crypt-all-projects-decision`; not set up, and the KeePassXC vault now covers the same need.)
 
@@ -84,7 +110,21 @@ Note `.env` permissions do not carry over a copy — on Windows it inherits the 
 
 Only **two** things live outside git and cannot be reconstructed by a clone: `.env` and `~/.ssh/vol-diagnostics.key`.
 
-**Current backup (2026-08-04):** both live inside a **KeePassXC vault** — `vol-diagnostics-secrets.kdbx` — stored on Adam's personal **Google Drive**. It holds two entries (`.env` and the SSH key) as encrypted attachments. **Restore on a new machine:** install KeePassXC (free, `keepassxc.org`) → open the `.kdbx` from Drive → master passphrase → export the `.env` attachment to the repo root and the key to `~/.ssh/vol-diagnostics.key`. The vault's master passphrase is the one thing NOT stored digitally — if it's lost, the vault is unrecoverable, so the regeneration paths below are the fallback.
+**Current backup (2026-08-04):** both live inside a **KeePassXC vault** — `vol-diagnostics-secrets.kdbx` — stored on Adam's personal **Google Drive**. It holds two entries (`.env` and the SSH key) as encrypted attachments. **Restore on a new machine:** install KeePassXC (free, `keepassxc.org`) → open the `.kdbx` from Drive → master passphrase → for each entry, **Advanced → Attachments → select → Save**. The vault's master passphrase is the one thing NOT stored digitally — if it's lost, the vault is unrecoverable, so the regeneration paths below are the fallback.
+
+Restoring into WSL (verified 2026-08-09) — KeePassXC is a Windows app, so its
+Save dialog writes to the Windows side. Either save to Downloads and `cp` across,
+or point the dialog straight at `\\wsl$\Ubuntu\home\<user>\.ssh\`. **Either way
+the key lands as 0644/0777 and ssh refuses it** — `Permissions are too open`,
+which is unfixable on `/mnt/c` because that filesystem can't hold the bits. Fix:
+
+```bash
+chmod 600 ~/.ssh/vol-diagnostics.key
+```
+
+`scripts/sync-from-oracle.sh` checks this up front and tells you, rather than
+failing inside scp. Delete the Windows-side copy afterward — it's a plaintext
+private key in the most-synced folder on the machine.
 
 If instead you're starting from scratch (no vault, no copies), regenerate them:
 
