@@ -84,7 +84,7 @@ names the file so you can go straight there.
 | 2 | **GHCR build-move** — takes the ~19-min build off the Micro box, which has hard-locked twice doing it | 5 files incl. new `.github/workflows/build-image.yml` | Planned in full, nothing written. Do before next deploy |
 | 3 | **Collection pipeline depends on Oracle being reachable** — the workflow rsyncs history down over SSH *before* `run_daily` | `daily-report.yml:57-64` | Real structural risk, unfixed. Hasn't bitten yet |
 | 4 | **Duplicate alert rows** — `run_daily --force` on an already-collected day re-fires the hysteresis transition every time | `engine/monitor/hysteresis.py` | Low priority (Alerts banner suppressed), but fix before the monitor is ever surfaced |
-| 5 | **Cold-start fix may be undeployed** — committed `6e3d5ce`, and a running site is not evidence it landed | `app.py:893`, `:915` | Verify the image on Oracle, not the port |
+| 5 | ~~Cold-start fix undeployed~~ | `app.py:893`, `:915` | **RESOLVED 2026-08-09** — Oracle was 5 commits behind at `eff5eae`; redeployed to `21f3076`, container healthy |
 | 6 | **Two UI watch-items** — does ticker selection survive leaving/returning to Surfaces (Streamlit GCs unrendered widget state)? Do 3 KPI metrics wrap with all 3 tickers selected? | `app.py` | Needs an eyeball, never confirmed |
 | 7 | **Two known-wasteful computations** — `compute.py:236` re-fetches 400d of closes that are a strict subset of the 2540d already pulled in the same call; `vrp_history.py:79-83` vectorises to one `rolling().std()` | as listed | Worth doing sometime, not urgent |
 
