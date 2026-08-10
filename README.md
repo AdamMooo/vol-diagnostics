@@ -10,44 +10,43 @@ Current metrics: VRP percentile (vol-index − RV20 ranked over a 252-session wi
 
 ## Setup
 
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
+Runs on Linux, macOS, WSL, or native Windows — Python 3.11+, no platform-specific steps.
 
-On WSL/Linux, keep the Oracle key at `~/.ssh/vol-diagnostics.key`, then fix permissions with `chmod 600 ~/.ssh/vol-diagnostics.key`. The repository's sync and deploy scripts already default to that path.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+streamlit run app.py            # http://localhost:8501
+```
 
 Data is entirely free — CBOE delayed-quote JSON (chains), CBOE vol-index CSVs, yfinance closes, and the FRED `^IRX` risk-free rate. No API key, no vendor feed.
 
+The dashboard runs against whatever history is in `out/`; it starts clean with none. Daily snapshots are what accrue the chain-derived metrics over time.
+
 ## Running
 
-**Interactive dashboard:**
-```powershell
-streamlit run app.py
-```
-Opens at `http://localhost:8501`.
+**Interactive dashboard** — `streamlit run app.py`, opens at `http://localhost:8501`.
 
-**Daily email report (Outlook COM — Windows only):**
-```powershell
+**Daily email report.** Transport is chosen automatically: Outlook COM on Windows, SMTP everywhere else (`engine/report/emailer.py`). SMTP settings come from `.env`.
+
+```bash
 python -m engine.run_daily --send
 python -m engine.run_daily --dry-run   # writes out/index-vol-report-YYYY-MM-DD.html, no email
 ```
 
 **Single-ticker CLI:**
-```powershell
-python -m engine.run_gex              # SPY
-python -m engine.run_gex --ticker QQQ
-python -m engine.run_gex --ticker IWM
+```bash
+python -m engine.run_gex               # SPY
+python -m engine.run_gex --ticker QQQ  # or IWM
 ```
 
-**Oracle deploy / sync on WSL/Linux:**
+**Deploy / data sync** (needs the Oracle SSH key at `~/.ssh/vol-diagnostics.key`, mode `600`):
 ```bash
 ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "cd ~/vol-diagnostics && git pull && docker compose up -d --build"
-bash scripts/sync-from-oracle.sh
+bash scripts/sync-from-oracle.sh       # Windows: .\scripts\sync-from-oracle.ps1
 ```
 
-If SSH fails, the quickest checks are `ls -l ~/.ssh/vol-diagnostics.key`, `stat -c '%a' ~/.ssh/vol-diagnostics.key`, and `ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "echo ok"`.
+If SSH fails, check the key's permissions first — `stat -c '%a' ~/.ssh/vol-diagnostics.key` should read `600`.
 
 ## Dashboard
 
@@ -65,7 +64,7 @@ Chains are fetched from the CBOE CDN on first load (no auth) and cached 6 hours 
 
 `engine/monitor/` ranks each metric×ticker pair by ECDF percentile — a dual level rank (deep history + trailing 1yr) plus a two-sided k=5 change rank — and drives a hysteresis state machine (entry / escalate / exit at percentile bands 90 / 94 / 85, gap 5) so alerts latch cleanly instead of flickering. Bands are calibrated to a false-alarm budget of ~1 episode/week; re-run the calibration over stored history any time:
 
-```powershell
+```bash
 python -m engine.monitor.calibration
 ```
 
@@ -112,8 +111,8 @@ The daily report runs on **GitHub Actions** (`.github/workflows/daily-report.yml
 
 ## Tests
 
-```powershell
+```bash
 python -m pytest engine/tests/ -q
 ```
 
-449 tests covering data loading, GEX aggregation, gamma profile, analytics, the vol surface and its evolution, VRP history, the severity monitor (ranker, hysteresis, calibration), email rendering, the canonical card, the snapshot store, and dashboard boot.
+Covers data loading, GEX aggregation, gamma profile, analytics, the vol surface and its evolution, VRP history, the severity monitor (ranker, hysteresis, calibration), email rendering, the canonical card, the snapshot store, and dashboard boot.

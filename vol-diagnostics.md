@@ -8,17 +8,17 @@ Vol/dealer microstructure dashboard for SPY, QQQ, IWM — index income-sleeve PM
 
 ## Running the Dashboard
 
-```powershell
-cd C:\dev\vol-diagnostics
-.venv\Scripts\activate
+```bash
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
 streamlit run app.py
 ```
 
-Opens at `http://localhost:8501`.
+Opens at `http://localhost:8501`. Full setup, machine-move runbook, and deploy
+steps live in [[vol-diagnostics/CLAUDE|CLAUDE.md]] — this file is state, not setup.
 
 ## Using It
 
-- **Sidebar** — select one or more of SPY / QQQ / IWM; hit **Refresh** to re-fetch (clears the 5-min cache)
+- **Sidebar** — select one or more of SPY / QQQ / IWM; hit **Refresh** to re-fetch (clears the 6-hour cache)
 - **Cards** — spot, net GEX, Hedge Sh/$1, γ-flip, skew 25Δ, IV30, VRP percentile. Accent bar reflects sign of net GEX (no categorical regime label). Plain-English read chips shown where credibility-gated history exists.
 - **Per-ticker expanders** with **tabs**:
   - **Strikes** — GEX by strike + gamma profile
@@ -26,29 +26,28 @@ Opens at `http://localhost:8501`.
   - **Positioning** — OI-led positioning; GEX (≤90 DTE), call/put walls labeled "(model)" vs "(raw OI)"
 - **Bottom expander: Methodology & Assumptions** — full caveat block (free CBOE feed, American greeks model, ^IRX rate, all filters, γ-flip/walls as model constructs, dealer positioning assumption)
 
-Live chains fetched from CBOE delayed quotes JSON on first load (CBOE CDN, no auth required). Results cached 5 minutes per ticker. Parquet snapshot written daily by `run_daily` feeds history charts.
+Live chains fetched from CBOE delayed quotes JSON on first load (CBOE CDN, no auth required). Results cached 6 hours per ticker (`config.CACHE_TTL_TICKER = 21600`). Parquet snapshot written daily by `run_daily` feeds history charts.
 
 ## Email Pipeline
 
 **Primary (since 2026-07-14): GitHub Actions** — `.github/workflows/daily-report.yml` runs on GitHub's runners (schedule: weekdays 20:35 UTC / 4:35pm ET, or manual via `gh workflow run daily-report.yml --repo AdamMooo/vol-diagnostics -f force=true`). Rsyncs `out/` down from the Oracle server before the run and back up after — Oracle's disk stays the one source of truth, history is deliberately not stored in git. Needs 8 repo secrets (`GEX_EMAIL_TO`, `SMTP_HOST/PORT/USER/PASS/FROM`, `ORACLE_HOST`, `ORACLE_SSH_KEY`). Moved off Oracle because the Micro instance's 1 vCPU/1GB couldn't run headless Chromium (kaleido PNG export) reliably — the first live cron fire there hung mid-render.
 
-```powershell
-python -m engine.run_daily            # all 3 tickers → HTML email via Outlook COM (local) or SMTP (Linux/CI)
+```bash
+python -m engine.run_daily            # all 3 tickers → HTML email (Outlook COM on Windows, SMTP elsewhere)
 python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.html, no email
 ```
 
-## Runners (`runners/`)
-
-**Local Windows Task Scheduler job retired (2026-07-14)** — `gex_daily.ps1` still exists for reference but the "GEX Daily Report" task itself was unregistered; GitHub Actions is the sole scheduler now. Data flows one-way: Oracle's disk is the source of truth, `scripts/sync-from-oracle.ps1` pulls a fresh copy down for local dev/viewing on demand (nothing local collects data anymore, so this can go stale — re-run it whenever you want current data locally).
-
-| File | Purpose | Schedule | Manage |
-|------|---------|----------|--------|
-| [[runners/gex_daily.ps1\|gex_daily.ps1]] | (Retired) Registered/inspected the old local "GEX Daily Report" task. Kept for reference only. | — | `gex_daily.ps1 activate` to re-register if ever needed (admin shell required) |
+**GitHub Actions is the only scheduler.** The old local Windows Task Scheduler job
+and the `runners/` directory that registered it are both gone (retired 2026-07-14,
+directory removed) — nothing on any local machine collects data. Data flows one way:
+Oracle's disk is the source of truth; sync pulls a copy down for local dev on demand,
+so local `out/` goes stale until you re-run it.
 
 **Sanity checks**
-- Local data freshness: `.\scripts\sync-from-oracle.ps1` then check `out/gex_snapshots.parquet`'s latest date
-- Dry run without scheduler: `python -m engine.run_daily --dry-run`
-- GitHub Actions status: `gh run list --repo AdamMooo/vol-diagnostics --workflow=daily-report.yml`
+- Local data freshness: `bash scripts/sync-from-oracle.sh` (Windows: `.\scripts\sync-from-oracle.ps1`), then check `out/gex_snapshots.parquet`'s latest date
+- Dry run: `python -m engine.run_daily --dry-run`
+- Pipeline status: `gh run list --repo AdamMooo/vol-diagnostics --workflow=daily-report.yml`
+- Everything at once: `python -m engine.health_check`
 
 ## Status
 
@@ -74,7 +73,23 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is regenerated automatically._
 <!-- GSD-HUB:END -->
 
-### Operator notes (handwritten — survives hub-sync)
+### Open threads — read this, not the log
+
+Distilled from the session log below (which is evidence, not a to-do list). Each item
+names the file so you can go straight there.
+
+| # | Open item | Where | Status |
+|---|---|---|---|
+| 1 | **v6.0 risk-environment barometer** — charter + 5 phases (28–32) committed, zero code | `research/risk-environment-conditioning.md` | Parked at 0%. Resume: `/gsd-plan-phase 28` |
+| 2 | **GHCR build-move** — takes the ~19-min build off the Micro box, which has hard-locked twice doing it | 5 files incl. new `.github/workflows/build-image.yml` | Planned in full, nothing written. Do before next deploy |
+| 3 | **Collection pipeline depends on Oracle being reachable** — the workflow rsyncs history down over SSH *before* `run_daily` | `daily-report.yml:57-64` | Real structural risk, unfixed. Hasn't bitten yet |
+| 4 | **Duplicate alert rows** — `run_daily --force` on an already-collected day re-fires the hysteresis transition every time | `engine/monitor/hysteresis.py` | Low priority (Alerts banner suppressed), but fix before the monitor is ever surfaced |
+| 5 | **Cold-start fix may be undeployed** — committed `6e3d5ce`, and a running site is not evidence it landed | `app.py:893`, `:915` | Verify the image on Oracle, not the port |
+| 6 | **Two UI watch-items** — does ticker selection survive leaving/returning to Surfaces (Streamlit GCs unrendered widget state)? Do 3 KPI metrics wrap with all 3 tickers selected? | `app.py` | Needs an eyeball, never confirmed |
+| 7 | **Two known-wasteful computations** — `compute.py:236` re-fetches 400d of closes that are a strict subset of the 2540d already pulled in the same call; `vrp_history.py:79-83` vectorises to one `rolling().std()` | as listed | Worth doing sometime, not urgent |
+
+<details>
+<summary><b>Session history</b> — 2026-06-12 → 2026-08-07, newest first. Reference only; current state is the table above.</summary>
 
 **Cold-start fix + Oracle recovery (2026-08-07).** Two things: a deploy incident, and the UI sweep's first real win.
 
@@ -94,7 +109,7 @@ _Edit `.planning/STATE.md` or `.planning/ROADMAP.md` to update — this block is
 
 **UI interview-readiness pass + machine-transfer prep (2026-08-04, same session as the Explore fix below).** Rebuilt the **Regime tab** (`app.py` `_render_regime_cards`) from the dense custom-HTML card into Adam's chosen "headline + KPI cards" design: one plain-English sentence per ticker (premium band + dealer stabilizing/amplifying, magnitude-not-direction) over a bordered `st.metric` KPI row (VRP / IV30 / Skew) with trend sparklines from the 48-session history. VRP carries the rich/cheap color (green/red/gray, which also tints its sparkline); IV30/skew stay neutral gray with `delta_arrow="off"` so percentile/"puts pricier" render as clean subtitles, no misleading up/down arrows. EM + 25Δ fly as a caption; full field grid tucked into an opt-in "All fields" expander. **Methodology moved fully off the main page into the sidebar** per Adam ("hidden, only if they want to read") — deleted the two bottom-of-page expanders, kept the concise evidence-tier popover + added a collapsed "Full methodology & citations" expander. Emoji sweep: already clean (only arrows + bullet dot). Pruned 3 now-dead imports. Verified against installed Streamlit 1.59.2 API signatures + compiles; **not visually eyeballed by Claude** (no browser tool this session) — Adam reviews on Oracle. **KPI-row watch-item:** the 3 metrics sit in `st.container(horizontal=True)` inside a 1/3-width ticker column, so with all 3 tickers selected they'll wrap — if cramped, drop `horizontal=True` to stack or gate side-by-side to single-ticker view.
 
-Separately, hardened the **new-dev-machine transfer** story (Adam moving to a personal computer): `.env.example` was stale (3 of 18 vars) — regenerated complete + sanitized (all keys, "where to find" comments, zero secret values). Added a "Moving to a New Dev Machine" runbook to `CLAUDE.md` (the 3 gitignored out-of-band items: `.env`, the SSH key, `out/` data via `sync-from-oracle.ps1`; clone→venv→pip→copy→sync→run). Fixed a broken README link (`research/methodology-audit.md` never existed — the audit *is* `methodology-deep-review.md`). **Doc drift found:** the 2026-07-29 note below claims `ORACLE-CLOUD-SETUP.md` was written with the instance-migration checklist — it does **not** exist in the repo. That's a distinct doc (recreating the *Oracle server*, needed only when the A1.Flex upgrade lands) from the dev-machine runbook now in CLAUDE.md; still genuinely missing if/when the Oracle box is ever recreated. **Remaining to "closed":** just the interview prep sheet now.
+Separately, hardened the **new-dev-machine transfer** story (Adam moving to a personal computer): `.env.example` was stale (3 of 18 vars) — regenerated complete + sanitized (all keys, "where to find" comments, zero secret values). Added a "Moving to a New Dev Machine" runbook to `CLAUDE.md` (the 3 gitignored out-of-band items: `.env`, the SSH key, `out/` data via `sync-from-oracle.ps1`; clone→venv→pip→copy→sync→run). Fixed a broken README link (`research/methodology-audit.md` never existed — the audit *is* `methodology-deep-review.md`). **Doc drift found:** the 2026-07-29 note below claims `ORACLE-CLOUD-SETUP.md` was written with the instance-migration checklist — it does **not** exist in the repo. *(Superseded: it exists now at `.planning/notes/ORACLE-CLOUD-SETUP.md`, verified 2026-08-09.)* That's a distinct doc (recreating the *Oracle server*, needed only when the A1.Flex upgrade lands) from the dev-machine runbook now in CLAUDE.md; still genuinely missing if/when the Oracle box is ever recreated. **Remaining to "closed":** just the interview prep sheet now.
 
 **Explore-tab single-name honesty fix (2026-08-04).** Interview-readiness catch: the Explore tab was showing dealer-gamma constructs (γ-flip, Net GEX, Net Δ, model call/put walls, gamma-profile expander) for arbitrary single names — but the dealer-net-short convention those rest on is Strong for *index* options only (Gârleanu 2009), and breaks for single names (Muravyev 2016 = MMs often net long; Hu 2023 = 4/43 continuously delta-hedge). Removed all of it from Explore; also dropped VVIX (SPX vol-of-vol, meaningless on a single name). Explore now leads with **25Δ skew** (Xing/Zhang/Zhao 2010 — the best-validated single-name options tilt, and something we already compute) + raw OI (walls + by-expiry table, no dealer assumption). Tracked indices SPY/QQQ/IWM keep their full dealer-gamma Positioning tab — that split *is* the point. `app.py` `_render_explore_tab` only; index paths untouched; compiles; shipped + live on Oracle. **Still open for "closed":** the UI/emoji/methodology-length sweep and the interview prep sheet (both deferred since 2026-07-27).
 
@@ -140,7 +155,9 @@ Separately, hardened the **new-dev-machine transfer** story (Adam moving to a pe
 
 **North star locked (2026-06-12).** vol-diagnostics is a vol/dealer microstructure dashboard — show what the market is doing and how dealers will behave. No editorial layer, no trade signals. Metrics: VRP rank, term structure, skew, surface evolution, GEX/dealer positioning — observable facts with percentile context.
 
-**Yield-share spun out (2026-06-12).** All 16-name Purpose Yield ETF work moved to `C:\dev\yield-share-strategy`. vol-diagnostics is now pure SPY/QQQ/IWM index.
+**Yield-share spun out (2026-06-12).** All 16-name Purpose Yield ETF work moved to the `yield-share-strategy` repo. vol-diagnostics is now pure SPY/QQQ/IWM index.
+
+</details>
 
 ## Defensibility status
 

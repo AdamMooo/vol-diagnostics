@@ -1,5 +1,25 @@
-# CLAUDE — Gamma OMM — Vol Diagnostics Dashboard
-Last updated: 2026-08-09 (dev machine moved to WSL/Ubuntu) | Status: v5.0 shipped. No active milestone — current work is an interview/portfolio readiness pass (public dashboard link). Phase 27's monitor UI (raw percentile board + evidence panel) was built, then deleted from the dashboard 2026-07-27 after audit — no defensible reason to surface it without evidence-tier context; `engine/monitor/` backend stays as candidate infra, unused by the UI for now.
+# CLAUDE — Vol Diagnostics Dashboard
+Last updated: 2026-08-09 | Status: v5.0 shipped, no active milestone.
+
+## Start Here
+
+| I want to… | Go to |
+|---|---|
+| Run it locally | [Local Setup](#local-setup) — clone, venv, `streamlit run app.py` |
+| Know what it does / why | [What It Does](#what-it-does) |
+| Set up a brand-new machine | [New Machine](#new-machine) — 6 steps + a gotchas table |
+| Push a change live | [Deploy](#deploy-oracle) — one SSH line, never backgrounded |
+| Find a module | [`engine/` map](#engine-package-active--v30) |
+| Know what I may not change | [Constraints](#constraints) |
+
+**Any OS.** The setup below is written for Linux/WSL (the live dev setup); every
+command has a Windows equivalent noted inline. Nothing here is bound to a
+specific machine or user account.
+
+**Current work:** interview/portfolio readiness pass — the dashboard is public-linked.
+Phase 27's monitor UI was built, then deleted 2026-07-27 after audit (no defensible
+reason to surface raw percentiles without evidence-tier context). `engine/monitor/`
+remains as backend-only candidate infra, unused by the UI.
 
 ## Repo Card
 
@@ -28,110 +48,106 @@ Descriptive only — no predictive/prescriptive claims. An in-app "Methodology &
 
 ## Local Setup
 
-```
-python -m venv .venv
-.venv\Scripts\activate
+Already have the repo, `.env`, and `out/`? This is the whole loop:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate               # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py                    # interactive dashboard
 python -m engine.run_gex --ticker SPY   # single-ticker smoke test to stdout
-pytest engine/tests                     # 483 tests
+pytest engine/tests                     # expect 483 green
 ```
+
+Starting from nothing on a fresh box? Go to [New Machine](#new-machine) instead —
+this block assumes the out-of-band files are already in place.
 
 `requirements.txt` tracks the stack. Add packages there when needed.
 
-## Moving to a New Dev Machine
+## New Machine
 
-Git carries only code. Three things are gitignored and must ride along out-of-band:
+**Nothing here is machine-bound.** The daily email runs on GitHub Actions, the
+dashboard runs on Oracle, `out/` lives on Oracle's disk plus the OCI backup.
+Setting up a new box buys you local dev + manual deploy — nothing else. **The old
+machine can be wiped without stopping anything.**
 
-1. **`.env`** — secrets (SMTP, both OCI credential families, OCI private key). Copy the file directly from the old machine. `.env.example` lists every key with a "where to find it" note if you'd rather regenerate from scratch.
-2. **SSH key** `vol-diagnostics.key` (+ `.pub`) — needed for deploy and data sync. Copy into `~/.ssh/` (any path is fine; pass `-KeyFile` to the sync script / `-i` to `ssh` if it lives elsewhere).
-3. **`out/` data** — lives only on Oracle's disk, never in git. Pull it down after cloning.
+Git carries only code. **Three things are gitignored** and must arrive out-of-band:
 
-**Nothing about the running service is machine-bound** (verified 2026-08-06). The daily email runs on GitHub Actions with its own copy of all 18 secrets; the dashboard runs on Oracle; `out/` lives on Oracle's disk plus the OCI backup. There is **no local Windows Task Scheduler job** — confirmed absent. Moving machines costs you local dev + manual-deploy access only. **The old machine can be wiped without stopping anything.**
+| Item | Lives at | Get it from |
+|---|---|---|
+| `.env` | repo root | KeePassXC vault, or copy from old box, or regenerate (§ Secrets) |
+| `vol-diagnostics.key` | `~/.ssh/` | same — needed for deploy + data sync |
+| `out/` data | repo root | `scripts/sync-from-oracle.sh` pulls it from Oracle |
 
-Prerequisites on the new box: Git, Python 3.11+ (local dev runs 3.13, CI runs 3.11 — either is fine), and **KeePassXC** (`keepassxc.org`) if you're restoring secrets from the vault rather than copying them across — the `.kdbx` is just an encrypted file and nothing else can open it. Install KeePassXC on the **Windows** side even when developing in WSL.
+**Prerequisites:** Git, Python 3.11+ (dev runs 3.13, CI runs 3.11 — either is fine),
+and KeePassXC (`keepassxc.org`) if restoring secrets from the vault.
 
-**The codebase is fully platform-agnostic** — no `C:\` paths, no `sys.platform` branches, no Windows-only imports anywhere in `engine/` or `app.py` (audited 2026-08-09). It already runs on Ubuntu daily in two places: the Oracle Docker image (`python:3.11-slim`) and the GitHub Actions runner. `requirements.txt` needs no edits; its one Windows entry (`pywin32`) is marker-gated to `sys_platform == "win32"` and nothing imports it.
-
-**The repo is private**, so a fresh machine must authenticate to GitHub as `AdamMooo` *before* the clone will work — `gh auth login` (GitHub CLI, easiest) or a PAT / SSH key. A bare `git clone` on an unauthenticated box fails with a confusing "repository not found", not a permission error.
-
-Turnkey on the new box (WSL/Ubuntu — the live setup since 2026-08-09):
+### The six steps
 
 ```bash
-gh auth login                    # private repo — must come BEFORE the clone
+# 1. Authenticate FIRST — the repo is private; cloning unauthenticated fails
+#    with a confusing "repository not found", not a permission error.
+gh auth login
+
+# 2. Clone into the native filesystem (see gotcha #1)
 mkdir -p ~/dev && cd ~/dev
 git clone https://github.com/AdamMooo/vol-diagnostics
 cd vol-diagnostics
-git config core.autocrlf input   # repo has no .gitattributes
+git config core.autocrlf input        # repo has no .gitattributes
 
-sudo apt install -y python3-venv # venv is a separate package on Ubuntu
+# 3. Environment
+sudo apt install -y python3-venv      # separate package on Debian/Ubuntu
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt  # pywin32 is platform-gated, pip skips it here
+source .venv/bin/activate             # Windows: .venv\Scripts\activate
+pip install -r requirements.txt       # pywin32 is marker-gated; skipped off Windows
 
-# then: .env into the repo root, vol-diagnostics.key into ~/.ssh/ (see below)
-bash scripts/sync-from-oracle.sh # pulls Oracle's out/ down (needs the SSH key)
+# 4. Drop in the two secrets: .env → repo root, key → ~/.ssh/
+chmod 600 ~/.ssh/vol-diagnostics.key  # see gotcha #2
+
+# 5. Pull the data
+bash scripts/sync-from-oracle.sh      # Windows: .\scripts\sync-from-oracle.ps1
+
+# 6. Verify before trusting it
+pytest engine/tests                                    # expect 483 passed
+python -m engine.run_gex --ticker SPY                  # CBOE feed reachable
+python -m engine.health_check                          # out/ freshness
+ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "echo ok"
 streamlit run app.py
 ```
 
-**Clone into the WSL filesystem (`~/dev`), never `/mnt/c`.** Windows-drive I/O over
-the 9p mount is slow enough to hurt pytest and parquet reads, and files there
-can't hold Unix permission bits — which breaks the SSH key outright (below).
+### Gotchas (each one cost a real debugging session)
 
-Windows-native still works if you ever want it: `python -m venv .venv;
-.venv\Scripts\activate`, then `.\scripts\sync-from-oracle.ps1` (the PowerShell
-twin of the `.sh`). Both scripts are maintained.
+| # | Trap | Fix |
+|---|---|---|
+| 1 | **WSL: cloning into `/mnt/c`** — 9p I/O is slow enough to hurt pytest and parquet reads, and the filesystem can't hold Unix permission bits, which breaks the SSH key outright | Clone into the WSL filesystem (`~/dev`) |
+| 2 | **SSH key lands as 0644/0777** → `Permissions are too open`. KeePassXC is a Windows app, so its Save dialog writes to the Windows side no matter where you point it | `chmod 600 ~/.ssh/vol-diagnostics.key`. `sync-from-oracle.sh` checks this up front rather than failing inside scp |
+| 3 | **Plaintext key left in Windows Downloads** after a vault restore | Delete the Windows-side copy — it's a private key in the most-synced folder on the box |
+| 4 | **`run_daily --dry-run` fails on Linux** — kaleido needs a Chrome binary Linux doesn't ship | `python -c "import kaleido; kaleido.get_chrome_sync()"`. Skip unless testing email; the dashboard and test suite never touch kaleido |
+| 5 | **`.env` permissions don't survive a copy** — it inherits the new folder's ACL/umask | Don't put it in a synced/shared folder |
 
-Verify the move before trusting it:
+**Platform notes.** The codebase is effectively platform-agnostic: no `C:\` paths
+and no Windows-only imports in `engine/` or `app.py`. The one deliberate exception
+is `engine/report/emailer.py:34`, which branches on `sys.platform` — Outlook COM on
+Windows, SMTP everywhere else. Both paths are maintained, and `requirements.txt`
+needs no edits (`pywin32` is gated to `sys_platform == "win32"`). It already runs on
+Ubuntu daily in two places: the Oracle Docker image (`python:3.11-slim`) and the
+GitHub Actions runner. Both `sync-from-oracle.sh` and `.ps1` are maintained twins.
 
-```bash
-pytest engine/tests                      # expect 483 passed
-python -m engine.run_gex --ticker SPY    # network + CBOE feed reachable
-python -m engine.health_check            # out/ freshness after the Oracle sync
-python -m engine.run_daily --dry-run     # needs Chrome for kaleido — see note
-```
+### Secrets — restore or regenerate
 
-`run_daily --dry-run` renders PNG email attachments via kaleido, which needs a
-Chrome binary that Linux doesn't ship: `python -c "import kaleido;
-kaleido.get_chrome_sync()"`. Skip it unless you're testing the email path — the
-dashboard and the test suite never touch kaleido.
+Only **two** things can't be reconstructed by a clone: `.env` and `~/.ssh/vol-diagnostics.key`.
 
-Then confirm SSH works (`ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "echo ok"`)
-— that is the one credential the clone can't prove on its own. Deploying from the
-new box is identical to the Deploy section below; only the `-i` key path is machine-specific.
+**Restore (normal path).** Both live as encrypted attachments in a KeePassXC vault,
+`vol-diagnostics-secrets.kdbx`, on Google Drive. Open the `.kdbx` → master
+passphrase → for each entry, **Advanced → Attachments → select → Save**. The master
+passphrase is the one thing not stored digitally; if it's lost, the vault is
+unrecoverable and the regeneration path below is the fallback.
 
-Note `.env` permissions do not carry over a copy — it inherits the new folder's
-ACL (Windows) or umask (Linux). Nothing reads it but you, but don't drop it in a
-synced/shared folder.
+**Regenerate (from scratch).**
+- **`.env`** — Gmail App Password (Google Account → Security → App Passwords); OCI Customer Secret Key and API signing key (OCI console → My Profile → generate new, delete old); all OCIDs / namespace / subnet / image / AD are readable from the OCI console any time. `.env.example` lists every key with where-to-find notes.
+- **SSH key** — generate a new keypair, add the public key via the OCI console (Instance → Console connection / Cloud Shell), then update the GitHub `ORACLE_SSH_KEY` secret. The `.pub` re-derives: `ssh-keygen -y -f vol-diagnostics.key`.
 
-(Standing intent: git-crypt would fold the `.env` step into `git clone` + unlock — see auto-memory `git-crypt-all-projects-decision`; not set up, and the KeePassXC vault now covers the same need.)
-
-### If this machine is gone (nothing to copy from)
-
-Only **two** things live outside git and cannot be reconstructed by a clone: `.env` and `~/.ssh/vol-diagnostics.key`.
-
-**Current backup (2026-08-04):** both live inside a **KeePassXC vault** — `vol-diagnostics-secrets.kdbx` — stored on Adam's personal **Google Drive**. It holds two entries (`.env` and the SSH key) as encrypted attachments. **Restore on a new machine:** install KeePassXC (free, `keepassxc.org`) → open the `.kdbx` from Drive → master passphrase → for each entry, **Advanced → Attachments → select → Save**. The vault's master passphrase is the one thing NOT stored digitally — if it's lost, the vault is unrecoverable, so the regeneration paths below are the fallback.
-
-Restoring into WSL (verified 2026-08-09) — KeePassXC is a Windows app, so its
-Save dialog writes to the Windows side. Either save to Downloads and `cp` across,
-or point the dialog straight at `\\wsl$\Ubuntu\home\<user>\.ssh\`. **Either way
-the key lands as 0644/0777 and ssh refuses it** — `Permissions are too open`,
-which is unfixable on `/mnt/c` because that filesystem can't hold the bits. Fix:
-
-```bash
-chmod 600 ~/.ssh/vol-diagnostics.key
-```
-
-`scripts/sync-from-oracle.sh` checks this up front and tells you, rather than
-failing inside scp. Delete the Windows-side copy afterward — it's a plaintext
-private key in the most-synced folder on the machine.
-
-If instead you're starting from scratch (no vault, no copies), regenerate them:
-
-1. **`.env`** (secrets). Regenerable if lost, one by one: Gmail **App Password** (Google Account → Security → App Passwords); OCI **Customer Secret Key** and **API signing key** (OCI console → My Profile → Customer Secret Keys / API Keys → generate new, delete old); all OCIDs / namespace / subnet / image / AD are readable from the OCI console any time. `.env.example` lists every key with where-to-find notes.
-2. **`~/.ssh/vol-diagnostics.key`** (Oracle SSH). If lost you're locked out of the running instance over SSH — generate a new keypair, add the public key via the OCI console (Instance → Console connection / Cloud Shell), then update the GitHub `ORACLE_SSH_KEY` secret. The `.pub` re-derives from the private key: `ssh-keygen -y -f vol-diagnostics.key`.
-
-**Resilience note:** losing this laptop does **not** stop the product. The daily email pipeline runs on GitHub Actions with its own copy of all 18 secrets, and `out/` lives on Oracle's disk plus the OCI backup. A dead laptop costs you local dev + manual-deploy access, not the running service or the data.
+*(Standing intent: git-crypt would fold the `.env` step into `git clone` + unlock — see auto-memory `git-crypt-all-projects-decision`. Not set up; the KeePassXC vault covers the same need.)*
 
 ## Deploy (Oracle)
 
@@ -141,9 +157,15 @@ Pushing to `main` does **not** update the live site — Oracle only updates when
 ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "cd ~/vol-diagnostics && git pull && docker compose up -d --build"
 ```
 
-Same command on any machine — only the `-i` key path is machine-specific (copy the key there, or point at wherever it lives on that box). On this WSL/Linux setup, the expected path is `~/.ssh/vol-diagnostics.key`. IP is Oracle's reserved Always-Free address for this instance, stable unless the instance itself is recreated.
+Same command on any machine — only the `-i` key path differs (point it at wherever
+the key lives on that box). The IP is Oracle's reserved Always-Free address, stable
+unless the instance is recreated.
 
-**Never** chain this with `docker compose down` or `systemctl restart docker` in the same SSH call — that combo hard-locked the 1-vCPU/1GB box once (2026-07-22), requiring an OCI console reboot. Run the pull+build line on its own, watched in the foreground.
+Three hard rules, each learned the expensive way:
+
+1. **Never background it.** Run the pull+build line on its own, watched in the foreground. Backgrounded, it died mid-`pip install` on the 1 vCPU/1GB box, committed no layer, and left no build cache (2026-08-06).
+2. **Never chain `docker compose down` or `systemctl restart docker` into the same SSH call.** That combo hard-locked the box, requiring an OCI console reboot (2026-07-22).
+3. **A running site is not evidence your deploy landed.** When the build above died, the old container came back up under its restart policy — the site looked alive while serving stale code. Check the image, not the port.
 
 Site: https://40.233.113.63.nip.io
 
@@ -153,7 +175,7 @@ Site: https://40.233.113.63.nip.io
 - **Interpretability first:** conditional base rates primary, no hidden scoring or weighting.
 - **Strategy menu:** covered call, cash-covered put, collar, short straddle. Dispersion out of scope.
 - **No new signals (dashboard/email surfaces):** six signals + fragility composite locked. Sole-owner project now (no external team gate) — the discipline that stays is self-imposed statistical validation (multiple-testing correction, out-of-sample checks) before any new signal ships, not organizational sign-off.
-- **Windows paths:** use pathlib or `os.path.join` throughout.
+- **Paths:** use pathlib or `os.path.join` throughout — never hardcode a separator or an absolute path. This is what keeps the repo portable across dev box, Docker image, and CI runner.
 - **No PDIV / HMM this phase:** locked per scope cap.
 - **CBOE vol-index term siblings (verified 2026-06-23):** CBOE publishes VIX9D and VIX3M (SPY term-structure siblings). No 9D/3M variants exist for VXN (QQQ) or RVX (IWM) — CDN returns 403 for those symbols. Term-structure ratios are SPY-only; QQQ/IWM gracefully degrade.
 
