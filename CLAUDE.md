@@ -167,6 +167,21 @@ Three hard rules, each learned the expensive way:
 2. **Never chain `docker compose down` or `systemctl restart docker` into the same SSH call.** That combo hard-locked the box, requiring an OCI console reboot (2026-07-22).
 3. **A running site is not evidence your deploy landed.** When the build above died, the old container came back up under its restart policy — the site looked alive while serving stale code. Check the image, not the port.
 
+Rule 3 is now enforced, not remembered. The image carries a `GIT_SHA` build arg
+(`Dockerfile`, wired through `docker-compose.yml`), so the commit a container was
+built from can be read back out of it:
+
+```bash
+bash scripts/verify-deploy.sh    # run from YOUR box, not the server
+```
+
+It compares three SHAs — `origin/main`, the server's repo HEAD, the running
+container's stamp — and names which hop went stale (pull vs. build), exiting 1 if
+any differ. `scripts/update.sh` makes the same assertion inline and now **fails**
+instead of printing a cheerful `docker compose ps`. Keep the standalone check
+anyway: a deploy killed mid-build can't report its own death, which is exactly how
+rule 1 bit in the first place, so the verifier has to be a separate process.
+
 Site: https://40.233.113.63.nip.io
 
 ## Constraints

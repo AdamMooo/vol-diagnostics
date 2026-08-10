@@ -31,6 +31,12 @@ COPY .streamlit/config.toml .streamlit/config.toml
 # Ensure out/ exists for volume mount target
 RUN mkdir -p /app/out
 
+# Provenance stamp — which commit this image was built from. Declared last so a
+# new SHA only busts this trivial layer, never the pip install above.
+# scripts/verify-deploy.sh reads it back to prove the live site is current.
+ARG GIT_SHA=unknown
+ENV GIT_SHA=$GIT_SHA
+
 # Default: run Streamlit dashboard
 EXPOSE 8501
 ENV STREAMLIT_SERVER_HEADLESS=true

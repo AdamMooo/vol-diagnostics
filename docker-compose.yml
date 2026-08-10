@@ -10,7 +10,10 @@
 
 services:
   dashboard:
-    build: .
+    build:
+      context: .
+      args:
+        GIT_SHA: "${GIT_SHA:-unknown}"
     container_name: vol-diagnostics-dashboard
     restart: unless-stopped
     ports:
