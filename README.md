@@ -16,6 +16,8 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+On WSL/Linux, keep the Oracle key at `~/.ssh/vol-diagnostics.key`, then fix permissions with `chmod 600 ~/.ssh/vol-diagnostics.key`. The repository's sync and deploy scripts already default to that path.
+
 Data is entirely free — CBOE delayed-quote JSON (chains), CBOE vol-index CSVs, yfinance closes, and the FRED `^IRX` risk-free rate. No API key, no vendor feed.
 
 ## Running
@@ -38,6 +40,14 @@ python -m engine.run_gex              # SPY
 python -m engine.run_gex --ticker QQQ
 python -m engine.run_gex --ticker IWM
 ```
+
+**Oracle deploy / sync on WSL/Linux:**
+```bash
+ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "cd ~/vol-diagnostics && git pull && docker compose up -d --build"
+bash scripts/sync-from-oracle.sh
+```
+
+If SSH fails, the quickest checks are `ls -l ~/.ssh/vol-diagnostics.key`, `stat -c '%a' ~/.ssh/vol-diagnostics.key`, and `ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "echo ok"`.
 
 ## Dashboard
 

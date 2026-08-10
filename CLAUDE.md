@@ -138,10 +138,10 @@ If instead you're starting from scratch (no vault, no copies), regenerate them:
 Pushing to `main` does **not** update the live site — Oracle only updates when you SSH in and pull. Run this after every push you want live:
 
 ```
-ssh -i C:\Users\AdamMorris\.ssh\vol-diagnostics.key ubuntu@40.233.113.63 "cd ~/vol-diagnostics && git pull && docker compose up -d --build"
+ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "cd ~/vol-diagnostics && git pull && docker compose up -d --build"
 ```
 
-Same command on any machine — only the `-i` key path is machine-specific (copy the key there, or point at wherever it lives on that box). IP is Oracle's reserved Always-Free address for this instance, stable unless the instance itself is recreated.
+Same command on any machine — only the `-i` key path is machine-specific (copy the key there, or point at wherever it lives on that box). On this WSL/Linux setup, the expected path is `~/.ssh/vol-diagnostics.key`. IP is Oracle's reserved Always-Free address for this instance, stable unless the instance itself is recreated.
 
 **Never** chain this with `docker compose down` or `systemctl restart docker` in the same SSH call — that combo hard-locked the 1-vCPU/1GB box once (2026-07-22), requiring an OCI console reboot. Run the pull+build line on its own, watched in the foreground.
 
