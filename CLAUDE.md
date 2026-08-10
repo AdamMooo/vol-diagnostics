@@ -182,6 +182,13 @@ instead of printing a cheerful `docker compose ps`. Keep the standalone check
 anyway: a deploy killed mid-build can't report its own death, which is exactly how
 rule 1 bit in the first place, so the verifier has to be a separate process.
 
+4. **A change to `update.sh` itself takes two runs to land.** The script's own
+   `git pull` replaces the file by rename, and the running `bash` holds the old
+   inode open to the end — so run N fetches the new script and executes the old
+   one. Harmless but confusing: the step counter (`[1/3]` vs `[1/4]`) is how you
+   tell which version actually ran. Deploy twice whenever the diff touches
+   `scripts/update.sh` (2026-08-09).
+
 Site: https://40.233.113.63.nip.io
 
 ## Constraints
