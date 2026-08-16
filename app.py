@@ -582,6 +582,62 @@ def _render_surface_momentum(selected_all: list[str], all_data: dict) -> None:
             col.metric(f"{h}d", f"{v:+.2f}pp {arrow}")
 
 
+def _render_vanna_volga_metrics(selected_all: list[str], all_data: dict) -> None:
+    """Surface deformation metrics: vanna (spot-vol correlation) and volga (vol-of-vol).
+    Shows the second-order Greeks that describe how the surface responds to market shocks."""
+    primary = selected_all[0] if selected_all else None
+    if not primary or primary not in all_data:
+        return
+
+    data = all_data.get(primary)
+    if not data:
+        return
+
+    greeks = data.get("second_order_greeks")
+    if not greeks or "error" in greeks:
+        return
+
+    summary = greeks.get("deformation_summary", "")
+    spot_vol = greeks.get("spot_vol_correlation_signal")
+    vol_of_vol = greeks.get("vol_of_vol_magnitude")
+    stability = greeks.get("surface_stability_metric")
+
+    if spot_vol is None or vol_of_vol is None:
+        return
+
+    st.markdown("**Surface deformation: Second-order Greeks**")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric(
+            "Spot-Vol correlation",
+            f"{spot_vol:+.4f}",
+            "inverse" if spot_vol < -0.002 else "flat" if abs(spot_vol) <= 0.002 else "positive",
+            delta_color="gray", delta_arrow="off",
+            help="Vanna: δ(delta)/δ(vol). Negative = typical inverse spot-vol relationship (higher spot → lower vol)."
+        )
+    with c2:
+        st.metric(
+            "Vol-of-Vol magnitude",
+            f"{vol_of_vol:.4f}",
+            "high" if vol_of_vol > 0.015 else "moderate" if vol_of_vol > 0.005 else "low",
+            delta_color="gray", delta_arrow="off",
+            help="Volga: Convexity in the volatility dimension. Higher = market prices vol-of-vol risk."
+        )
+    with c3:
+        if stability is not None:
+            st.metric(
+                "Surface stability",
+                f"{stability:.3f}",
+                "stable" if stability < 0.08 else "elevated",
+                delta_color="gray", delta_arrow="off",
+                help="RMS curvature. Lower = smoother, more stable surface."
+            )
+
+    if summary:
+        st.caption(summary)
+
+
 @st.fragment
 def _surface_today_section(sel_tkr: str, all_data: dict) -> None:
     for ticker in [sel_tkr]:  # one heavy surface at a time (perf)
@@ -911,6 +967,10 @@ if sel_index:
         )
         # ── Momentum strip — trend headline before any surface detail ────────
         _render_surface_momentum([surf_tkr], all_data)
+
+        # ── Vanna/Volga metrics — second-order Greeks ────────────────────────
+        st.divider()
+        _render_vanna_volga_metrics([surf_tkr], all_data)
 
         sub_today, sub_compare, sub_evolution = st.tabs(
             ["Today", "Compare", "Evolution"], on_change="rerun"

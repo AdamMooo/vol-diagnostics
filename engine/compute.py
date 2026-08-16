@@ -174,7 +174,9 @@ def compute_ticker(
           f"fit_rmse {surface_diag['fit_rmse']:.1f}pp  cv {surface_diag['cv_rmse']:.1f}pp  "
           f"coherence_violations {surface_diag['coherence_violations']}")
 
-    # Phase 1: Add strict arbitrage constraint checking (observational mode)
+    # Phase 1: Add strict arbitrage constraint checking (soft repair mode)
+    constraint_checks = {}
+    second_order_greeks = None
     try:
         dte_grid = np.linspace(5.0, min(180, float(surface_df["dte"].max())), config.SURFACE_GRID_DTE)
         otm_grid = np.linspace(
@@ -186,16 +188,18 @@ def compute_ticker(
             surface_df, snapshot.spot, dte_grid, otm_grid,
             smoothing=config.SURFACE_INTERACTIVE_SMOOTHING,
             constraint_check=True,
-            constraint_repair="none",  # Observational mode: no behavior change
+            constraint_repair="soft",  # Auto-repair surfaces with constraint violations
         )
         audit_trail = export_constraint_audit(constraint_result)
         print(f"[constraints] {ticker}:\n{audit_trail}")
 
-        # Store constraint diagnostics in the result
+        # Extract constraint diagnostics and vanna/volga grids
         constraint_checks = constraint_result.get("constraint_checks", {})
+        second_order_greeks = constraint_result.get("second_order_greeks")
     except Exception as exc:
         print(f"[WARN] {ticker} constraint checking failed: {exc}")
         constraint_checks = {}
+        second_order_greeks = None
     skew_df = compute_skew(df, spot=snapshot.spot)
     # skew_df is sorted by dte ascending — iloc[0] is shortest qualifying expiry
     front_skew = float(skew_df["skew_pp"].iloc[0]) if not skew_df.empty else None
@@ -339,6 +343,7 @@ def compute_ticker(
         "expiry_oi_df": expiry_oi_df,
         "expiry_oi_primary_df": expiry_oi_primary_df,
         "constraint_checks": constraint_checks,  # Phase 1: Arbitrage constraint audit
+        "second_order_greeks": second_order_greeks,  # Phase 1: Vanna/volga surface deformation
     }
 
 
