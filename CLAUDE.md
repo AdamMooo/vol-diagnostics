@@ -1,12 +1,13 @@
 # CLAUDE — Vol Diagnostics Dashboard
-Last updated: 2026-08-09 | Status: v5.0 shipped, no active milestone.
+Last updated: 2026-08-16 | Status: v5.0 shipped; Phase 1 arbitrage constraints + vanna/volga live.
 
 ## Start Here
 
 | I want to… | Go to |
 |---|---|
+| **Interview prep** | [INTERVIEW-EXPLAINER.md](.planning/INTERVIEW-EXPLAINER.md) — complete system walkthrough for explaining to others |
+| Understand the system | [What It Does](#what-it-does) + `.planning/INTERVIEW-EXPLAINER.md` |
 | Run it locally | [Local Setup](#local-setup) — clone, venv, `streamlit run app.py` |
-| Know what it does / why | [What It Does](#what-it-does) |
 | Set up a brand-new machine | [New Machine](#new-machine) — 6 steps + a gotchas table |
 | Push a change live | [Deploy](#deploy-oracle) — one SSH line, never backgrounded |
 | Find a module | [`engine/` map](#engine-package-active--v30) |
@@ -16,7 +17,8 @@ Last updated: 2026-08-09 | Status: v5.0 shipped, no active milestone.
 command has a Windows equivalent noted inline. Nothing here is bound to a
 specific machine or user account.
 
-**Current work:** interview/portfolio readiness pass — the dashboard is public-linked.
+**Current work:** Phase 1 live (2026-08-16) — arbitrage constraint auto-repair is enabled; vanna/volga (second-order Greeks) now displayed in Surfaces tab. Constraints catch surfaces that violate butterfly/calendar/tail axioms and soft-repair them. Vanna/volga show surface deformation under spot/vol shocks and spot-vol correlation pricing.
+
 Phase 27's monitor UI was built, then deleted 2026-07-27 after audit (no defensible
 reason to surface raw percentiles without evidence-tier context). `engine/monitor/`
 remains as backend-only candidate infra, unused by the UI.
@@ -38,7 +40,9 @@ remains as backend-only candidate infra, unused by the UI.
 Dealer-gamma + implied-vol diagnostics for an **index income-sleeve PM** (covered calls / cash-secured puts on SPY/QQQ/IWM). Per ticker:
 - a plain-English **read** (premium rich/cheap from the VRP percentile, dealer stabilizing/amplifying) sitting on top of the field card, **credibility-gated** — only chips backed by enough history are shown;
 - an **interactive 3D vol surface** with mouse-driven smile/term slices, a day-by-day surface **"video"** (Evolution tab, Level ↔ Change), and a two-date ΔIV **compare**;
-- OI-led **positioning** — GEX demoted, capped ≤90 DTE, labeled a model construct.
+- **Arbitrage constraint audit** — surfaces are checked for butterfly/calendar/tail violations and auto-repaired if broken (guarantees no-arbitrage pricing);
+- **Second-order Greeks** (vanna/volga) — show how the surface deforms under spot/vol shocks; vanna signals spot-vol correlation pricing; volga signals vol-of-vol market pricing;
+- OI-led **positioning** — GEX capped ≤90 DTE, labeled a model construct.
 
 Descriptive only — no predictive/prescriptive claims. An in-app "Methodology & assumptions" popover (sidebar) states the evidence tier behind each read, condensed from `research/methodology-deep-review.md` (fact-checked 2026-07-27).
 
@@ -254,6 +258,9 @@ python -m engine.run_daily              # all 3 tickers → HTML email
 | `engine/gex/greeks_engine.py` | `add_greeks()` adds `T_years`; `bs_gamma()` used only by `gamma_profile()` to sweep spot |
 | `engine/gex/exposure_engine.py` | GEX = gamma × OI × 100 × S² × 0.01; `strike_gex`, `gamma_profile` |
 | `engine/gex/analytics.py` | `summarise()` → net GEX, zero-γ level, call/put walls, δ-flow; plotly charts |
+| `engine/gex/greeks_second_order.py` | Vanna (∂²C/∂S∂σ) and volga (∂²C/∂σ²) grids; `estimate_surface_deformation()` computes full surface elasticity |
+| `engine/surface/arbitrage_constraints.py` | Three no-arbitrage axiom checks: butterfly (∂²C/∂K² > 0), calendar (∂σ²T/∂T > 0), tail stability |
+| `engine/surface/surface_constraints_integration.py` | Drop-in RBF wrapper: constraint checking + soft/strict repair modes (auto-heal or fail-fast) |
 | `engine/surface/surface_interactive.py` | Interactive surface engine: `build_surface_payload`/`build_diff_payload`/`build_movie_payload` + `render_*_html` (client-side plotly.js embedded via `components.html`) |
 | `engine/surface/surface_evolution.py` | ΔIV scalar engine — level, rms, skew_change, term_change vs rolling-mean baseline |
 | `engine/surface/surface_sweep.py` | Surface-sweep diagnostic renderer (`python -m engine.surface.surface_sweep`) |
@@ -274,7 +281,7 @@ python -m engine.run_daily              # all 3 tickers → HTML email
 
 Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color. **GEX/positioning is capped at ≤90 DTE (`config.GEX_MAX_DTE`)** — the dealer-relevant tenor; the long-dated tail is investor-written call flow (mis-signed by the dealer-short convention) and is excluded. The dashboard surface uses its own `SURFACE_INTERACTIVE_*` smoothing/clip, isolated from the email/evolution path.
 
-**Removed for rigor** (do not reintroduce without methodology audit): VEX/CHEX (vanna/charm exposures), wall cluster + concentration, ZGL flow magnitude, vs-yesterday classifier, event study, early-exercise risk flags, categorical "positive/negative/neutral" regime label, vanna/charm BS computations.
+**Removed for rigor** (do not reintroduce without methodology audit): VEX/CHEX (cross-gamma position summaries), wall cluster + concentration, ZGL flow magnitude, vs-yesterday classifier, event study, early-exercise risk flags, categorical "positive/negative/neutral" regime label. **Reintroduced (Phase 1):** Vanna and volga grids as **surface deformation metrics** (not position Greeks) — used to show spot-vol correlation pricing and vol-of-vol market pricing.
 
 Bloomberg upgrade path: swap `engine/data/data_loader.py` only — everything else is data-source-agnostic.
 
