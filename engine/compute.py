@@ -23,7 +23,12 @@ from engine.vol.vol_metrics import compute_model_free_em, compute_skew_25d, comp
 from engine.data.validation import load_history
 from engine.vol.vrp_history import vrp_percentile
 from engine.surface.surface_evolution import load_evolution
+from engine.surface.surface_constraints_integration import (
+    fit_surface_with_diagnostics,
+    export_constraint_audit,
+)
 from scipy.stats import percentileofscore
+import numpy as np
 
 
 def _fetch_spot_history_yf(ticker: str, days: int = 400) -> "pd.Series | None":
@@ -168,6 +173,29 @@ def compute_ticker(
     print(f"[diag] {ticker}: coverage {surface_diag['coverage_pct']:.0f}%  "
           f"fit_rmse {surface_diag['fit_rmse']:.1f}pp  cv {surface_diag['cv_rmse']:.1f}pp  "
           f"coherence_violations {surface_diag['coherence_violations']}")
+
+    # Phase 1: Add strict arbitrage constraint checking (observational mode)
+    try:
+        dte_grid = np.linspace(5.0, min(180, float(surface_df["dte"].max())), config.SURFACE_GRID_DTE)
+        otm_grid = np.linspace(
+            -config.SURFACE_INTERACTIVE_CLIP,
+            config.SURFACE_INTERACTIVE_CLIP,
+            config.SURFACE_GRID_LM,
+        )
+        constraint_result = fit_surface_with_diagnostics(
+            surface_df, snapshot.spot, dte_grid, otm_grid,
+            smoothing=config.SURFACE_INTERACTIVE_SMOOTHING,
+            constraint_check=True,
+            constraint_repair="none",  # Observational mode: no behavior change
+        )
+        audit_trail = export_constraint_audit(constraint_result)
+        print(f"[constraints] {ticker}:\n{audit_trail}")
+
+        # Store constraint diagnostics in the result
+        constraint_checks = constraint_result.get("constraint_checks", {})
+    except Exception as exc:
+        print(f"[WARN] {ticker} constraint checking failed: {exc}")
+        constraint_checks = {}
     skew_df = compute_skew(df, spot=snapshot.spot)
     # skew_df is sorted by dte ascending — iloc[0] is shortest qualifying expiry
     front_skew = float(skew_df["skew_pp"].iloc[0]) if not skew_df.empty else None
@@ -310,6 +338,7 @@ def compute_ticker(
         "rv20": rv20, "vrp": vrp, "surface_diag": surface_diag,
         "expiry_oi_df": expiry_oi_df,
         "expiry_oi_primary_df": expiry_oi_primary_df,
+        "constraint_checks": constraint_checks,  # Phase 1: Arbitrage constraint audit
     }
 
 
