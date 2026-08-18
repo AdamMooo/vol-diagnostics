@@ -1,0 +1,93 @@
+name: Data Freshness Check
+
+# Daily monitor: verifies that data collection is working.
+# Runs after the data collection job finishes. If data is stale, creates an issue.
+
+on:
+  schedule:
+    - cron: "0 21 * * 1-5"  # 21:00 UTC = 5:00pm ET (after data collection at 4:35pm)
+  workflow_dispatch:
+
+jobs:
+  check-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/oracle.key
+          chmod 600 ~/.ssh/oracle.key
+          cat > ~/.ssh/config <<EOF
+          Host ${{ secrets.ORACLE_HOST }}
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          EOF
+
+      - name: Sync data from Oracle
+        run: |
+          mkdir -p out
+          rsync -avz --rsync-path="sudo rsync" -e "ssh -i ~/.ssh/oracle.key" \
+            "ubuntu@${{ secrets.ORACLE_HOST }}:~/vol-diagnostics/out/" ./out/
+
+      - name: Check data freshness
+        id: freshness
+        run: |
+          python3 << 'EOF'
+          import pandas as pd
+          from datetime import datetime, timedelta
+          import sys
+
+          # Load latest snapshot
+          try:
+            df = pd.read_parquet("out/gex_snapshots.parquet")
+            latest_date = df['date'].max()
+            print(f"Latest data: {latest_date}")
+          except Exception as e:
+            print(f"ERROR: Could not read snapshot: {e}")
+            sys.exit(1)
+
+          # Check: is data from today (trading day)?
+          # Today in ET
+          from pytz import timezone
+          et = timezone('US/Eastern')
+          today_et = datetime.now(et).date()
+
+          # Calculate expected date (today if trading day, else most recent trading day)
+          from pandas_market_calendars import get_calendar
+          nyse = get_calendar('NYSE')
+          valid_dates = nyse.valid_days(start_date='2026-08-10', end_date='2026-08-20')
+          expected_date = valid_dates[-1].date()  # Most recent trading day
+
+          if latest_date == expected_date:
+            print(f"✓ HEALTHY: data current ({latest_date})")
+            with open('/tmp/freshness_status', 'w') as f:
+              f.write('HEALTHY')
+          else:
+            days_stale = (expected_date - latest_date).days
+            print(f"⚠ STALE: data is {days_stale} trading days old ({latest_date}, expected {expected_date})")
+            with open('/tmp/freshness_status', 'w') as f:
+              f.write(f'STALE:{days_stale}')
+            sys.exit(1)
+          EOF
+
+      - name: Report failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ Data Collection Failure',
+              body: `Data collection has gone stale. Last successful collection was more than 1 trading day ago. Check the latest workflow run: ${context.server_url}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              labels: ['data-pipeline']
+            })

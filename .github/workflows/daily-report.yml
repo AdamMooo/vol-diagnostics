@@ -1,8 +1,7 @@
-name: Daily Vol Report
+name: Daily Data Collection
 
-# Runs the daily data collection + email pipeline on GitHub's runners instead of
-# the Oracle box — avoids the 1 vCPU/1GB Micro instance's headless-Chromium
-# hangs during PNG export, since GH runners have far more RAM/CPU to spare.
+# Runs the daily data collection pipeline on GitHub's runners.
+# Email removed 2026-08-18 — focus is data collection reliability only.
 #
 # History (out/gex_snapshots.parquet, out/surface_history/, etc.) is NOT stored
 # in git — it's rsynced down from the Oracle server before the run and back up
@@ -63,19 +62,12 @@ jobs:
           rsync -avz --rsync-path="sudo rsync" -e "ssh -i ~/.ssh/oracle.key" \
             "ubuntu@${{ secrets.ORACLE_HOST }}:~/vol-diagnostics/out/" ./out/
 
-      - name: Run daily report
-        env:
-          GEX_EMAIL_TO: ${{ secrets.GEX_EMAIL_TO }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+      - name: Collect daily data
         run: |
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
-            python -m engine.run_daily --send --force
+            python -m engine.run_daily --force
           else
-            python -m engine.run_daily --send
+            python -m engine.run_daily
           fi
 
       - name: Backup out/ to Oracle Object Storage
