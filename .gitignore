@@ -34,3 +34,12 @@ out/
 # Runtime / local config
 *.local.json
 *.pdf
+
+# Private keys must never land in the repo. A vol-diagnostics.key was dropped into
+# ./SSH/ on 2026-08-20 while restoring a machine; it was untracked but not ignored,
+# so any `git add -A` would have published it. The key belongs in ~/.ssh/.
+*.key
+*.pem
+id_rsa*
+SSH/
+ssh/
