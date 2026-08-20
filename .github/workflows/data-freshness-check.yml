@@ -11,6 +11,14 @@ on:
 jobs:
   check-freshness:
     runs-on: ubuntu-latest
+
+    # The "Report failure" step calls issues.create(). Without this block the job's
+    # GITHUB_TOKEN is read-only and that call dies with "Resource not accessible by
+    # integration" — so a stale-data alert could never actually be raised.
+    permissions:
+      contents: read
+      issues: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -61,11 +69,23 @@ jobs:
           et = timezone('US/Eastern')
           today_et = datetime.now(et).date()
 
-          # Calculate expected date (today if trading day, else most recent trading day)
+          # Calculate expected date (today if trading day, else most recent trading day).
+          # The window must be computed from today, never hardcoded: a literal end_date
+          # freezes expected_date and makes every later run report a false STALE.
           from pandas_market_calendars import get_calendar
           nyse = get_calendar('NYSE')
-          valid_dates = nyse.valid_days(start_date='2026-08-10', end_date='2026-08-20')
+          valid_dates = nyse.valid_days(
+            start_date=today_et - timedelta(days=14),
+            end_date=today_et,
+          )
+          if len(valid_dates) == 0:
+            print("ERROR: no NYSE trading days in the last 14 calendar days")
+            sys.exit(1)
           expected_date = valid_dates[-1].date()  # Most recent trading day
+
+          # df['date'].max() may come back as a pandas Timestamp; normalise so the
+          # comparison and the subtraction below are both plain date arithmetic.
+          latest_date = pd.Timestamp(latest_date).date()
 
           if latest_date == expected_date:
             print(f"✓ HEALTHY: data current ({latest_date})")
