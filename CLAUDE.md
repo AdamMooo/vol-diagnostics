@@ -70,8 +70,9 @@ this block assumes the out-of-band files are already in place.
 
 ## New Machine
 
-**Nothing here is machine-bound.** The daily email runs on GitHub Actions, the
-dashboard runs on Oracle, `out/` lives on Oracle's disk plus the OCI backup.
+**Nothing here is machine-bound.** Collection runs on GitHub Actions, the dashboard
+runs on Oracle, and `out/` lives in OCI Object Storage — which is the source of truth,
+not a backup, since 2026-08-20. Oracle holds only a pulled copy for display.
 Setting up a new box buys you local dev + manual deploy — nothing else. **The old
 machine can be wiped without stopping anything.**
 
@@ -81,7 +82,7 @@ Git carries only code. **Three things are gitignored** and must arrive out-of-ba
 |---|---|---|
 | `.env` | repo root | KeePassXC vault, or copy from old box, or regenerate (§ Secrets) |
 | `vol-diagnostics.key` | `~/.ssh/` | same — needed for deploy + data sync |
-| `out/` data | repo root | `scripts/sync-from-oracle.sh` pulls it from Oracle |
+| `out/` data | repo root | `scripts/restore-from-backup.sh --force` pulls it from Object Storage |
 
 **Prerequisites:** Git, Python 3.11+ (dev runs 3.13, CI runs 3.11 — either is fine),
 and KeePassXC (`keepassxc.org`) if restoring secrets from the vault.

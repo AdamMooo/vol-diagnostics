@@ -30,7 +30,7 @@ Live chains fetched from CBOE delayed quotes JSON on first load (CBOE CDN, no au
 
 ## Email Pipeline
 
-**Primary (since 2026-07-14): GitHub Actions** — `.github/workflows/daily-report.yml` runs on GitHub's runners (schedule: weekdays 20:35 UTC / 4:35pm ET, or manual via `gh workflow run daily-report.yml --repo AdamMooo/vol-diagnostics -f force=true`). Rsyncs `out/` down from the Oracle server before the run and back up after — Oracle's disk stays the one source of truth, history is deliberately not stored in git. Needs 8 repo secrets (`GEX_EMAIL_TO`, `SMTP_HOST/PORT/USER/PASS/FROM`, `ORACLE_HOST`, `ORACLE_SSH_KEY`). Moved off Oracle because the Micro instance's 1 vCPU/1GB couldn't run headless Chromium (kaleido PNG export) reliably — the first live cron fire there hung mid-render.
+**Primary (since 2026-07-14): GitHub Actions** — `.github/workflows/daily-report.yml` runs on GitHub's runners (schedule: weekdays 20:35 UTC / 4:35pm ET, or manual via `gh workflow run daily-report.yml --repo AdamMooo/vol-diagnostics -f force=true`). Restores `out/` from **OCI Object Storage**, appends the session, and writes it straight back — Object Storage is the one source of truth, history is deliberately not stored in git. Needs `OCI_ACCESS_KEY_ID/CUSTOMER_SECRET_KEY/NAMESPACE` plus `GEX_EMAIL_TO` + `SMTP_HOST/PORT/USER/PASS/FROM` for failure alerts. `ORACLE_HOST`/`ORACLE_SSH_KEY` are no longer used by any workflow (2026-08-20). Three cron firings (20:35 / 22:30 / 00:30 UTC) because GitHub drops scheduled triggers without retrying — 2026-08-19 was lost that way. Moved off Oracle because the Micro instance's 1 vCPU/1GB couldn't run headless Chromium (kaleido PNG export) reliably — the first live cron fire there hung mid-render.
 
 ```bash
 python -m engine.run_daily            # all 3 tickers → HTML email (Outlook COM on Windows, SMTP elsewhere)
@@ -40,8 +40,8 @@ python -m engine.run_daily --dry-run  # writes out/index-vol-report-YYYY-MM-DD.h
 **GitHub Actions is the only scheduler.** The old local Windows Task Scheduler job
 and the `runners/` directory that registered it are both gone (retired 2026-07-14,
 directory removed) — nothing on any local machine collects data. Data flows one way:
-Oracle's disk is the source of truth; sync pulls a copy down for local dev on demand,
-so local `out/` goes stale until you re-run it.
+Object Storage is the source of truth. The Oracle box is a *display* that pulls a copy
+down; nothing in the pipeline pushes to it and nothing waits on it being reachable.
 
 **Sanity checks**
 - Local data freshness: `bash scripts/sync-from-oracle.sh` (Windows: `.\scripts\sync-from-oracle.ps1`), then check `out/gex_snapshots.parquet`'s latest date
@@ -82,14 +82,54 @@ names the file so you can go straight there.
 |---|---|---|---|
 | 1 | **v6.0 risk-environment barometer** — charter + 5 phases (28–32) committed, zero code | `research/risk-environment-conditioning.md` | Parked at 0%. Resume: `/gsd-plan-phase 28` |
 | 2 | **GHCR build-move** — takes the ~19-min build off the Micro box, which has hard-locked twice doing it | 5 files incl. new `.github/workflows/build-image.yml` | Planned in full, nothing written. Do before next deploy |
-| 3 | **Collection pipeline depends on Oracle being reachable** — the workflow rsyncs history down over SSH *before* `run_daily` | `daily-report.yml:57-64` | Real structural risk, unfixed. Hasn't bitten yet |
+| 3 | ~~Collection pipeline depends on Oracle being reachable~~ | `daily-report.yml` | **RESOLVED 2026-08-20** — it did bite (08-17 died on an SSH timeout). Both rsync legs replaced by `restore_from_oci`; no workflow touches the box now |
 | 4 | **Duplicate alert rows** — `run_daily --force` on an already-collected day re-fires the hysteresis transition every time | `engine/monitor/hysteresis.py` | Low priority (Alerts banner suppressed), but fix before the monitor is ever surfaced |
 | 5 | ~~Cold-start fix undeployed~~ | `app.py:893`, `:915` | **RESOLVED 2026-08-09** — Oracle was 5 commits behind at `eff5eae`; redeployed to `21f3076`, container healthy |
 | 6 | **Two UI watch-items** — does ticker selection survive leaving/returning to Surfaces (Streamlit GCs unrendered widget state)? Do 3 KPI metrics wrap with all 3 tickers selected? | `app.py` | Needs an eyeball, never confirmed |
 | 7 | **Two known-wasteful computations** — `compute.py:236` re-fetches 400d of closes that are a strict subset of the 2540d already pulled in the same call; `vrp_history.py:79-83` vectorises to one `rolling().std()` | as listed | Worth doing sometime, not urgent |
 
 <details>
-<summary><b>Session history</b> — 2026-06-12 → 2026-08-07, newest first. Reference only; current state is the table above.</summary>
+<summary><b>Session history</b> — 2026-06-12 → 2026-08-20, newest first. Reference only; current state is the table above.</summary>
+
+**Pipeline de-fragilised (2026-08-20).** Started from "the repo is broken"; three
+independent faults, only one of which was the one being alerted on. (1) The freshness
+monitor added 2026-08-18 had its NYSE window written as two **literals**
+(`start_date='2026-08-10', end_date='2026-08-20'`) — it computed `today_et` on the line
+above and ignored it, so `expected_date` was frozen. Every run reports a false STALE
+except on 08-20 itself, which is why it "passed" the day it was inspected. Now a rolling
+14-day window; verified against 14 consecutive dates, 13 of which the old code got wrong.
+(2) The job had no `permissions:` block, so `GITHUB_TOKEN` was read-only and the
+`issues.create()` alert died with *Resource not accessible by integration* — **zero issues
+existed in this repo's entire history**; every alert it ever tried to raise was swallowed.
+(3) The real gap: **2026-08-19 has no run at all**, GitHub simply dropped the scheduled
+trigger. That option chain is gone for good — `data_loader.py:26` reads a Cboe
+*current-snapshot* endpoint with no date parameter, so there is nothing to backfill from
+(the `vol_index` series self-heals, it refetches full history each run).
+
+Then the structural fix: **both rsync legs deleted**, known-issue #3 closed. It had been
+logged as "real structural risk, hasn't bitten yet" — it bit on 08-17, when collection died
+at the first rsync with a port-22 timeout having done no work. `restore_from_oci` (already
+written, integrity-checked, tested) replaced it, so Object Storage is now the source of
+truth and no workflow touches the VM. Verified with a full run: 117 files restored, 117
+written back. Guarded the one hazard this introduces — `restore_from_oci` exits 0 on an
+empty bucket, which as a *backup* was harmless but as the *source of truth* would rebuild
+history from nothing and then overwrite the good copy. Collection now also fires three
+times per session (20:35 / 22:30 / 00:30 UTC); `run_daily` was already built for this —
+calendar-derived session date plus `_already_collected_today` — but only one cron had ever
+been pointed at it.
+
+**Chose detection over a storage refactor.** The tempting next step was date-partitioning
+the parquet to put history in git and retire OCI entirely (blocked today: one monolithic
+9.5MB binary rewritten daily ≈ 2.4GB/yr of git). Declined — OCI has never failed, and the
+likeliest future break is the undocumented Cboe endpoint, which no storage change detects.
+Instead both workflows now send **failure-only email** via the already-configured `SMTP_*`
+secrets (`engine/alert.py`, hard-fails rather than no-ops when `GEX_EMAIL_TO` is unset),
+and the freshness check gained a `simulate_failure` dispatch input — an alarm nobody has
+tested is not an alarm. Fire drill run end-to-end: email delivered, issue #3 created and
+closed. **Known blind spot, not fixed:** both the banner (`app.py:419`) and the freshness
+check only compare the *newest* stored date to expected, so interior gaps are invisible —
+once 08-20 lands, the 08-19 hole stops being reported anywhere.
+
 
 **Cold-start fix + Oracle recovery (2026-08-07).** Two things: a deploy incident, and the UI sweep's first real win.
 
