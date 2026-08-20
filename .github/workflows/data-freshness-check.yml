@@ -2,6 +2,9 @@ name: Data Freshness Check
 
 # Daily monitor: verifies that data collection is working.
 # Runs after the data collection job finishes. If data is stale, creates an issue.
+#
+# Reads the same Object Storage copy the collection job writes, so this check no
+# longer depends on the Oracle VM being reachable (2026-08-20).
 
 on:
   schedule:
@@ -29,22 +32,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Set up SSH key
+      - name: Restore history from Object Storage
+        env:
+          OCI_ACCESS_KEY_ID: ${{ secrets.OCI_ACCESS_KEY_ID }}
+          OCI_CUSTOMER_SECRET_KEY: ${{ secrets.OCI_CUSTOMER_SECRET_KEY }}
+          OCI_NAMESPACE: ${{ secrets.OCI_NAMESPACE }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/oracle.key
-          chmod 600 ~/.ssh/oracle.key
-          cat > ~/.ssh/config <<EOF
-          Host ${{ secrets.ORACLE_HOST }}
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-          EOF
-
-      - name: Sync data from Oracle
-        run: |
-          mkdir -p out
-          rsync -avz --rsync-path="sudo rsync" -e "ssh -i ~/.ssh/oracle.key" \
-            "ubuntu@${{ secrets.ORACLE_HOST }}:~/vol-diagnostics/out/" ./out/
+          python -m engine.restore_from_oci \
+            --bucket vol-diagnostics-backup --region ca-toronto-1 --dest ./out --force
 
       - name: Check data freshness
         id: freshness

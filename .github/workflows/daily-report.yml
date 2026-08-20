@@ -3,10 +3,14 @@ name: Daily Data Collection
 # Runs the daily data collection pipeline on GitHub's runners.
 # Email removed 2026-08-18 — focus is data collection reliability only.
 #
-# History (out/gex_snapshots.parquet, out/surface_history/, etc.) is NOT stored
-# in git — it's rsynced down from the Oracle server before the run and back up
-# after, so the Oracle server's disk stays the one source of truth the dashboard
-# reads from. Git only ever holds code.
+# History (out/gex_snapshots.parquet, out/surface_history/, etc.) is NOT stored in
+# git — it lives in Oracle Object Storage, which is the one source of truth. Each
+# run restores it, appends today's data, and writes it straight back.
+#
+# The Oracle VM is deliberately NOT in this path (2026-08-20). It used to hold the
+# only copy, bridged in and out by rsync over SSH, which made one 1-vCPU box a hard
+# dependency of the whole pipeline — an unreachable host on 2026-08-17 took collection
+# down with it. The VM now only displays the data and is disposable.
 
 on:
   schedule:
@@ -28,39 +32,28 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install chromium (for kaleido PNG export) and rsync
+      - name: Install chromium (for kaleido PNG export)
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq rsync
           sudo apt-get install -y -qq chromium-browser || sudo apt-get install -y -qq chromium
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Set up SSH key for Oracle sync
+      - name: Restore history from Object Storage
+        env:
+          OCI_ACCESS_KEY_ID: ${{ secrets.OCI_ACCESS_KEY_ID }}
+          OCI_CUSTOMER_SECRET_KEY: ${{ secrets.OCI_CUSTOMER_SECRET_KEY }}
+          OCI_NAMESPACE: ${{ secrets.OCI_NAMESPACE }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/oracle.key
-          chmod 600 ~/.ssh/oracle.key
-          # StrictHostKeyChecking=no rather than a separate ssh-keyscan step: keyscan
-          # is a network round-trip that can flake transiently, and a failed keyscan
-          # here silently breaks host-key verification on every later step. This is a
-          # single already-known server (not an arbitrary host), so skipping strict
-          # checking is a reasonable trade for reliability.
-          cat > ~/.ssh/config <<EOF
-          Host ${{ secrets.ORACLE_HOST }}
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-          EOF
-
-      - name: Pull current history down from Oracle
-        run: |
-          mkdir -p out
-          # --rsync-path="sudo rsync": the parquet files are owned by root (written
-          # by the dashboard container running as root against the bind-mounted
-          # out/ dir) — the ubuntu user can't read them without elevating remotely.
-          rsync -avz --rsync-path="sudo rsync" -e "ssh -i ~/.ssh/oracle.key" \
-            "ubuntu@${{ secrets.ORACLE_HOST }}:~/vol-diagnostics/out/" ./out/
+          python -m engine.restore_from_oci \
+            --bucket vol-diagnostics-backup --region ca-toronto-1 --dest ./out --force
+          # restore_from_oci exits 0 when the bucket is empty. Harmless while OCI was
+          # only a backup, but it is the source of truth now: an empty restore would
+          # rebuild history from nothing, and the backup step below would then
+          # overwrite the good copy with it. Fail loudly instead.
+          test -s out/gex_snapshots.parquet \
+            || { echo "ERROR: restore produced no snapshot history"; exit 1; }
 
       - name: Collect daily data
         run: |
@@ -78,12 +71,6 @@ jobs:
           OCI_NAMESPACE: ${{ secrets.OCI_NAMESPACE }}
         run: |
           python -m engine.backup_to_oci --bucket vol-diagnostics-backup --region ca-toronto-1 --source ./out
-
-      - name: Push updated history back up to Oracle
-        if: always()  # even if the email step failed, push whatever snapshots did save
-        run: |
-          rsync -avz -e "ssh -i ~/.ssh/oracle.key" \
-            ./out/ "ubuntu@${{ secrets.ORACLE_HOST }}:~/vol-diagnostics/out/"
 
       - name: Health check
         run: python -m engine.health_check --strict
