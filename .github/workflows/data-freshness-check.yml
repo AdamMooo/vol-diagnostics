@@ -8,7 +8,11 @@ name: Data Freshness Check
 
 on:
   schedule:
-    - cron: "0 21 * * 1-5"  # 21:00 UTC = 5:00pm ET (after data collection at 4:35pm)
+    # Must run AFTER the last collection attempt of the session, not between them.
+    # Collection retries at 20:35 / 22:30 / 00:30 UTC; checking at 21:00 would report
+    # a false STALE whenever the first attempt failed and a later one was about to
+    # succeed. 01:00 UTC Tue-Sat is past all three, so a stale reading here is real.
+    - cron: "0 1 * * 2-6"
   workflow_dispatch:
     inputs:
       simulate_failure:
