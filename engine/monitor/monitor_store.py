@@ -44,8 +44,23 @@ def save_monitor_row(row: dict, store: pathlib.Path | None = None) -> None:
     print(f"[monitor] Rank row saved ({len(hist)} rows total): {path}")
 
 
+ALERT_EVENT_KEY = ["date", "ticker", "metric", "rank_kind", "alert_type"]
+
+
 def save_alert_event(event: dict, store: pathlib.Path | None = None) -> None:
-    """Append-only write of one AlertEvent -- every transition is a distinct fact."""
+    """Write one AlertEvent, idempotent on (date, ticker, metric, rank_kind, alert_type).
+
+    Was append-only on the reasoning that every transition is a distinct fact. It
+    is not: re-running a day (run_daily --force) recomputes the same transition,
+    because load_prior_monitor_row looks strictly BEFORE today and so still sees
+    yesterday's state. The stored history showed two events written nine times
+    each -- harmless while nothing consumed the store, but it would have sent nine
+    emails for one event once alerting was wired up.
+
+    keep="last" so a corrected re-run updates the row rather than being discarded,
+    and the de-dupe runs over the whole frame, so existing duplicates are cleaned
+    out by the next write rather than needing a migration.
+    """
     path = store if store is not None else ALERT_EVENTS_STORE
     if path.exists():
         hist = pd.read_parquet(path)
@@ -53,6 +68,10 @@ def save_alert_event(event: dict, store: pathlib.Path | None = None) -> None:
     else:
         path.parent.mkdir(parents=True, exist_ok=True)
         hist = pd.DataFrame([event])
+
+    key = [c for c in ALERT_EVENT_KEY if c in hist.columns]
+    if key:
+        hist = hist.drop_duplicates(subset=key, keep="last").reset_index(drop=True)
 
     atomic_to_parquet(hist, path)
     print(f"[monitor] Alert event saved ({len(hist)} rows total): {path}")

@@ -38,16 +38,43 @@ class TestSaveMonitorRow:
 
 
 class TestSaveAlertEvent:
-    def test_append_only_no_dedup(self, events_store):
+    def test_rewriting_the_same_transition_does_not_duplicate_it(self, events_store):
+        """Re-running a day (run_daily --force) recomputes the same transition,
+        because load_prior_monitor_row looks strictly BEFORE today and still sees
+        yesterday's state. This previously appended, and stored history showed two
+        events written nine times each -- which would have sent nine emails for one
+        event once alerting was wired up."""
         event = {
             "date": datetime.date(2026, 1, 5), "ticker": "SPY", "metric": "vrp",
             "rank_kind": "level_deep", "alert_type": "entry",
             "rank_at_transition": 98, "prior_state": "out",
         }
-        monitor_store.save_alert_event(event, store=events_store)
-        monitor_store.save_alert_event(event, store=events_store)
+        for _ in range(9):
+            monitor_store.save_alert_event(dict(event), store=events_store)
+        assert len(pd.read_parquet(events_store)) == 1
+
+    def test_distinct_transitions_are_all_kept(self, events_store):
+        base = {
+            "date": datetime.date(2026, 1, 5), "ticker": "SPY", "metric": "vrp",
+            "rank_kind": "level_deep", "alert_type": "entry",
+            "rank_at_transition": 98, "prior_state": "out",
+        }
+        monitor_store.save_alert_event(dict(base), store=events_store)
+        monitor_store.save_alert_event(dict(base, ticker="QQQ"), store=events_store)
+        monitor_store.save_alert_event(dict(base, alert_type="escalation"), store=events_store)
+        monitor_store.save_alert_event(dict(base, date=datetime.date(2026, 1, 6)), store=events_store)
+        assert len(pd.read_parquet(events_store)) == 4
+
+    def test_a_corrected_rerun_updates_the_stored_row(self, events_store):
+        base = {
+            "date": datetime.date(2026, 1, 5), "ticker": "SPY", "metric": "vrp",
+            "rank_kind": "level_deep", "alert_type": "entry",
+            "rank_at_transition": 98, "prior_state": "out",
+        }
+        monitor_store.save_alert_event(dict(base), store=events_store)
+        monitor_store.save_alert_event(dict(base, rank_at_transition=91), store=events_store)
         hist = pd.read_parquet(events_store)
-        assert len(hist) == 2
+        assert len(hist) == 1 and hist.iloc[0]["rank_at_transition"] == 91
 
 
 class TestLoadPriorMonitorRow:
