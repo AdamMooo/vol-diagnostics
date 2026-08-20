@@ -83,7 +83,7 @@ names the file so you can go straight there.
 | 1 | **v6.0 risk-environment barometer** — charter + 5 phases (28–32) committed, zero code | `research/risk-environment-conditioning.md` | Parked at 0%. Resume: `/gsd-plan-phase 28` |
 | 2 | **GHCR build-move** — takes the ~19-min build off the Micro box, which has hard-locked twice doing it | 5 files incl. new `.github/workflows/build-image.yml` | Planned in full, nothing written. Do before next deploy |
 | 3 | ~~Collection pipeline depends on Oracle being reachable~~ | `daily-report.yml` | **RESOLVED 2026-08-20** — it did bite (08-17 died on an SSH timeout). Both rsync legs replaced by `restore_from_oci`; no workflow touches the box now |
-| 4 | **Duplicate alert rows** — `run_daily --force` on an already-collected day re-fires the hysteresis transition every time | `engine/monitor/hysteresis.py` | Low priority (Alerts banner suppressed), but fix before the monitor is ever surfaced |
+| 4 | ~~Duplicate alert rows~~ | `engine/monitor/monitor_store.py` | **RESOLVED 2026-08-20** — stored history had 2 events written 9x each. `save_alert_event` is now idempotent on (date, ticker, metric, rank_kind, alert_type); de-dupe runs over the whole frame so existing duplicates self-heal on next write. Was the blocker for wiring the monitor to email |
 | 5 | ~~Cold-start fix undeployed~~ | `app.py:893`, `:915` | **RESOLVED 2026-08-09** — Oracle was 5 commits behind at `eff5eae`; redeployed to `21f3076`, container healthy |
 | 6 | **Two UI watch-items** — does ticker selection survive leaving/returning to Surfaces (Streamlit GCs unrendered widget state)? Do 3 KPI metrics wrap with all 3 tickers selected? | `app.py` | Needs an eyeball, never confirmed |
 | 7 | **Two known-wasteful computations** — `compute.py:236` re-fetches 400d of closes that are a strict subset of the 2540d already pulled in the same call; `vrp_history.py:79-83` vectorises to one `rolling().std()` | as listed | Worth doing sometime, not urgent |
@@ -117,6 +117,24 @@ history from nothing and then overwrite the good copy. Collection now also fires
 times per session (20:35 / 22:30 / 00:30 UTC); `run_daily` was already built for this —
 calendar-derived session date plus `_already_collected_today` — but only one cron had ever
 been pointed at it.
+
+**Rare regime alert built (2026-08-20, later same session).** Wired the Phase 26 monitor
+to email — it had been running headless since July, writing ranks and hysteresis
+transitions every day with nothing consuming them since the UI board was deleted. Rule:
+fire when a **fraction** of qualifying metrics sit in their top decile simultaneously
+(3-of-5 today), calibrated by replaying 15.9y of history to **~4.15 alerts/year** against
+a 3-4/yr target. Chose conjunction over simply raising the band: band 99 reaches a similar
+rate (~2.2/yr) but estimates its threshold from ~25 observations, so the threshold itself
+is noisy; conjunction keeps every threshold estimated on ~250 observations and buys rarity
+from agreement across metrics. Expressed as a fraction, never a fixed count — qualifying
+metrics vary 2-5/day and 12 more cross the floor ~2027-05, so a hardcoded 3 would be
+unfirable on a thin day and trivial later (the same bug class as the hardcoded date window
+fixed hours earlier). Rising-edge only: one email per episode. Replayed over the 19 stored
+sessions it emits exactly one alert (2026-07-30, 3-of-3 active); the four preceding
+single-metric days stay silent. Verified live in CI. Body is strictly descriptive — several
+independent measures simultaneously extreme, explicitly nothing about direction.
+**Not built:** the gamma-flip detector — a sign change, not a percentile, so it needs its
+own detector and its own rate calibration before going anywhere near the inbox.
 
 **Chose detection over a storage refactor.** The tempting next step was date-partitioning
 the parquet to put history in git and retire OCI entirely (blocked today: one monolithic
