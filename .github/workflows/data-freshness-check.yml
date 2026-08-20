@@ -10,6 +10,11 @@ on:
   schedule:
     - cron: "0 21 * * 1-5"  # 21:00 UTC = 5:00pm ET (after data collection at 4:35pm)
   workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: "Fire drill: force a failure to prove the alert path still reaches you"
+        type: boolean
+        default: false
 
 jobs:
   check-freshness:
@@ -44,6 +49,12 @@ jobs:
       - name: Check data freshness
         id: freshness
         run: |
+          # An alarm nobody has tested is not an alarm. This lets the whole
+          # notification path be exercised on demand without waiting for a real outage.
+          if [ "${{ github.event.inputs.simulate_failure }}" = "true" ]; then
+            echo "SIMULATED FAILURE - fire drill only, data is not actually stale."
+            exit 1
+          fi
           python3 << 'EOF'
           import pandas as pd
           from datetime import datetime, timedelta
@@ -93,6 +104,26 @@ jobs:
               f.write(f'STALE:{days_stale}')
             sys.exit(1)
           EOF
+
+      # Failure-only. The daily report email was retired 2026-08-18 as noise; this is
+      # the opposite — it fires only when something is actually broken. Email rather
+      # than relying on the GitHub issue alone, because issues depend on notification
+      # settings and every prior alert was swallowed before anyone saw it.
+      - name: Email failure alert
+        if: failure()
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          GEX_EMAIL_TO: ${{ secrets.GEX_EMAIL_TO }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python -m engine.alert \
+            --workflow "Data Freshness Check" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --detail "The freshness monitor reports stored history is behind the latest NYSE trading day."
 
       - name: Report failure
         if: failure()

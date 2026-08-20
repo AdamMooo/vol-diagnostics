@@ -82,3 +82,23 @@ jobs:
 
       - name: Health check
         run: python -m engine.health_check --strict
+
+      # Failure-only. The daily report email was retired 2026-08-18 as noise; this is
+      # the opposite — it fires only when something is actually broken. Email rather
+      # than relying on the GitHub issue alone, because issues depend on notification
+      # settings and every prior alert was swallowed before anyone saw it.
+      - name: Email failure alert
+        if: failure()
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          GEX_EMAIL_TO: ${{ secrets.GEX_EMAIL_TO }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python -m engine.alert \
+            --workflow "Daily Data Collection" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --detail "Data collection did not complete. A session&#39;s option chain cannot be backfilled once the day passes."
