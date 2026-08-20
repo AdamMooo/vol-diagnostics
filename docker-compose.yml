@@ -21,6 +21,11 @@ services:
     volumes:
       - ./out:/app/out
       - ./.env:/app/.env:ro
+    # The .env mount above is a file, not environment: without env_file the OCI
+    # keys are invisible to `docker compose exec ... python -m engine.restore_from_oci`,
+    # which is how this box now pulls fresh data (2026-08-20).
+    env_file:
+      - .env
     environment:
       - STREAMLIT_SERVER_HEADLESS=true
     healthcheck:

@@ -14,7 +14,15 @@ name: Daily Data Collection
 
 on:
   schedule:
-    - cron: "35 20 * * 1-5"  # 20:35 UTC = 4:35pm ET, weekdays — matches the old crontab
+    # Three firings, not one. GitHub drops scheduled triggers under load and never
+    # retries them — that is why 2026-08-19 has no run at all and its option chain is
+    # gone for good (Cboe serves only a current snapshot, so a gap cannot be
+    # backfilled). run_daily derives the session from the NYSE calendar and no-ops
+    # when the data is already there, so a later firing is a free catch-up and a
+    # harmless skip when the first one worked.
+    - cron: "35 20 * * 1-5"  # 20:35 UTC = 4:35pm ET, weekdays — primary
+    - cron: "30 22 * * 1-5"  # 22:30 UTC = 6:30pm ET, same session — catch-up
+    - cron: "30 0 * * 2-6"   # 00:30 UTC = 8:30pm ET previous day — last chance
   workflow_dispatch:
     inputs:
       force:
