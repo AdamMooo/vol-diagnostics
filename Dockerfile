@@ -28,6 +28,10 @@ COPY research/ research/
 # into the image (it is gitignored but present in the local build context).
 COPY .streamlit/config.toml .streamlit/config.toml
 
+# Entrypoint: pulls fresh data from OCI, then starts dashboard
+COPY docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Ensure out/ exists for volume mount target
 RUN mkdir -p /app/out
 
@@ -43,4 +47,4 @@ ENV STREAMLIT_SERVER_HEADLESS=true
 ENV STREAMLIT_SERVER_PORT=8501
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 
-CMD ["streamlit", "run", "app.py"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
