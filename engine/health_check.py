@@ -120,6 +120,14 @@ def check_health(verbose: bool = True) -> dict:
             icon = "[OK]" if gap == 0 else "[MISSING]" if gap is None else f"[STALE +{gap}d]"
             print(f"  {ticker}: {icon} latest={latest or 'none'} expected={expected}")
 
+    # Enforce consistency: all tickers must have the same date. Mixed dates = unhealthy.
+    if all_healthy:
+        latest_dates = [results[t]["latest"] for t in INDEX_TICKERS if results[t]["gap"] == 0]
+        if latest_dates and len(set(latest_dates)) > 1:
+            if verbose:
+                print(f"\n[ERROR] Tickers have mixed dates: {set(latest_dates)}. Restore incomplete.")
+            all_healthy = False
+
     if verbose:
         print(f"\nOverall: {'HEALTHY' if all_healthy else 'UNHEALTHY'}")
 
