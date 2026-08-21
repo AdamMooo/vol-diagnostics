@@ -24,6 +24,10 @@ class RestoreCorruptionError(RuntimeError):
     """Raised when a downloaded .parquet file fails its post-download integrity check (T-23-06)."""
 
 
+class RestoreEmptyBucketError(RuntimeError):
+    """Raised when backup bucket is empty — a failed backup, not a valid restore state."""
+
+
 def _s3_client(region: str, namespace: str):
     endpoint_url = f"https://{namespace}.compat.objectstorage.{region}.oraclecloud.com"
     return boto3.client(
@@ -58,8 +62,11 @@ def restore_from_oci(
     objects = list_backup_objects(client, bucket)
 
     if not objects:
-        print("[restore_from_oci] no objects found in backup bucket.")
-        return 0
+        raise RestoreEmptyBucketError(
+            "Backup bucket is empty. This means either: (1) the backup has never run, "
+            "(2) the last backup failed, or (3) the backup step's credentials are invalid. "
+            "Refusing to restore nothing (that would silently serve stale data)."
+        )
 
     if dry_run:
         print(f"[restore_from_oci] DRY RUN — {len(objects)} object(s) would be downloaded:")
@@ -108,6 +115,9 @@ def main() -> None:
             args.bucket, args.region, namespace, args.dest,
             dry_run=args.dry_run, force=args.force,
         )
+    except RestoreEmptyBucketError as exc:
+        print(f"[restore_from_oci] FAILED: Empty backup bucket. {exc}", file=sys.stderr)
+        sys.exit(1)
     except (RestoreSafetyError, RestoreCorruptionError) as exc:
         print(f"[restore_from_oci] ABORTED: {exc}", file=sys.stderr)
         sys.exit(1)

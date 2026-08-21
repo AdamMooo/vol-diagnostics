@@ -72,7 +72,7 @@ jobs:
           fi
 
       - name: Backup out/ to Oracle Object Storage
-        if: always()  # even if the email step failed, back up whatever snapshots did save
+        if: success()  # only backup if collection succeeded; stale data must not overwrite good backup
         env:
           OCI_ACCESS_KEY_ID: ${{ secrets.OCI_ACCESS_KEY_ID }}
           OCI_CUSTOMER_SECRET_KEY: ${{ secrets.OCI_CUSTOMER_SECRET_KEY }}
