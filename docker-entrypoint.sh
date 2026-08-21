@@ -1,21 +1,18 @@
 #!/bin/bash
-set -e
+# Don't fail on restore errors — the app starts regardless so it's always available.
+# OCI is the source of truth, but graceful degradation (stale data > no data) ensures
+# robustness if credentials or connectivity are unavailable on startup.
+#
+# OCI credentials come from docker-compose env_file (.env), which sets them in the
+# container's environment. The restore command reads them as standard env vars.
 
-# Restore latest data from Oracle Cloud Object Storage before starting the dashboard.
-# This ensures the app always serves fresh data without manual intervention.
-# The workflow uploads here daily; pulling on startup makes the app autonomous.
-
-# Load OCI credentials from .env (docker-compose passes via env_file, but the
-# shell may not inherit them; explicit load ensures the restore has what it needs)
-if [ -f /app/.env ]; then
-  set -a
-  source /app/.env
-  set +a
+echo "[entrypoint] Attempting to restore fresh data from OCI..."
+if python -m engine.restore_from_oci \
+  --bucket vol-diagnostics-backup --region ca-toronto-1 --dest ./out --force 2>&1; then
+  echo "[entrypoint] ✓ Restored from OCI successfully."
+else
+  echo "[entrypoint] ⚠ OCI restore failed (credentials/network/empty bucket); starting with local data."
 fi
-
-echo "[entrypoint] Restoring data from OCI..."
-python -m engine.restore_from_oci \
-  --bucket vol-diagnostics-backup --region ca-toronto-1 --dest ./out --force
 
 echo "[entrypoint] Starting dashboard..."
 exec streamlit run app.py
