@@ -89,7 +89,9 @@ def check_health(verbose: bool = True) -> dict:
             if hasattr(latest_snapshot, "date"):
                 latest_snapshot = latest_snapshot.date()
 
-        latest = latest_surface or latest_snapshot
+        # Use max() not or() — we want the latest date across all stores, not first non-None
+        candidates = [d for d in [latest_surface, latest_snapshot] if d is not None]
+        latest = max(candidates) if candidates else None
         if latest is None:
             status = "MISSING"
             gap = None

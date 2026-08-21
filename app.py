@@ -138,7 +138,8 @@ def _fetch_shared_ticker_inputs() -> tuple[float, float | None]:
 
 
 @st.cache_data(ttl=config.CACHE_TTL_TICKER, show_spinner=False)
-def fetch_ticker(ticker: str, risk_free_rate: float, vvix: float | None) -> dict:
+def fetch_ticker(ticker: str, risk_free_rate: float, vvix: float | None, session_date: str) -> dict:
+    # session_date is a cache key: when the trading session changes, cache misses and fresh data is fetched.
     # skip_cv=True: cv_rmse is never displayed on the dashboard, only persisted to
     # the snapshot history by run_daily — skipping it here cuts ~12s/ticker of
     # cross-validation RBF refits that would otherwise be wasted work.
@@ -519,6 +520,9 @@ _render_freshness_banner()
 all_data: dict[str, dict] = {}
 errors: list[str] = []
 
+# Compute current trading session once — used as cache key so cache invalidates when session changes
+session_date = str(latest_session(datetime.now(ET), DATA_CUTOFF_HOUR, DATA_CUTOFF_MIN))
+
 with st.spinner("Loading chains from CBOE..."):
     shared_rate, shared_vvix = _fetch_shared_ticker_inputs()
     # Sequential, not threaded: measured on the Oracle E2.1.Micro (1 vCPU) box —
@@ -527,7 +531,7 @@ with st.spinner("Loading chains from CBOE..."):
     # (surface fitting, coherence diagnostics), which just fights over the one core.
     for ticker in selected_all:
         try:
-            all_data[ticker] = fetch_ticker(ticker, shared_rate, shared_vvix)
+            all_data[ticker] = fetch_ticker(ticker, shared_rate, shared_vvix, session_date)
         except Exception as exc:
             errors.append(f"{ticker}: {exc}")
 
@@ -823,7 +827,7 @@ def _evolution_section(sel_tkr: str, all_data: dict) -> None:
         st.info(f"{evo_tkr}: need ≥2 stored sessions to animate.")
 
 
-def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
+def _render_explore_tab(shared_rate: float, shared_vvix: float | None, session_date: str) -> None:
     """Ad-hoc, ephemeral single-day snapshot for ANY US-listed optionable ticker.
 
     Routes through the same no-save compute path as the tracked indexes
@@ -851,7 +855,7 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None) -> None:
 
     with st.spinner(f"Loading {raw} from CBOE…"):
         try:
-            data = fetch_ticker(raw, shared_rate, shared_vvix)
+            data = fetch_ticker(raw, shared_rate, shared_vvix, session_date)
         except Exception as exc:
             st.error(
                 f"Couldn't load '{raw}'. It may not be a US-listed optionable ticker "
@@ -1135,5 +1139,5 @@ if sel_index:
 
     # ── Explore (ad-hoc, ephemeral single-ticker snapshot) ─────────────────────
     with tab_explore:
-        _render_explore_tab(shared_rate, shared_vvix)
+        _render_explore_tab(shared_rate, shared_vvix, session_date)
 
