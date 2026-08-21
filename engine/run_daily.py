@@ -23,11 +23,6 @@ from engine.data.surface_history import (
     save_surface_snapshot, nth_trading_day_back, load_surface_snapshot, list_available_dates,
 )
 from engine.data.oi_history import save_oi_snapshot, list_oi_dates
-from engine.report import report as rpt
-from engine.report import emailer
-from engine.report import observation
-from engine.report.png_export import export_png
-from engine.gex.analytics import plot_iv_change_heatmap
 from engine.surface.surface_evolution import load_evolution
 from engine.vol.vol_metrics import evolution_summary
 from engine.data.vol_index import refresh_vol_indices
@@ -38,7 +33,6 @@ from engine import config
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ALL_TICKERS = INDEX_TICKERS
 
-OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "vol-report"
 SNAPSHOT_STORE = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex_snapshots.parquet"
 
 
@@ -70,51 +64,6 @@ def process_ticker(
     except Exception as exc:
         print(f"  [WARN] {ticker}: {exc}")
         return {"summary": {"ticker": ticker, "error": str(exc)}}
-
-
-def _build_png_attachments(
-    all_data: list[dict],
-    today: datetime.date,
-    out_dir: pathlib.Path,
-) -> tuple[list, list[str]]:
-    """Returns (attachments, failed_tickers). failed_tickers only counts tickers where
-    export was actually attempted and failed — not benign skips (no prior day, etc.) —
-    so a partial failure (e.g. 1-of-3) can be surfaced instead of only a total one."""
-    attachments: list = []
-    failed: list[str] = []
-    data_by_ticker = {d["summary"]["ticker"]: d for d in all_data}
-    try:
-        for ticker in INDEX_TICKERS:
-            try:
-                prior_date = nth_trading_day_back(ticker, today, 1)
-                if prior_date is None:
-                    continue
-                prior_surface_df, prior_spot = load_surface_snapshot(ticker, prior_date)
-                if prior_surface_df.empty:
-                    continue
-                data = data_by_ticker.get(ticker, {})
-                today_surface_df = data.get("surface_df")
-                today_spot = data["summary"].get("spot")
-                if today_surface_df is None or today_spot is None:
-                    continue
-                prior_spot = prior_spot if prior_spot is not None else today_spot
-                label_prior = prior_date.strftime("%b %d")
-                label_today = today.strftime("%b %d")
-                fig = plot_iv_change_heatmap(
-                    today_surface_df, prior_surface_df,
-                    ticker, today_spot, prior_spot,
-                    label_prior=label_prior,
-                    label_today=label_today,
-                )
-                path = export_png(fig, ticker, "div_surface", today, out_dir)
-                attachments.append(path)
-            except Exception as exc:
-                print(f"  [WARN] PNG for {ticker} failed (non-blocking): {exc}")
-                failed.append(ticker)
-    except Exception as exc:
-        print(f"[WARN] PNG generation failed (non-blocking): {exc}")
-        return [], list(INDEX_TICKERS)
-    return attachments, failed
 
 
 def _verify_stores_written(all_data: list[dict], today: datetime.date) -> None:
@@ -264,19 +213,6 @@ def run(dry_run: bool = False, force: bool = False) -> None:
                     "30d": {"level": None, "rms": None, "skew_change": None, "term_change": None, "as_of": None},
                 },
             }
-
-    # Generate PNG attachments (non-blocking — kaleido failure sends email without PNGs).
-    # failed_pngs surfaces PARTIAL failures too, not just a total wipeout — a silent
-    # print()-only partial failure is exactly the shape of bug that hid the
-    # plotly/kaleido version mismatch for months before it was caught (2026-07-13).
-    png_note: str | None = None
-    attachments, failed_pngs = _build_png_attachments(all_data, today, OUT_DIR)
-    if not attachments and any(d.get("surface_df") is not None for d in all_data):
-        png_note = "Surface charts unavailable — kaleido not installed or PNG export failed."
-    elif failed_pngs:
-        png_note = f"PNG export failed for {', '.join(failed_pngs)} — other charts unaffected."
-
-    print(f"[run_daily] {len(attachments)} PNG attachment(s) ready.")
 
     index_results = [d["summary"] for d in all_data if d["summary"]["ticker"] in INDEX_TICKERS]
     good = [d for d in all_data if not d["summary"].get("error")]
