@@ -80,19 +80,6 @@ jobs:
         run: |
           python -m engine.backup_to_oci --bucket vol-diagnostics-backup --region ca-toronto-1 --source ./out
 
-      # Runs after the backup so the data is already safe if this step fails.
-      # Fires on the rising edge of broad stress only, calibrated to ~4x/year --
-      # deliberately not the retired daily report, which was cut as noise.
-      - name: Regime alert
-        env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          SMTP_FROM: ${{ secrets.SMTP_FROM }}
-          GEX_EMAIL_TO: ${{ secrets.GEX_EMAIL_TO }}
-        run: python -m engine.regime_alert
-
       - name: Health check
         run: python -m engine.health_check --strict
 

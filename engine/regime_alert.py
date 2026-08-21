@@ -1,4 +1,29 @@
-"""Rare regime alert: email only when the complex is broadly stressed.
+"""NOT WIRED UP (unwired 2026-08-20). Kept for the calibration work, not shipping.
+
+Two defects found after it was built, both of which make the alert mislabelled:
+
+1. The quorum is fake. SPY/QQQ/IWM VRP correlate at 0.84-0.94 over 2,514 overlapping
+   sessions -- one signal measured on three correlated indices, not three independent
+   confirmations. "3 of 5" is really "1 of 3", so the conjunction argument (agreement
+   across channels filters idiosyncratic noise) does not hold on this data. Fix: collapse
+   correlated series to one rank, and count distinct signals rather than tickers.
+
+2. High VRP is not stress. vrp = vi - rv*100 (implied minus realized), so a high rank
+   means options are rich relative to what actually happened -- a calm or
+   post-stress-normalisation condition, and the favourable environment for an option
+   writer. In a genuine crash realized vol explodes and VRP compresses or goes negative.
+   Only term_9d_30 / term_30_3m (VIX9D/VIX and VIX/VIX3M, where high = backwardation)
+   are actual stress measures, and with a floor of 3 they can never fire without VRP.
+
+Rebuilding it means using the vol-index family, which has far deeper history than the
+chain-derived metrics: VIX from 1990 (9,254 sessions), VVIX from 2006, VIX3M/VXN/RVX
+from 2009, VIX9D from 2011. Stress as a LEVEL claim (VIX percentile) and as a SHAPE
+claim (term inversion) are different events that fire at different times -- that choice
+is still open.
+
+Original design notes follow.
+
+Rare regime alert: email only when the complex is broadly stressed.
 
 Calibrated against 15.9y of replayed history (2010-09-20 -> 2026-08-20): requiring
 3 of 5 qualifying metrics to sit in their top decile simultaneously fires ~4.15
