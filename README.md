@@ -48,6 +48,8 @@ bash scripts/sync-from-oracle.sh       # Windows: .\scripts\sync-from-oracle.ps1
 
 If SSH fails, check the key's permissions first — `stat -c '%a' ~/.ssh/vol-diagnostics.key` should read `600`.
 
+> Home-PC reminder: the Oracle VM is the real bottleneck. The instance is still effectively limited to a 1 vCPU / low-resource shape, so data jobs are running late or partial and staling the freshness check even when some data exists. When you’re back on the main computer, do the Oracle VM capacity fix first (increase CPU/RAM and clear disk pressure), then push any workflow or deployment changes upstream from that machine and verify the next automated run.
+
 ## Dashboard
 
 | Section | What it shows |
