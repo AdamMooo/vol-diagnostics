@@ -6,7 +6,7 @@ Implied-vol and dealer-gamma diagnostics for **SPY, QQQ, IWM** — built for an 
 
 **Descriptive only — no trade signals, no predictive claims.**
 
-Current metrics: VRP percentile (vol-index − RV20 ranked over a 252-session window), IV30, 25Δ skew, an interactive 3D implied-vol surface (OTM convention, log-moneyness), surface evolution (ΔIV at 5/10/20-day horizons), net GEX (≤90 DTE), γ-flip, and OI walls — each shown as a raw, labeled number with percentile context where enough history exists.
+Current metrics: VRP percentile (vol-index − RV20 ranked over a 252-session window), IV30, 25Δ skew, an interactive 3D implied-vol surface (OTM convention, log-moneyness), surface evolution (ΔIV at 5/10/20-day horizons), net GEX (≤20 DTE), γ-flip, and OI walls — each shown as a raw, labeled number with percentile context where enough history exists.
 
 ## Setup
 
@@ -57,7 +57,7 @@ If SSH fails, check the key's permissions first — `stat -c '%a' ~/.ssh/vol-dia
 | **Top bar + freshness banner** | Selected tickers · date · whether the stored snapshots are current through the latest NYSE session (green) or missing sessions (amber) |
 | **Cards + read** | Spot, net GEX, γ-flip, 25Δ skew, IV30, VRP percentile. Accent bar = sign of net GEX (no categorical regime label). A plain-English read sits on top, **credibility-gated** — chips only appear when backed by enough history |
 | **Vol surface** | Interactive 3D implied-vol surface (OTM convention, log-moneyness) with mouse-driven smile/term slices — **Today**, a two-date ΔIV **Compare**, and a day-by-day surface **Evolution** ("video", Level ↔ Change) |
-| **Positioning** | OI-led — GEX is demoted (capped ≤90 DTE, labeled a model construct); call/put walls labeled **(model)** vs **(raw OI)** so the two are never confused |
+| **Positioning** | OI-led — GEX is demoted (capped ≤20 DTE, labeled a model construct); call/put walls labeled **(model)** vs **(raw OI)** so the two are never confused |
 | **Methodology & Assumptions** | Full caveat block: free CBOE feed (no OPRA), CBOE American option model, live `^IRX` rate, all filters explicit, model-construct tags on γ-flip + walls, dealer-positioning assumption |
 
 Chains are fetched from the CBOE CDN on first load (no auth) and cached 6 hours per ticker (`config.CACHE_TTL_TICKER`). A parquet snapshot written daily by `run_daily` feeds the history and evolution views.

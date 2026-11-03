@@ -26,7 +26,7 @@ GEX_MAX_DTE: int = 20
 Dealers warehouse and actively hedge short-to-mid-dated flow; LEAPS / long-dated is mostly
 investor write/overwrite flow (covered calls, structured products) with negligible per-contract
 gamma — so it both contributes little and weakens the 'dealers net short' assumption. Capping
-at ~one quarter keeps the dealer-relevant tenor. Surface/skew are NOT bound by this (they want
+at ~one monthly cycle keeps the dealer-relevant tenor. Surface/skew are NOT bound by this (they want
 Tune: tighter (~10) = more front-loaded, looser (~30) = includes more cycles."""
 
 GEX_PRIMARY_DTE: int = 14

@@ -32,7 +32,7 @@ remains as backend-only candidate infra, unused by the UI.
   - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 483 green.
+- **Tests:** `pytest engine/tests` — 496 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -42,7 +42,7 @@ Dealer-gamma + implied-vol diagnostics for an **index income-sleeve PM** (covere
 - an **interactive 3D vol surface** with mouse-driven smile/term slices, a day-by-day surface **"video"** (Evolution tab, Level ↔ Change), and a two-date ΔIV **compare**;
 - **Arbitrage constraint audit** — surfaces are checked for butterfly/calendar/tail violations and auto-repaired if broken (guarantees no-arbitrage pricing);
 - **Second-order Greeks** (vanna/volga) — show how the surface deforms under spot/vol shocks; vanna signals spot-vol correlation pricing; volga signals vol-of-vol market pricing;
-- OI-led **positioning** — GEX capped ≤90 DTE, labeled a model construct.
+- OI-led **positioning** — GEX capped ≤20 DTE, labeled a model construct.
 
 Descriptive only — no predictive/prescriptive claims. An in-app "Methodology & assumptions" popover (sidebar) states the evidence tier behind each read, condensed from `research/methodology-deep-review.md` (fact-checked 2026-07-27).
 
@@ -60,7 +60,7 @@ source .venv/bin/activate               # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py                    # interactive dashboard
 python -m engine.run_gex --ticker SPY   # single-ticker smoke test to stdout
-pytest engine/tests                     # expect 483 green
+pytest engine/tests                     # expect 496 green
 ```
 
 Starting from nothing on a fresh box? Go to [New Machine](#new-machine) instead —
@@ -113,7 +113,7 @@ chmod 600 ~/.ssh/vol-diagnostics.key  # see gotcha #2
 bash scripts/sync-from-oracle.sh      # Windows: .\scripts\sync-from-oracle.ps1
 
 # 6. Verify before trusting it
-pytest engine/tests                                    # expect 483 passed
+pytest engine/tests                                    # expect 496 passed
 python -m engine.run_gex --ticker SPY                  # CBOE feed reachable
 python -m engine.health_check                          # out/ freshness
 ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "echo ok"
@@ -223,7 +223,7 @@ engine/
   vol/       vol_metrics  vrp_history
   report/    card_model  report  png_export  emailer  observation
   monitor/   schema  ranker  metrics  hysteresis  monitor_store  calibration   # Phase 26 severity-rank + hysteresis alert engine
-  tests/     (483 green)
+  tests/     (496 green)
 ```
 
 **Tickers: SPY, QQQ, IWM only.** Full chain pulled per ticker — no moneyness filter, no OI cutoff.
@@ -280,7 +280,7 @@ python -m engine.run_daily              # all 3 tickers → HTML email
 | `engine/monitor/calibration.py` | Calibration CLI — replays ranker + hysteresis over stored history, reports alert episodes/week per band/width grid; prints config-ready snippet, never auto-writes config.py |
 | `app.py` | Browser dashboard (SPY/QQQ/IWM only) — cards+read, interactive surface (Today/Compare), surface video (Evolution), positioning |
 
-Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color. **GEX/positioning is capped at ≤90 DTE (`config.GEX_MAX_DTE`)** — the dealer-relevant tenor; the long-dated tail is investor-written call flow (mis-signed by the dealer-short convention) and is excluded. The dashboard surface uses its own `SURFACE_INTERACTIVE_*` smoothing/clip, isolated from the email/evolution path.
+Sign convention: calls positive, puts negative. Positive net GEX = dealers net long gamma (stabilising). Zero-gamma level found via linear interpolation of profile sign change. No categorical regime label is produced — the $200M neutral cutoff was hand-tuned and non-stationary; only the sign of net GEX drives the accent color. **GEX/positioning is capped at ≤20 DTE (`config.GEX_MAX_DTE`, cut from 90 on 2026-08-15)** — the dealer-relevant tenor; the long-dated tail is investor-written call flow (mis-signed by the dealer-short convention) and is excluded. The dashboard surface uses its own `SURFACE_INTERACTIVE_*` smoothing/clip, isolated from the email/evolution path.
 
 **Removed for rigor** (do not reintroduce without methodology audit): VEX/CHEX (cross-gamma position summaries), wall cluster + concentration, ZGL flow magnitude, vs-yesterday classifier, event study, early-exercise risk flags, categorical "positive/negative/neutral" regime label. **Reintroduced (Phase 1):** Vanna and volga grids as **surface deformation metrics** (not position Greeks) — used to show spot-vol correlation pricing and vol-of-vol market pricing.
 
