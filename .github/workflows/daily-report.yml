@@ -71,6 +71,24 @@ jobs:
             python -m engine.run_daily
           fi
 
+      # Exception email: silent on most days, mails only when a Risk Lens event fired
+      # (~16 days/year in replay — see research/risk-lens-findings.md). Runs on all three
+      # firings; out/insight/sent.json makes the second and third a no-op. Placed before
+      # the backup so that ledger persists, and continue-on-error so a lens bug can never
+      # cost a session's chain backup — the failure-alert step below still reports it.
+      - name: Risk Lens (exception email)
+        id: lens
+        continue-on-error: true
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          GEX_EMAIL_TO: ${{ secrets.GEX_EMAIL_TO }}
+          RISK_LENS_SKIP_VOL_REFRESH: "1"  # run_daily just refreshed them
+        run: python -m engine.insight.run --send
+
       - name: Backup out/ to Oracle Object Storage
         if: success()  # only backup if collection succeeded; stale data must not overwrite good backup
         env:
@@ -88,7 +106,7 @@ jobs:
       # than relying on the GitHub issue alone, because issues depend on notification
       # settings and every prior alert was swallowed before anyone saw it.
       - name: Email failure alert
-        if: failure()
+        if: failure() || steps.lens.outcome == 'failure'
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}

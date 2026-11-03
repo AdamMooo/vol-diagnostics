@@ -949,14 +949,47 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None, session_d
         )
 
 
+def _render_risk_lens() -> None:
+    """Reads the precomputed out/insight/risk_lens.json (written by the daily
+    `engine.insight.run`) — no compute on the request path."""
+    import json
+    from engine.insight import render as lens_render
+    from engine.insight.lens import LENS_JSON
+
+    try:
+        lens = json.loads(LENS_JSON.read_text(encoding="utf-8"))
+    except Exception:
+        st.info("No Risk Lens read yet — run `python -m engine.insight.run`.")
+        return
+    st.caption(
+        "What the vol complex has historically meant for the next month — conditional base "
+        "rates with effective sample sizes, not forecasts. The email only fires on the events below."
+    )
+    st.html(lens_render.to_html(lens))
+    recent = lens.get("recent_events") or []
+    with st.expander(f"Event log — last 90 days ({len(recent)})"):
+        if recent:
+            st.dataframe(pd.DataFrame(recent), hide_index=True, use_container_width=True)
+        else:
+            st.write("Quiet — no events in 90 days.")
+    findings = Path(__file__).parent / "research" / "risk-lens-findings.md"
+    if findings.exists():
+        with st.expander("Evidence — why these numbers can be trusted (and where they can't)"):
+            st.markdown(findings.read_text(encoding="utf-8"))
+
+
 if sel_index:
     # on_change="rerun" makes tab bodies lazy — without it Streamlit computes and
     # ships EVERY tab on every run, which put the Evolution tab's surface video
     # (dozens of RBF solves) on the cold-start path of a tab nobody had clicked.
-    tab_regime, tab_surfaces, tab_positioning, tab_explore = st.tabs(
-        ["Regime", "Surfaces", "Option conditions", "Explore"],
+    tab_lens, tab_regime, tab_surfaces, tab_positioning, tab_explore = st.tabs(
+        ["Risk Lens", "Regime", "Surfaces", "Option conditions", "Explore"],
         on_change="rerun",
     )
+
+    with tab_lens:
+        if tab_lens.open:
+            _render_risk_lens()
 
     with tab_regime:
         if tab_regime.open:

@@ -1,5 +1,5 @@
 # CLAUDE — Vol Diagnostics Dashboard
-Last updated: 2026-08-16 | Status: v5.0 shipped; Phase 1 arbitrage constraints + vanna/volga live.
+Last updated: 2026-11-02 | Status: v5.0 shipped; Phase 1 arbitrage constraints + vanna/volga live; Risk Lens (exception email + conditional base rates) on branch `feat/risk-lens`.
 
 ## Start Here
 
@@ -11,6 +11,7 @@ Last updated: 2026-08-16 | Status: v5.0 shipped; Phase 1 arbitrage constraints +
 | Set up a brand-new machine | [New Machine](#new-machine) — 6 steps + a gotchas table |
 | Push a change live | [Deploy](#deploy-oracle) — one SSH line, never backgrounded |
 | Find a module | [`engine/` map](#engine-package-active--v30) |
+| Understand the Risk Lens | [Risk Lens](#risk-lens-engineinsight) + `research/risk-lens-findings.md` |
 | Know what I may not change | [Constraints](#constraints) |
 
 **Any OS.** The setup below is written for Linux/WSL (the live dev setup); every
@@ -30,9 +31,11 @@ remains as backend-only candidate infra, unused by the UI.
   - `streamlit run app.py` — interactive dashboard (SPY/QQQ/IWM): per-ticker cards + plain-English read, 3D vol surface, surface "video", positioning
   - `python -m engine.run_daily --send` — daily HTML email (scheduled weekdays via GitHub Actions `.github/workflows/daily-report.yml` since 2026-07-14 — this is the only scheduler; the old local Windows Task Scheduler job is gone, verified absent 2026-08-06, so the pipeline is machine-independent)
   - `python -m engine.run_gex --ticker SPY` — single-ticker CLI (prints summary, saves PNGs)
+  - `python -m engine.insight.run [--send|--preview|--asof DATE]` — Risk Lens read; with `--send` emails ONLY when an event fired (scheduled in the daily workflow)
+  - `python -m engine.insight.backtest --write` — regenerates the evidence doc `research/risk-lens-findings.md`
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 496 green.
+- **Tests:** `pytest engine/tests` — 527 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -60,7 +63,7 @@ source .venv/bin/activate               # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py                    # interactive dashboard
 python -m engine.run_gex --ticker SPY   # single-ticker smoke test to stdout
-pytest engine/tests                     # expect 496 green
+pytest engine/tests                     # expect 527 green
 ```
 
 Starting from nothing on a fresh box? Go to [New Machine](#new-machine) instead —
@@ -113,7 +116,7 @@ chmod 600 ~/.ssh/vol-diagnostics.key  # see gotcha #2
 bash scripts/sync-from-oracle.sh      # Windows: .\scripts\sync-from-oracle.ps1
 
 # 6. Verify before trusting it
-pytest engine/tests                                    # expect 496 passed
+pytest engine/tests                                    # expect 527 passed
 python -m engine.run_gex --ticker SPY                  # CBOE feed reachable
 python -m engine.health_check                          # out/ freshness
 ssh -i ~/.ssh/vol-diagnostics.key ubuntu@40.233.113.63 "echo ok"
@@ -198,7 +201,7 @@ Site: https://40.233.113.63.nip.io
 
 ## Constraints
 
-- **No predictive claims (current dashboard/email surfaces only):** descriptive of current environment + historical analog only. A predictive/prescriptive modeling track is the intended next milestone (see project hub) — this constraint governs the existing diagnostics surfaces, not that future work.
+- **No predictive claims (current dashboard/email surfaces only):** descriptive of current environment + historical analog only. **Exception (approved by Adam 2026-11-02): the Risk Lens** may show conditional historical base rates, an exposure scalar and an idea menu. In return, every figure must carry its effective N, a bootstrap CI and an early/late out-of-sample split, and the lens's own calibration replay must stay positive (`backtest` §5). Still no verdict labels.
 - **Interpretability first:** conditional base rates primary, no hidden scoring or weighting.
 - **Strategy menu:** covered call, cash-covered put, collar, short straddle. Dispersion out of scope.
 - **No new signals (dashboard/email surfaces):** six signals + fragility composite locked. Sole-owner project now (no external team gate) — the discipline that stays is self-imposed statistical validation (multiple-testing correction, out-of-sample checks) before any new signal ships, not organizational sign-off.
@@ -223,7 +226,8 @@ engine/
   vol/       vol_metrics  vrp_history
   report/    card_model  report  png_export  emailer  observation
   monitor/   schema  ranker  metrics  hysteresis  monitor_store  calibration   # Phase 26 severity-rank + hysteresis alert engine
-  tests/     (496 green)
+  insight/   panel  base_rates  exposure  events  lens  render  run  backtest     # Risk Lens (2026-11-02)
+  tests/     (527 green)
 ```
 
 **Tickers: SPY, QQQ, IWM only.** Full chain pulled per ticker — no moneyness filter, no OI cutoff.
@@ -285,6 +289,18 @@ Sign convention: calls positive, puts negative. Positive net GEX = dealers net l
 **Removed for rigor** (do not reintroduce without methodology audit): VEX/CHEX (cross-gamma position summaries), wall cluster + concentration, ZGL flow magnitude, vs-yesterday classifier, event study, early-exercise risk flags, categorical "positive/negative/neutral" regime label. **Reintroduced (Phase 1):** Vanna and volga grids as **surface deformation metrics** (not position Greeks) — used to show spot-vol correlation pricing and vol-of-vol market pricing.
 
 Bloomberg upgrade path: swap `engine/data/data_loader.py` only — everything else is data-source-agnostic.
+
+## Risk Lens (`engine/insight/`)
+
+**Why it exists:** the diagnostics described *today* but never said what today has historically *meant*, so nobody read them. The lens turns the deep vol-index history (VIX since 1990) into "the last times it looked like this, here's what happened over the next 21 sessions", and stays silent unless something changes.
+
+- **Delivery:** exception email only, about 16 days a year in replay. Workflow step `Risk Lens (exception email)` runs `engine.insight.run --send`. `out/insight/sent.json` dedupes the three daily firings and catches up on missed sessions. A failed send does not advance the ledger, so the next firing retries.
+- **Events:** `vol_elevated`, `vol_extreme`, `curve_inverted`, `carry_flip` (realized > implied in an elevated tape), `vol_shock`, `vol_calm`, `exposure_shift`. All are hysteresis machines on the SPX vol complex only, which fixes both `regime_alert.py` defects (QQQ/IWM are context, not votes, and high VRP = calm).
+- **Base rates:** the cells are level, level × term and level × VRP-sign. The primary cell is the most specific one with effective N ≥ 20. Each cell shows a block-bootstrap CI on P(drawdown > 5%) and an early/late stability flag.
+- **Evidence:** in a point-in-time replay since 2000, Brier skill is +5.4% vs the unconditional rate, positive in both halves. VIX level carries most of the information. Term inversion and negative VRP add their own signal only in elevated tapes. The vol-managed scalar halves the worst month (−17% → −8%).
+- **portfolio-manager handoff:** `out/insight/risk_lens.json` (schema `vol-risk-lens-v1`) is a one-way export. PM may adopt it as an *information* input. The exposure scalar never moves a MANDATE weight.
+- **Dashboard:** the "Risk Lens" tab (first tab) renders the same JSON plus a 90-day event log and the evidence doc.
+- Thresholds live in `config.RISK_LENS_*`. Re-run `python -m engine.insight.backtest --write` before changing any of them.
 
 ## v2.x sleeve framework / v1.0 hmm — REMOVED
 
