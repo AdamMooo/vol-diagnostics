@@ -8,8 +8,15 @@ from engine.gex.exposure_engine import expiry_oi
 from engine import config
 
 
-def _make_chain_df(n_expiries: int = 3, dte_per_expiry: float = 30.0) -> pd.DataFrame:
-    """Minimal greeks-enriched chain DataFrame for testing."""
+# Fixture DTEs are derived from the cap so these tests track config.GEX_MAX_DTE
+# instead of silently filtering to an empty frame when the cap is retuned.
+_IN_CAP_DTE = config.GEX_MAX_DTE / 4
+
+
+def _make_chain_df(n_expiries: int = 3, dte_per_expiry: float | None = None) -> pd.DataFrame:
+    """Minimal greeks-enriched chain DataFrame; by default every expiry is inside the DTE cap."""
+    if dte_per_expiry is None:
+        dte_per_expiry = _IN_CAP_DTE
     rows = []
     for i in range(n_expiries):
         expiry = f"2024-0{i+1}-19"
@@ -75,7 +82,7 @@ class TestExpiryOiValues:
         ZeroDivisionError and not a near-inf garbage value."""
         df = pd.DataFrame([
             {"expiry": "2024-06-19", "strike": 500.0, "type": "put",
-             "oi": 500, "T_years": 30/365, "iv": 0.20, "gamma": 0.01, "delta": -0.25},
+             "oi": 500, "T_years": _IN_CAP_DTE/365, "iv": 0.20, "gamma": 0.01, "delta": -0.25},
         ])
         result = expiry_oi(df)
         assert len(result) == 1
@@ -83,12 +90,13 @@ class TestExpiryOiValues:
 
 
 class TestExpiryOiDteFilter:
-    def test_filters_to_gte90_dte(self):
-        """Expiry with DTE > GEX_MAX_DTE must be excluded."""
-        df = _make_chain_df(4, dte_per_expiry=30.0)  # DTEs: 30, 60, 90, 120
+    def test_filters_beyond_max_dte(self):
+        """Expiries with DTE > GEX_MAX_DTE must be excluded."""
+        cap = config.GEX_MAX_DTE
+        df = _make_chain_df(4, dte_per_expiry=cap / 2)  # DTEs: cap/2, cap, 1.5cap, 2cap
         result = expiry_oi(df)
-        # 120-day expiry (DTE > 90) must be excluded
-        assert (result["dte"] <= config.GEX_MAX_DTE).all()
+        assert len(result) == 2
+        assert (result["dte"] <= cap).all()
 
     def test_returns_empty_df_when_all_beyond_dte_cap(self):
         """All options beyond GEX_MAX_DTE: should return empty or all-filtered result."""
@@ -107,11 +115,11 @@ class TestExpiryOiTotalZero:
         """Defensive: if all OI is 0, pct_of_total should be 0, not NaN."""
         df = pd.DataFrame([
             {"expiry": "2024-06-19", "strike": 500.0, "type": "call",
-             "oi": 0, "T_years": 30/365, "iv": 0.20, "gamma": 0.01, "delta": 0.25},
+             "oi": 0, "T_years": _IN_CAP_DTE/365, "iv": 0.20, "gamma": 0.01, "delta": 0.25},
         ])
         result = expiry_oi(df)
-        if not result.empty:
-            assert (result["pct_of_total"] == 0).all()
+        assert not result.empty
+        assert (result["pct_of_total"] == 0).all()
 
 class TestExpiryOiPrimaryTenor:
     def test_respects_explicit_max_dte_argument(self):

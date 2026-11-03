@@ -44,7 +44,10 @@ def _make_chain(expiry: str = "2026-09-19") -> pd.DataFrame:
 
 
 def test_add_greeks_adds_t_years():
-    result = add_greeks(_make_chain(), spot=100.0)
+    # Pin "today" — with the default (date.today()) the fixed fixture expiry
+    # eventually passes and T_years goes negative.
+    import datetime
+    result = add_greeks(_make_chain(), spot=100.0, today=datetime.date(2026, 6, 1))
     assert "T_years" in result.columns
     assert (result["T_years"] > 0).all()
 

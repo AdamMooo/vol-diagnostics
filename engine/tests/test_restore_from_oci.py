@@ -11,6 +11,7 @@ from engine.restore_from_oci import (
     list_backup_objects,
     RestoreSafetyError,
     RestoreCorruptionError,
+    RestoreEmptyBucketError,
 )
 
 
@@ -62,15 +63,16 @@ class TestRestoreFromOci:
         assert count == 1
         assert (dest / "vol_index" / "VIX.parquet").exists()
 
-    def test_empty_bucket_returns_zero(self, tmp_path):
+    def test_empty_bucket_raises(self, tmp_path):
+        """An empty bucket is a failed/missing backup, not "nothing to do" (c072339)."""
         dest = tmp_path / "out"
         mock_client = mock.Mock()
         mock_client.list_objects_v2.return_value = {}
         with mock.patch("engine.restore_from_oci._s3_client", return_value=mock_client):
-            count = restore_from_oci("bucket", "ca-toronto-1", "ns", dest, dry_run=False, force=False)
+            with pytest.raises(RestoreEmptyBucketError):
+                restore_from_oci("bucket", "ca-toronto-1", "ns", dest, dry_run=False, force=False)
 
         mock_client.download_file.assert_not_called()
-        assert count == 0
 
     def test_corrupted_parquet_raises_restore_corruption_error(self, tmp_path):
         dest = tmp_path / "out"
