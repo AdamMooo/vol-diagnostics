@@ -13,9 +13,6 @@ import sys
 from pathlib import Path
 
 import boto3
-import pandas as pd
-
-
 class RestoreSafetyError(RuntimeError):
     """Raised when dest already has files and neither --dry-run nor --force was passed (T-23-05)."""
 
@@ -85,7 +82,10 @@ def restore_from_oci(
         client.download_file(bucket, key, str(file_path))
         if file_path.suffix == ".parquet":
             try:
-                pd.read_parquet(file_path)
+                # Validate the Parquet footer/schema without materializing the full
+                # history into pandas on the 1 GB dashboard host.
+                import pyarrow.parquet as pq
+                pq.ParquetFile(file_path).metadata
             except Exception as exc:
                 raise RestoreCorruptionError(
                     f"{file_path} failed integrity check after download: {exc}"

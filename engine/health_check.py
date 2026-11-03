@@ -13,11 +13,13 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pandas_market_calendars as mcal
+import pytz
 
 from engine.config import TICKER_VOL_INDEX, VRP_DEEP_LOOKBACK_SESSIONS
+from engine.session import ET, latest_session, DATA_CUTOFF_HOUR, DATA_CUTOFF_MIN
 from engine.data.oi_history import list_oi_dates
 from engine.data.surface_history import list_available_dates
 from engine.data.validation import list_snapshot_dates, load_history
@@ -44,27 +46,16 @@ MODEL_READY_TARGETS = {
 
 
 def _last_expected_session(today: date | None = None) -> date:
-    """Most recent NYSE trading day that should have a snapshot by now."""
-    from datetime import datetime
-    import pytz
-    now_et = datetime.now(pytz.timezone("America/New_York"))
-    # "today" must be the US/Eastern market date, not the system/UTC date --
-    # GitHub Actions runners are UTC, so e.g. 8:41pm ET is already past
-    # midnight UTC (next calendar day), which would falsely mark today's
-    # just-collected snapshot as one day stale.
-    today = today or now_et.date()
-    nyse = mcal.get_calendar("NYSE")
-    sched = nyse.schedule(
-        start_date=(today - timedelta(days=14)).strftime("%Y-%m-%d"),
-        end_date=today.strftime("%Y-%m-%d"),
+    """Most recent NYSE trading day that should have a snapshot by now.
+
+    Uses the canonical cutoff from session.py (DATA_CUTOFF_HOUR:DATA_CUTOFF_MIN ET).
+    This ensures health_check.py, run_daily.py, and the freshness workflows all
+    agree on what "today's session" means.
+    """
+    now_et = datetime.now(ET) if today is None else datetime.now(ET).replace(
+        year=today.year, month=today.month, day=today.day
     )
-    sessions = [d.date() for d in sched.index]
-    if not sessions:
-        return today
-    # Today's session only counts if market is closed (after 4:35pm ET)
-    if sessions[-1] == today and now_et.hour < 17:
-        return sessions[-2] if len(sessions) >= 2 else today
-    return sessions[-1]
+    return latest_session(now_et, cutoff_hour=DATA_CUTOFF_HOUR, cutoff_min=DATA_CUTOFF_MIN)
 
 
 def check_health(verbose: bool = True) -> dict:
@@ -270,6 +261,8 @@ def main():
                         help="Exit 1 if any ticker is stale/missing")
     parser.add_argument("--json", action="store_true",
                         help="Output JSON instead of human-readable")
+    parser.add_argument("--full-history", action="store_true",
+                        help="Run the expensive full-history gap scan")
     parser.add_argument("--depth-audit", action="store_true",
                         help="Report current data depth vs. model-ready targets "
                              "(informational only -- does not affect --strict exit code)")
@@ -283,7 +276,7 @@ def main():
         return
 
     result = check_health(verbose=not args.json)
-    fh_result = full_history_report(verbose=not args.json)
+    fh_result = full_history_report(verbose=not args.json) if args.full_history else None
 
     if args.json:
         import json

@@ -21,5 +21,10 @@ python -m engine.health_check --strict 2>&1 \
     exit 1
   }
 
+if [[ $# -gt 0 ]]; then
+  echo "[entrypoint] Running one-shot command: $*"
+  exec "$@"
+fi
+
 echo "[entrypoint] ✓ Fresh data restored and validated. Starting dashboard."
 exec streamlit run app.py
