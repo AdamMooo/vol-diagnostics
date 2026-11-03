@@ -305,4 +305,4 @@ Use GSD commands for all phase work:
 
 ---
 
-**Hub:** [[vol-diagnostics/vol-diagnostics|Vol Diagnostics]] · **Planning:** [[_planning/vol-diagnostics/STATE|.planning/]]
+**Hub:** [[vol-diagnostics/vol-diagnostics|Vol Diagnostics]] · **Planning:** [[GSD Projects/vol-diagnostics/STATE|.planning/]]
