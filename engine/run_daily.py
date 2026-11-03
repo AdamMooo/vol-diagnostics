@@ -20,9 +20,12 @@ import pathlib
 from engine.compute import compute_ticker
 from engine.data.validation import save_snapshot
 from engine.data.surface_history import (
-    save_surface_snapshot, nth_trading_day_back, load_surface_snapshot, list_available_dates,
+    save_surface_snapshot, list_available_dates,
 )
 from engine.data.oi_history import save_oi_snapshot, list_oi_dates
+from engine.report import report as rpt
+from engine.report import emailer
+from engine.report import observation
 from engine.surface.surface_evolution import load_evolution
 from engine.vol.vol_metrics import evolution_summary
 from engine.data.vol_index import refresh_vol_indices
@@ -33,6 +36,7 @@ from engine import config
 INDEX_TICKERS = ["SPY", "QQQ", "IWM"]
 ALL_TICKERS = INDEX_TICKERS
 
+OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "out" / "vol-report"
 SNAPSHOT_STORE = pathlib.Path(__file__).resolve().parents[1] / "out" / "gex_snapshots.parquet"
 
 
@@ -222,7 +226,7 @@ def run(dry_run: bool = False, force: bool = False) -> None:
         raise SystemExit(1)
 
     subject = f"Index Volatility Report — {today.strftime('%B')} {today.day}, {today.year}"
-    notes = [n for n in (vol_feed_note, png_note) if n]
+    notes = [n for n in (vol_feed_note,) if n]
 
     # Event-shaped alerts banner input — band entries/escalations fired today plus
     # each alerting pair's prior rank (for the Delta-vs-yesterday fragment). Cold-start
@@ -262,7 +266,7 @@ def run(dry_run: bool = False, force: bool = False) -> None:
 
     email_ok = False
     try:
-        emailer.send(subject=subject, html_body=html, attachments=attachments)
+        emailer.send(subject=subject, html_body=html, attachments=[])
         email_ok = True
         print("[gex-daily] Email sent.")
     except Exception as exc:
