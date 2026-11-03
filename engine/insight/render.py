@@ -17,6 +17,11 @@ def _pct(x, digits: int = 0) -> str:
     return "—" if x is None else f"{x * 100:.{digits}f}%"
 
 
+def _dd(x) -> str:
+    """P(drawdown>5%) — below 10% the replay under-predicts, so show it as a floor."""
+    return "—" if x is None else (f"≥{x * 100:.0f}%" if x < 0.10 else _pct(x))
+
+
 def _v(x, fmt: str = "{:.1f}") -> str:
     return "—" if x is None else fmt.format(x)
 
@@ -44,7 +49,7 @@ def _event_block(e: dict) -> str:
             f"{int(h['n'])} times (effective N {int(h['eff_n'])}), over the next month:</p>"
             "<table style='font-size:14px;border-collapse:collapse'>"
             + row("Median realized vol", _v(h.get("fwd_rv_med")), f"normal {_v(h.get('base_fwd_rv_med'))}")
-            + row("P(drawdown &gt; 5%)", _pct(h.get("p_dd5")), f"normal {_pct(h.get('base_p_dd5'))}")
+            + row("P(drawdown &gt; 5%)", _dd(h.get("p_dd5")), f"normal {_pct(h.get('base_p_dd5'))}")
             + row("P(drawdown &gt; 10%)", _pct(h.get("p_dd10")), "")
             + row("Median SPX return", _pct(h.get("ret_med"), 1), "")
             + "</table>"
@@ -100,7 +105,7 @@ def _rates_table(br: dict) -> str:
             f"<td style='padding:4px 8px 4px 0'>{escape(c['label'])}{thin}</td>"
             f"<td style='padding:4px 8px 4px 0'>{c['eff_n']}</td>"
             f"<td style='padding:4px 8px 4px 0'>{_v(c.get('fwd_rv_med'))} ({_v(c.get('fwd_rv_p10'), '{:.0f}')}–{_v(c.get('fwd_rv_p90'), '{:.0f}')})</td>"
-            f"<td style='padding:4px 8px 4px 0'>{_pct(c.get('p_dd5'))} [{_pct(ci[0])}–{_pct(ci[1])}]</td>"
+            f"<td style='padding:4px 8px 4px 0'>{_dd(c.get('p_dd5'))} [{_pct(ci[0])}–{_pct(ci[1])}]</td>"
             f"<td style='padding:4px 8px 4px 0'>{_pct(c.get('p_dd10'))}</td>"
             f"<td style='padding:4px 8px 4px 0'>{_pct(c.get('carry_win'))}</td>"
             f"<td style='padding:4px 0'>{oos}</td></tr>")
@@ -130,7 +135,8 @@ def to_html(lens: dict) -> str:
         f"{_h2('Where we are')}{_state_strip(lens['state'], lens.get('tier2_gamma'))}"
         f"{_h2('What usually happens next from here (21 sessions)')}{_rates_table(lens['base_rates'])}"
         f"<p style='font-size:12px;color:{_MUTED};margin:6px 0 0'>Bold row = the most specific state with enough "
-        f"independent history. More conditions = closer analogs but fewer of them; that's the trade-off.</p>"
+        f"independent history. More conditions = closer analogs but fewer of them; that's the trade-off. "
+        f"≥ marks calm-state odds, which history shows are a floor, not a point.</p>"
         f"{_h2('What it implies')}{ideas}"
         f"{_h2('Fine print')}<ul style='font-size:12px;color:{_MUTED};padding-left:18px;margin:0'>{caveats}</ul>"
         "</div>")
@@ -142,15 +148,13 @@ def to_text(lens: dict) -> str:
     lines.append(f"  VIX {_v(s['vix'])} ({_pct(s['vix_pct'])} pct, {s['vix_level_cell']})  "
                  f"curve {_v(s['term_ratio'], '{:.2f}')} {s['term_shape'] or ''}  "
                  f"IV-RV {_v(s['vrp'], '{:+.1f}')}  RV20 {_v(s['rv20'])}  VVIX {_v(s['vvix'], '{:.0f}')}")
-    w = lens["exposure"]["weight"]
-    lines.append(f"  Vol-managed exposure: {_pct(w)} of full (target {lens['exposure']['target_vol']:.0f}% vol)")
     lines += ["", "  EVENTS" if lens["events"] else "  No events — no email would be sent."]
     for e in lens["events"]:
         h = e.get("history") or {}
         lines.append(f"   [{e['direction']}] {e['date']} {e['title']}")
         if h:
             lines.append(f"      prior {int(h['n'])}x (effN {int(h['eff_n'])}): fwd vol {_v(h['fwd_rv_med'])} "
-                         f"vs {_v(h['base_fwd_rv_med'])}, P(dd>5%) {_pct(h['p_dd5'])} vs {_pct(h['base_p_dd5'])}")
+                         f"vs {_v(h['base_fwd_rv_med'])}, P(dd>5%) {_dd(h['p_dd5'])} vs {_pct(h['base_p_dd5'])}")
     lines += ["", "  NEXT 21 SESSIONS, HISTORICALLY"]
     for k in ("unconditional", "level", "level_term", "level_vrp"):
         c = br["cells"].get(k)
@@ -158,7 +162,7 @@ def to_text(lens: dict) -> str:
             continue
         mark = "*" if k == br["primary"] else " "
         lines.append(f"  {mark} {c['label'][:58]:58s} effN {c['eff_n']:4d}  vol {_v(c['fwd_rv_med']):>5}  "
-                     f"P(dd>5%) {_pct(c['p_dd5']):>4}  P(dd>10%) {_pct(c['p_dd10']):>4}  "
+                     f"P(dd>5%) {_dd(c['p_dd5']):>4}  P(dd>10%) {_pct(c['p_dd10']):>4}  "
                      f"{'' if c.get('stable') is None else ('stable' if c['stable'] else 'UNSTABLE')}"
                      f"{'' if c.get('credible') or k == 'unconditional' else '  (thin)'}")
     lines += ["", "  IMPLICATIONS"]

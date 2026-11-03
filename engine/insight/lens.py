@@ -3,7 +3,9 @@ Assemble the Risk Lens read — one JSON-able dict, schema `vol-risk-lens-v1`.
 
 This dict is the product. The email renders it, the CLI prints it, and
 `out/insight/risk_lens.json` exports it for portfolio-manager to adopt one-way (Option A:
-facts + base rates flow down; nothing here moves a mandate weight).
+facts + base rates flow down; nothing here moves a mandate weight). The vol-managed
+exposure scalar is deliberately NOT in this dict — it is a market-timing rule, so it is
+dashboard context only (decided 2026-11-03); the dashboard computes it from `state`.
 """
 from __future__ import annotations
 
@@ -17,7 +19,6 @@ import pandas as pd
 from engine import config
 from engine.insight import base_rates as br
 from engine.insight import events as ev
-from engine.insight.exposure import exposure_weight
 from engine.insight.panel import STORE_DIR, known_by, latest_asof
 
 SCHEMA = "vol-risk-lens-v1"
@@ -31,8 +32,8 @@ CAVEATS = [
     "Every cell is re-estimated on the early and late half of history; 'unstable' means the "
     "halves disagree and the figure should be read as weak.",
     "Drawdown = worst SPX close vs. today's close over the next 21 sessions.",
-    "Exposure scalar is information for portfolio-manager, not an instruction. It never "
-    "moves a MANDATE weight.",
+    "Calm-state drawdown odds are a floor, not a point: in the point-in-time replay the "
+    "lowest bucket predicted ~4% and ~9% happened. Figures under 10% are shown as 'at least'.",
 ]
 
 
@@ -88,19 +89,23 @@ def _tier2_gamma(asof: pd.Timestamp) -> dict | None:
     }
 
 
-def _ideas(state: dict, primary: dict, uncond: dict, exposure: float | None) -> list[dict]:
+FLOOR_BELOW = 0.10
+
+
+def dd_odds(p: float | None) -> str:
+    """Drawdown odds as text. Below 10% the replay under-predicts (~4% predicted, ~9%
+    realized), so low figures are stated as a floor."""
+    if p is None:
+        return "—"
+    return f"at least {p:.0%}" if p < FLOOR_BELOW else f"{p:.0%}"
+
+
+def _ideas(state: dict, primary: dict, uncond: dict) -> list[dict]:
     """A menu, not a recommendation: each idea states the historical numbers behind it
-    in this state so the reader can disagree with the framing."""
+    in this state so the reader can disagree with the framing. No idea may recommend
+    changing equity exposure — that is a timing rule, outside this lens's remit."""
     out: list[dict] = []
     pdd, bdd = primary.get("p_dd5"), uncond.get("p_dd5")
-    if exposure is not None:
-        out.append({
-            "topic": "Equity exposure",
-            "read": (f"A sleeve targeting {config.RISK_LENS_TARGET_VOL:.0f}% vol would hold "
-                     f"{exposure:.0%} of full exposure today."),
-            "evidence": ("1992–2026 backtest: Sharpe up modestly, max drawdown cut by roughly a "
-                         "quarter, CAGR lower. A drawdown reducer, not a return engine."),
-        })
     cw, edge = primary.get("carry_win"), primary.get("carry_edge_med")
     if cw is not None and edge is not None:
         tail = primary.get("p_dd10") or 0
@@ -122,10 +127,10 @@ def _ideas(state: dict, primary: dict, uncond: dict, exposure: float | None) -> 
                      "lowest-cost time to own convexity, though drawdowns are also rarest."
                      if cheap else
                      f"Protection is priced off a VIX in its {state.get('vix_level_cell')}; "
-                     f"next-month drawdown odds here are {pdd:.0%} vs {bdd:.0%} normally."
+                     f"next-month drawdown odds here are {dd_odds(pdd)} vs {bdd:.0%} normally."
                      if pdd is not None and bdd is not None else "—"),
-            "evidence": ("When vol is already high, cutting exposure is usually cheaper than "
-                         "buying puts that already price the fear."),
+            "evidence": ("When vol is already high, puts already price the fear — weigh the "
+                         "drawdown odds above against what the protection costs."),
         })
     return out
 
@@ -167,13 +172,9 @@ def build_lens(panel: pd.DataFrame, asof: pd.Timestamp | None = None,
             "title": e["title"], "direction": e["lean"],
             "historically_followed_by": f"{after} drawdown risk" if after else None,
             "history": hist_d,
-            "learn": defn.learn if defn else (
-                "The vol-managed scalar moved a full step. It tracks ½·VIX + ½·realized vol, "
-                "so this is the combined read of 'what's priced' and 'what's happening' crossing a "
-                "threshold — the most decision-shaped number in the lens."),
+            "learn": defn.learn if defn else "",
         })
 
-    w = exposure_weight(state["forecast_vol"])
     return {
         "schema": SCHEMA,
         "asof": str(asof.date()),
@@ -181,16 +182,13 @@ def build_lens(panel: pd.DataFrame, asof: pd.Timestamp | None = None,
         "horizon_sessions": config.RISK_LENS_HORIZON,
         "state": state,
         "base_rates": {"primary": primary_key, "cells": rates},
-        "exposure": {"weight": w, "target_vol": config.RISK_LENS_TARGET_VOL,
-                     "forecast_vol": state["forecast_vol"],
-                     "note": "Informational — never moves a MANDATE weight."},
         "events": events_out,
         "recent_events": [
             {"date": str(r["date"].date()), "key": r["key"], "kind": r["kind"], "title": r["title"]}
             for _, r in all_events[(all_events["date"] > asof - pd.Timedelta(days=90))
                                    & (all_events["date"] <= asof)].iterrows()
         ],
-        "ideas": _ideas(state, rates.get(primary_key, {}), rates.get("unconditional", {}), w),
+        "ideas": _ideas(state, rates.get(primary_key, {}), rates.get("unconditional", {})),
         "tier2_gamma": _tier2_gamma(asof),
         "caveats": CAVEATS,
     }
@@ -201,6 +199,7 @@ def save_lens(lens: dict) -> None:
     as-of date → lens_history.parquet, the point-in-time record a future validation of
     the lens itself will need (idempotent per date)."""
     from engine.data.store import atomic_to_parquet
+    from engine.insight.exposure import exposure_weight
 
     STORE_DIR.mkdir(parents=True, exist_ok=True)
     tmp = LENS_JSON.with_suffix(".json.tmp")
@@ -211,7 +210,8 @@ def save_lens(lens: dict) -> None:
     flat = {"asof": lens["asof"], **{f"state_{k}": v for k, v in lens["state"].items()},
             "primary_cell": p.get("label"), "primary_eff_n": p.get("eff_n"),
             "primary_fwd_rv_med": p.get("fwd_rv_med"), "primary_p_dd5": p.get("p_dd5"),
-            "exposure_weight": lens["exposure"]["weight"],
+            # internal research record only — never exported in risk_lens.json
+            "exposure_weight": exposure_weight(lens["state"].get("forecast_vol")),
             "events": ",".join(f"{e['key']}:{e['kind']}" for e in lens["events"])}
     new = pd.DataFrame([flat])
     if LENS_HISTORY.exists():

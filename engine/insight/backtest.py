@@ -8,7 +8,7 @@ Five questions, each answered with the out-of-sample split visible:
   1. Which axes carry information about next-month risk, beyond VIX level?
   2. What do the conditioning cells look like (and do they replicate in both halves)?
   3. How often does each event fire, and what followed it?
-  4. Does the vol-managed exposure scalar earn its place?
+  4. Does the vol-managed exposure scalar earn its place? (dashboard context only)
   5. Is the lens itself calibrated? Point-in-time replay: at each monthly as-of date,
      using only history known then, the lens's P(dd>5%) vs what actually happened.
 """
@@ -75,6 +75,49 @@ def _cell_table(hist: pd.DataFrame, groups: pd.Series, labels: dict, split=None)
                      "early_p_dd5": cs.halves.get("early", {}).get("p_dd5"),
                      "late_p_dd5": cs.halves.get("late", {}).get("p_dd5"), "stable": cs.stable})
     return pd.DataFrame(rows)
+
+
+def _thin(pos: np.ndarray, horizon: int) -> np.ndarray:
+    keep, last = [], -10**9
+    for i, p in enumerate(np.sort(pos)):
+        if p - last >= horizon:
+            keep.append(i)
+            last = p
+    return np.asarray(keep, dtype=int)
+
+
+def event_significance(events: pd.DataFrame, hist: pd.DataFrame) -> pd.DataFrame:
+    """Does each event's P(dd>5%) differ from the base rate, after correcting for testing
+    every (event, enter/exit) pair at once?
+
+    Each test uses only non-overlapping firings (thinned to one per 21-session window), so
+    the binomial test's independence assumption holds. Two-sided exact binomial vs the
+    unconditional rate, then Holm (family-wise) and Benjamini–Hochberg (FDR) at 5%."""
+    h = config.RISK_LENS_HORIZON
+    known = hist.dropna(subset=["fwd_mdd"])
+    base = float((known["fwd_mdd"] < -0.05).mean())
+    rows = []
+    for (key, kind), grp in events.groupby(["key", "kind"]):
+        dates = known.index.intersection(pd.DatetimeIndex(grp["date"]))
+        if len(dates) == 0:
+            continue
+        pos = known.index.get_indexer(dates)
+        kept = np.sort(pos)[_thin(pos, h)]
+        hits = int((known["fwd_mdd"].iloc[kept] < -0.05).sum())
+        n = len(kept)
+        rows.append({"event": f"{key}:{kind}", "n_indep": n, "hits": hits,
+                     "p_dd5_indep": hits / n, "base_p_dd5": base,
+                     "p_value": float(st.binomtest(hits, n, base).pvalue)})
+    df = pd.DataFrame(rows).sort_values("p_value").reset_index(drop=True)
+    m = len(df)
+    if m == 0:
+        return df
+    p = df["p_value"].to_numpy()
+    holm = np.minimum(1, np.maximum.accumulate((m - np.arange(m)) * p))
+    bh = np.minimum(1, np.minimum.accumulate(((m / np.arange(1, m + 1)) * p)[::-1])[::-1])
+    df["p_holm"], df["p_bh"] = holm, bh
+    df["survives_holm"], df["survives_bh"] = holm < 0.05, bh < 0.05
+    return df
 
 
 def calibration_replay(panel: pd.DataFrame, start: str = "2000-01-01", step: int = 21) -> dict:
@@ -163,16 +206,33 @@ def build_report(panel: pd.DataFrame) -> str:
             "Note exits are not all-clears: several are still followed by above-normal risk, which "
             "is why the email states each event's own history instead of a fixed lean.", ""]
 
+    sig = event_significance(events[events["date"] <= hist.index[-1]], hist)
+    n_holm = int(sig["survives_holm"].sum()) if len(sig) else 0
+    n_bh = int(sig["survives_bh"].sum()) if len(sig) else 0
+    out += ["## 3b. Multiple-testing check on events",
+            f"{len(sig)} event comparisons (each enter/exit vs the base rate) are tested at once, so "
+            "raw p-values overstate. Each test uses non-overlapping firings only (one per 21-session "
+            "window), exact two-sided binomial vs the unconditional P(dd>5%), then Holm (family-wise) "
+            "and Benjamini–Hochberg (false-discovery) corrections at 5%.", "",
+            _md(sig, "{:.3f}"), "",
+            f"**Read:** {n_holm} of {len(sig)} survive Holm, {n_bh} survive BH. Events that do not "
+            "survive still email (they mark real state changes), but their 'historically followed by' "
+            "read should be treated as suggestive, not established.", ""]
+
     bt = exposure_backtest(panel)
     rows = []
     for name, p in bt["periods"].items():
         for strat in ("buy_hold", "vol_managed"):
             rows.append({"period": f"{name} ({p['from']}→{p['to']})", "strategy": strat, **p[strat]})
-    out += ["## 4. Vol-managed exposure (Moreira–Muir)",
+    out += ["## 4. Vol-managed exposure (Moreira–Muir) — dashboard context only",
             f"weight = min({config.RISK_LENS_MAX_WEIGHT:.1f}, {config.RISK_LENS_TARGET_VOL:.0f} / (½·VIX + ½·RV20)), "
             f"weekly rebalance, no costs, no cash yield. Average weight {bt['avg_weight']:.2f}.", "",
             _md(pd.DataFrame(rows)), "",
-            "**Read:** a drawdown reducer, not a return engine. Judge it on max_dd / worst_month.", ""]
+            "**Read:** a drawdown reducer, not a return engine. Judge it on max_dd / worst_month. "
+            "It costs CAGR, the 15% target was chosen with full-sample knowledge, and out-of-sample "
+            "studies find vol-managed gains fragile. Decision 2026-11-03: it is a weekly timing rule, "
+            "so it appears only as labelled context on the dashboard — never in the email, never as "
+            "an event, never in `risk_lens.json`.", ""]
 
     cal = calibration_replay(panel)
     out += ["## 5. Is the lens calibrated? (point-in-time replay, 2000→)",
@@ -183,6 +243,11 @@ def build_report(panel: pd.DataFrame) -> str:
             f"- Brier: lens {cal['brier_lens']:.4f} vs unconditional {cal['brier_base']:.4f} → "
             f"**skill {cal['skill']:+.1%}**",
             *[f"- {k}: n={v['n']}, skill {v['skill']:+.1%}" for k, v in cal["halves"].items()],
+            "",
+            "**This skill is an upper bound, not a floor.** Only the probabilities are point-in-time. "
+            "The cell boundaries (`RISK_LENS_LEVEL_BINS`, `RISK_LENS_TERM_BINS`), the event thresholds "
+            "and the choice of conditioning axes were all designed after looking at the full history, "
+            "so some of the measured edge is selection. Expect less live.",
             "", "Reliability (predicted vs realized drawdown frequency):", "",
             _md(cal["reliability"]), "",
             "Tested 2026-11-02 and not adopted: Bühlmann credibility shrinkage of each cell toward the "

@@ -392,5 +392,3 @@ forecast blend, so the scalar averages ~0.85 rather than being structurally unde
 RISK_LENS_MAX_WEIGHT: float = 1.0
 """Never lever up. The scalar only ever says 'carry less than full risk'."""
 
-RISK_LENS_EXPOSURE_ALERT_STEP: float = 0.20
-"""Exposure-shift event fires when the scalar moves this far from its last-alerted value."""

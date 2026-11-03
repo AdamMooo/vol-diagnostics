@@ -949,6 +949,23 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None, session_d
         )
 
 
+def _render_exposure_context(state: dict) -> None:
+    """Vol-managed exposure scalar — dashboard context only (decided 2026-11-03).
+    Computed here from the panel state, never read from risk_lens.json, never emailed,
+    and deliberately neutral-styled: no mandate red/amber/green."""
+    from engine import config
+    from engine.insight.exposure import exposure_weight
+
+    w = exposure_weight(state.get("forecast_vol"))
+    if w is None:
+        return
+    st.caption(
+        f"Context: a sleeve targeting {config.RISK_LENS_TARGET_VOL:.0f}% vol would hold "
+        f"{w:.0%} of full equity exposure today. Not a recommendation — historically a "
+        "drawdown reducer that cost return (backtest §4 in the evidence below)."
+    )
+
+
 def _render_risk_lens() -> None:
     """Reads the precomputed out/insight/risk_lens.json (written by the daily
     `engine.insight.run`) — no compute on the request path."""
@@ -966,6 +983,7 @@ def _render_risk_lens() -> None:
         "rates with effective sample sizes, not forecasts. The email only fires on the events below."
     )
     st.html(lens_render.to_html(lens))
+    _render_exposure_context(lens.get("state") or {})
     recent = lens.get("recent_events") or []
     with st.expander(f"Event log — last 90 days ({len(recent)})"):
         if recent:

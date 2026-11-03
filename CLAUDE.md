@@ -1,5 +1,5 @@
 # CLAUDE — Vol Diagnostics Dashboard
-Last updated: 2026-11-02 | Status: v5.0 shipped; Phase 1 arbitrage constraints + vanna/volga live; Risk Lens (exception email + conditional base rates) on branch `feat/risk-lens`.
+Last updated: 2026-11-02 | Status: v5.0 shipped; Phase 1 arbitrage constraints + vanna/volga live; Risk Lens (exception email + conditional base rates) live on main.
 
 ## Start Here
 
@@ -35,7 +35,7 @@ remains as backend-only candidate infra, unused by the UI.
   - `python -m engine.insight.backtest --write` — regenerates the evidence doc `research/risk-lens-findings.md`
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 527 green.
+- **Tests:** `pytest engine/tests` — 530 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -201,7 +201,7 @@ Site: https://40.233.113.63.nip.io
 
 ## Constraints
 
-- **No predictive claims (current dashboard/email surfaces only):** descriptive of current environment + historical analog only. **Exception (approved by Adam 2026-11-02): the Risk Lens** may show conditional historical base rates, an exposure scalar and an idea menu. In return, every figure must carry its effective N, a bootstrap CI and an early/late out-of-sample split, and the lens's own calibration replay must stay positive (`backtest` §5). Still no verdict labels.
+- **No predictive claims (current dashboard/email surfaces only):** descriptive of current environment + historical analog only. **Exception (approved by Adam 2026-11-02): the Risk Lens** may show conditional historical base rates and an idea menu. In return, every figure must carry its effective N, a bootstrap CI and an early/late out-of-sample split, and the lens's own calibration replay must stay positive (`backtest` §5). Still no verdict labels.
 - **Interpretability first:** conditional base rates primary, no hidden scoring or weighting.
 - **Strategy menu:** covered call, cash-covered put, collar, short straddle. Dispersion out of scope.
 - **No new signals (dashboard/email surfaces):** six signals + fragility composite locked. Sole-owner project now (no external team gate) — the discipline that stays is self-imposed statistical validation (multiple-testing correction, out-of-sample checks) before any new signal ships, not organizational sign-off.
@@ -294,12 +294,15 @@ Bloomberg upgrade path: swap `engine/data/data_loader.py` only — everything el
 
 **Why it exists:** the diagnostics described *today* but never said what today has historically *meant*, so nobody read them. The lens turns the deep vol-index history (VIX since 1990) into "the last times it looked like this, here's what happened over the next 21 sessions", and stays silent unless something changes.
 
-- **Delivery:** exception email only, about 16 days a year in replay. Workflow step `Risk Lens (exception email)` runs `engine.insight.run --send`. `out/insight/sent.json` dedupes the three daily firings and catches up on missed sessions. A failed send does not advance the ledger, so the next firing retries.
-- **Events:** `vol_elevated`, `vol_extreme`, `curve_inverted`, `carry_flip` (realized > implied in an elevated tape), `vol_shock`, `vol_calm`, `exposure_shift`. All are hysteresis machines on the SPX vol complex only, which fixes both `regime_alert.py` defects (QQQ/IWM are context, not votes, and high VRP = calm).
+- **Delivery:** exception email only, about 14 days a year in replay. Workflow step `Risk Lens (exception email)` runs `engine.insight.run --send`. `out/insight/sent.json` dedupes the three daily firings and catches up on missed sessions. A failed send does not advance the ledger, so the next firing retries.
+- **Events:** `vol_elevated`, `vol_extreme`, `curve_inverted`, `carry_flip` (realized > implied in an elevated tape), `vol_shock`, `vol_calm`. All are hysteresis machines on the SPX vol complex only, which fixes both `regime_alert.py` defects (QQQ/IWM are context, not votes, and high VRP = calm).
 - **Base rates:** the cells are level, level × term and level × VRP-sign. The primary cell is the most specific one with effective N ≥ 20. Each cell shows a block-bootstrap CI on P(drawdown > 5%) and an early/late stability flag.
-- **Evidence:** in a point-in-time replay since 2000, Brier skill is +5.4% vs the unconditional rate, positive in both halves. VIX level carries most of the information. Term inversion and negative VRP add their own signal only in elevated tapes. The vol-managed scalar halves the worst month (−17% → −8%).
-- **portfolio-manager handoff:** `out/insight/risk_lens.json` (schema `vol-risk-lens-v1`) is a one-way export. PM may adopt it as an *information* input. The exposure scalar never moves a MANDATE weight.
+- **Evidence:** in a point-in-time replay since 2000, Brier skill is +5.4% vs the unconditional rate, positive in both halves. VIX level carries most of the information. Term inversion and negative VRP add their own signal only in elevated tapes. The skill is an upper bound: cells and thresholds were designed on the full history, only the probabilities are point-in-time. §3b runs Holm/BH over the event comparisons; read events that fail it as suggestive.
+- **portfolio-manager handoff:** `out/insight/risk_lens.json` (schema `vol-risk-lens-v1`) is a one-way export. PM may adopt it as an *information* input. It carries state, base rates and events only — no exposure scalar.
 - **Dashboard:** the "Risk Lens" tab (first tab) renders the same JSON plus a 90-day event log and the evidence doc.
+- **Exposure scalar = dashboard context only (decided 2026-11-03).** `engine/insight/exposure.py` stays as research (§4 of the evidence: halves the worst month, −17% → −8%, but costs CAGR and the 15% target was fit in-sample). It is a weekly timing rule, so it never appears in the email, as an event, or in `risk_lens.json`; the tab computes it from `state.forecast_vol` and labels it "not a recommendation", with no mandate colours. `lens_history.parquet` keeps it as an internal record.
+- **Calm-state odds are floors.** Below 10%, P(dd>5%) renders as "≥" / "at least" (replay: ~4% predicted, ~9% realized).
+- **Lens failure alert** is separate from the collection-failure alert: "Risk Lens step failed; data collection succeeded".
 - Thresholds live in `config.RISK_LENS_*`. Re-run `python -m engine.insight.backtest --write` before changing any of them.
 
 ## v2.x sleeve framework / v1.0 hmm — REMOVED

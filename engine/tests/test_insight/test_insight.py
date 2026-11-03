@@ -193,13 +193,11 @@ def test_vol_shock_refractory():
     assert len(shocks) == 2   # day 1, then not again until 10 sessions later
 
 
-def test_exposure_shift_fires_once_per_step_and_reanchors():
-    # forecast 15 → w 1.0; 20 → 0.75 (step 0.25 ≥ 0.20, fires); 21 → 0.71 (no); 30 → 0.5 (fires vs 0.75)
-    f = _feat(forecast_vol=[15.0, 20.0, 21.0, 30.0])
-    e = ev.detect_events(f)
-    e = e[e["key"] == "exposure_shift"]
-    assert list(e["kind"]) == ["down", "down"]
-    assert list(e["date"]) == [f.index[1], f.index[3]]
+def test_exposure_moves_never_trigger_an_event():
+    """The vol-managed scalar is dashboard context only — a big swing in it must not email."""
+    f = _feat(forecast_vol=[15.0, 20.0, 21.0, 30.0, 60.0])
+    assert ev.detect_events(f).empty
+    assert "exposure_shift" not in ev.EVENT_BY_KEY
 
 
 def test_events_are_single_series_family():
@@ -220,8 +218,35 @@ def test_build_lens_schema_and_json(panel):
     assert lens["schema"] == SCHEMA
     assert lens["asof"] == str(asof.date())
     assert lens["base_rates"]["primary"] in lens["base_rates"]["cells"]
-    assert lens["exposure"]["weight"] is not None
+    assert "forecast_vol" in lens["state"]          # dashboard derives context from this
     json.dumps(lens, default=str)
+
+
+def test_no_exposure_in_handoff_or_email(panel):
+    asof = panel.dropna(subset=["vix_pct"]).index[-1]
+    lens = build_lens(panel, asof=asof, reps=5)
+    assert "exposure" not in lens                    # risk_lens.json carries no scalar
+    assert not any("exposure" in i["topic"].lower() for i in lens["ideas"])
+    assert not any("exposure" in c.lower() for c in lens["caveats"])
+    blob = (render.to_html(lens) + render.to_text(lens)).lower()
+    assert "exposure" not in blob and "of full" not in blob
+
+
+def test_calm_state_odds_render_as_floor():
+    from engine.insight.lens import dd_odds
+    assert dd_odds(0.04) == "at least 4%"
+    assert dd_odds(0.25) == "25%"
+    assert render._dd(0.04) == "≥4%" and render._dd(0.37) == "37%"
+
+
+def test_event_significance_corrections_are_monotone(panel):
+    from engine.insight.backtest import event_significance
+    hist = known_by(panel, panel.index[-1])
+    sig = event_significance(ev.detect_events(panel), hist)
+    assert len(sig)
+    assert (sig["p_holm"] >= sig["p_value"] - 1e-12).all()
+    assert (sig["p_bh"] >= sig["p_value"] - 1e-12).all()
+    assert (sig["p_holm"] >= sig["p_bh"] - 1e-12).all()
 
 
 def test_build_lens_reports_events_since_last_run(panel):
@@ -277,7 +302,7 @@ def run_env(tmp_path, monkeypatch):
     def fake_build(panel, asof=None, since=None):
         state["since"] = since
         return {"asof": state["asof"], "events": state["events"], "state": {}, "base_rates": {},
-                "exposure": {}, "ideas": [], "caveats": []}
+                "ideas": [], "caveats": []}
 
     def fake_send(subject, html_body, attachments=None, **kw):
         if state["fail"]:

@@ -72,7 +72,7 @@ jobs:
           fi
 
       # Exception email: silent on most days, mails only when a Risk Lens event fired
-      # (~16 days/year in replay — see research/risk-lens-findings.md). Runs on all three
+      # (~14 days/year in replay — see research/risk-lens-findings.md). Runs on all three
       # firings; out/insight/sent.json makes the second and third a no-op. Placed before
       # the backup so that ledger persists, and continue-on-error so a lens bug can never
       # cost a session's chain backup — the failure-alert step below still reports it.
@@ -106,7 +106,7 @@ jobs:
       # than relying on the GitHub issue alone, because issues depend on notification
       # settings and every prior alert was swallowed before anyone saw it.
       - name: Email failure alert
-        if: failure() || steps.lens.outcome == 'failure'
+        if: failure()
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
@@ -120,3 +120,20 @@ jobs:
             --workflow "Daily Data Collection" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --detail "Data collection did not complete. A session&#39;s option chain cannot be backfilled once the day passes."
+
+      # Lens-only failure: collection succeeded, so say that instead of crying data loss.
+      - name: Email Risk Lens failure alert
+        if: success() && steps.lens.outcome == 'failure'
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          GEX_EMAIL_TO: ${{ secrets.GEX_EMAIL_TO }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python -m engine.alert \
+            --workflow "Daily Data Collection" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --detail "Risk Lens step failed; data collection succeeded. No session data was lost."

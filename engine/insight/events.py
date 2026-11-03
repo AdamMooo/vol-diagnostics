@@ -25,7 +25,6 @@ import numpy as np
 import pandas as pd
 
 from engine import config
-from engine.insight.exposure import exposure_weight
 
 RISING, EASING = "risk rising", "risk easing"
 
@@ -143,33 +142,8 @@ def detect_events(panel: pd.DataFrame) -> pd.DataFrame:
                 if ev.exit_title:
                     rows.append({"date": dt, "key": ev.key, "kind": "exit",
                                  "title": ev.exit_title, "lean": EASING})
-    rows += _exposure_shifts(feats)
     out = pd.DataFrame(rows, columns=["date", "key", "kind", "title", "lean"])
     return out.sort_values(["date", "key"]).reset_index(drop=True)
-
-
-def _exposure_shifts(feats: pd.DataFrame) -> list[dict]:
-    """Anchor-based: fire when the scalar has moved RISK_LENS_EXPOSURE_ALERT_STEP from
-    the value at the last alert, then re-anchor. Slow drifts alert once, not daily."""
-    if "forecast_vol" not in feats:
-        return []
-    step = config.RISK_LENS_EXPOSURE_ALERT_STEP
-    rows, anchor = [], None
-    for dt, fv in feats["forecast_vol"].items():
-        w = exposure_weight(fv)
-        if w is None:
-            continue
-        if anchor is None:
-            anchor = w
-            continue
-        if abs(w - anchor) >= step - 1e-9:
-            down = w < anchor
-            rows.append({"date": dt, "key": "exposure_shift", "kind": "down" if down else "up",
-                         "title": (f"Vol-managed exposure {'cut' if down else 'raised'} "
-                                   f"from {anchor:.0%} to {w:.0%}"),
-                         "lean": RISING if down else EASING})
-            anchor = w
-    return rows
 
 
 def event_study(panel: pd.DataFrame, events: pd.DataFrame, hist: pd.DataFrame | None = None) -> pd.DataFrame:

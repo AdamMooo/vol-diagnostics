@@ -1,5 +1,5 @@
 # Risk Lens — evidence
-Generated 2026-11-02 by `python -m engine.insight.backtest --write` · data 1991-12-30 → 2026-11-02 · horizon 21 sessions · SPX (^GSPC) + CBOE vol indices. **Do not hand-edit — regenerate.**
+Generated 2026-11-03 by `python -m engine.insight.backtest --write` · data 1991-12-30 → 2026-11-02 · horizon 21 sessions · SPX (^GSPC) + CBOE vol indices. **Do not hand-edit — regenerate.**
 
 Outcome definitions: `fwd_rv` = realized vol over the next 21 sessions (annualized %); `p_dd5` = share of windows whose worst close fell >5% below the start; `carry_win` = share of windows where VIX exceeded the vol then delivered. `eff_n` = non-overlapping windows. `early`/`late` = same cell re-estimated on each half of history.
 
@@ -60,12 +60,11 @@ Each event is a hysteresis state machine on the SPX vol complex only (QQQ/IWM ar
 
 | key | per_year |
 |---|---|
-| ANY (email days) | 16.15 |
+| ANY (email days) | 14.28 |
 | curve_inverted | 4.02 |
 | vol_elevated | 3.64 |
 | carry_flip | 3.20 |
 | vol_shock | 3.04 |
-| exposure_shift | 2.91 |
 | vol_extreme | 1.52 |
 | vol_calm | 1.25 |
 
@@ -75,8 +74,6 @@ Each event is a hysteresis state machine on the SPX vol complex only (QQQ/IWM ar
 | carry_flip | exit | 59 | 59 | 46 | 23.055 | 0.407 | 0.136 | 0.010 | 0.763 | 0.166 |
 | curve_inverted | enter | 74 | 74 | 50 | 17.633 | 0.243 | 0.054 | 0.026 | 0.851 | 0.166 |
 | curve_inverted | exit | 74 | 74 | 52 | 15.177 | 0.257 | 0.068 | 0.028 | 0.743 | 0.166 |
-| exposure_shift | down | 51 | 50 | 43 | 22.684 | 0.420 | 0.120 | 0.008 | 0.700 | 0.166 |
-| exposure_shift | up | 56 | 54 | 49 | 15.209 | 0.222 | 0.019 | 0.023 | 0.870 | 0.166 |
 | vol_calm | enter | 46 | 46 | 34 | 8.822 | 0.022 | 0.000 | 0.017 | 0.913 | 0.166 |
 | vol_elevated | enter | 67 | 67 | 55 | 19.201 | 0.254 | 0.075 | 0.021 | 0.806 | 0.166 |
 | vol_elevated | exit | 67 | 67 | 55 | 14.204 | 0.179 | 0.030 | 0.019 | 0.836 | 0.166 |
@@ -86,7 +83,25 @@ Each event is a hysteresis state machine on the SPX vol complex only (QQQ/IWM ar
 
 Baseline: median fwd vol 12.9, p_dd5 0.166. Note exits are not all-clears: several are still followed by above-normal risk, which is why the email states each event's own history instead of a fixed lean.
 
-## 4. Vol-managed exposure (Moreira–Muir)
+## 3b. Multiple-testing check on events
+10 event comparisons (each enter/exit vs the base rate) are tested at once, so raw p-values overstate. Each test uses non-overlapping firings only (one per 21-session window), exact two-sided binomial vs the unconditional P(dd>5%), then Holm (family-wise) and Benjamini–Hochberg (false-discovery) corrections at 5%.
+
+| event | n_indep | hits | p_dd5_indep | base_p_dd5 | p_value | p_holm | p_bh | survives_holm | survives_bh |
+|---|---|---|---|---|---|---|---|---|---|
+| carry_flip:exit | 46 | 18 | 0.391 | 0.166 | 0.000 | 0.002 | 0.002 | True | True |
+| carry_flip:enter | 42 | 14 | 0.333 | 0.166 | 0.007 | 0.059 | 0.033 | False | True |
+| vol_elevated:enter | 55 | 16 | 0.291 | 0.166 | 0.018 | 0.142 | 0.059 | False | False |
+| vol_calm:enter | 34 | 1 | 0.029 | 0.166 | 0.034 | 0.240 | 0.086 | False | False |
+| vol_extreme:enter | 26 | 8 | 0.308 | 0.166 | 0.063 | 0.378 | 0.126 | False | False |
+| curve_inverted:exit | 52 | 13 | 0.250 | 0.166 | 0.132 | 0.661 | 0.220 | False | False |
+| vol_shock:enter | 86 | 18 | 0.209 | 0.166 | 0.308 | 1.000 | 0.440 | False | False |
+| vol_extreme:exit | 28 | 6 | 0.214 | 0.166 | 0.449 | 1.000 | 0.562 | False | False |
+| curve_inverted:enter | 50 | 10 | 0.200 | 0.166 | 0.567 | 1.000 | 0.630 | False | False |
+| vol_elevated:exit | 55 | 10 | 0.182 | 0.166 | 0.717 | 1.000 | 0.717 | False | False |
+
+**Read:** 1 of 10 survive Holm, 2 survive BH. Events that do not survive still email (they mark real state changes), but their 'historically followed by' read should be treated as suggestive, not established.
+
+## 4. Vol-managed exposure (Moreira–Muir) — dashboard context only
 weight = min(1.0, 15 / (½·VIX + ½·RV20)), weekly rebalance, no costs, no cash yield. Average weight 0.86.
 
 | period | strategy | cagr | vol | sharpe | max_dd | worst_month |
@@ -98,7 +113,7 @@ weight = min(1.0, 15 / (½·VIX + ½·RV20)), weekly rebalance, no costs, no cas
 | late (2009-05-28→2026-11-02) | buy_hold | 0.130 | 0.172 | 0.801 | -0.339 | -0.125 |
 | late (2009-05-28→2026-11-02) | vol_managed | 0.098 | 0.124 | 0.820 | -0.190 | -0.081 |
 
-**Read:** a drawdown reducer, not a return engine. Judge it on max_dd / worst_month.
+**Read:** a drawdown reducer, not a return engine. Judge it on max_dd / worst_month. It costs CAGR, the 15% target was chosen with full-sample knowledge, and out-of-sample studies find vol-managed gains fragile. Decision 2026-11-03: it is a weekly timing rule, so it appears only as labelled context on the dashboard — never in the email, never as an event, never in `risk_lens.json`.
 
 ## 5. Is the lens calibrated? (point-in-time replay, 2000→)
 Every 21st session, the lens is rebuilt from history known *at that date* and its primary-cell P(dd>5%) is scored against what happened. Brier skill > 0 means the conditioning beats the unconditional base rate out of sample.
@@ -107,6 +122,8 @@ Every 21st session, the lens is rebuilt from history known *at that date* and it
 - Brier: lens 0.1505 vs unconditional 0.1591 → **skill +5.4%**
 - early: n=160, skill +6.9%
 - late: n=161, skill +3.1%
+
+**This skill is an upper bound, not a floor.** Only the probabilities are point-in-time. The cell boundaries (`RISK_LENS_LEVEL_BINS`, `RISK_LENS_TERM_BINS`), the event thresholds and the choice of conditioning axes were all designed after looking at the full history, so some of the measured edge is selection. Expect less live.
 
 Reliability (predicted vs realized drawdown frequency):
 
