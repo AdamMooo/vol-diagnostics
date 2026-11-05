@@ -26,6 +26,45 @@ def _v(x, fmt: str = "{:.1f}") -> str:
     return "—" if x is None else fmt.format(x)
 
 
+_GRADE_WORD = {"established": "well-established", "supported": "supported",
+               "suggestive": "suggestive only"}
+
+
+def tldr(lens: dict) -> list[str]:
+    """Three plain sentences: where we are, what usually follows, what changed.
+    Shared by the email and the dashboard so they can never disagree."""
+    s, br = lens.get("state") or {}, lens.get("base_rates") or {}
+    cells = br.get("cells") or {}
+    c, u = cells.get(br.get("primary"), {}), cells.get("unconditional", {})
+    out = []
+
+    vix, pct = s.get("vix"), s.get("vix_pct")
+    if vix is not None and pct is not None:
+        line = f"VIX is {vix:.0f}, higher than {pct:.0%} of the last 10 years"
+        if s.get("term_shape") == "inverted":
+            line += ", and the next month is priced as riskier than the next three (curve inverted)"
+        out.append(line + ".")
+
+    p, p0 = c.get("p_dd5"), u.get("p_dd5")
+    if p is not None and p0:
+        r = p / p0
+        size = (f"about {r:.1f}× the normal odds" if r >= 1.3 else
+                "lower than normal odds" if r <= 0.75 else "about normal odds")
+        odds = f"at least {p:.0%}" if p < 0.10 else f"{p:.0%}"
+        out.append(f"From states like this, the S&P fell more than 5% within a month {odds} of the "
+                   f"time vs {p0:.0%} normally — {size}.")
+
+    evs = lens.get("events") or []
+    if evs:
+        e = evs[0]
+        g = _GRADE_WORD.get(e.get("evidence"))
+        more = f" (+{len(evs) - 1} more)" if len(evs) > 1 else ""
+        out.append(f"Changed: {e['title']}{more}." + (f" Evidence: {g}." if g else ""))
+    else:
+        out.append("Nothing changed today, so no email was sent.")
+    return out
+
+
 def subject(lens: dict) -> str:
     evs = lens.get("events") or []
     if not evs:
@@ -144,10 +183,14 @@ def to_html(lens: dict) -> str:
         f"<div style='color:{_MUTED};font-size:13px;margin-top:2px'>{escape(i['evidence'])}</div></div>"
         for i in lens.get("ideas", []))
     caveats = "".join(f"<li style='margin:0 0 4px'>{escape(c)}</li>" for c in lens.get("caveats", []))
+    tl = "".join(f"<li style='margin:0 0 6px'>{escape(t)}</li>" for t in tldr(lens))
     return (
-        f"<div style='{_FONT};color:{_INK};max-width:640px;margin:0 auto;padding:16px;font-size:15px'>"
+        f"<div style='{_FONT};color:{_INK};background:#ffffff;max-width:640px;margin:0 auto;padding:16px;font-size:15px'>"
         f"<div style='font-size:12px;color:{_MUTED}'>RISK LENS · SPX vol complex · as of {lens['asof']}</div>"
-        f"<h1 style='font-size:21px;margin:4px 0 18px'>{len(evs)} change{'s' if len(evs) != 1 else ''} worth knowing about</h1>"
+        f"<h1 style='font-size:21px;margin:4px 0 12px'>{len(evs)} change{'s' if len(evs) != 1 else ''} worth knowing about</h1>"
+        f"<div style='background:#f2f4f7;border-radius:6px;padding:10px 14px;margin:0 0 20px'>"
+        f"<div style='font-size:12px;font-weight:600;letter-spacing:.05em;color:{_MUTED};margin:0 0 6px'>TL;DR</div>"
+        f"<ul style='margin:0;padding-left:18px;line-height:1.45'>{tl}</ul></div>"
         f"{ev_html}"
         f"{_h2('Where we are')}{_state_strip(lens['state'], lens.get('tier2_gamma'))}"
         f"{_h2('What usually happens next from here (21 sessions)')}{_rates_table(lens['base_rates'])}"
@@ -161,7 +204,7 @@ def to_html(lens: dict) -> str:
 
 def to_text(lens: dict) -> str:
     s, br = lens["state"], lens["base_rates"]
-    lines = [f"RISK LENS  as of {lens['asof']}", ""]
+    lines = [f"RISK LENS  as of {lens['asof']}", "", "  TL;DR"] + [f"   - {t}" for t in tldr(lens)] + [""]
     lines.append(f"  VIX {_v(s['vix'])} ({_pct(s['vix_pct'])} pct, {s['vix_level_cell']})  "
                  f"curve {_v(s['term_ratio'], '{:.2f}')} {s['term_shape'] or ''}  "
                  f"IV-RV {_v(s['vrp'], '{:+.1f}')}  RV20 {_v(s['rv20'])}  VVIX {_v(s['vvix'], '{:.0f}')}")

@@ -949,51 +949,89 @@ def _render_explore_tab(shared_rate: float, shared_vvix: float | None, session_d
         )
 
 
-def _render_exposure_context(state: dict) -> None:
-    """Vol-managed exposure scalar — dashboard context only (decided 2026-11-03).
-    Computed here from the panel state, never read from risk_lens.json, never emailed,
-    and deliberately neutral-styled: no mandate red/amber/green."""
-    from engine import config
-    from engine.insight.exposure import exposure_weight
-
-    w = exposure_weight(state.get("forecast_vol"))
-    if w is None:
-        return
-    st.caption(
-        f"Context: a sleeve targeting {config.RISK_LENS_TARGET_VOL:.0f}% vol would hold "
-        f"{w:.0%} of full equity exposure today. Not a recommendation — historically a "
-        "drawdown reducer that cost return (backtest §4 in the evidence below)."
-    )
-
-
 def _render_risk_lens() -> None:
-    """Reads the precomputed out/insight/risk_lens.json (written by the daily
-    `engine.insight.run`) — no compute on the request path."""
+    """Risk Lens tab — native Streamlit widgets only, so it follows the dark theme.
+    (The email HTML is light-themed and hardcodes dark ink; never st.html it here.)
+    Reads the precomputed out/insight/risk_lens.json — no compute on the request path."""
     import json
+    from engine import config
     from engine.insight import render as lens_render
+    from engine.insight.exposure import exposure_weight
     from engine.insight.lens import LENS_JSON
 
     try:
         lens = json.loads(LENS_JSON.read_text(encoding="utf-8"))
     except Exception:
-        st.info("No Risk Lens read yet — run `python -m engine.insight.run`.")
+        st.info("No Risk Lens read yet — it fills in after the next daily run.")
         return
-    st.caption(
-        "What the vol complex has historically meant for the next month — conditional base "
-        "rates with effective sample sizes, not forecasts. The email only fires on the events below."
-    )
-    st.html(lens_render.to_html(lens))
-    _render_exposure_context(lens.get("state") or {})
+
+    s = lens.get("state") or {}
+    br = lens.get("base_rates") or {}
+    cells = br.get("cells") or {}
+    c, u = cells.get(br.get("primary"), {}), cells.get("unconditional", {})
+    pct = lambda x: "—" if x is None else (f"≥{x:.0%}" if x < 0.10 else f"{x:.0%}")
+
+    # 1 — the answer
+    with st.container(border=True):
+        st.markdown(f"**TL;DR** · as of {lens['asof']}")
+        st.markdown("\n".join(f"- {t}" for t in lens_render.tldr(lens)))
+
+    # 2 — three numbers
+    m1, m2, m3 = st.columns(3)
+    m1.metric("VIX", "—" if s.get("vix") is None else f"{s['vix']:.1f}",
+              None if s.get("vix_pct") is None else f"{s['vix_pct']:.0%} pct of 10y",
+              delta_color="off", delta_arrow="off")
+    m2.metric("Odds of a >5% drop next month", pct(c.get("p_dd5")),
+              f"normal {pct(u.get('p_dd5'))}", delta_color="off", delta_arrow="off")
+    m3.metric("Expected swings (vol)", "—" if c.get("fwd_rv_med") is None else f"{c['fwd_rv_med']:.0f}",
+              None if u.get("fwd_rv_med") is None else f"normal {u['fwd_rv_med']:.0f}",
+              delta_color="off", delta_arrow="off")
+    st.caption("Historical base rates from VIX history since 1990 — what followed similar days, not a forecast.")
+
+    # 3 — what changed (only if something did)
+    for e in lens.get("events") or []:
+        h = e.get("history") or {}
+        grade = {"established": "well-established", "supported": "supported",
+                 "suggestive": "suggestive only"}.get(e.get("evidence"))
+        with st.container(border=True):
+            st.markdown(f"**{e['title']}**" + (f"  ·  evidence: *{grade}*" if grade else ""))
+            if h:
+                st.markdown(f"The previous {int(h['n'])} times: a >5% drop followed "
+                            f"{pct(h.get('p_dd5'))} of the time (normal {pct(h.get('base_p_dd5'))}).")
+            if e.get("learn"):
+                st.caption(e["learn"])
+
+    # 4 — everything else, collapsed
+    with st.expander("For option selling / hedging"):
+        for i in lens.get("ideas") or []:
+            st.markdown(f"**{i['topic']}** — {i['read']}")
+            st.caption(i["evidence"])
+        w = exposure_weight(s.get("forecast_vol"))
+        if w is not None:
+            st.caption(f"Context: a sleeve targeting {config.RISK_LENS_TARGET_VOL:.0f}% vol would hold "
+                       f"{w:.0%} of full equity exposure today. Not a recommendation — historically a "
+                       "drawdown reducer that cost return.")
+    with st.expander("Base-rate table"):
+        rows = [{"State": v.get("label"), "Independent cases": v.get("eff_n"),
+                 "Odds of >5% drop": pct(v.get("p_dd5")), "Odds of >10% drop": pct(v.get("p_dd10")),
+                 "Expected vol": None if v.get("fwd_rv_med") is None else round(v["fwd_rv_med"], 1),
+                 "Holds in both halves": {True: "yes", False: "no"}.get(v.get("stable"), "—"),
+                 "Used": "◀" if k == br.get("primary") else ""}
+                for k in ("unconditional", "level", "level_term", "level_vrp") if (v := cells.get(k))]
+        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
     recent = lens.get("recent_events") or []
     with st.expander(f"Event log — last 90 days ({len(recent)})"):
         if recent:
-            st.dataframe(pd.DataFrame(recent), hide_index=True, use_container_width=True)
+            st.dataframe(pd.DataFrame(recent)[["date", "title"]], hide_index=True, use_container_width=True)
         else:
             st.write("Quiet — no events in 90 days.")
     findings = Path(__file__).parent / "research" / "risk-lens-findings.md"
     if findings.exists():
         with st.expander("Evidence — why these numbers can be trusted (and where they can't)"):
             st.markdown(findings.read_text(encoding="utf-8"))
+    with st.expander("Fine print"):
+        for cav in lens.get("caveats") or []:
+            st.caption(cav)
 
 
 if sel_index:

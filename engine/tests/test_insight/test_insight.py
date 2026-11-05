@@ -255,6 +255,21 @@ def test_evidence_grade_renders_in_email(panel):
     assert "Evidence:" not in render.to_html(lens)
 
 
+def test_tldr_is_three_plain_lines(panel):
+    asof = panel.dropna(subset=["vix_pct"]).index[-1]
+    lens = build_lens(panel, asof=asof, reps=5)
+    lines = render.tldr(lens)
+    assert len(lines) == 3
+    assert lines[0].startswith("VIX is ")
+    assert "normally" in lines[1]
+    assert lines[2] == "Nothing changed today, so no email was sent."
+    lens["events"] = [{"title": "VIX spiked", "evidence": "suggestive", "key": "vol_shock",
+                       "kind": "enter", "date": lens["asof"], "direction": "risk rising",
+                       "history": None, "learn": ""}]
+    assert render.tldr(lens)[2] == "Changed: VIX spiked. Evidence: suggestive only."
+    assert "TL;DR" in render.to_html(lens) and "TL;DR" in render.to_text(lens)
+
+
 def test_evidence_by_event_maps_corrections():
     sig = pd.DataFrame({"event": ["a:enter", "b:enter", "c:exit"],
                         "survives_holm": [True, False, False], "survives_bh": [True, True, False]})
