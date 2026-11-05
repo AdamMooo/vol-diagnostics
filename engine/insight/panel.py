@@ -20,6 +20,7 @@ import pandas as pd
 from engine import config
 from engine.data.store import atomic_to_parquet
 from engine.data.vol_index import load_vol_index
+from engine.insight.payoffs import add_payoffs
 
 STORE_DIR = pathlib.Path(__file__).resolve().parents[2] / "out" / "insight"
 SPX_STORE = STORE_DIR / "spx.parquet"
@@ -108,6 +109,7 @@ def build_panel(spx: pd.Series, vols: dict[str, pd.Series],
     if "VIX" in df:
         # Did the implied vol you could have sold exceed what actually got delivered?
         df["carry_edge"] = (df["VIX"] - df["fwd_rv"]).where(complete)
+        add_payoffs(df, h)
     return df
 
 

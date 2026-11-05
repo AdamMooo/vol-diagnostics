@@ -19,6 +19,7 @@ import pandas as pd
 from engine import config
 from engine.insight import base_rates as br
 from engine.insight import events as ev
+from engine.insight import payoffs as pay
 from engine.insight.panel import STORE_DIR, known_by, latest_asof
 
 SCHEMA = "vol-risk-lens-v1"
@@ -34,6 +35,10 @@ CAVEATS = [
     "Drawdown = worst SPX close vs. today's close over the next 21 sessions.",
     "Calm-state drawdown odds are a floor, not a point: in the point-in-time replay the "
     "lowest bucket predicted ~4% and ~9% happened. Figures under 10% are shown as 'at least'.",
+    "Strategy returns are synthetic: SPX options priced at a flat VIX smile, held to expiry, "
+    "no fees or early management. Real ATM vol usually sits below VIX (flatters the straddle "
+    "seller) and real OTM puts above it (understates put credits). Five structures are shown "
+    "at once, so expect one interval in twenty to exclude zero by luck.",
 ]
 
 
@@ -185,6 +190,7 @@ def build_lens(panel: pd.DataFrame, asof: pd.Timestamp | None = None,
         "horizon_sessions": config.RISK_LENS_HORIZON,
         "state": state,
         "base_rates": {"primary": primary_key, "cells": rates},
+        "strategies": pay.strategy_read(hist, row, primary_key, reps=reps),
         "events": events_out,
         "recent_events": [
             {"date": str(r["date"].date()), "key": r["key"], "kind": r["kind"], "title": r["title"]}

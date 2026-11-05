@@ -1011,6 +1011,23 @@ def _render_risk_lens() -> None:
             st.caption(f"Context: a sleeve targeting {config.RISK_LENS_TARGET_VOL:.0f}% vol would hold "
                        f"{w:.0%} of full equity exposure today. Not a recommendation — historically a "
                        "drawdown reducer that cost return.")
+    strat = lens.get("strategies") or {}
+    sc = (strat.get("cells") or {}).get(strat.get("cell"))
+    if sc:
+        normal = {r["key"]: r.get("mean") for r in (strat["cells"].get("unconditional") or {}).get("rows", [])}
+        sp = lambda x: None if x is None else round(100 * x, 1)
+        with st.expander("Write or buy? — what each structure returned from similar days"):
+            st.caption(f"Seller's return on capital at risk over the next 21 sessions, from {sc['label']}. "
+                       "A buyer earns the opposite. Synthetic: priced at VIX, held to expiry, no fees.")
+            st.dataframe(pd.DataFrame([{
+                "Structure": r["structure"], "Avg %": sp(r.get("mean")),
+                "90% CI of avg": "—" if not r.get("mean_ci") else
+                    f"{100 * r['mean_ci'][0]:+.1f} to {100 * r['mean_ci'][1]:+.1f}",
+                "Normal avg %": sp(normal.get(r["key"])), "Median %": sp(r.get("median")),
+                "Win rate": None if r.get("win_rate") is None else f"{r['win_rate']:.0%}",
+                "Worst 5% %": sp(r.get("worst_5pct")), "Independent cases": r.get("eff_n"),
+                "Holds in both halves": {True: "yes", False: "no"}.get(r.get("stable"), "—"),
+            } for r in sc["rows"]]), hide_index=True, use_container_width=True)
     with st.expander("Base-rate table"):
         rows = [{"State": v.get("label"), "Independent cases": v.get("eff_n"),
                  "Odds of >5% drop": pct(v.get("p_dd5")), "Odds of >10% drop": pct(v.get("p_dd10")),

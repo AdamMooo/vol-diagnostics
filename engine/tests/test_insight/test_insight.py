@@ -403,3 +403,62 @@ def test_run_without_send_never_emails(run_env):
     s["events"] = _event()
     R.run(send=False, refresh=False)
     assert s["sent"] == [] and not R.LEDGER.exists()
+
+
+# ── strategy payoffs ──────────────────────────────────────────────────────
+
+from engine.insight import payoffs as pay  # noqa: E402
+
+
+def test_price_satisfies_put_call_parity():
+    s, k, sd = 100.0, 95.0, 0.05
+    assert pay._price(s, k, sd, "call") - pay._price(s, k, sd, "put") == pytest.approx(s - k)
+
+
+def test_flat_market_seller_keeps_premium_and_buyer_loses_it():
+    spot, vol = np.array([100.0]), np.array([20.0])
+    straddle = pay.structure_return(spot, vol, spot, "short_straddle", H)[0]
+    # ATM straddle ≈ 0.8·σ√T of spot
+    assert straddle == pytest.approx(0.8 * 0.20 * np.sqrt(H / 252), rel=0.01)
+    assert pay.structure_return(spot, vol, spot, "long_put", H)[0] == pytest.approx(-1.0)
+
+
+@pytest.mark.parametrize("key", ["short_put", "put_spread", "iron_condor", "long_put"])
+def test_defined_risk_returns_never_exceed_capital(key):
+    spot, vol = np.full(5, 100.0), np.full(5, 25.0)
+    spot_T = np.array([0.0, 60.0, 100.0, 140.0, 400.0])
+    r = pay.structure_return(spot, vol, spot_T, key, H)
+    assert r.min() == pytest.approx(-1.0)  # capital is exactly the worst case
+
+
+def test_crash_hits_put_spread_max_loss_and_pays_the_hedge():
+    spot, vol, crash = np.array([100.0]), np.array([15.0]), np.array([70.0])
+    assert pay.structure_return(spot, vol, crash, "put_spread", H)[0] == pytest.approx(-1.0)
+    assert pay.structure_return(spot, vol, crash, "long_put", H)[0] > 10
+
+
+def test_payoffs_are_nan_where_window_unfinished(panel):
+    for key in pay.STRUCTURES:
+        assert panel[f"pnl_{key}"].iloc[-H:].isna().all()
+        assert panel[f"pnl_{key}"].iloc[:-H].notna().any()
+
+
+def test_strategy_read_reports_ci_and_matches_base_rate_cells(panel):
+    asof = latest_asof(panel)
+    hist, row = known_by(panel, asof), panel.loc[asof]
+    primary = br.conditional_read(hist, row, reps=50)["primary"]
+    read = pay.strategy_read(hist, row, primary, reps=50)
+    assert read["cell"] == primary and "unconditional" in read["cells"]
+    for r in read["cells"][primary]["rows"]:
+        lo, hi = r["mean_ci"]
+        assert lo <= r["mean"] <= hi
+        assert 0 <= r["win_rate"] <= 1
+    json.dumps(read)
+
+
+def test_sellers_earn_in_the_calm_regime_where_implied_beats_realized(panel):
+    # synthetic calm regime: VIX 13 vs ~11 realized → short vol should pay on average
+    hist = panel.dropna(subset=["fwd_rv"])
+    calm = hist["VIX"] < 20
+    stats = pay.strategy_stats(hist, calm, "calm", None, H, 50)
+    assert next(r for r in stats["rows"] if r["key"] == "short_straddle")["mean"] > 0

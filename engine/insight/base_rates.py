@@ -143,6 +143,36 @@ def _halves_agree(halves: dict, hist: pd.DataFrame) -> bool | None:
         abs(e["fwd_rv_med"] - l["fwd_rv_med"]) < 0.15 * base
 
 
+def cell_masks(hist: pd.DataFrame, today: pd.Series) -> dict[str, tuple[pd.Series, str, pd.Timestamp | None]]:
+    """Today's analog cells at increasing specificity: key → (row mask, label, OOS split).
+    Shared by the drawdown base rates and the strategy payoffs so both condition on the
+    same analogs."""
+    split = hist.index[len(hist) // 2] if len(hist) else None
+    out = {"unconditional": (pd.Series(True, index=hist.index), "all sessions since 1992", split)}
+    lc = level_cell(today.get("vix_pct"))
+    if lc is None:
+        return out
+    lvl = hist["vix_pct"].map(level_cell) == lc
+    out["level"] = (lvl, f"VIX in its {LEVEL_LABELS[lc]}", split)
+
+    tc = term_cell(today.get("term"))
+    if tc is not None and "term" in hist and hist["term"].notna().any():
+        # VIX3M starts 2009: split the OOS halves inside the span the feature exists,
+        # or the "early" half is empty by construction.
+        has_term = hist.index[hist["term"].notna()]
+        out["level_term"] = (lvl & (hist["term"].map(term_cell) == tc),
+                             f"VIX in its {LEVEL_LABELS[lc]} + curve {TERM_LABELS[tc]}",
+                             has_term[len(has_term) // 2])
+
+    vrp = today.get("vrp")
+    if vrp is not None and np.isfinite(vrp):
+        neg = vrp < 0
+        out["level_vrp"] = (lvl & ((hist["vrp"] < 0) if neg else (hist["vrp"] >= 0)),
+                            f"VIX in its {LEVEL_LABELS[lc]} + realized {'above' if neg else 'below'} implied",
+                            split)
+    return out
+
+
 def conditional_read(hist: pd.DataFrame, today: pd.Series, horizon: int | None = None,
                      reps: int | None = None) -> dict:
     """Base rates for today's state at increasing specificity.
@@ -153,40 +183,15 @@ def conditional_read(hist: pd.DataFrame, today: pd.Series, horizon: int | None =
     """
     h = horizon or config.RISK_LENS_HORIZON
     hist = hist.dropna(subset=["fwd_rv"])
-    out: dict = {}
-    split = hist.index[len(hist) // 2] if len(hist) else None
-    kw = dict(horizon=h, split=split, reps=reps)
-    all_rows = pd.Series(True, index=hist.index)
-    out["unconditional"] = cell_stats(hist, all_rows, "all sessions since 1992", **kw)
-
-    lc = level_cell(today.get("vix_pct"))
-    if lc is None:
-        out["primary"] = "unconditional"
-        return out
-    hist_lc = hist["vix_pct"].map(level_cell)
-    lvl_mask = hist_lc == lc
-    out["level"] = cell_stats(hist, lvl_mask, f"VIX in its {LEVEL_LABELS[lc]}", **kw)
-    out["primary"] = "level" if out["level"].credible else "unconditional"
-
-    tc = term_cell(today.get("term"))
-    if tc is not None and "term" in hist and hist["term"].notna().any():
-        m = lvl_mask & (hist["term"].map(term_cell) == tc)
-        # VIX3M starts 2009: split the OOS halves inside the span the feature exists,
-        # or the "early" half is empty by construction.
-        has_term = hist.index[hist["term"].notna()]
-        out["level_term"] = cell_stats(hist, m, f"VIX in its {LEVEL_LABELS[lc]} + curve {TERM_LABELS[tc]}",
-                                       **{**kw, "split": has_term[len(has_term) // 2]})
-        if out["level_term"].credible:
-            out["primary"] = "level_term"
-
-    vrp = today.get("vrp")
-    if vrp is not None and np.isfinite(vrp):
-        neg = vrp < 0
-        m = lvl_mask & ((hist["vrp"] < 0) if neg else (hist["vrp"] >= 0))
-        out["level_vrp"] = cell_stats(
-            hist, m, f"VIX in its {LEVEL_LABELS[lc]} + realized {'above' if neg else 'below'} implied", **kw)
-        # Negative VRP inside an elevated tape is the one VRP state with its own
-        # signal (research: P(dd>5%) 0.46 vs 0.25 at the same level) — let it lead.
-        if neg and out["level_vrp"].credible and lc >= 3:
-            out["primary"] = "level_vrp"
+    out: dict = {k: cell_stats(hist, m, label, horizon=h, split=split, reps=reps)
+                 for k, (m, label, split) in cell_masks(hist, today).items()}
+    out["primary"] = "unconditional"
+    for k in ("level", "level_term"):
+        if k in out and out[k].credible:
+            out["primary"] = k
+    # Negative VRP inside an elevated tape is the one VRP state with its own
+    # signal (research: P(dd>5%) 0.46 vs 0.25 at the same level) — let it lead.
+    if "level_vrp" in out and today.get("vrp") < 0 and out["level_vrp"].credible \
+            and level_cell(today.get("vix_pct")) >= 3:
+        out["primary"] = "level_vrp"
     return out

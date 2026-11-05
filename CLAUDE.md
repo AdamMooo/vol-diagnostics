@@ -35,7 +35,7 @@ remains as backend-only candidate infra, unused by the UI.
   - `python -m engine.insight.backtest --write` — regenerates the evidence doc `research/risk-lens-findings.md`
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 533 green.
+- **Tests:** `pytest engine/tests` — 543 green (1 pre-existing failure: `test_force_overrides_guard`).
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -203,7 +203,7 @@ Site: https://40.233.113.63.nip.io
 
 - **No predictive claims (current dashboard/email surfaces only):** descriptive of current environment + historical analog only. **Exception (approved by Adam 2026-11-02): the Risk Lens** may show conditional historical base rates and an idea menu. In return, every figure must carry its effective N, a bootstrap CI and an early/late out-of-sample split, and the lens's own calibration replay must stay positive (`backtest` §5). Still no verdict labels.
 - **Interpretability first:** conditional base rates primary, no hidden scoring or weighting.
-- **Strategy menu:** covered call, cash-covered put, collar, short straddle. Dispersion out of scope.
+- **Strategy menu:** covered call, cash-covered put, collar, short straddle, plus (2026-11-05, Risk Lens payoff table) put credit spread, iron condor and long put. Dispersion out of scope.
 - **No new signals (dashboard/email surfaces):** six signals + fragility composite locked. Sole-owner project now (no external team gate) — the discipline that stays is self-imposed statistical validation (multiple-testing correction, out-of-sample checks) before any new signal ships, not organizational sign-off.
 - **Paths:** use pathlib or `os.path.join` throughout — never hardcode a separator or an absolute path. This is what keeps the repo portable across dev box, Docker image, and CI runner.
 - **No PDIV / HMM this phase:** locked per scope cap.
@@ -226,7 +226,7 @@ engine/
   vol/       vol_metrics  vrp_history
   report/    card_model  report  png_export  emailer  observation
   monitor/   schema  ranker  metrics  hysteresis  monitor_store  calibration   # Phase 26 severity-rank + hysteresis alert engine
-  insight/   panel  base_rates  exposure  events  lens  render  run  backtest     # Risk Lens (2026-11-02)
+  insight/   panel  base_rates  payoffs  exposure  events  lens  render  run  backtest     # Risk Lens (2026-11-02)
   tests/     (527 green)
 ```
 
@@ -302,6 +302,7 @@ Bloomberg upgrade path: swap `engine/data/data_loader.py` only — everything el
 - **Dashboard:** the "Risk Lens" tab (first tab) renders the same JSON plus a 90-day event log and the evidence doc.
 - **Exposure scalar = dashboard context only (decided 2026-11-03).** `engine/insight/exposure.py` stays as research (§4 of the evidence: halves the worst month, −17% → −8%, but costs CAGR and the 15% target was fit in-sample). It is a weekly timing rule, so it never appears in the email, as an event, or in `risk_lens.json`; the tab computes it from `state.forecast_vol` and labels it "not a recommendation", with no mandate colours. `lens_history.parquet` keeps it as an internal record.
 - **Evidence grade per emailed event.** Each event carries `evidence`: `established` (survives Holm), `supported` (BH only) or `suggestive` (neither), from `events.event_significance` run point-in-time on the same history as the event study. The email prints it under the event's track record. In the 2026-11-03 replay only `carry_flip` events graded above suggestive.
+- **Strategy payoffs (`payoffs.py`, 2026-11-05).** For the primary cell and unconditionally: seller's return on capital at risk over 21 sessions for short straddle, short 1σ put, 1σ/2σ put spread, 1σ/2σ iron condor and long 1σ put (buyer = sign flip). Mean with block-bootstrap CI, median, win rate, worst 5%, effective N, early/late halves. Synthetic: SPX priced at a flat VIX smile, held to expiry, no fees. Known bias: ATM IV < VIX flatters the straddle seller; OTM put IV > VIX understates put credits. Next step is calibrating per-wing offsets vs VIX from our stored SPY chains. Shown on the dashboard tab and `--preview`, kept out of the exception email.
 - **Calm-state odds are floors.** Below 10%, P(dd>5%) renders as "≥" / "at least" (replay: ~4% predicted, ~9% realized).
 - **Lens failure alert** is separate from the collection-failure alert: "Risk Lens step failed; data collection succeeded".
 - Thresholds live in `config.RISK_LENS_*`. Re-run `python -m engine.insight.backtest --write` before changing any of them.

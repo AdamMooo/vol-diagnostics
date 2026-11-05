@@ -202,6 +202,10 @@ def to_html(lens: dict) -> str:
         "</div>")
 
 
+def _sgn(x) -> str:
+    return "—" if x is None else f"{x:+.1%}"
+
+
 def to_text(lens: dict) -> str:
     s, br = lens["state"], lens["base_rates"]
     lines = [f"RISK LENS  as of {lens['asof']}", "", "  TL;DR"] + [f"   - {t}" for t in tldr(lens)] + [""]
@@ -226,6 +230,19 @@ def to_text(lens: dict) -> str:
                      f"P(dd>5%) {_dd(c['p_dd5']):>4}  P(dd>10%) {_pct(c['p_dd10']):>4}  "
                      f"{'' if c.get('stable') is None else ('stable' if c['stable'] else 'UNSTABLE')}"
                      f"{'' if c.get('credible') or k == 'unconditional' else '  (thin)'}")
+    st = lens.get("strategies") or {}
+    cell, base = (st.get("cells") or {}).get(st.get("cell")), (st.get("cells") or {}).get("unconditional")
+    if cell:
+        normal = {r["key"]: r.get("mean") for r in (base or {}).get("rows", [])}
+        lines += ["", f"  SELLER RETURN ON CAPITAL, NEXT 21 SESSIONS  ({cell['label']})"]
+        for r in cell["rows"]:
+            if r.get("mean") is None:
+                continue
+            ci = r["mean_ci"]
+            lines.append(f"   {r['structure'][:30]:30s} avg {r['mean']:+6.1%} [{ci[0]:+.1%},{ci[1]:+.1%}]  "
+                         f"normal {_sgn(normal.get(r['key']))}  win {r['win_rate']:.0%}  "
+                         f"worst5% {r['worst_5pct']:+.0%}  effN {r['eff_n']}"
+                         f"{'' if r.get('stable') is not False else '  UNSTABLE'}")
     lines += ["", "  IMPLICATIONS"]
     for i in lens["ideas"]:
         lines.append(f"   - {i['topic']}: {i['read']}")
