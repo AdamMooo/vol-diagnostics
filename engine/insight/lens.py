@@ -156,6 +156,8 @@ def build_lens(panel: pd.DataFrame, asof: pd.Timestamp | None = None,
     lo = pd.Timestamp(since) if since is not None else asof - pd.Timedelta(days=1)
     todays = all_events[(all_events["date"] > lo) & (all_events["date"] <= asof)]
     study = ev.event_study(panel, all_events[all_events["date"] <= hist.index[-1]] if len(hist) else all_events.iloc[0:0], hist)
+    past = all_events[all_events["date"] <= hist.index[-1]] if len(hist) else all_events.iloc[0:0]
+    grades = ev.evidence_by_event(ev.event_significance(past, hist)) if len(todays) else {}
     events_out = []
     for _, e in todays.iterrows():
         s = study[(study["key"] == e["key"]) & (study["kind"] == e["kind"])]
@@ -172,6 +174,7 @@ def build_lens(panel: pd.DataFrame, asof: pd.Timestamp | None = None,
             "title": e["title"], "direction": e["lean"],
             "historically_followed_by": f"{after} drawdown risk" if after else None,
             "history": hist_d,
+            "evidence": grades.get(f"{e['key']}:{e['kind']}"),
             "learn": defn.learn if defn else "",
         })
 

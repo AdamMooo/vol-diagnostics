@@ -232,6 +232,37 @@ def test_no_exposure_in_handoff_or_email(panel):
     assert "exposure" not in blob and "of full" not in blob
 
 
+def test_emailed_events_carry_an_evidence_grade(panel):
+    all_ev = ev.detect_events(panel)
+    target = all_ev.iloc[-1]["date"]
+    lens = build_lens(panel, asof=target, all_events=all_ev, reps=5)
+    assert lens["events"]
+    for e in lens["events"]:
+        assert e["evidence"] in (None, "established", "supported", "suggestive")
+
+
+def test_evidence_grade_renders_in_email(panel):
+    asof = panel.dropna(subset=["vix_pct"]).index[-1]
+    lens = build_lens(panel, asof=asof, reps=5)
+    base = {"date": lens["asof"], "key": "vol_elevated", "kind": "enter", "title": "t",
+            "direction": "risk rising", "historically_followed_by": None, "history": None, "learn": "x"}
+    lens["events"] = [{**base, "evidence": "suggestive"}]
+    assert "Suggestive only" in render.to_html(lens)
+    assert "(evidence: suggestive)" in render.to_text(lens)
+    lens["events"] = [{**base, "evidence": "established"}]
+    assert "Well-established" in render.to_html(lens)
+    lens["events"] = [{**base, "evidence": None}]
+    assert "Evidence:" not in render.to_html(lens)
+
+
+def test_evidence_by_event_maps_corrections():
+    sig = pd.DataFrame({"event": ["a:enter", "b:enter", "c:exit"],
+                        "survives_holm": [True, False, False], "survives_bh": [True, True, False]})
+    assert ev.evidence_by_event(sig) == {"a:enter": "established", "b:enter": "supported",
+                                        "c:exit": "suggestive"}
+    assert ev.evidence_by_event(pd.DataFrame()) == {}
+
+
 def test_calm_state_odds_render_as_floor():
     from engine.insight.lens import dd_odds
     assert dd_odds(0.04) == "at least 4%"

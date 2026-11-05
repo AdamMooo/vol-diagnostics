@@ -35,6 +35,22 @@ def subject(lens: dict) -> str:
     return f"Risk Lens — {lead}{more}"
 
 
+_GRADE = {"established": ("Well-established", "#067647"),
+          "supported": ("Supported", "#b54708"),
+          "suggestive": ("Suggestive only", "#667085")}
+
+
+def _evidence_line(e: dict) -> str:
+    from engine.insight.events import EVIDENCE_LABELS
+    g = e.get("evidence")
+    if g not in _GRADE:
+        return ""
+    name, color = _GRADE[g]
+    return (f"<p style='margin:8px 0 0;font-size:13px'><span style='color:{color};font-weight:600'>"
+            f"Evidence: {name}.</span> <span style='color:{_MUTED}'>This event's track record "
+            f"{escape(EVIDENCE_LABELS[g])}.</span></p>")
+
+
 def _event_block(e: dict) -> str:
     color = _RISE if e["direction"] == "risk rising" else _EASE
     h = e.get("history") or {}
@@ -61,6 +77,7 @@ def _event_block(e: dict) -> str:
         f"{escape(e['direction'])}{' · historically ' + escape(after) if after else ''}</div>"
         f"<div style='font-size:17px;font-weight:600;margin:2px 0 0'>{escape(e['title'])}</div>"
         f"{rows}"
+        f"{_evidence_line(e)}"
         f"<p style='margin:10px 0 0;font-size:13px;line-height:1.5;background:#f9fafb;"
         f"padding:8px 10px;border-radius:6px'><b>Why it matters.</b> {escape(e['learn'])}</p>"
         "</div>"
@@ -151,7 +168,8 @@ def to_text(lens: dict) -> str:
     lines += ["", "  EVENTS" if lens["events"] else "  No events — no email would be sent."]
     for e in lens["events"]:
         h = e.get("history") or {}
-        lines.append(f"   [{e['direction']}] {e['date']} {e['title']}")
+        grade = f"  (evidence: {e['evidence']})" if e.get("evidence") else ""
+        lines.append(f"   [{e['direction']}] {e['date']} {e['title']}{grade}")
         if h:
             lines.append(f"      prior {int(h['n'])}x (effN {int(h['eff_n'])}): fwd vol {_v(h['fwd_rv_med'])} "
                          f"vs {_v(h['base_fwd_rv_med'])}, P(dd>5%) {_dd(h['p_dd5'])} vs {_pct(h['base_p_dd5'])}")

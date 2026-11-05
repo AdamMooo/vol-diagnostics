@@ -77,47 +77,7 @@ def _cell_table(hist: pd.DataFrame, groups: pd.Series, labels: dict, split=None)
     return pd.DataFrame(rows)
 
 
-def _thin(pos: np.ndarray, horizon: int) -> np.ndarray:
-    keep, last = [], -10**9
-    for i, p in enumerate(np.sort(pos)):
-        if p - last >= horizon:
-            keep.append(i)
-            last = p
-    return np.asarray(keep, dtype=int)
-
-
-def event_significance(events: pd.DataFrame, hist: pd.DataFrame) -> pd.DataFrame:
-    """Does each event's P(dd>5%) differ from the base rate, after correcting for testing
-    every (event, enter/exit) pair at once?
-
-    Each test uses only non-overlapping firings (thinned to one per 21-session window), so
-    the binomial test's independence assumption holds. Two-sided exact binomial vs the
-    unconditional rate, then Holm (family-wise) and Benjamini–Hochberg (FDR) at 5%."""
-    h = config.RISK_LENS_HORIZON
-    known = hist.dropna(subset=["fwd_mdd"])
-    base = float((known["fwd_mdd"] < -0.05).mean())
-    rows = []
-    for (key, kind), grp in events.groupby(["key", "kind"]):
-        dates = known.index.intersection(pd.DatetimeIndex(grp["date"]))
-        if len(dates) == 0:
-            continue
-        pos = known.index.get_indexer(dates)
-        kept = np.sort(pos)[_thin(pos, h)]
-        hits = int((known["fwd_mdd"].iloc[kept] < -0.05).sum())
-        n = len(kept)
-        rows.append({"event": f"{key}:{kind}", "n_indep": n, "hits": hits,
-                     "p_dd5_indep": hits / n, "base_p_dd5": base,
-                     "p_value": float(st.binomtest(hits, n, base).pvalue)})
-    df = pd.DataFrame(rows).sort_values("p_value").reset_index(drop=True)
-    m = len(df)
-    if m == 0:
-        return df
-    p = df["p_value"].to_numpy()
-    holm = np.minimum(1, np.maximum.accumulate((m - np.arange(m)) * p))
-    bh = np.minimum(1, np.minimum.accumulate(((m / np.arange(1, m + 1)) * p)[::-1])[::-1])
-    df["p_holm"], df["p_bh"] = holm, bh
-    df["survives_holm"], df["survives_bh"] = holm < 0.05, bh < 0.05
-    return df
+event_significance = ev.event_significance  # re-export; lives with the events
 
 
 def calibration_replay(panel: pd.DataFrame, start: str = "2000-01-01", step: int = 21) -> dict:

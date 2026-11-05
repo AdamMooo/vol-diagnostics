@@ -35,7 +35,7 @@ remains as backend-only candidate infra, unused by the UI.
   - `python -m engine.insight.backtest --write` — regenerates the evidence doc `research/risk-lens-findings.md`
 - **Output:** daily email + `out/` parquet stores (`gex_snapshots`, `surface_history/`, `vol_index/`, `surface_evolution`)
 - **Data:** free — CBOE delayed-quote JSON (chains) + CBOE vol-index CSVs + yfinance closes + FRED. No API key. Bloomberg swap = one class in `engine/data/data_loader.py`.
-- **Tests:** `pytest engine/tests` — 530 green.
+- **Tests:** `pytest engine/tests` — 533 green.
 - **Workflow:** GSD (`.planning/`)
 
 ## What It Does
@@ -301,6 +301,7 @@ Bloomberg upgrade path: swap `engine/data/data_loader.py` only — everything el
 - **portfolio-manager handoff:** `out/insight/risk_lens.json` (schema `vol-risk-lens-v1`) is a one-way export. PM may adopt it as an *information* input. It carries state, base rates and events only — no exposure scalar.
 - **Dashboard:** the "Risk Lens" tab (first tab) renders the same JSON plus a 90-day event log and the evidence doc.
 - **Exposure scalar = dashboard context only (decided 2026-11-03).** `engine/insight/exposure.py` stays as research (§4 of the evidence: halves the worst month, −17% → −8%, but costs CAGR and the 15% target was fit in-sample). It is a weekly timing rule, so it never appears in the email, as an event, or in `risk_lens.json`; the tab computes it from `state.forecast_vol` and labels it "not a recommendation", with no mandate colours. `lens_history.parquet` keeps it as an internal record.
+- **Evidence grade per emailed event.** Each event carries `evidence`: `established` (survives Holm), `supported` (BH only) or `suggestive` (neither), from `events.event_significance` run point-in-time on the same history as the event study. The email prints it under the event's track record. In the 2026-11-03 replay only `carry_flip` events graded above suggestive.
 - **Calm-state odds are floors.** Below 10%, P(dd>5%) renders as "≥" / "at least" (replay: ~4% predicted, ~9% realized).
 - **Lens failure alert** is separate from the collection-failure alert: "Risk Lens step failed; data collection succeeded".
 - Thresholds live in `config.RISK_LENS_*`. Re-run `python -m engine.insight.backtest --write` before changing any of them.

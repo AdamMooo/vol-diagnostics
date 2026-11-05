@@ -175,6 +175,69 @@ def event_study(panel: pd.DataFrame, events: pd.DataFrame, hist: pd.DataFrame | 
     return pd.DataFrame(out, columns=cols)
 
 
+def _thin(pos: np.ndarray, horizon: int) -> np.ndarray:
+    keep, last = [], -10**9
+    for i, p in enumerate(np.sort(pos)):
+        if p - last >= horizon:
+            keep.append(i)
+            last = p
+    return np.asarray(keep, dtype=int)
+
+
+def event_significance(events: pd.DataFrame, hist: pd.DataFrame) -> pd.DataFrame:
+    """Does each event's P(dd>5%) differ from the base rate, after correcting for testing
+    every (event, enter/exit) pair at once?
+
+    Each test uses only non-overlapping firings (thinned to one per 21-session window), so
+    the binomial test's independence assumption holds. Two-sided exact binomial vs the
+    unconditional rate, then Holm (family-wise) and Benjamini–Hochberg (FDR) at 5%."""
+    from scipy.stats import binomtest
+
+    h = config.RISK_LENS_HORIZON
+    known = hist.dropna(subset=["fwd_mdd"])
+    base = float((known["fwd_mdd"] < -0.05).mean())
+    rows = []
+    for (key, kind), grp in events.groupby(["key", "kind"]):
+        dates = known.index.intersection(pd.DatetimeIndex(grp["date"]))
+        if len(dates) == 0:
+            continue
+        pos = known.index.get_indexer(dates)
+        kept = np.sort(pos)[_thin(pos, h)]
+        hits = int((known["fwd_mdd"].iloc[kept] < -0.05).sum())
+        n = len(kept)
+        rows.append({"event": f"{key}:{kind}", "n_indep": n, "hits": hits,
+                     "p_dd5_indep": hits / n, "base_p_dd5": base,
+                     "p_value": float(binomtest(hits, n, base).pvalue)})
+    if not rows:   # no event has a closed forward window yet (early as-of dates)
+        return pd.DataFrame(columns=["event", "n_indep", "hits", "p_dd5_indep", "base_p_dd5",
+                                     "p_value", "p_holm", "p_bh", "survives_holm", "survives_bh"])
+    df = pd.DataFrame(rows).sort_values("p_value").reset_index(drop=True)
+    m = len(df)
+    p = df["p_value"].to_numpy()
+    holm = np.minimum(1, np.maximum.accumulate((m - np.arange(m)) * p))
+    bh = np.minimum(1, np.minimum.accumulate(((m / np.arange(1, m + 1)) * p)[::-1])[::-1])
+    df["p_holm"], df["p_bh"] = holm, bh
+    df["survives_holm"], df["survives_bh"] = holm < 0.05, bh < 0.05
+    return df
+
+
+EVIDENCE_LABELS = {
+    "established": "survives the strict multiple-testing check (Holm)",
+    "supported": "survives the false-discovery check (BH) but not the strict one",
+    "suggestive": "does not survive multiple-testing correction — treat the history as suggestive",
+}
+
+
+def evidence_by_event(sig: pd.DataFrame) -> dict[str, str]:
+    """'key:kind' → established | supported | suggestive. Events with no testable history
+    are absent (the email then says nothing rather than implying a grade)."""
+    if sig is None or sig.empty:
+        return {}
+    return {r["event"]: ("established" if r["survives_holm"] else
+                         "supported" if r["survives_bh"] else "suggestive")
+            for _, r in sig.iterrows()}
+
+
 def fires_per_year(events: pd.DataFrame, panel: pd.DataFrame) -> pd.Series:
     span_years = (panel.index[-1] - panel.index[0]).days / 365.25
     days_with_event = events["date"].nunique() / span_years
